@@ -1,0 +1,94 @@
+menu_title: '&6Shop'
+open_command: shop
+size: 54
+update_interval: 5
+inventory_type: chest
+open_requirement:
+  minimum_requirements: 1
+  requirements:
+    vip:
+      type: has permission
+      permission: 'shop.open'
+      optional: true
+    rich:
+      type: has money
+      amount: 100
+      deny_commands:
+      - '[message] &cYou need $100'
+open_commands:
+- '[sound] ENTITY_PLAYER_LEVELUP 1 2'
+close_commands:
+- '[message] Bye'
+items:
+  sword:
+    material: diamond_sword
+    slots:
+    - 0
+    - 2-4
+    priority: 1
+    amount: 2
+    dynamic_amount: '%player_level%'
+    display_name: '&bSword'
+    lore:
+    - '&7Sharp'
+    model_data: 7
+    rgb: '255, 128, 0'
+    update: true
+    unbreakable: true
+    hide_attributes: true
+    item_flags:
+    - HIDE_ENCHANTS
+    - HIDE_DESTROYS
+    potion_effects:
+    - 'FAST_DIGGING;200;1'
+    banner_meta:
+    - 'RED;BASE'
+    nbt_string: 'owner:menu'
+    nbt_ints:
+    - 'tier:3'
+    view_requirement:
+      requirements:
+        not_banned:
+          type: '!has permission'
+          permission: 'shop.banned'
+        has_gold:
+          type: has item
+          material: gold_ingot
+          amount: 5
+        rank:
+          type: string equals ignorecase
+          input: '%vault_rank%'
+          output: vip
+        level:
+          type: '>='
+          input: '%player_level%'
+          output: 10
+        name:
+          type: regex matches
+          input: '%player_name%'
+          regex: '[A-Z].*'
+        script:
+          type: javascript
+          expression: '%player_level% > 5'
+    left_click_commands:
+    - '[console] give %player_name% diamond_sword'
+    - '[message] <delay=20> Enjoy'
+    - '[broadcast] <chance=25%> Lucky'
+    - '[takemoney] 50'
+    - '[connect] hub'
+    - '[meta] set a b'
+    shift_left_click_commands:
+    - '[close]'
+    left_click_requirement:
+      requirements:
+        money:
+          type: has money
+          amount: 50
+          deny_commands:
+          - '[message] &cNot enough'
+  spawner:
+    material: monster_egg
+    entity_type: ZOMBIE
+    slot: 8
+  broken:
+    slot: 1

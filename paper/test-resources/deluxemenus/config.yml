@@ -1,0 +1,18 @@
+check_updates: false
+debug: false
+gui_menus:
+  Jobs:
+    file: jobs.yml
+  Shop:
+    file: shop.yml
+  Gone:
+    file: nope.yml
+  help:
+    menu_title: '&8Help'
+    open_command: help
+    size: 9
+    items:
+      info:
+        material: head-%player_name%
+        slot: 2
+        display_name: '&aInfo'

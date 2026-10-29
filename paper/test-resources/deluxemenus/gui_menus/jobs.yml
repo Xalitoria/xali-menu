@@ -1,0 +1,30 @@
+# Jobs menu in the style of an old server: numeric item ids and data values.
+menu_title: '&8Jobs'
+open_command:
+- jobs
+- jobs browse
+size: 27
+items:
+  '1':
+    material: 278
+    slot: 10
+    display_name: '&aMiner'
+    lore:
+    - '&7Mine ores for money'
+    left_click_commands:
+    - '[player] jobs join miner'
+    - '[close]'
+    right_click_commands:
+    - '[player] jobs leave miner'
+    - '[close]'
+  '2':
+    material: 35
+    data: 14
+    slot: 12
+    display_name: '&cBuilder'
+    enchantments:
+    - 'DAMAGE_ALL;2'
+    - 'silk_touch;1'
+    hide_enchantments: true
+    click_commands:
+    - '[openguimenu] Shop'
