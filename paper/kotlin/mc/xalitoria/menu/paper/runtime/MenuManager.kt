@@ -1,11 +1,14 @@
 package mc.xalitoria.menu.paper.runtime
 
 import com.typesafe.config.ConfigFactory
+import io.papermc.paper.registry.RegistryAccess
+import io.papermc.paper.registry.RegistryKey
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.io.path.isDirectory
 import kotlin.io.path.nameWithoutExtension
 import kotlin.time.Duration
 import mc.xalitoria.menu.paper.XaliMenu
+import mc.xalitoria.menu.api.model.Activator
 import mc.xalitoria.menu.api.model.Item
 import mc.xalitoria.menu.api.model.Menu
 import mc.xalitoria.menu.paper.XaliMenu.Companion.debug
@@ -14,6 +17,8 @@ import mc.xalitoria.menu.paper.format.MenuFormat
 import mc.xalitoria.menu.paper.util.verbatim
 import mc.xalitoria.util.message.*
 import org.bukkit.Bukkit
+import org.bukkit.Material
+import org.bukkit.NamespacedKey
 import org.bukkit.entity.Player
 import org.bukkit.event.inventory.InventoryType
 
@@ -44,6 +49,11 @@ class MenuManager(private val plugin: XaliMenu) {
     var isLoaded = false
         private set
     private val views = ConcurrentHashMap<java.util.UUID, MenuView>()
+
+    /** What the players can do to open the loaded menus: their `open-with`. */
+    @Volatile
+    var activators: ActivatorIndex = ActivatorIndex.EMPTY
+        private set
 
     val names: List<String> get() = loaded.keys.sorted()
 
@@ -92,6 +102,7 @@ class MenuManager(private val plugin: XaliMenu) {
         clearTextCache()
         plugin.heads.clear()
         loaded = found
+        activators = ActivatorIndex(found.mapValues { it.value.menu.openWith })
         isLoaded = true
         found.values.forEach(::check)
         return found.size
@@ -122,6 +133,13 @@ class MenuManager(private val plugin: XaliMenu) {
                 plugin.items.validate(item).forEach { problems += "pages.$label: $it" }
             }
         }
+        definition.openWith.forEachIndexed { number, activator ->
+            val label = "open-with ${number + 1}"
+            activatorProblems(activator).forEach { problems += "$label: $it" }
+            if (MenuArgs.bind(definition.args, activator.args) == null) {
+                problems += "$label: gives ${activator.args.size} words, but the menu's args are ${definition.args}"
+            }
+        }
         val actions = definition.onOpen + definition.onClose + (definition.items.values + listOfNotNull(definition.pages?.item, definition.pages?.empty)).flatMap { item ->
             val clicks = item.click
             listOfNotNull(clicks.any, clicks.left, clicks.right, clicks.shiftLeft, clicks.shiftRight, clicks.middle).flatMap { it.actions }
@@ -131,6 +149,29 @@ class MenuManager(private val plugin: XaliMenu) {
         }
         problems.forEach { plugin.logger warn "Menu '${entry.name}': $it" }
     }
+
+    /** What is wrong with [activator] that doesn't depend on who triggers it. */
+    private fun activatorProblems(activator: Activator): List<String> = buildList {
+        when (activator) {
+            is Activator.HeldItem -> {
+                if (activator.material == null && activator.name == null && activator.model == null) add("an item activator without material, name or model fires for every click with anything in hand")
+                activator.material?.let { if ('%' !in it && ItemFactory.material(it) == null) add("material '$it' isn't a known item") }
+            }
+            is Activator.Block -> {
+                if (activator.types.isEmpty() && activator.at == null) add("a block activator without types or at fires for every block")
+                activator.types.filterNot { it.startsWith("#") }.filter { Material.matchMaterial(key(it))?.isBlock != true }.forEach { add("'$it' isn't a block") }
+                activator.types.filter { it.startsWith("#") && NamespacedKey.fromString(key(it.removePrefix("#"))) == null }.forEach { add("'$it' isn't a tag") }
+            }
+            is Activator.Entity -> {
+                if (activator.types.isEmpty() && activator.name == null) add("an entity activator without types or name fires for every entity")
+                activator.types.filter { entityType(it) == null }.forEach { add("'$it' isn't an entity type") }
+            }
+            is Activator.Chat -> if (activator.text.isEmpty()) add("a chat activator with empty text")
+            is Activator.Join, is Activator.SwapHands -> Unit
+        }
+    }
+
+    private fun entityType(spec: String) = NamespacedKey.fromString(key(spec))?.let { RegistryAccess.registryAccess().getRegistry(RegistryKey.ENTITY_TYPE).get(it) }
 
     /**
      * Opens [name] for [player] on the next tick of the player's region. [args] are the words after the command; a menu

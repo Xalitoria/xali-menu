@@ -27,6 +27,7 @@ import mc.xalitoria.menu.paper.hook.Heads
 import mc.xalitoria.menu.paper.hook.ItemsAdderSource
 import mc.xalitoria.menu.paper.hook.NexoSource
 import mc.xalitoria.menu.paper.runtime.ActionRunner
+import mc.xalitoria.menu.paper.runtime.ActivatorListener
 import mc.xalitoria.menu.paper.runtime.ItemFactory
 import mc.xalitoria.menu.paper.runtime.MenuListener
 import mc.xalitoria.menu.paper.runtime.MenuManager
@@ -117,6 +118,7 @@ class XaliMenu : JavaPlugin() {
         val listener = PluginListener(this)
         pm.registerEvents(listener, this)
         pm.registerEvents(MenuListener(this), this)
+        pm.registerEvents(ActivatorListener(this), this)
         server.globalRegionScheduler.runDelayed(this, { if (!menus.isLoaded) listener.loadMenus() }, 40)
 
         lifecycleManager.registerEventHandler(LifecycleEvents.COMMANDS) { event ->

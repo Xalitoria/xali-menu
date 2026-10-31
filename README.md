@@ -153,6 +153,46 @@ catalogs, see [Extending](#extending).
   page that no longer exists, because the list got shorter, is replaced by the nearest.
 - **Empty.** `empty`, if set, is drawn in the first slot when the catalog has no element to list.
 
+### Opening a menu by what a player does
+
+Besides `commands`, a menu lists in `open-with` the things that open it. Each entry is an object whose `type` names it:
+
+**File** `plugins/XaliMenu/menus/hub.conf`
+
+```hocon
+open-with = [
+    { type = "item", material = "compass", click = "RIGHT", sneaking = false },
+    { type = "join", delay = 40 },
+    { type = "chat", text = "!shop", match = "STARTS_WITH", args = ["{message}"] },
+    { type = "block", types = ["#minecraft:buttons", "lever"], at { x = 12, y = 64, z = -3, world = "spawn" } },
+    { type = "entity", types = ["villager"], name = "&aShop" },
+    { type = "swap-hands", sneaking = true }
+]
+```
+
+| Type | Fires when | Keys | Values for `args` and gates |
+|---|---|---|---|
+| `item` | a player clicks with an item in hand | `material`, `name`, `model`, `click` (`LEFT`, `RIGHT`, `ANY`), `sneaking` | `{item}` |
+| `join` | a player joins | `delay` (ticks, default 20) | |
+| `chat` | a player says something that `text` matches | `text`, `match` (`EQUALS`, `EQUALS_IGNORE_CASE`, `CONTAINS`, `STARTS_WITH`, `REGEX`) | `{message}` |
+| `swap-hands` | a player presses the hand-swap key | `sneaking` | |
+| `block` | a player clicks, or steps on, a block | `types` (keys or `#tags`), `at` (`x`, `y`, `z`, `world`), `click` (`LEFT`, `RIGHT`, `ANY`, `PHYSICAL`), `sneaking` | `{block}`, `{world}`, `{x}`, `{y}`, `{z}` |
+| `entity` | a player right-clicks an entity | `types`, `name`, `sneaking` | `{entity}`, `{entity_name}` |
+
+Buttons, levers, signs and pressure plates are all `block`: name them in `types` or with a tag, and use `click =
+"PHYSICAL"` for stepping on a plate. Every entry also takes:
+
+- `require`, a gate that must hold for the menu to open. Its `deny` actions run when it doesn't.
+- `cancel` (default `true`; `false` for `join`), whether the event is canceled when the menu opens, so the lever is not
+  pulled and the message is not said. A `chat` entry cancels the message as soon as it matches, before the gate is asked,
+  since the chat is not on the player's own thread.
+- `args`, the words the menu gets for its `args`, which may use the values in the table.
+
+Entries of all the menus are tried in the order of the menus' names and then as written; the first that matches and whose
+gate holds opens its menu, and the rest are skipped. A player who has the menu open already does not get it opened again,
+so stepping on a plate does not flicker it. A `name` is compared without its colors. `/xmenu reload` takes effect at once;
+a mistake in an entry is reported with the menu's other problems when it is read.
+
 ### Variables
 
 Global and per-player values that menus keep between clicks and restarts. Names are case-insensitive. A change is in
@@ -323,7 +363,7 @@ commands exist is read from a quick scan of the files, so adding or removing one
 
 ### Not supported
 
-No animated menus and no WorldGuard-style activators (menus open by command only). The plan for closing the gap to AbstractMenus is [`PLAN.md`](PLAN.md). The item-count condition and the
+No animated menus, and no activators for regions (WorldGuard) or Citizens NPCs; an NPC that is an entity can be matched by `entity`. The plan for closing the gap to AbstractMenus is [`PLAN.md`](PLAN.md). The item-count condition and the
 economy, permission and skin hooks are not tested against a live server. The personal variables of every player are
 loaded at startup.
 
@@ -336,7 +376,7 @@ Sources are under `menu/<submodule>/kotlin`, tests under `menu/<submodule>/test`
 |---|---|
 | Built-in actions and conditions | `menu/paper/.../action/Actions.kt`, `condition/Conditions.kt` |
 | Menu schema and reading | `menu/api/.../model`, `menu/paper/.../format` |
-| Runtime: gates, items, clicks, paging | `menu/paper/.../runtime` |
+| Runtime: gates, items, clicks, paging, activators | `menu/paper/.../runtime` |
 | Catalogs | `menu/paper/.../catalog` |
 | Variables: stores and sync | `menu/paper/.../variable` |
 | Addon API implementation | `menu/paper/.../api` |

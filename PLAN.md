@@ -13,7 +13,7 @@ types in it. It does not aim for file compatibility with AM. It aims for the sam
 |---|---|---|
 | Menu kinds | simple, animated, generated (paged) | simple |
 | Paging | `GeneratedMenu`, catalogs, `pageNext` / `pagePrev` | step 1, below |
-| Activators | ~18 (command, click item / block / entity / NPC, join, chat, region, sign, lever, button, plate, swap items) | commands only |
+| Activators | ~18 (command, click item / block / entity / NPC, join, chat, region, sign, lever, button, plate, swap items) | step 2: commands, item, join, chat, swap-hands, block (sign, lever, button, plate), entity |
 | Actions | ~67 | 19 |
 | Rules | ~30 | 8 |
 | Item properties | ~34 | the common ones |
@@ -33,7 +33,7 @@ AM weaknesses that XaliMenu avoids on purpose:
 
 Each step ends with tests, the README section, and a commit.
 
-### 1. Paging and catalogs (done, not yet seen on a live server)
+### 1. Paging and catalogs (done, tested live)
 
 - `pages` in a menu: a catalog, the slots it fills, an item template, optional sort and an `empty` item.
 - Catalogs: `players`, `worlds`, `values`, `range`, and `XaliMenuApi.registerCatalog` for addons.
@@ -44,16 +44,23 @@ Each step ends with tests, the README section, and a commit.
 - Titles update while the menu is open (`{page}` and placeholders), through the deprecated but working
   `InventoryView.setTitle`, which resends the window with the new title. Sent only when the text changes.
   Titles are the usual component (color library, then MiniMessage) serialized to legacy text with hex kept.
+- Tested live on the dev server's Folia 26.2 with a mineflayer bot (see below): page contents, `{page}` on items,
+  the title following the page, element-bound clicks, `page` by / to last, and the join activator.
 - Covered by unit tests: the layout (`layoutPage`), the catalogs, the context scope, the `page` action, reading the menu
-  and external catalogs. **Not covered:** `MenuView.draw` and the click path against a real inventory. The dev server's
-  Folia 26.2 cannot be joined by mineflayer (it stops at 26.1), so that needs a real client or ViaVersion.
+  and external catalogs.
 
-### 2. Activators
+### 2. Activators (done, tested live)
 
-Menus open only by command today. Add an `open-with` section to a menu: `item` (right or left click with an item, by
-material, name or model), `join`, `chat` (exact or contains), `swap-hands`, `click-block` (by type or location),
-`click-entity` (by type or name), `region-enter` / `region-leave` (WorldGuard, soft), `sign`, plus the Citizens NPC
-click (soft). Every activator can carry a `require` gate and `actions`, and cancels the original event if asked to.
+- `open-with` in a menu: `item`, `join`, `chat`, `swap-hands`, `block` and `entity`, each with a `require` gate, `cancel`
+  and `args` that can use the event's values (`{message}`, `{block}`, ...).
+- One `block` type covers AM's click-block, sign, lever, button and plate: keys or `#tags`, a position, and `PHYSICAL`
+  for stepping on a block.
+- Matching is pure functions (`Activators.kt`) covered by unit tests. Live, with the bot: `chat` (exact, ignoring case,
+  canceled, and other messages left alone), `item` (right click opens, a swing does not), `swap-hands`, `join` and
+  `block` (a button at a position). Not tried live: `entity`, and `sneaking` / `require` gates.
+- Not done: `region-enter` / `region-leave` (WorldGuard, soft dependency) and the Citizens NPC click (soft). Both need
+  their plugins on the dev server. The DeluxeMenus importer could now carry `open_with_item` over as an `item` entry.
+- An addon API for activators (`registerActivator`) is open: activators are event-driven, so it needs a design of its own.
 
 ### 3. Menu kinds
 
@@ -85,4 +92,5 @@ NBT.
 - `/xmenu reload <menu>` for one menu, `/xmenu info <menu>`, tab completion of menu names everywhere.
 - `/xmenu validate`, which prints the problems of every menu without opening any.
 - A debug view that shows why an item was or wasn't drawn.
-- Tests against a live Folia build in the dev server for the parts the unit tests cannot reach.
+- Keep the bot-driven live test as a script in the repository. It needs mineflayer's 26.1 data patched to protocol 776
+  and the console on a named pipe, which today lives only in a scratch directory.
