@@ -11,7 +11,7 @@ types in it. It does not aim for file compatibility with AM. It aims for the sam
 
 | Area | AM | XaliMenu now |
 |---|---|---|
-| Menu kinds | simple, animated, generated (paged) | simple |
+| Menu kinds | simple, animated, generated (paged) | step 3: simple, animated, paged (with layouts) |
 | Paging | `GeneratedMenu`, catalogs, `pageNext` / `pagePrev` | step 1, below |
 | Activators | ~18 (command, click item / block / entity / NPC, join, chat, region, sign, lever, button, plate, swap items) | step 2: commands, item, join, chat, swap-hands, block (sign, lever, button, plate), entity |
 | Actions | ~67 | 19 |
@@ -62,12 +62,18 @@ Each step ends with tests, the README section, and a commit.
   their plugins on the dev server. The DeluxeMenus importer could now carry `open_with_item` over as an `item` entry.
 - An addon API for activators (`registerActivator`) is open: activators are event-driven, so it needs a design of its own.
 
-### 3. Menu kinds
+### 3. Menu kinds (done, tested live)
 
-- **Animated**: frames with an item set and a duration, `loop`, per-frame actions. Built on the view's draw, with one
-  repeating task per open view (as `refresh` already is).
-- **Matrix layouts** for paged menus (`layout = ["#########", "#.......#", ...]`) as an alternative to `slots`.
-- **Nested pages**: a catalog element can open another menu with the element as its argument.
+- **Animations**: `animation { loop, on-start, on-end, frames }`, each frame with `delay`, `clear`, `require`, `on-start`,
+  `on-end` and `items`. The frames are an overlay over the menu (`MenuView.overlay`) drawn first in `draw()`, and each frame
+  schedules the next on the player's region, so there is no polling loop. `FrameCursor` is the pure part and is tested.
+- **Layouts** for paged menus: `pages.layout` and `pages.cell` as an alternative to `slots`.
+- **Nested menus**: an element's values reach the template's `open` action as `{name}`, so no new code was needed; it
+  is documented and tested.
+- Tested live with the bot: frame timing (500 ms steps to within a tick), additive and clearing frames, the base item
+  coming back, `on-start` / `on-end`, a layout filling its cells over two pages, and an element opening a nested menu.
+- Not done: layouts for menus that are not paged (a legend of characters to items), which would make `items` shorter to
+  write.
 
 ### 4. Actions
 

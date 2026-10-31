@@ -33,6 +33,8 @@ data class Menu(
     val items: Map<String, Item> = emptyMap(),
     /** What a player can do to open the menu besides its [commands]. */
     val openWith: List<Activator> = [],
+    /** Frames that play over the menu once it is open. */
+    val animation: Animation? = null,
     /** Makes the menu list the elements of a catalog, a page at a time. */
     val pages: Pages? = null,
 )

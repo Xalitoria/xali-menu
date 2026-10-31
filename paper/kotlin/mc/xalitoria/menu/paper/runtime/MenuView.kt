@@ -4,6 +4,7 @@ import io.papermc.paper.threadedregions.scheduler.ScheduledTask
 import mc.xalitoria.menu.paper.XaliMenu
 import mc.xalitoria.menu.api.model.Item
 import mc.xalitoria.menu.api.model.Menu
+import mc.xalitoria.menu.api.model.Animation
 import mc.xalitoria.menu.api.model.Pages
 import mc.xalitoria.menu.paper.util.legacy
 import org.bukkit.entity.Player
@@ -29,6 +30,11 @@ class MenuView(
     private lateinit var shownElement: Array<Map<String, String>?>
     private lateinit var contexts: Array<Context?>
     private var refresh: ScheduledTask? = null
+
+    /** What the frames of the menu's animation have drawn so far, by slot, in the order the slot's items are tried. */
+    private var overlay: Map<Int, List<Pair<String, Item>>> = emptyMap()
+    private var animation: ScheduledTask? = null
+    private var cursor: FrameCursor? = null
 
     /** The page asked for, from 0; [draw] brings it back to a page that exists. */
     private var page = 0
@@ -99,10 +105,15 @@ class MenuView(
             }
         }
         for (slot in 0 until inventory.size) {
-            val entry = placed[slot]
+            // What a frame drew comes first, then the elements of the page, then the menu's own items.
+            val framed = overlay[slot]?.firstOrNull { it.second.view.passes(ctx, run = false) }?.second
+            val entry = if (framed == null) placed[slot] else null
             val chosen: Item?
             val slotCtx: Context
-            if (entry != null) {
+            if (framed != null) {
+                chosen = framed
+                slotCtx = ctx
+            } else if (entry != null) {
                 chosen = entry.item
                 slotCtx = entry.ctx
             } else {
@@ -160,12 +171,12 @@ class MenuView(
             catalogFailed = true
             emptyList()
         }
-        val layout = layoutPage(listed, pages.slots, pages.sort, pages.descending, page) { pages.item.view.passes(opened.with(it), run = false) }
+        val layout = layoutPage(listed, pages.listed(), pages.sort, pages.descending, page) { pages.item.view.passes(opened.with(it), run = false) }
         page = layout.state.page
         pageValues = layout.state.values()
         ctx = opened.with(pageValues)
 
-        if (layout.empty) return pages.empty?.let { mapOf(pages.slots.first() to Placed(it, ctx, null)) } ?: emptyMap()
+        if (layout.empty) return pages.empty?.let { mapOf(pages.listed().first() to Placed(it, ctx, null)) } ?: emptyMap()
         return layout.placed.associate { [slot, element] -> slot to Placed(pages.item, ctx.with(element), element) }
     }
 
@@ -192,8 +203,54 @@ class MenuView(
         refresh = player.scheduler.runAtFixedRate(plugin, { draw() }, null, ticks, ticks)
     }
 
-    fun stopRefresh() {
+    /**
+     * Starts the menu's animation, if it has one: its `on-start` runs, and the first frame plays after its delay. Each
+     * frame schedules the next one when it has played, so a frame comes when its delay is up and not at the next tick of
+     * a polling loop.
+     */
+    fun startAnimation() {
+        val animation = menu.animation ?: return
+        cursor = FrameCursor(animation.frames.size, animation.loop)
+        plugin.actions.run(animation.onStart, ctx)
+        schedule(animation, animation.frames.first().delay)
+    }
+
+    private fun schedule(animation: Animation, delay: kotlin.time.Duration) {
+        val ticks = (delay.inWholeMilliseconds / 50).coerceAtLeast(1)
+        this.animation = player.scheduler.runDelayed(plugin, { play(animation) }, null, ticks)
+    }
+
+    /** Plays the frame the cursor is at, then arranges for the next. */
+    private fun play(animation: Animation) {
+        val cursor = cursor ?: return
+        if (plugin.menus.view(player) !== this) return
+        val frame = animation.frames[cursor.index]
+        // A gate that fails only skips the frame; it is asked on every loop, so it runs no actions.
+        if (frame.require.passes(ctx, run = false)) {
+            plugin.actions.run(frame.onStart, ctx)
+            overlay = (if (frame.clear) emptyMap() else overlay) + slotted(frame.items)
+            draw()
+            plugin.actions.run(frame.onEnd, ctx)
+        }
+        when (cursor.advance()) {
+            FrameCursor.Step.ENDED -> {
+                plugin.actions.run(animation.onEnd, ctx)
+                return
+            }
+            FrameCursor.Step.WRAPPED -> {
+                overlay = emptyMap()
+                draw()
+            }
+            FrameCursor.Step.NEXT -> Unit
+        }
+        schedule(animation, animation.frames[cursor.index].delay)
+    }
+
+    /** Stops what runs on a schedule for this view: the refresh and the animation. */
+    fun stopTasks() {
         refresh?.cancel()
         refresh = null
+        animation?.cancel()
+        animation = null
     }
 }

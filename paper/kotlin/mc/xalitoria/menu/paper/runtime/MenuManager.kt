@@ -25,13 +25,16 @@ import org.bukkit.event.inventory.InventoryType
 /** A menu that has been read from its file, with its items sorted into the slots they claim. */
 class LoadedMenu(val name: String, val menu: Menu) {
     /** Per slot, the items claiming it with the lowest priority number first, equal ones by name (a file has no order). */
-    val bySlot: Map<Int, List<Pair<String, Item>>> = menu.items.entries
-        .flatMap { entry -> entry.value.allSlots().map { it to (entry.key to entry.value) } }
-        .groupBy({ it.first }, { it.second })
-        .mapValues { entry -> entry.value.sortedWith(compareBy({ it.second.priority }, { it.first })) }
+    val bySlot: Map<Int, List<Pair<String, Item>>> = slotted(menu.items)
 }
 
 private fun Item.allSlots(): List<Int> = listOfNotNull(slot) + slots
+
+/** [items] sorted into the slots they claim: per slot, lowest priority number first, equal ones by name (a file has no order). */
+fun slotted(items: Map<String, Item>): Map<Int, List<Pair<String, Item>>> = items.entries
+    .flatMap { entry -> entry.value.allSlots().map { it to (entry.key to entry.value) } }
+    .groupBy({ it.first }, { it.second })
+    .mapValues { entry -> entry.value.sortedWith(compareBy({ it.second.priority }, { it.first })) }
 
 /** The menus of `menus/`, and the players who have one open. */
 class MenuManager(private val plugin: XaliMenu) {
@@ -127,7 +130,8 @@ class MenuManager(private val plugin: XaliMenu) {
             plugin.items.validate(value).forEach { problems += "item '$key': $it" }
         }
         definition.pages?.let { pages ->
-            pages.slots.filter { definition.type == "chest" && it !in 0 until definition.size }.forEach { problems += "pages.slots has slot $it, outside the menu" }
+            pages.listed().filter { definition.type == "chest" && it !in 0 until definition.size }.forEach { problems += "pages has slot $it, outside the menu" }
+            if (pages.layout.size * 9 > definition.size && definition.type == "chest") problems += "pages.layout has ${pages.layout.size} rows, more than the menu"
             if (pages.item.slot != null || pages.item.slots.isNotEmpty()) problems += "the slot of the pages' item is not used; its place comes from pages.slots"
             (listOf("item" to pages.item) + listOfNotNull(pages.empty?.let { "empty" to it })).forEach { [label, item] ->
                 plugin.items.validate(item).forEach { problems += "pages.$label: $it" }
@@ -140,7 +144,17 @@ class MenuManager(private val plugin: XaliMenu) {
                 problems += "$label: gives ${activator.args.size} words, but the menu's args are ${definition.args}"
             }
         }
-        val actions = definition.onOpen + definition.onClose + (definition.items.values + listOfNotNull(definition.pages?.item, definition.pages?.empty)).flatMap { item ->
+        definition.animation?.frames?.forEachIndexed { number, frame ->
+            for ([key, item] in frame.items) {
+                if (item.allSlots().isEmpty()) problems += "frame ${number + 1}: item '$key' has no slot, so it is never shown"
+                if (definition.type == "chest") item.allSlots().filter { it !in 0 until definition.size }.forEach { problems += "frame ${number + 1}: item '$key' is in slot $it, outside the menu" }
+                plugin.items.validate(item).forEach { problems += "frame ${number + 1}: item '$key': $it" }
+            }
+        }
+        val frames = definition.animation?.frames.orEmpty()
+        val animated = frames.flatMap { it.items.values }
+        val actions = definition.onOpen + definition.onClose + frames.flatMap { it.onStart + it.onEnd } + definition.animation?.onStart.orEmpty() + definition.animation?.onEnd.orEmpty() +
+            (definition.items.values + animated + listOfNotNull(definition.pages?.item, definition.pages?.empty)).flatMap { item ->
             val clicks = item.click
             listOfNotNull(clicks.any, clicks.left, clicks.right, clicks.shiftLeft, clicks.shiftRight, clicks.middle).flatMap { it.actions }
         }
@@ -209,13 +223,14 @@ class MenuManager(private val plugin: XaliMenu) {
         view.draw()
 
         // Registered first, so closing the menu this player had open isn't taken for the end of this one.
-        views.put(player.uniqueId, view)?.stopRefresh()
+        views.put(player.uniqueId, view)?.stopTasks()
         if (player.openInventory(inventory) == null) {
             // Another plugin canceled it.
             views.remove(player.uniqueId, view)
             return
         }
         menu.refresh?.let { view.startRefresh(ticks(it)) }
+        view.startAnimation()
         debug("{0} opened {1}", player.name, target.name)
         plugin.actions.run(menu.onOpen, view.ctx)
     }
@@ -223,20 +238,20 @@ class MenuManager(private val plugin: XaliMenu) {
     /** The player closed [view], rather than it being replaced by another menu. */
     fun closed(player: Player, view: MenuView) {
         if (!views.remove(player.uniqueId, view)) return
-        view.stopRefresh()
+        view.stopTasks()
         plugin.actions.run(view.menu.onClose, view.ctx)
     }
 
     /** The player left; there is nobody to run the close actions for. */
     fun left(player: Player) {
-        views.remove(player.uniqueId)?.stopRefresh()
+        views.remove(player.uniqueId)?.stopTasks()
     }
 
     /** Closes every open menu, for when the plugin goes away. */
     fun closeAll() {
         for (id in views.keys.toList()) {
             val view = views.remove(id) ?: continue
-            view.stopRefresh()
+            view.stopTasks()
             runCatching { view.player.closeInventory() }
         }
     }

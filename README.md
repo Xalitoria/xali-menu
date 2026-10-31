@@ -148,10 +148,49 @@ catalogs, see [Extending](#extending).
   element *before* the elements are cut into pages, so all pages but the last are full.
 - **Slots.** The nth element of the page goes into the nth of `slots`. The template's own `slot` is not used. An item of the
   menu that claims a listed slot is drawn there on pages that have no element left for it.
+- **Layout.** `layout` instead of `slots` draws the menu as it looks: rows of nine characters, where every `cell`
+  character (`x` unless `cell` says otherwise) is a slot for an element, read left to right and top to bottom.
+  `layout = ["#########", "#xxxxxxx#", "#xxxxxxx#", "####x####"]` lists the two rows between the border and the middle
+  slot of the last row. The other characters only help to draw; put the border's items in `items`.
+- **Opening another menu.** The element's values are in scope for every action of the template, so
+  `click.left.actions = [{ type = "open", menu = "profile", args = ["{name}"] }]` opens the `profile` menu for the
+  clicked element (its `args = ["who"]` then names the word).
 - **Turning pages.** `{ type = "page", by = 1 }` turns forwards (`-1` back), `{ type = "page", to = "first" }` goes to
   `first`, `last` or a page number (which may be `{arg}` or a placeholder). The page stops at the first and last. A
   page that no longer exists, because the list got shorter, is replaced by the nearest.
 - **Empty.** `empty`, if set, is drawn in the first slot when the catalog has no element to list.
+
+### Animations
+
+`animation` plays frames over a menu once it is open. A frame waits for its `delay` (`500ms`, `1s`, `1m 30s`; a second
+unless said otherwise, a tick at the least), then draws its `items` on top of the menu. With `clear` (the default) what
+the frames before it drew goes first, so it replaces them; with `clear = false` its items are added.
+
+**File** `plugins/XaliMenu/menus/loading.conf`
+
+```hocon
+title = "&8Loading"
+size = 27
+items { frame { material = "gray_stained_glass_pane", slots = [0, 1, 2, 3, 4, 5, 6, 7, 8], name = " " } }
+animation {
+    loop = true
+    on-start = [{ type = "sound", sound = "block.note_block.pling" }]
+    frames = [
+        { delay = 300ms, items.dot { material = "lime_stained_glass_pane", slot = 11, name = "&a." } },
+        { delay = 300ms, clear = false, items.dot { material = "lime_stained_glass_pane", slot = 13, name = "&a.." } },
+        { delay = 300ms, clear = false, items.dot { material = "lime_stained_glass_pane", slot = 15, name = "&a..." } },
+        { delay = 600ms, require = { require = [{ condition { type = "permission", node = "loading.long" } }] }, items {} }
+    ]
+}
+```
+
+- `on-start` runs once the menu has opened, `on-end` when the last frame has played; neither for the frames of a loop, which
+  start again from the menu as it is, without what the frames had drawn. A frame also has `on-start` and `on-end`.
+- A frame whose `require` gate does not hold when it comes is skipped (its delay is still waited for, and no `deny` action
+  runs). A frame's item shows over the menu's item in its slot as long as the item's own `view` gate passes, and
+  its `click` actions work.
+- Each frame schedules the next when it has played, on the player's region, so timing is not tied to a refresh. It stops
+  when the menu closes.
 
 ### Opening a menu by what a player does
 
@@ -363,7 +402,7 @@ commands exist is read from a quick scan of the files, so adding or removing one
 
 ### Not supported
 
-No animated menus, and no activators for regions (WorldGuard) or Citizens NPCs; an NPC that is an entity can be matched by `entity`. The plan for closing the gap to AbstractMenus is [`PLAN.md`](PLAN.md). The item-count condition and the
+No activators for regions (WorldGuard) or Citizens NPCs; an NPC that is an entity can be matched by `entity`. The plan for closing the gap to AbstractMenus is [`PLAN.md`](PLAN.md). The item-count condition and the
 economy, permission and skin hooks are not tested against a live server. The personal variables of every player are
 loaded at startup.
 
@@ -376,7 +415,7 @@ Sources are under `menu/<submodule>/kotlin`, tests under `menu/<submodule>/test`
 |---|---|
 | Built-in actions and conditions | `menu/paper/.../action/Actions.kt`, `condition/Conditions.kt` |
 | Menu schema and reading | `menu/api/.../model`, `menu/paper/.../format` |
-| Runtime: gates, items, clicks, paging, activators | `menu/paper/.../runtime` |
+| Runtime: gates, items, clicks, paging, activators, animation | `menu/paper/.../runtime` |
 | Catalogs | `menu/paper/.../catalog` |
 | Variables: stores and sync | `menu/paper/.../variable` |
 | Addon API implementation | `menu/paper/.../api` |
