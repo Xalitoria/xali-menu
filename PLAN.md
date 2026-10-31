@@ -110,11 +110,20 @@ Each step ends with tests, the README section, and a commit.
   online, the four combinations, `chance` at both ends, a cooldown ending and a once-only one staying, and `variable-exists`.
 - Not tested live: `group` (needs a Vault permission provider). Not done: `region` (WorldGuard, soft), JavaScript.
 
-### 6. Item properties
+### 6. Item properties (done, tested live)
 
-Skull owner and texture variants, book, firework, shulker color, tropical fish, armor trims, `damage`, `custom-name`,
-`rarity`, glow, `max-stack-size`, food and tool components. Where Paper's data components cover it, use them rather than
-NBT.
+- New: `item-name`, `damage`, `rarity`, `glow`, `max-stack-size`, `hide-tooltip`, `item-model`, `food`, `stored-enchants`,
+  `potion-type`, `trim`, `book`, `firework` (rocket and star), `fish`. Paper's item meta where it covers a property and data
+  components for the rest (food, tooltip display). Shulker color is the material. Skull owner and texture were already the
+  `head:` and `texture:` materials.
+- A value that can't be used is reported when the menu is read (`validate`). An item that throws while it is built used to
+  take the whole menu's drawing down (found by a deliberately bad item, `damage = -3`); it is now a barrier, noted once, and
+  the values that Paper would refuse are held in range.
+- The DeluxeMenus importer maps `damage`, `rarity`, `hide_tooltip`, `enchantment_glint_override`, `trim_pattern` and
+  `trim_material` (by the names in its documentation; not tried against a DeluxeMenus server).
+- Tested live: the player data of a bot that was given every kind of item shows each component with the value written
+  (the server has no `/data` for entities on Folia, so the saved data was read instead).
+- Not done: the tool component (rules and speeds), attribute modifiers, tooltip styles, equippable.
 
 ### 7. Housekeeping
 

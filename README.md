@@ -92,6 +92,34 @@ drawn as a barrier. Menus are checked when they are read, but the checks do not 
 later. Money conditions and actions use VaultUnlocked (`currency` picks one when there are several). Permission actions
 use whatever provides Vault's `Permission`.
 
+### Item properties
+
+Besides `material`, `slot`, `slots`, `priority`, `amount`, `dynamic-amount`, `name`, `lore`, `enchants`, `hide`, `unbreakable`,
+`model` (custom model data), `color` (leather and the like), `banner`, `potion` (custom effects), `nbt`, `update`, `view`
+and `click`, an item takes the properties below. They work the same for the items of `give-item`. A property that does not
+fit the item (a `trim` on a stick) is left out, a value that cannot be used is reported when the menu is read, and an item that
+cannot be built at all is shown as a barrier and noted once in the log rather than breaking the menu.
+
+| Key | Does |
+|---|---|
+| `item-name` | The base name, plain and not italic; `name` is the renamed one and wins. |
+| `damage` | Durability used up. |
+| `rarity` | `COMMON`, `UNCOMMON`, `RARE` or `EPIC`, the color of the name. |
+| `glow` | `true` makes the item shimmer, `false` stops an enchanted item from shimmering. |
+| `max-stack-size` | 1 to 99. |
+| `hide-tooltip` | No tooltip at all. |
+| `item-model` | The key of a resource pack's model, such as `mypack:crown`. |
+| `food` | `nutrition`, `saturation`, `always-edible`: makes anything edible. |
+| `stored-enchants` | Enchantments kept in an enchanted book. |
+| `potion-type` | The base potion of a potion or arrow, such as `strong_healing`. |
+| `trim` | `pattern` and `material` of an armor trim, such as `coast` and `gold`. |
+| `book` | `pages` (text), `title` and `author` of a written book. |
+| `firework` | `power` (rockets), and `effects` with `type`, `colors`, `fade`, `flicker` and `trail`; a star shows the first. |
+| `fish` | `pattern`, `body-color` and `pattern-color` of a bucket of tropical fish. |
+
+Shulker boxes and the like need no key of their own: their color is part of the material (`blue_shulker_box`). The
+importer carries `damage`, `rarity`, `hide_tooltip`, `enchantment_glint_override` and the trim over from DeluxeMenus.
+
 ### Actions
 
 An action is `{ type = "...", ... }`. Text in them takes colors and placeholders, and `{name}` for the menu's arguments, the

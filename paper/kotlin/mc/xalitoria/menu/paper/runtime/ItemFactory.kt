@@ -4,20 +4,36 @@ import io.papermc.paper.datacomponent.DataComponentType
 import io.papermc.paper.datacomponent.DataComponentTypes
 import io.papermc.paper.datacomponent.item.CustomModelData
 import io.papermc.paper.datacomponent.item.DyedItemColor
+import io.papermc.paper.datacomponent.item.FoodProperties
 import io.papermc.paper.datacomponent.item.TooltipDisplay
 import io.papermc.paper.registry.RegistryAccess
 import io.papermc.paper.registry.RegistryKey
+import java.util.concurrent.ConcurrentHashMap
 import mc.xalitoria.menu.paper.XaliMenu
 import mc.xalitoria.menu.api.model.Item
+import mc.xalitoria.menu.api.model.Trim
 import net.kyori.adventure.key.Key
 import net.kyori.adventure.text.format.TextDecoration
 import org.bukkit.Bukkit
 import org.bukkit.Color
 import org.bukkit.DyeColor
+import org.bukkit.FireworkEffect
+import org.bukkit.NamespacedKey
 import org.bukkit.Material
 import org.bukkit.block.banner.Pattern
 import org.bukkit.inventory.ItemStack
+import org.bukkit.entity.TropicalFish
+import org.bukkit.inventory.ItemRarity
+import org.bukkit.inventory.meta.ArmorMeta
 import org.bukkit.inventory.meta.BannerMeta
+import org.bukkit.inventory.meta.BookMeta
+import org.bukkit.inventory.meta.Damageable
+import org.bukkit.inventory.meta.EnchantmentStorageMeta
+import org.bukkit.inventory.meta.FireworkEffectMeta
+import org.bukkit.inventory.meta.FireworkMeta
+import org.bukkit.inventory.meta.TropicalFishBucketMeta
+import org.bukkit.inventory.meta.trim.ArmorTrim
+import org.bukkit.potion.PotionType
 import org.bukkit.inventory.meta.PotionMeta
 import org.bukkit.potion.PotionEffect
 
@@ -27,7 +43,17 @@ class ItemFactory(private val plugin: XaliMenu) {
      * The stack for [item] as [ctx]'s player sees it. [loaded] is called later if part of it (a player's skin) had to be
      * fetched, so the caller can draw the slot again.
      */
-    fun build(item: Item, ctx: Context, loaded: () -> Unit = {}): ItemStack {
+    fun build(item: Item, ctx: Context, loaded: () -> Unit = {}): ItemStack = try {
+        construct(item, ctx, loaded)
+    } catch (e: RuntimeException) {
+        // One item that can't be made must not take the whole menu down with it; it shows as a barrier, and is noted once.
+        if (failed.add(e.toString())) plugin.logger.warning("Item '${item.material}' in menu '${ctx.menu}' could not be built: ${e.message}")
+        ItemStack(Material.BARRIER)
+    }
+
+    private val failed = ConcurrentHashMap.newKeySet<String>()
+
+    private fun construct(item: Item, ctx: Context, loaded: () -> Unit): ItemStack {
         val spec = ctx.parse(item.material)
         var stack = base(spec, loaded) ?: ItemStack(Material.BARRIER)
 
@@ -46,6 +72,30 @@ class ItemFactory(private val plugin: XaliMenu) {
                 val type = RegistryAccess.registryAccess().getRegistry(RegistryKey.BANNER_PATTERN).get(Key.key(layer.pattern))
                 if (color != null && type != null) meta.addPattern(Pattern(color, type))
             }
+            item.itemName?.let { meta.itemName(ctx.component(it)) }
+            item.damage?.let { if (meta is Damageable) meta.damage = it.coerceAtLeast(0) }
+            item.rarity?.let { meta.setRarity(ItemRarity.valueOf(it.name)) }
+            item.glow?.let { meta.setEnchantmentGlintOverride(it) }
+            item.maxStackSize?.let { meta.setMaxStackSize(it.coerceIn(1, 99)) }
+            item.itemModel?.let { key -> namespaced(key)?.let(meta::setItemModel) }
+            if (meta is EnchantmentStorageMeta) for ((key, value) in item.storedEnchants) enchantment(key)?.let { meta.addStoredEnchant(it, value, true) }
+            if (meta is ArmorMeta) item.trim?.let { trim -> armorTrim(trim)?.let(meta::setTrim) }
+            if (meta is BookMeta) item.book?.let { book ->
+                meta.title(ctx.component(book.title))
+                meta.author(ctx.component(book.author))
+                meta.addPages(*book.pages.map(ctx::component).toTypedArray())
+            }
+            if (meta is FireworkMeta) item.firework?.let { firework ->
+                meta.power = firework.power.coerceIn(0, 127)
+                firework.effects.mapNotNull(::burst).forEach(meta::addEffect)
+            }
+            if (meta is FireworkEffectMeta) item.firework?.effects?.firstNotNullOfOrNull(::burst)?.let(meta::setEffect)
+            if (meta is TropicalFishBucketMeta) item.fish?.let { fish ->
+                runCatching { TropicalFish.Pattern.valueOf(fish.pattern.uppercase()) }.getOrNull()?.let(meta::setPattern)
+                runCatching { DyeColor.valueOf(fish.bodyColor.uppercase()) }.getOrNull()?.let(meta::setBodyColor)
+                runCatching { DyeColor.valueOf(fish.patternColor.uppercase()) }.getOrNull()?.let(meta::setPatternColor)
+            }
+            if (meta is PotionMeta) item.potionType?.let { type -> potionType(type)?.let(meta::setBasePotionType) }
             if (meta is PotionMeta) for (effect in item.potion) {
                 RegistryAccess.registryAccess().getRegistry(RegistryKey.MOB_EFFECT).get(Key.key(effect.type))?.let {
                     meta.addCustomEffect(PotionEffect(it, effect.duration, effect.amplifier), true)
@@ -57,10 +107,11 @@ class ItemFactory(private val plugin: XaliMenu) {
             stack.setData(DataComponentTypes.CUSTOM_MODEL_DATA, CustomModelData.customModelData().addFloat(it.toFloat()).build())
         }
         item.color?.let { hex -> parseColor(hex)?.let { stack.setData(DataComponentTypes.DYED_COLOR, DyedItemColor.dyedItemColor(it)) } }
-        if (item.hide.isNotEmpty()) {
+        if (item.hide.isNotEmpty() || item.hideTooltip) {
             val hidden = item.hide.mapNotNull(::componentType).toTypedArray()
-            stack.setData(DataComponentTypes.TOOLTIP_DISPLAY, TooltipDisplay.tooltipDisplay().addHiddenComponents(*hidden).build())
+            stack.setData(DataComponentTypes.TOOLTIP_DISPLAY, TooltipDisplay.tooltipDisplay().hideTooltip(item.hideTooltip).addHiddenComponents(*hidden).build())
         }
+        item.food?.let { stack.setData(DataComponentTypes.FOOD, FoodProperties.food().nutrition(it.nutrition.coerceAtLeast(0)).saturation(it.saturation).canAlwaysEat(it.alwaysEdible).build()) }
         // `nbt` is raw SNBT; UnsafeValues is the only API that applies it.
         @Suppress("DEPRECATION")
         item.nbt?.let { snbt -> stack = Bukkit.getUnsafe().modifyItemStack(stack, "[custom_data=$snbt]") }
@@ -74,6 +125,22 @@ class ItemFactory(private val plugin: XaliMenu) {
         item.enchants.keys.filter { enchantment(it) == null }.forEach { problems += "enchantment '$it' doesn't exist" }
         item.hide.filter { componentType(it) == null }.forEach { problems += "'$it' isn't a data component to hide" }
         item.color?.let { if (parseColor(it) == null) problems += "color '$it' isn't #rrggbb" }
+        item.storedEnchants.keys.filter { enchantment(it) == null }.forEach { problems += "stored enchantment '$it' doesn't exist" }
+        item.itemModel?.let { if (namespaced(it) == null) problems += "item-model '$it' isn't a key" }
+        item.potionType?.let { if (potionType(it) == null) problems += "potion-type '$it' doesn't exist" }
+        item.trim?.let { if (armorTrim(it) == null) problems += "trim ${it.pattern} / ${it.material} doesn't exist" }
+        item.maxStackSize?.let { if (it !in 1..99) problems += "max-stack-size $it isn't between 1 and 99" }
+        item.damage?.let { if (it < 0) problems += "damage can't be negative" }
+        item.food?.let { if (it.nutrition < 0) problems += "food nutrition can't be negative" }
+        item.firework?.let { firework ->
+            if (firework.power !in 0..127) problems += "firework power ${firework.power} isn't between 0 and 127"
+            firework.effects.flatMap { it.colors + it.fade }.filter { parseColor(it) == null }.forEach { problems += "firework color '$it' isn't #rrggbb" }
+            firework.effects.filter { it.colors.isEmpty() }.forEach { _ -> problems += "a firework effect needs a color" }
+        }
+        item.fish?.let { fish ->
+            if (runCatching { TropicalFish.Pattern.valueOf(fish.pattern.uppercase()) }.isFailure) problems += "fish pattern '${fish.pattern}' doesn't exist"
+            listOf(fish.bodyColor, fish.patternColor).filter { runCatching { DyeColor.valueOf(it.uppercase()) }.isFailure }.forEach { problems += "fish color '$it' doesn't exist" }
+        }
         return problems
     }
 
@@ -94,6 +161,33 @@ class ItemFactory(private val plugin: XaliMenu) {
             Material.matchMaterial(spec.trim())?.takeIf { it.isItem && !it.isLegacy }
 
         fun enchantment(key: String) = RegistryAccess.registryAccess().getRegistry(RegistryKey.ENCHANTMENT).get(Key.key(key))
+
+        private fun namespaced(key: String): NamespacedKey? = NamespacedKey.fromString(key.trim().lowercase())
+
+        private fun potionType(key: String): PotionType? {
+            val id = namespaced(key) ?: return null
+            return RegistryAccess.registryAccess().getRegistry(RegistryKey.POTION).get(id)
+        }
+
+        private fun armorTrim(trim: Trim): ArmorTrim? {
+            val registry = RegistryAccess.registryAccess()
+            val pattern = namespaced(trim.pattern)?.let { registry.getRegistry(RegistryKey.TRIM_PATTERN).get(it) } ?: return null
+            val material = namespaced(trim.material)?.let { registry.getRegistry(RegistryKey.TRIM_MATERIAL).get(it) } ?: return null
+            return ArmorTrim(material, pattern)
+        }
+
+        /** The burst for [effect], or null if it has no color that can be read. */
+        private fun burst(effect: mc.xalitoria.menu.api.model.FireworkEffect): FireworkEffect? {
+            val colors = effect.colors.mapNotNull(::parseColor)
+            if (colors.isEmpty()) return null
+            return FireworkEffect.builder()
+                .with(FireworkEffect.Type.valueOf(effect.type.name))
+                .withColor(colors)
+                .withFade(effect.fade.mapNotNull(::parseColor))
+                .flicker(effect.flicker)
+                .trail(effect.trail)
+                .build()
+        }
 
         private fun componentType(key: String): DataComponentType? =
             RegistryAccess.registryAccess().getRegistry(RegistryKey.DATA_COMPONENT_TYPE).get(Key.key(key))

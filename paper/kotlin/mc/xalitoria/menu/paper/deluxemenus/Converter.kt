@@ -49,7 +49,8 @@ private val FLAGS = mapOf(
 private val ITEM_OPTIONS = [
     "material", "data", "slot", "slots", "priority", "update", "display_name", "name", "lore", "amount",
     "dynamic_amount", "model_data", "rgb", "enchantments", "banner_meta", "potion_effects", "unbreakable",
-    "item_flags", "entity_type", "entitytype", "view_requirement",
+    "item_flags", "entity_type", "entitytype", "view_requirement", "damage", "rarity", "hide_tooltip",
+    "enchantment_glint_override", "trim_material", "trim_pattern",
 ] + HIDES.keys
 
 private val CLICK_OPTIONS = ClickKind.entries.flatMap { [it.commands, it.requirement] }
@@ -136,6 +137,13 @@ private fun Context.convertItem(item: YamlMap): Item? {
         enchants = enchants(item),
         hide = hide.toList(),
         unbreakable = item.option("unbreakable").bool() ?: false,
+        damage = item.option("damage").int(),
+        rarity = item.option("rarity").text()?.let { name ->
+            Rarity.entries.firstOrNull { it.name.equals(name.trim(), ignoreCase = true) } ?: null.also { warn("rarity '$name' isn't one of COMMON, UNCOMMON, RARE, EPIC") }
+        },
+        hideTooltip = item.option("hide_tooltip").bool() ?: false,
+        glow = item.option("enchantment_glint_override").bool(),
+        trim = trim(item),
         model = item.option("model_data").int(),
         color = item.option("rgb").text()?.let(::color).also { if (item.option("rgb").text() != null && it == null) warn("rgb isn't three numbers") },
         banner = banner(item),
@@ -145,6 +153,17 @@ private fun Context.convertItem(item: YamlMap): Item? {
         view = at("view_requirement") { parseGate(item.option("view_requirement")) },
         click = clicks(item),
     )
+}
+
+private fun Context.trim(item: YamlMap): Trim? {
+    val pattern = item.option("trim_pattern").text()
+    val material = item.option("trim_material").text()
+    if (pattern == null && material == null) return null
+    if (pattern == null || material == null) {
+        warn("a trim needs both trim_pattern and trim_material, so it is ignored")
+        return null
+    }
+    return Trim(pattern.trim().lowercase(), material.trim().lowercase())
 }
 
 private fun Context.clicks(item: YamlMap): Clicks = ClickKind.entries.fold(Clicks()) { clicks, kind ->

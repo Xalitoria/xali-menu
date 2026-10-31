@@ -32,6 +32,28 @@ data class Item(
     val color: String? = null,
     val banner: List<BannerLayer> = [],
     val potion: List<PotionEffect> = [],
+    /** The base potion of a potion, tipped arrow or the like, such as `strong_healing`. */
+    val potionType: String? = null,
+    /** Enchantment key to level, kept in an enchanted book rather than put on the item. */
+    val storedEnchants: Map<String, Int> = emptyMap(),
+    /** How worn out the item is, in points of durability; the bar shows once it is more than 0. */
+    val damage: Int? = null,
+    /** The base name, which stays plain (not italic) and which renaming in an anvil replaces; [name] is the renamed one. */
+    val itemName: String? = null,
+    val rarity: Rarity? = null,
+    /** Whether the item shimmers like an enchanted one: true forces it, false takes it away from an enchanted item. */
+    val glow: Boolean? = null,
+    /** How many fit in a stack, 1 to 99. */
+    val maxStackSize: Int? = null,
+    /** Show no tooltip at all, not even the name. */
+    val hideTooltip: Boolean = false,
+    /** The key of the model resource packs give the item, such as `mypack:crown`. */
+    val itemModel: String? = null,
+    val food: Food? = null,
+    val trim: Trim? = null,
+    val book: Book? = null,
+    val firework: Firework? = null,
+    val fish: Fish? = null,
     /** Extra NBT as an SNBT compound, such as `{menu:"jobs",tier:3}`. */
     val nbt: String? = null,
     /** Draw this item again on every menu refresh, to keep its placeholders current. */
@@ -43,6 +65,40 @@ data class Item(
 /** A pattern on a banner. */
 @Serializable
 data class BannerLayer(val color: String, val pattern: String)
+
+enum class Rarity { COMMON, UNCOMMON, RARE, EPIC }
+
+/** An item that can be eaten, whatever it is made of. [saturation] is what is added to the player's, not a multiple. */
+@Serializable
+data class Food(val nutrition: Int, val saturation: Float = 0f, val alwaysEdible: Boolean = false)
+
+/** An armor trim: [pattern] and [material] are keys such as `coast` and `gold`. */
+@Serializable
+data class Trim(val pattern: String, val material: String)
+
+/** The text of a written book. A page is text like any other, with colors and placeholders. */
+@Serializable
+data class Book(val pages: List<String>, val title: String = "Book", val author: String = "")
+
+/** Firework rocket or star settings. A rocket flies for [power] (1 to 3) and bursts with every effect; a star shows the first. */
+@Serializable
+data class Firework(val effects: List<FireworkEffect> = [], val power: Int = 1)
+
+/** One burst. [colors] and [fade] are `#rrggbb`. */
+@Serializable
+data class FireworkEffect(
+    val type: FireworkType = FireworkType.BALL,
+    val colors: List<String>,
+    val fade: List<String> = [],
+    val flicker: Boolean = false,
+    val trail: Boolean = false,
+)
+
+enum class FireworkType { BALL, BALL_LARGE, STAR, BURST, CREEPER }
+
+/** A bucket of tropical fish: the look of the fish in it. Patterns are the names the game uses, such as `KOB` or `BRINELY`. */
+@Serializable
+data class Fish(val pattern: String, val bodyColor: String = "WHITE", val patternColor: String = "WHITE")
 
 /** [duration] is in ticks. */
 @Serializable

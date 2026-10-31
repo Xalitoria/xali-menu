@@ -35,6 +35,12 @@ items:
     rgb: '255, 128, 0'
     update: true
     unbreakable: true
+    damage: 12
+    rarity: epic
+    hide_tooltip: false
+    enchantment_glint_override: true
+    trim_pattern: Coast
+    trim_material: Gold
     hide_attributes: true
     item_flags:
     - HIDE_ENCHANTS

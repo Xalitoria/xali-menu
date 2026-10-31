@@ -79,6 +79,10 @@ class DeluxeMenusImporter {
         assertEquals("#ff8000", sword.color)
         assertTrue(sword.update && sword.unbreakable)
         assertEquals(["attribute_modifiers", "enchantments", "can_break"], sword.hide)
+        assertEquals(12, sword.damage)
+        assertEquals(Rarity.EPIC, sword.rarity)
+        assertEquals(true, sword.glow)
+        assertEquals(Trim("coast", "gold"), sword.trim)
         assertEquals([PotionEffect("haste", 200, 1)], sword.potion)
         assertEquals([BannerLayer("red", "base")], sword.banner)
         assertNotNull(sword.nbt).let {
