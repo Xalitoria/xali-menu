@@ -92,6 +92,65 @@ drawn as a barrier. Menus are checked when they are read, but the checks do not 
 later. Money conditions and actions use VaultUnlocked (`currency` picks one when there are several). Permission actions
 use whatever provides Vault's `Permission`.
 
+### Paged menus
+
+A menu with `pages` lists the elements of a **catalog** a page at a time, each drawn as the same item template into the
+slots named in `slots`. The `players` catalog gives the players who are online, one element each:
+
+**File** `plugins/XaliMenu/menus/players.conf`
+
+```hocon
+title = "&8Players"
+size = 54
+commands = ["players"]
+pages {
+    catalog { type = "players", include-self = false }
+    slots = [10, 11, 12, 13, 14, 15, 16, 19, 20, 21, 22, 23, 24, 25]
+    sort = "name"
+    item {
+        material = "head:{name}"
+        name = "&e{name}"
+        lore = ["&7#{index} of {total}"]
+        click.left.actions = [{ type = "player", command = "msg {name} hi" }]
+    }
+    empty { material = "barrier", name = "&cNobody is online" }
+}
+items {
+    next { material = "arrow", slot = 53, name = "&aPage {page_next}", click.any.actions = [{ type = "page", by = 1 }] }
+}
+```
+
+`example-pages.conf` is written on the first start.
+
+The title is fixed when the menu opens and is read before the first page is known, so it cannot show the page; put the
+numbers on an item, as the example does.
+
+| Catalog | Elements | Values |
+|---|---|---|
+| `players` | The players online, by name. `include-self = false` leaves the viewer out. | `name`, `uuid` |
+| `worlds` | The worlds of the server. | `name`, `environment` |
+| `values` | The entries of `list`, and the pieces of `text` cut at `separator` (read as written, not as a pattern; placeholders are filled in first). | `value` |
+| `range` | The whole numbers `from` to `to` (numbers or placeholders), `step` apart, backwards with `descending`. | `value` |
+
+Every element also has `index`, its place in the list from 1. A catalog gives at most 10 000 elements. Other plugins add
+catalogs, see [Extending](#extending).
+
+- **Values in text.** The values of the element are `{name}` in the template's `material`, `name`, `lore`, commands and
+  conditions, and in the gate of its clicks. They are cleaned like a menu's arguments (no `%`, no control characters).
+- **Page numbers.** `{page}` (from 1), `{pages}`, `{total}` (the elements), `{page_next}` and `{page_prev}` (this page at
+  the ends) are available in the text of every item of the menu, not just the template. Items that use them are drawn
+  again when the page changes. Other plugins get them as `%xalimenu_page%`, `%xalimenu_pages%`, `%xalimenu_total%`,
+  `%xalimenu_page_next%` and `%xalimenu_page_prev%` for the player's open menu.
+- **Sorting and filtering.** `sort` names a value to order by (numbers as numbers, otherwise text without regard to
+  case; `descending` turns it round). The template's `view` gate decides which elements are listed. It is applied to every
+  element *before* the elements are cut into pages, so all pages but the last are full.
+- **Slots.** The nth element of the page goes into the nth of `slots`. The template's own `slot` is not used. An item of the
+  menu that claims a listed slot is drawn there on pages that have no element left for it.
+- **Turning pages.** `{ type = "page", by = 1 }` turns forwards (`-1` back), `{ type = "page", to = "first" }` goes to
+  `first`, `last` or a page number (which may be `{arg}` or a placeholder). The page stops at the first and last. A
+  page that no longer exists, because the list got shorter, is replaced by the nearest.
+- **Empty.** `empty`, if set, is drawn in the first slot when the catalog has no element to list.
+
 ### Variables
 
 Global and per-player values that menus keep between clicks and restarts. Names are case-insensitive. A change is in
@@ -186,7 +245,7 @@ An addon adds its own action, condition or item source in `onEnable`. List XaliM
 (`join-classpath` on). Menus are read after every plugin has enabled, and again when one is disabled, so they are never
 read without what they use.
 
-An action or condition is a plain class plus a function that builds it from the keys written in the menu file. No
+An action, condition or catalog is a plain class plus a function that builds it from the keys written in the menu file. No
 serializer and no Kotlin type crosses into XaliMenu, so a plugin with its own copy of the Kotlin runtime (any plugin
 that uses the library loader) can register them, and so can a plugin written in Java. Compile against
 `compileOnly(project(":menu:api"))` or the jar.
@@ -202,6 +261,7 @@ class MyPlugin : JavaPlugin() {
         api.registerAction(this, "myplugin:reward") { settings -> Reward(settings.int("points", 1)) }   // { type = "myplugin:reward", points = 3 }
         api.registerCondition(this, "myplugin:lucky") { settings -> Lucky(settings.double("odds", 0.5)) }
         api.registerItemSource(this, MyItems)               // material = "myitems:ruby"
+        api.registerCatalog(this, "myplugin:homes") { Homes() }   // pages { catalog { type = "myplugin:homes" } ... }
     }
 }
 ```
@@ -215,7 +275,11 @@ Names are lower case, `plugin:name`. `Settings` reads the keys by kind (`string`
 the menu is then reported as broken with that message. Everything in `mc.xalitoria.menu.api` that an addon calls is made
 of JDK, Bukkit and Adventure types and the API's own: functions are `Runnable` and `UnaryOperator`, and there are
 overloads instead of default arguments. The test `menu/api/test/AddonSurface.kt` fails if a Kotlin type gets into a
-signature. Addon actions and conditions can be read from menu files but not written back by `/xmenu import`.
+signature. Addon actions, conditions and catalogs can be read from menu files but not written back by `/xmenu import`.
+
+A `Catalog` gives a paged menu its elements: `elements(ctx)` returns a list of maps of named strings, each map one
+element, and the menu's template uses the values as `{name}`. It is called on the viewer's region thread on every refresh
+of the menu, so it must be cheap.
 
 Actions run on the player's region thread (Folia); use `ctx.runLater` and `ctx.console` for anything that has to happen
 later or elsewhere. A list of actions runs in order, and a failing one is logged. `ctx.abort()` ends the list, for a step
@@ -257,7 +321,8 @@ commands exist is read from a quick scan of the files, so adding or removing one
 
 ### Not supported
 
-No animated or generated menus, no pagination and no WorldGuard-style activators. The item-count condition and the
+No animated menus and no WorldGuard-style activators (menus open by command only). The title of a paged menu cannot show the
+page. The plan for closing the gap to AbstractMenus is [`PLAN.md`](PLAN.md). The item-count condition and the
 economy, permission and skin hooks are not tested against a live server. The personal variables of every player are
 loaded at startup.
 
@@ -270,7 +335,8 @@ Sources are under `menu/<submodule>/kotlin`, tests under `menu/<submodule>/test`
 |---|---|
 | Built-in actions and conditions | `menu/paper/.../action/Actions.kt`, `condition/Conditions.kt` |
 | Menu schema and reading | `menu/api/.../model`, `menu/paper/.../format` |
-| Runtime: gates, items, clicks | `menu/paper/.../runtime` |
+| Runtime: gates, items, clicks, paging | `menu/paper/.../runtime` |
+| Catalogs | `menu/paper/.../catalog` |
 | Variables: stores and sync | `menu/paper/.../variable` |
 | Addon API implementation | `menu/paper/.../api` |
 | DeluxeMenus import | `menu/paper/.../deluxemenus`, free of the server API (`Materials` is an interface) |

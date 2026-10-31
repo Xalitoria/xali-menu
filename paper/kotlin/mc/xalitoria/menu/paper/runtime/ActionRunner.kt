@@ -33,6 +33,10 @@ class ActionRunner(private val plugin: XaliMenu) : Host {
     override fun refresh(player: Player) {
         plugin.menus.view(player)?.draw(force = true)
     }
+
+    override fun page(player: Player, relative: Boolean, value: Int) {
+        plugin.menus.view(player)?.turn(relative, value)
+    }
 }
 
 /**

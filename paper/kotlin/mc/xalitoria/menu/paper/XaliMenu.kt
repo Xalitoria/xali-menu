@@ -14,6 +14,7 @@ import mc.xalitoria.menu.api.XaliMenuApi
 import mc.xalitoria.menu.paper.action.Actions
 import mc.xalitoria.menu.paper.api.ApiImpl
 import mc.xalitoria.menu.paper.api.TypeRegistry
+import mc.xalitoria.menu.paper.catalog.Catalogs
 import mc.xalitoria.menu.paper.command.MenuCommand
 import mc.xalitoria.menu.paper.command.OpenCommands
 import mc.xalitoria.menu.paper.command.VariableCommand
@@ -94,6 +95,7 @@ class XaliMenu : JavaPlugin() {
         registry = TypeRegistry()
         Actions.register(registry)
         Conditions.register(registry)
+        Catalogs.register(registry)
         // Each is only made when its plugin is here, since making one loads that plugin's classes.
         if (pm.isPluginEnabled("ItemsAdder")) registry.addSource(null, ItemsAdderSource())
         if (pm.isPluginEnabled("Nexo")) registry.addSource(null, NexoSource())
@@ -148,12 +150,14 @@ class XaliMenu : JavaPlugin() {
         logger.pass(messageConfig.data.commands.reload.pass)
     }
 
-    /** The first start has no menus, so one is written to show the format. */
+    /** The first start has no menus, so two are written to show the format. */
     private fun saveExampleMenu() {
         val directory = dataPath.resolve("menus")
         if (directory.exists()) return
         directory.createDirectories()
-        getResource("example.conf")?.use { Files.copy(it, directory.resolve("example.conf")) }
+        for (example in listOf("example.conf", "example-pages.conf")) {
+            getResource(example)?.use { Files.copy(it, directory.resolve(example)) }
+        }
     }
 
     /** The messages file is named by the configuration, so a new language means a new file, not a reload of the old. */

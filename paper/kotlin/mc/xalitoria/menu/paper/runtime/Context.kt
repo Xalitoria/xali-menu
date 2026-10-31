@@ -31,27 +31,40 @@ interface Host {
     fun open(player: Player, menu: String, args: List<String>)
     fun close(player: Player)
     fun refresh(player: Player)
+
+    /** Moves the open menu's page by [delta] if [relative], otherwise to page [value] (from 1). */
+    fun page(player: Player, relative: Boolean, value: Int)
 }
 
-/** The [MenuContext] of the plugin: the [player] viewing a [menu], and the [args] typed after its command. */
+/**
+ * The [MenuContext] of the plugin: the [player] viewing a [menu], and the [args] typed after its command. [scope] holds the
+ * values that go into `{name}` besides the args: the page of a paged menu, and the element being drawn.
+ */
 class Context(
     override val player: Player,
     override val menu: String? = null,
     override val args: Map<String, String> = emptyMap(),
     private val host: Host,
+    private val scope: Map<String, String> = emptyMap(),
 ) : MenuContext {
+    /** What `{name}` is filled in from; the more local a value, the more it counts. */
+    private val values: Map<String, String> = if (scope.isEmpty()) args else args + scope
+
+    /** This context with [more] values in scope, such as the element of a paged menu that a slot shows. */
+    fun with(more: Map<String, String>): Context = if (more.isEmpty()) this else Context(player, menu, args, host, scope + more)
+
     override fun parse(text: String): String = parse(text, UnaryOperator.identity<String>())
 
     override fun parse(text: String, escape: UnaryOperator<String>): String {
         // One pass, so an argument that looks like another's `{name}` stays as typed.
-        val result = if (args.isEmpty() || '{' !in text) text
-        else ARGUMENT.replace(text) { match -> args[match.groupValues[1]]?.let { escape.apply(clean(it)) } ?: match.value }
+        val result = if (values.isEmpty() || '{' !in text) text
+        else ARGUMENT.replace(text) { match -> values[match.groupValues[1]]?.let { escape.apply(clean(it)) } ?: match.value }
         return if ('%' in result) Placeholders.resolver(player, result) else result
     }
 
     /** The result of a text that can't change (no placeholder, no argument) is kept. */
     override fun component(text: String): Component =
-        if ('%' in text || args.isNotEmpty() && '{' in text) parse(text, UnaryOperator<String> { it.verbatim() }).toComponent()
+        if ('%' in text || values.isNotEmpty() && '{' in text) parse(text, UnaryOperator<String> { it.verbatim() }).toComponent()
         else STATIC.computeIfAbsent(text) { it.toComponent() }
 
     /** An argument is typed by a player: it must not be able to start a placeholder, or put a line break in a command. */
@@ -72,4 +85,8 @@ class Context(
     override fun close() = host.close(player)
 
     override fun refresh() = host.refresh(player)
+
+    override fun pageBy(delta: Int) = host.page(player, relative = true, delta)
+
+    override fun pageTo(page: Int) = host.page(player, relative = false, page)
 }

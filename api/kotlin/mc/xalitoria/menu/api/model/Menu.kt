@@ -31,4 +31,6 @@ data class Menu(
     val onOpen: List<Action> = [],
     val onClose: List<Action> = [],
     val items: Map<String, Item> = emptyMap(),
+    /** Makes the menu list the elements of a catalog, a page at a time. */
+    val pages: Pages? = null,
 )

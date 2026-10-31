@@ -30,8 +30,9 @@ class MenuListener(private val plugin: XaliMenu) : Listener {
 
         val item = view.itemAt(event.slot) ?: return
         val handler = handler(item, event.click) ?: return
-        if (!handler.require.passes(view.ctx, run = true)) return
-        plugin.actions.run(handler.actions, view.ctx)
+        val ctx = view.contextAt(event.slot)
+        if (!handler.require.passes(ctx, run = true)) return
+        plugin.actions.run(handler.actions, ctx)
     }
 
     /** The handler for this kind of click, or the one for any click when the item has none of its own. */

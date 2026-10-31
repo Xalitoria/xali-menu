@@ -37,6 +37,7 @@ object Actions {
         registry.action<Open>()
         registry.action<Close>()
         registry.action<Refresh>()
+        registry.action<Page>()
         registry.action<Connect>()
         registry.action<Money>()
         registry.action<Experience>()
@@ -111,6 +112,26 @@ object Actions {
     @Serializable @SerialName("refresh")
     data object Refresh : Action {
         override fun run(ctx: MenuContext) = ctx.refresh()
+    }
+
+    /**
+     * Turns the pages of a paged menu: [by] pages forward (negative: back), or [to] page `first`, `last` or a number from 1,
+     * which may be a placeholder or `{name}` argument. It stops at the first and the last page. One of the two is needed.
+     */
+    @Serializable @SerialName("page")
+    data class Page(val by: Int? = null, val to: String? = null) : Action {
+        init {
+            require((by == null) != (to == null)) { "page takes either 'by' or 'to'" }
+        }
+
+        override fun run(ctx: MenuContext) {
+            if (by != null) return ctx.pageBy(by)
+            when (val target = ctx.parse(to!!).trim().lowercase()) {
+                "first" -> ctx.pageTo(1)
+                "last" -> ctx.pageTo(Int.MAX_VALUE)
+                else -> ctx.pageTo(target.toIntOrNull() ?: throw IllegalArgumentException("'$target' isn't a page"))
+            }
+        }
     }
 
     /** Sends the viewer to another server of the proxy. */

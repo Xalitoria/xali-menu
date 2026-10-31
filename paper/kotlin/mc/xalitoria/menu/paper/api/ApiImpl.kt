@@ -1,6 +1,7 @@
 package mc.xalitoria.menu.paper.api
 
 import mc.xalitoria.menu.api.ActionType
+import mc.xalitoria.menu.api.CatalogType
 import mc.xalitoria.menu.api.ConditionType
 import mc.xalitoria.menu.api.ItemSource
 import mc.xalitoria.menu.api.Variables
@@ -22,6 +23,8 @@ class ApiImpl(private val plugin: XaliMenu) : XaliMenuApi {
     override fun registerAction(owner: Plugin, name: String, type: ActionType) = plugin.registry.addAction(owner, name, type)
 
     override fun registerCondition(owner: Plugin, name: String, type: ConditionType) = plugin.registry.addCondition(owner, name, type)
+
+    override fun registerCatalog(owner: Plugin, name: String, type: CatalogType) = plugin.registry.addCatalog(owner, name, type)
 
     override fun registerItemSource(owner: Plugin, source: ItemSource) = plugin.registry.addSource(owner, source)
 }

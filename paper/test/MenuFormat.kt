@@ -57,6 +57,17 @@ class MenuFormat {
 
 class ExampleMenu {
     @Test
+    fun theBundledPagedExampleReads() {
+        val menu = Registry.format.decode(javaClass.getResource("/example-pages.conf")!!.readText())
+        val pages = menu.pages!!
+        assertEquals(mc.xalitoria.menu.paper.catalog.Catalogs.Players(), pages.catalog)
+        assertEquals(28, pages.slots.size)
+        assertTrue(pages.slots.all { it in 0 until menu.size }, "every slot is inside the menu")
+        assertTrue(pages.slots.none { it in menu.items.values.flatMap { item -> listOfNotNull(item.slot) } }, "no button sits on a listed slot")
+        assertEquals(setOf("prev", "info", "next"), menu.items.keys)
+    }
+
+    @Test
     fun theBundledExampleReads() {
         val menu = Registry.format.decode(javaClass.getResource("/example.conf")!!.readText())
         assertEquals(["xmenu-example"], menu.commands)

@@ -19,6 +19,7 @@ class Abort {
         override fun open(player: Player, menu: String, args: List<String>) = Unit
         override fun close(player: Player) = Unit
         override fun refresh(player: Player) = Unit
+        override fun page(player: Player, relative: Boolean, value: Int) = Unit
     }
 
     private val ctx = Context(Proxy.newProxyInstance(Player::class.java.classLoader, arrayOf(Player::class.java)) { _, _, _ -> null } as Player, "test", emptyMap(), host)

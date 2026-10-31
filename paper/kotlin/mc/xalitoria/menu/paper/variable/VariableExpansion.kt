@@ -6,6 +6,7 @@ import mc.xalitoria.menu.api.Scope
 import mc.xalitoria.menu.api.Variable
 import mc.xalitoria.menu.paper.XaliMenu
 import org.bukkit.OfflinePlayer
+import org.bukkit.entity.Player
 import java.time.Duration
 import java.time.Instant
 
@@ -14,6 +15,10 @@ import java.time.Instant
  * - `%xalimenu_var_<name>%` a global variable, and `%xalimenu_varp_<name>%` the personal one of the player the text is for;
  * - `%xalimenu_vart_<name>%` and `%xalimenu_varpt_<name>%` the time they have left, such as `1h 2m 3s`, or `0s` if they
  *   don't expire (or don't exist).
+ *
+ * - `%xalimenu_page%`, `%xalimenu_pages%`, `%xalimenu_total%`, `%xalimenu_page_next%` and `%xalimenu_page_prev%` for the
+ *   player's open menu, when it is paged: the page (from 1), the number of pages, the number of elements, and the pages
+ *   after and before this one (this one at the ends).
  *
  * `:<default>` after the name is what is shown if there is no such variable, `%xalimenu_var_coins:0%`. While the store the
  * variable lives in isn't loaded yet (the shared database is still being connected to) the placeholder isn't answered at
@@ -30,6 +35,7 @@ class VariableExpansion(private val plugin: XaliMenu) : PlaceholderExpansion() {
     override fun persist() = true
 
     override fun onRequest(player: OfflinePlayer?, params: String): String? {
+        if (params in PAGE_VALUES) return (player as? Player)?.let { plugin.menus.view(it) }?.pageValues?.get(params)
         val kind = params.substringBefore('_')
         val rest = params.substringAfter('_', "")
         if (rest.isEmpty()) return null
@@ -47,6 +53,10 @@ class VariableExpansion(private val plugin: XaliMenu) : PlaceholderExpansion() {
             "var", "varp" -> variable?.value ?: default
             else -> if (variable == null) default.ifEmpty { "0s" } else remaining(variable)
         }
+    }
+
+    private companion object {
+        val PAGE_VALUES = setOf("page", "pages", "total", "page_next", "page_prev")
     }
 
     private fun remaining(variable: Variable): String {

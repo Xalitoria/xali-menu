@@ -61,4 +61,13 @@ interface MenuContext {
 
     /** Draws the player's open menu again. */
     fun refresh()
+
+    /**
+     * Turns the pages of the player's open menu by [delta], forwards if it is positive. It stops at the first and the last
+     * page. Nothing happens if the menu has no `pages`.
+     */
+    fun pageBy(delta: Int)
+
+    /** Shows page [page] (the first is 1) of the player's open menu, or the nearest page there is. */
+    fun pageTo(page: Int)
 }

@@ -21,6 +21,7 @@ class Arguments {
         override fun open(player: Player, menu: String, args: List<String>) = Unit
         override fun close(player: Player) = Unit
         override fun refresh(player: Player) = Unit
+        override fun page(player: Player, relative: Boolean, value: Int) = Unit
     }
 
     private fun ctx(vararg args: Pair<String, String>): Context {

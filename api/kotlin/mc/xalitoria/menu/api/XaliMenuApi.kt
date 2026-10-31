@@ -35,6 +35,9 @@ interface XaliMenuApi {
     /** Adds a condition type, named and built the same way as an action's. */
     fun registerCondition(owner: Plugin, name: String, type: ConditionType)
 
+    /** Adds a catalog type for paged menus, named and built the same way as an action's. */
+    fun registerCatalog(owner: Plugin, name: String, type: CatalogType)
+
     fun registerItemSource(owner: Plugin, source: ItemSource)
 
     companion object {

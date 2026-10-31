@@ -1,5 +1,6 @@
 import mc.xalitoria.menu.paper.action.Actions
 import mc.xalitoria.menu.paper.api.TypeRegistry
+import mc.xalitoria.menu.paper.catalog.Catalogs
 import mc.xalitoria.menu.paper.condition.Conditions
 import mc.xalitoria.menu.paper.format.MenuFormat
 
@@ -8,6 +9,7 @@ object Registry {
     val registry = TypeRegistry().also {
         Actions.register(it)
         Conditions.register(it)
+        Catalogs.register(it)
     }
 
     val format = MenuFormat(registry.module)

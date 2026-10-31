@@ -13,3 +13,8 @@ fun interface ActionType {
 fun interface ConditionType {
     fun create(settings: Settings): Condition
 }
+
+/** The same for a [Catalog], registered with [XaliMenuApi.registerCatalog]: `{ type = "myplugin:homes" }` calls [create]. */
+fun interface CatalogType {
+    fun create(settings: Settings): Catalog
+}

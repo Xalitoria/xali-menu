@@ -9,6 +9,8 @@ import kotlinx.serialization.modules.SerializersModule
 import kotlinx.serialization.modules.polymorphic
 import kotlinx.serialization.serializer
 import mc.xalitoria.menu.api.Action
+import mc.xalitoria.menu.api.Catalog
+import mc.xalitoria.menu.api.CatalogType
 import mc.xalitoria.menu.api.ActionType
 import mc.xalitoria.menu.api.Condition
 import mc.xalitoria.menu.api.ConditionType
@@ -33,14 +35,16 @@ class TypeRegistry {
     private val conditions = CopyOnWriteArrayList<Type<Condition>>()
     private val externalActions = CopyOnWriteArrayList<External<Action>>()
     private val externalConditions = CopyOnWriteArrayList<External<Condition>>()
+    private val catalogs = CopyOnWriteArrayList<Type<Catalog>>()
+    private val externalCatalogs = CopyOnWriteArrayList<External<Catalog>>()
     private val itemSources = ConcurrentHashMap<String, Source>()
 
     @Volatile
     var module: SerializersModule = build()
         private set
 
-    /** The names (`plugin:name`) of the actions and conditions other plugins added: the `type`s that need [packExternals][mc.xalitoria.menu.paper.format.packExternals]. */
-    val externalNames: Set<String> get() = (externalActions + externalConditions).mapTo(HashSet()) { it.name }
+    /** The names (`plugin:name`) of the actions, conditions and catalogs other plugins added: the `type`s that need [packExternals][mc.xalitoria.menu.paper.format.packExternals]. */
+    val externalNames: Set<String> get() = (externalActions + externalConditions + externalCatalogs).mapTo(HashSet()) { it.name }
 
     /** The item sources by prefix. */
     val sources: Map<String, ItemSource> get() = itemSources.mapValues { it.value.source }
@@ -53,6 +57,10 @@ class TypeRegistry {
         add(conditions, Type(owner, type, serializer))
     }
 
+    fun <T : Catalog> addCatalog(owner: Plugin?, type: KClass<T>, serializer: KSerializer<T>) {
+        add(catalogs, Type(owner, type, serializer))
+    }
+
     /** Adds the action [name] of the plugin [owner]; [type] builds it from the keys written in the menu file. */
     fun addAction(owner: Plugin, name: String, type: ActionType) {
         addExternal(externalActions, owner, name, ExternalSerializer(name, type::create))
@@ -60,6 +68,10 @@ class TypeRegistry {
 
     fun addCondition(owner: Plugin, name: String, type: ConditionType) {
         addExternal(externalConditions, owner, name, ExternalSerializer(name, type::create))
+    }
+
+    fun addCatalog(owner: Plugin, name: String, type: CatalogType) {
+        addExternal(externalCatalogs, owner, name, ExternalSerializer(name, type::create))
     }
 
     private fun <B : Any> addExternal(list: CopyOnWriteArrayList<External<B>>, owner: Plugin, name: String, serializer: DeserializationStrategy<B>) {
@@ -74,6 +86,8 @@ class TypeRegistry {
 
     inline fun <reified T : Condition> condition() = addCondition(null, T::class, serializer<T>())
 
+    inline fun <reified T : Catalog> catalog() = addCatalog(null, T::class, serializer<T>())
+
     fun addSource(owner: Plugin?, source: ItemSource) {
         val prefix = source.prefix.lowercase()
         require(itemSources.putIfAbsent(prefix, Source(owner, source)) == null) { "There is already an item source '$prefix'" }
@@ -82,7 +96,8 @@ class TypeRegistry {
     /** Takes away everything [owner] added. @return whether there was anything */
     fun removeAll(owner: Plugin): Boolean {
         val removed = actions.removeIf { it.owner == owner } or conditions.removeIf { it.owner == owner } or
-            externalActions.removeIf { it.owner == owner } or externalConditions.removeIf { it.owner == owner } or
+            catalogs.removeIf { it.owner == owner } or externalActions.removeIf { it.owner == owner } or
+            externalConditions.removeIf { it.owner == owner } or externalCatalogs.removeIf { it.owner == owner } or
             itemSources.values.removeIf { it.owner == owner }
         if (removed) module = build()
         return removed
@@ -90,7 +105,7 @@ class TypeRegistry {
 
     @Suppress("UNCHECKED_CAST")
     private fun <B : Any> add(list: CopyOnWriteArrayList<Type<B>>, type: Type<out B>) {
-        // Actions and conditions are read apart, so `permission` can be both.
+        // Actions, conditions and catalogs are read apart, so `permission` can be both.
         require(list.none { it.name == type.name }) { "There is already a '${type.name}' of that kind" }
         list += type as Type<B>
         module = build()
@@ -105,6 +120,10 @@ class TypeRegistry {
         polymorphic(Condition::class) {
             for (entry in conditions) subclass(entry.type as KClass<Condition>, entry.serializer as KSerializer<Condition>)
             defaultDeserializer { name -> externalConditions.firstOrNull { it.name == name }?.serializer }
+        }
+        polymorphic(Catalog::class) {
+            for (entry in catalogs) subclass(entry.type as KClass<Catalog>, entry.serializer as KSerializer<Catalog>)
+            defaultDeserializer { name -> externalCatalogs.firstOrNull { it.name == name }?.serializer }
         }
     }
 

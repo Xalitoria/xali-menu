@@ -115,7 +115,14 @@ class MenuManager(private val plugin: XaliMenu) {
             }
             plugin.items.validate(value).forEach { problems += "item '$key': $it" }
         }
-        val actions = definition.onOpen + definition.onClose + definition.items.values.flatMap { item ->
+        definition.pages?.let { pages ->
+            pages.slots.filter { definition.type == "chest" && it !in 0 until definition.size }.forEach { problems += "pages.slots has slot $it, outside the menu" }
+            if (pages.item.slot != null || pages.item.slots.isNotEmpty()) problems += "the slot of the pages' item is not used; its place comes from pages.slots"
+            (listOf("item" to pages.item) + listOfNotNull(pages.empty?.let { "empty" to it })).forEach { [label, item] ->
+                plugin.items.validate(item).forEach { problems += "pages.$label: $it" }
+            }
+        }
+        val actions = definition.onOpen + definition.onClose + (definition.items.values + listOfNotNull(definition.pages?.item, definition.pages?.empty)).flatMap { item ->
             val clicks = item.click
             listOfNotNull(clicks.any, clicks.left, clicks.right, clicks.shiftLeft, clicks.shiftRight, clicks.middle).flatMap { it.actions }
         }
@@ -168,7 +175,7 @@ class MenuManager(private val plugin: XaliMenu) {
         }
         menu.refresh?.let { view.startRefresh(ticks(it)) }
         debug("{0} opened {1}", player.name, target.name)
-        plugin.actions.run(menu.onOpen, ctx)
+        plugin.actions.run(menu.onOpen, view.ctx)
     }
 
     /** The player closed [view], rather than it being replaced by another menu. */
