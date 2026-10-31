@@ -85,6 +85,30 @@ class MenuView(
     /** The item that is in [slot] now, if there is one. */
     fun itemAt(slot: Int): Item? = shown.getOrNull(slot)
 
+    /**
+     * Why each slot shows what it shows, one line per thing to say: the items that claim it, which of them is drawn, and for
+     * each the checks of its `view` gate. A slot that nothing claims is left out.
+     */
+    fun inspect(): List<String> = buildList {
+        for (slot in 0 until inventory.size) {
+            val candidates = overlay[slot].orEmpty().map { "frame" to it } + bySlot[slot].orEmpty().map { "menu" to it }
+            val element = shownElement[slot]
+            if (candidates.isEmpty() && element == null) continue
+            val drawn = shown[slot]
+            add("slot $slot: " + when {
+                drawn == null -> "empty"
+                element != null -> "an element of the pages ${element.entries.joinToString { it.key + "=" + it.value }}"
+                else -> "'" + (candidates.firstOrNull { it.second.second === drawn }?.second?.first ?: "?") + "'"
+            })
+            for ([source, candidate] in candidates) {
+                val [key, item] = candidate
+                val passes = item.view.passes(ctx, run = false)
+                add("  $source '$key' (priority ${item.priority}): view ${if (passes) "passes" else "does not pass"}${if (drawn === item) ", drawn" else ""}")
+                item.view.explain(ctx).forEach { add("    $it") }
+            }
+        }
+    }
+
     /** What a click in [slot] runs against: the context of the element the slot shows, or the menu's own. */
     fun contextAt(slot: Int): Context = contexts.getOrNull(slot) ?: ctx
 

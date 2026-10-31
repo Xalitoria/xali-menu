@@ -33,3 +33,12 @@ fun Gate?.passes(ctx: MenuContext, run: Boolean): Boolean {
     if (run) ctx.run(if (ok) pass else deny)
     return ok
 }
+
+/**
+ * How each check of this gate comes out for [ctx]'s player, for a person working out why something is or isn't shown.
+ * Nothing is run. A gate that is not there has no checks.
+ */
+fun Gate?.explain(ctx: MenuContext): List<String> = this?.require.orEmpty().map { check ->
+    val result = if (check.condition.test(ctx)) "holds" else "FAILS"
+    "$result${if (check.optional) " (optional)" else ""}: ${check.condition}"
+}

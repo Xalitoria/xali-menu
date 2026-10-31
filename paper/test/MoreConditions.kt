@@ -14,6 +14,7 @@ import mc.xalitoria.menu.paper.condition.PlayerConditions
 import mc.xalitoria.menu.paper.runtime.Context
 import mc.xalitoria.menu.paper.runtime.Host
 import mc.xalitoria.menu.paper.runtime.Placeholders
+import mc.xalitoria.menu.paper.runtime.explain
 import org.bukkit.GameMode
 import org.bukkit.entity.Player
 import org.bukkit.inventory.EquipmentSlot
@@ -152,5 +153,21 @@ class MoreConditions {
         assertEquals(EquipmentSlot.OFF_HAND, (conditions[2] as PlayerConditions.HeldItem).hand)
         assertEquals(PlayerConditions.Cooldown("daily"), conditions[7])
         assertEquals(menu, Registry.format.decode(Registry.format.encode(menu, [])))
+    }
+
+    @Test
+    fun aGateExplainsEachCheck() {
+        val gate = mc.xalitoria.menu.api.model.Gate(
+            require = [
+                mc.xalitoria.menu.api.model.Check(yes),
+                mc.xalitoria.menu.api.model.Check(Logic.And([]), optional = true),
+                mc.xalitoria.menu.api.model.Check(Logic.Chance(0.0)),
+            ],
+        )
+        val lines = gate.explain(ctx)
+        assertEquals(3, lines.size)
+        assertTrue(lines[0].startsWith("holds: "), lines[0])
+        assertTrue(lines[2].startsWith("FAILS: ") && "Chance" in lines[2], lines[2])
+        assertEquals(emptyList(), (null as mc.xalitoria.menu.api.model.Gate?).explain(ctx))
     }
 }

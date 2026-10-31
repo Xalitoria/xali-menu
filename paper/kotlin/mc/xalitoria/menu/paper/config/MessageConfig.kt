@@ -19,13 +19,17 @@ data class MessageConfig(
         val noPermission: String = "No permission.",
         private val help: String = """
             {#a0a>}&lXALIM{#fff<}&f&lENU &7> &dHELP
-            &d/{0} &rreload
+            &d/{0} &rreload &7[menu]
             &d/{0} &rlist
+            &d/{0} &rinfo &7<menu>
+            &d/{0} &rvalidate &7[menu]
+            &d/{0} &rinspect &7[player]
             &d/{0} &ropen &7<menu> [player]
             &d/{0} &rimport deluxemenus &7[overwrite] [folder]
         """.trimIndent(),
         val reload: Reload = Reload(),
         val menu: Menu = Menu(),
+        val tools: Tools = Tools(),
         val variable: Variable = Variable(),
         @SerialName("import")
         val importer: Import = Import(),
@@ -94,6 +98,46 @@ data class MessageConfig(
             fun loaded(count: Int): String = loaded.formatArgs(count)
             fun list(count: Int, names: String): String = list.formatArgs(count, names)
             fun commandsChanged(labels: String): String = commandsChanged.formatArgs(labels)
+        }
+
+        /** `/xmenu reload <menu>`, `info`, `validate` and `inspect`. */
+        @Serializable
+        data class Tools(
+            @SerialName("reloaded-one")
+            private val reloadedOne: String = "Reloaded the menu '{0}'.",
+            @SerialName("no-file")
+            private val noFile: String = "There is no file for a menu named '{0}'.",
+            private val unreadable: String = "The menu '{0}' could not be read, so the old one stays: {1}",
+            @SerialName("no-problems")
+            private val noProblems: String = "'{0}' has no problems.",
+            private val problems: String = "'{0}' has {1} problems:",
+            @SerialName("validated")
+            private val validated: String = "{0} menus checked; {1} have problems.",
+            @SerialName("info-header")
+            private val infoHeader: String = "Menu '{0}' ({1})",
+            @SerialName("info-line")
+            private val infoLine: String = "&7{0}: &r{1}",
+            @SerialName("inspect-closed")
+            private val inspectClosed: String = "{0} has no menu open.",
+            @SerialName("inspect-header")
+            private val inspectHeader: String = "{0} has '{1}' open:",
+            @SerialName("inspect-more")
+            private val inspectMore: String = "...and {0} more lines; the console has all of them.",
+            @YamlComment("How many lines of `/xmenu inspect` are shown in chat; the console gets all of them.")
+            @SerialName("inspect-shown")
+            val inspectShown: Int = 30,
+        ) {
+            fun reloadedOne(name: String): String = reloadedOne.formatArgs(name)
+            fun noFile(name: String): String = noFile.formatArgs(name)
+            fun unreadable(name: String, reason: String): String = unreadable.formatArgs(name, reason)
+            fun noProblems(name: String): String = noProblems.formatArgs(name)
+            fun problems(name: String, count: Int): String = problems.formatArgs(name, count)
+            fun validated(menus: Int, bad: Int): String = validated.formatArgs(menus, bad)
+            fun infoHeader(name: String, kind: String): String = infoHeader.formatArgs(name, kind)
+            fun infoLine(label: String, value: String): String = infoLine.formatArgs(label, value)
+            fun inspectClosed(player: String): String = inspectClosed.formatArgs(player)
+            fun inspectHeader(player: String, menu: String): String = inspectHeader.formatArgs(player, menu)
+            fun inspectMore(count: Int): String = inspectMore.formatArgs(count)
         }
 
         @Serializable

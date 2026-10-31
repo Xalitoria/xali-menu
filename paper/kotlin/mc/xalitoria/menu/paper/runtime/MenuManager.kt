@@ -47,6 +47,11 @@ class MenuManager(private val plugin: XaliMenu) {
     @Volatile
     private var labelsOf: Map<String, Labels> = emptyMap()
 
+    /** Why the menu files that could not be read were left out, by menu name, as of the last load. */
+    @Volatile
+    var failures: Map<String, String> = emptyMap()
+        private set
+
     /** Whether [load] has run since the plugin enabled. */
     @Volatile
     var isLoaded = false
@@ -94,16 +99,19 @@ class MenuManager(private val plugin: XaliMenu) {
         scan()
         val format = MenuFormat(plugin.registry.module, plugin.registry.externalNames)
         val found = mutableMapOf<String, LoadedMenu>()
+        val failed = mutableMapOf<String, String>()
         for (file in files()) {
             val name = file.toPath().nameWithoutExtension
             try {
                 found[name] = LoadedMenu(name, format.read(file.toPath()))
             } catch (e: Exception) {
+                failed[name] = e.message ?: e::class.simpleName.orEmpty()
                 plugin.logger fail "Menu '$name' could not be read: ${e.message}".verbatim()
             }
         }
         clearTextCache()
         plugin.heads.clear()
+        failures = failed
         loaded = found
         activators = ActivatorIndex(found.mapValues { it.value.menu.openWith })
         isLoaded = true
@@ -111,8 +119,43 @@ class MenuManager(private val plugin: XaliMenu) {
         return found.size
     }
 
+    /** What reading the file of one menu again came to. */
+    sealed interface Reread {
+        /** The menu is in place; [problems] are what [problemsOf] finds in it. */
+        data class Done(val problems: List<String>) : Reread
+
+        data object NoFile : Reread
+
+        data class Failed(val reason: String) : Reread
+    }
+
+    /**
+     * Reads the file of the menu [name] again and puts it in place of the one loaded, leaving the other menus alone. A file
+     * that can't be read leaves the menu as it was. Commands are registered at startup, so a changed `commands` needs a restart.
+     */
+    fun reload(name: String): Reread {
+        val file = files().firstOrNull { it.nameWithoutExtension.equals(name, ignoreCase = true) } ?: return Reread.NoFile
+        val key = file.nameWithoutExtension
+        val entry = try {
+            LoadedMenu(key, MenuFormat(plugin.registry.module, plugin.registry.externalNames).read(file.toPath()))
+        } catch (e: Exception) {
+            failures += key to (e.message ?: e::class.simpleName.orEmpty())
+            return Reread.Failed(e.message ?: e::class.simpleName.orEmpty())
+        }
+        clearTextCache()
+        failures -= key
+        val menus = loaded + (key to entry)
+        loaded = menus
+        activators = ActivatorIndex(menus.mapValues { it.value.menu.openWith })
+        scan()
+        return Reread.Done(problemsOf(entry).also { found -> found.forEach { plugin.logger warn "Menu '$key': $it" } })
+    }
+
     /** Notes in the console what is wrong with [entry], which would otherwise only show when a player opens it. */
-    private fun check(entry: LoadedMenu) {
+    private fun check(entry: LoadedMenu) = problemsOf(entry).forEach { plugin.logger warn "Menu '${entry.name}': $it" }
+
+    /** What is wrong with [entry] that doesn't depend on who opens it. */
+    fun problemsOf(entry: LoadedMenu): List<String> {
         val problems = mutableListOf<String>()
         val definition = entry.menu
         MenuArgs.problems(definition.args).forEach { problems += it }
@@ -161,7 +204,7 @@ class MenuManager(private val plugin: XaliMenu) {
         actions.filterIsInstance<Actions.Open>().filter { menu(it.menu) == null }.forEach {
             problems += "opens the menu '${it.menu}', which doesn't exist"
         }
-        problems.forEach { plugin.logger warn "Menu '${entry.name}': $it" }
+        return problems
     }
 
     /** What is wrong with [activator] that doesn't depend on who triggers it. */

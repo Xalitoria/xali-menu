@@ -125,10 +125,14 @@ Each step ends with tests, the README section, and a commit.
   (the server has no `/data` for entities on Folia, so the saved data was read instead).
 - Not done: the tool component (rules and speeds), attribute modifiers, tooltip styles, equippable.
 
-### 7. Housekeeping
+### 7. Housekeeping (done, tested live)
 
-- `/xmenu reload <menu>` for one menu, `/xmenu info <menu>`, tab completion of menu names everywhere.
-- `/xmenu validate`, which prints the problems of every menu without opening any.
-- A debug view that shows why an item was or wasn't drawn.
-- Keep the bot-driven live test as a script in the repository. It needs mineflayer's 26.1 data patched to protocol 776
-  and the console on a named pipe, which today lives only in a scratch directory.
+- `/xmenu reload <menu>` (one file; a file that cannot be read leaves the old menu in place), `/xmenu info <menu>`,
+  `/xmenu validate [menu]` (every problem of every menu and every unreadable file, without opening any), and menu names
+  complete in all of them.
+- `/xmenu inspect [player]`, the debug view: per slot, the items that claim it, which one is drawn, and each check of the
+  `view` gate with its result (`Gate.explain`). The first lines go to chat, all of them to the console.
+- The bot-driven live test is in the repository: `menu/live` (`setup.sh`, `server.sh`, `bot/*.js`, the menus they use and a
+  README). Tried from scratch in a fresh folder: it built, set up, started a server and ran the action and condition runs.
+- Messages for these are in the language file (`commands.tools`), written back on the first start.
+- Not done: tab completion for the words of a menu's own `args`.

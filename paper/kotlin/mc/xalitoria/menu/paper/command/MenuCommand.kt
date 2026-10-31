@@ -17,6 +17,7 @@ import mc.xalitoria.menu.paper.XaliMenu.Companion.debug
 import mc.xalitoria.menu.paper.deluxemenus.BukkitMaterials
 import mc.xalitoria.menu.paper.deluxemenus.DeluxeMenusImporter
 import mc.xalitoria.menu.paper.format.MenuFormat
+import mc.xalitoria.menu.paper.runtime.MenuManager
 import mc.xalitoria.menu.paper.util.suggestMatching
 import mc.xalitoria.menu.paper.util.verbatim
 import mc.xalitoria.util.bukkit.getPlayer
@@ -34,6 +35,7 @@ object MenuCommand {
     private val cmdMsg get() = plugin.messageConfig.data.commands
     private val msg get() = cmdMsg.importer
     private val menuMsg get() = cmdMsg.menu
+    private val toolMsg get() = cmdMsg.tools
 
     fun register(registrar: Commands) {
         registrar.register(builder().build(), "Manages XaliMenu's menus", listOf("menu", "xm"))
@@ -52,6 +54,24 @@ object MenuCommand {
                 sender pass cmdMsg.reload.pass
                 Command.SINGLE_SUCCESS
             }
+            .then(menuArgument().executes { ctx -> reloadOne(ctx, StringArgumentType.getString(ctx, "menu")) })
+        )
+        .then(Commands
+            .literal("info")
+            .then(menuArgument().executes { ctx -> info(ctx, StringArgumentType.getString(ctx, "menu")) })
+        )
+        .then(Commands
+            .literal("validate")
+            .executes { ctx -> validate(ctx, null) }
+            .then(menuArgument().executes { ctx -> validate(ctx, StringArgumentType.getString(ctx, "menu")) })
+        )
+        .then(Commands
+            .literal("inspect")
+            .executes { ctx -> inspect(ctx, ctx.source.sender as? Player) }
+            .then(Commands
+                .argument("player", ArgumentTypes.player())
+                .executes { ctx -> inspect(ctx, ctx.getPlayer("player")) }
+            )
         )
         .then(Commands
             .literal("list")
@@ -89,6 +109,113 @@ object MenuCommand {
                 )
             )
         )
+
+    private fun menuArgument() = Commands
+        .argument("menu", StringArgumentType.word())
+        .suggests { _, builder -> builder.suggestMatching(plugin.menus.names) }
+
+    private fun reloadOne(ctx: CommandContext<CommandSourceStack>, name: String): Int {
+        val sender = ctx.source.sender
+        if (!sender.allowed()) return Command.SINGLE_SUCCESS
+        when (val result = plugin.menus.reload(name)) {
+            MenuManager.Reread.NoFile -> sender fail toolMsg.noFile(name.verbatim())
+            is MenuManager.Reread.Failed -> sender fail toolMsg.unreadable(name.verbatim(), result.reason.verbatim())
+            is MenuManager.Reread.Done -> {
+                sender pass toolMsg.reloadedOne(name.verbatim())
+                sender.problems(name, result.problems)
+            }
+        }
+        return Command.SINGLE_SUCCESS
+    }
+
+    private fun CommandSender.problems(name: String, problems: List<String>) {
+        if (problems.isEmpty()) return
+        this warn toolMsg.problems(name.verbatim(), problems.size)
+        problems.forEach { this info it.verbatim() }
+    }
+
+    private fun info(ctx: CommandContext<CommandSourceStack>, name: String): Int {
+        val sender = ctx.source.sender
+        if (!sender.allowed()) return Command.SINGLE_SUCCESS
+        val entry = plugin.menus.menu(name)
+        if (entry == null) {
+            sender fail menuMsg.unknown(name.verbatim())
+            return Command.SINGLE_SUCCESS
+        }
+        val menu = entry.menu
+        val frames = menu.animation?.frames?.size
+        val kind = listOfNotNull("paged".takeIf { menu.pages != null }, "animated".takeIf { frames != null }).ifEmpty { listOf("simple") }.joinToString(", ")
+        sender info toolMsg.infoHeader(entry.name.verbatim(), kind)
+        fun line(label: String, value: Any?) {
+            if (value != null) sender info toolMsg.infoLine(label, value.toString().verbatim())
+        }
+        line("title", menu.title)
+        line("size", if (menu.type == "chest") "${menu.size} slots" else menu.type)
+        line("commands", menu.commands.joinToString().ifEmpty { null })
+        line("args", menu.args.joinToString().ifEmpty { null })
+        line("items", "${menu.items.size} (${entry.bySlot.size} slots)")
+        line("refresh", menu.refresh)
+        menu.pages?.let { line("pages", "${it.catalog::class.simpleName}, ${it.listed().size} slots") }
+        line("animation", frames?.let { "$it frames" + if (menu.animation!!.loop) ", looping" else "" })
+        line("open-with", menu.openWith.joinToString { it::class.simpleName.orEmpty() }.ifEmpty { null })
+        line("open gate", menu.open?.let { "${it.require.size} checks" })
+        return Command.SINGLE_SUCCESS
+    }
+
+    private fun validate(ctx: CommandContext<CommandSourceStack>, name: String?): Int {
+        val sender = ctx.source.sender
+        if (!sender.allowed()) return Command.SINGLE_SUCCESS
+        val manager = plugin.menus
+        if (name != null) {
+            val entry = manager.menu(name)
+            val failure = manager.failures.entries.firstOrNull { it.key.equals(name, ignoreCase = true) }
+            when {
+                failure != null -> sender fail toolMsg.unreadable(failure.key.verbatim(), failure.value.verbatim())
+                entry == null -> sender fail menuMsg.unknown(name.verbatim())
+                else -> manager.problemsOf(entry).let { found ->
+                    if (found.isEmpty()) sender pass toolMsg.noProblems(entry.name.verbatim()) else sender.problems(entry.name, found)
+                }
+            }
+            return Command.SINGLE_SUCCESS
+        }
+        var bad = 0
+        for ([failed, reason] in manager.failures) {
+            bad++
+            sender fail toolMsg.unreadable(failed.verbatim(), reason.verbatim())
+        }
+        for (entry in manager.menus.sortedBy { it.name }) {
+            val found = manager.problemsOf(entry)
+            if (found.isNotEmpty()) bad++
+            sender.problems(entry.name, found)
+        }
+        sender info toolMsg.validated(manager.menus.size + manager.failures.size, bad)
+        return Command.SINGLE_SUCCESS
+    }
+
+    private fun inspect(ctx: CommandContext<CommandSourceStack>, target: Player?): Int {
+        val sender = ctx.source.sender
+        if (!sender.allowed()) return Command.SINGLE_SUCCESS
+        if (target == null) {
+            sender fail menuMsg.playerOnly
+            return Command.SINGLE_SUCCESS
+        }
+        val view = plugin.menus.view(target)
+        if (view == null) {
+            sender fail toolMsg.inspectClosed(target.name)
+            return Command.SINGLE_SUCCESS
+        }
+        // The view belongs to the player's region thread; the report is made there and sent from there.
+        target.scheduler.run(plugin, {
+            val lines = view.inspect()
+            sender info toolMsg.inspectHeader(target.name, view.name.verbatim())
+            lines.take(toolMsg.inspectShown).forEach { sender info it.verbatim() }
+            if (lines.size > toolMsg.inspectShown) {
+                sender info toolMsg.inspectMore(lines.size - toolMsg.inspectShown)
+                plugin.logger.info(lines.joinToString("\n"))
+            }
+        }, null)
+        return Command.SINGLE_SUCCESS
+    }
 
     /** Opens [menu] for [target], or for the sender if it is a player and no target is given. */
     private fun open(ctx: CommandContext<CommandSourceStack>, menu: String, target: Player?): Int {

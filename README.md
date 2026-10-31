@@ -405,7 +405,10 @@ All of these need `xalimenu.admin`.
 |---|---|
 | `/xmenu list` | List the menus. |
 | `/xmenu open <menu> [player]` | Open a menu for oneself or another player. |
-| `/xmenu reload` | Read the configuration, language and menus again. |
+| `/xmenu reload [menu]` | Read the configuration, language and menus again; with a name, only that menu's file (the others stay as they are, and a file that cannot be read leaves the menu as it was). |
+| `/xmenu info <menu>` | What a menu is: title, size, commands, args, items, pages, animation, activators. |
+| `/xmenu validate [menu]` | The problems of every menu (or one) and the files that could not be read, without opening any. The same problems are logged on every load. |
+| `/xmenu inspect [player]` | Why each slot of a player's open menu shows what it shows: the items claiming it, which one is drawn, and how each check of their `view` gate comes out. The first lines are in chat, all in the console. |
 | `/xmenu import deluxemenus` | Import DeluxeMenus menus, see [below](#importing-from-deluxemenus). |
 | `/xvar ...`, `/xvarp ...` | Variables, see [above](#variables). |
 
@@ -527,13 +530,15 @@ Sources are under `menu/<submodule>/kotlin`, tests under `menu/<submodule>/test`
 
 | Part | Where |
 |---|---|
-| Built-in actions and conditions | `menu/paper/.../action/Actions.kt`, `condition/Conditions.kt` |
+| Built-in actions and conditions | `menu/paper/.../action` (`Actions.kt`, `Flow.kt`, `Inventory.kt`, `Effects.kt`, `Social.kt`), `condition` (`Conditions.kt`, `Logic.kt`, `PlayerConditions.kt`) |
 | Menu schema and reading | `menu/api/.../model`, `menu/paper/.../format` |
 | Runtime: gates, items, clicks, paging, activators, animation | `menu/paper/.../runtime` |
 | Catalogs | `menu/paper/.../catalog` |
 | Variables: stores and sync | `menu/paper/.../variable` |
 | Addon API implementation | `menu/paper/.../api` |
 | DeluxeMenus import | `menu/paper/.../deluxemenus`, free of the server API (`Materials` is an interface) |
+
+Unit tests do not start a server; [`live/`](live/README.md) has the scripts that do, with a bot as the player.
 
 ```console
 user $ ./gradlew :menu:api:test :menu:paper:test
