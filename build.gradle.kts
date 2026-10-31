@@ -2,13 +2,15 @@ import mc.xalitoria.gradle.Load
 import mc.xalitoria.gradle.RelativeLoad
 
 plugins {
+    kotlin("jvm")
+    id("mc.xalitoria.conventions")
     kotlin("plugin.serialization")
     id("mc.xalitoria.minecraft")
     alias(libs.plugins.shadow)
 }
 
 subprojects {
-    group = "mc.xalitoria"
+    group = "mc.xalitoria.menu"
     version = "0.0.1"
 }
 

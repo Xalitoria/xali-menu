@@ -1,7 +1,8 @@
-import xalitoria.repo.kotlinx
+import mc.xalitoria.gradle.repo.kotlinx
 
 plugins {
     kotlin("plugin.serialization")
+    `maven-publish`
 }
 
 // What other plugins compile against: the menu model, the types they can add (actions, conditions, item sources) and the

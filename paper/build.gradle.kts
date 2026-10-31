@@ -1,6 +1,7 @@
+import mc.xalitoria.gradle.sibling
 import mc.xalitoria.gradle.Load
 import mc.xalitoria.gradle.RelativeLoad
-import xalitoria.repo.mavenNexo
+import mc.xalitoria.gradle.repo.mavenNexo
 
 plugins {
     kotlin("plugin.serialization")
@@ -13,7 +14,7 @@ repositories {
 }
 
 dependencies {
-    implementation(project(":menu:api"))
+    implementation(sibling("api"))
     // Libraries the server downloads when the plugin loads (see loader.json); nothing declared here is shaded.
     // util brings kotlinx.serialization, the legacy color codes and MiniMessage, and adventure-nbt.
     api(libs.xalicraft.util)
@@ -46,7 +47,7 @@ tasks {
     shadowJar {
         // Other plugins use the API's classes from this jar, whether or not the plugin itself does.
         minimize {
-            exclude(project(":menu:api"))
+            exclude(project(sibling("api").path))
         }
     }
     build {
