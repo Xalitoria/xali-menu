@@ -5,6 +5,7 @@ import mc.xalitoria.menu.paper.XaliMenu
 import mc.xalitoria.menu.api.model.Item
 import mc.xalitoria.menu.api.model.Menu
 import mc.xalitoria.menu.api.model.Pages
+import mc.xalitoria.menu.paper.util.legacy
 import org.bukkit.entity.Player
 import org.bukkit.inventory.Inventory
 import org.bukkit.inventory.InventoryHolder
@@ -43,6 +44,12 @@ class MenuView(
     var pageValues: Map<String, String> = emptyMap()
         private set
 
+    /** Whether the title holds anything that can change while the menu is open: a placeholder, or a `{page}` and the like. */
+    private val dynamicTitle = '%' in menu.title || '{' in menu.title
+
+    /** The title the player's client has; null until [title] is asked for. */
+    private var shownTitle: String? = null
+
     /** When the player last clicked, in nanoseconds of [System.nanoTime]. */
     var lastClick = 0L
 
@@ -53,6 +60,14 @@ class MenuView(
     val player: Player get() = ctx.player
 
     override fun getInventory(): Inventory = inventory
+
+    /**
+     * The title to open the inventory with. A paged menu works out its first page first, so the title can already show it.
+     */
+    fun title(): String {
+        menu.pages?.let { layout(it) }
+        return ctx.legacy(menu.title).also { shownTitle = it }
+    }
 
     fun attach(inventory: Inventory) {
         this.inventory = inventory
@@ -109,6 +124,27 @@ class MenuView(
                     shownElement[slot] = entry?.element
                 }
             }
+        }
+        if (dynamicTitle) retitle()
+    }
+
+    /**
+     * Gives the open inventory the title as it reads now, if that is not what the client has. Paper changes a title by
+     * sending the screen again with the new text, which is done only when the text differs, since it makes the client
+     * rebuild the window (and put the mouse back in the middle).
+     */
+    @Suppress("DEPRECATION")
+    private fun retitle() {
+        val wanted = ctx.legacy(menu.title)
+        if (wanted == shownTitle) return
+        val open = player.openInventory
+        if (open.topInventory !== inventory) return // not open yet: the title it opens with is [title]
+        shownTitle = wanted
+        try {
+            open.setTitle(wanted)
+        } catch (e: IllegalArgumentException) {
+            plugin.logger.warning("The title of menu '$name' can't be changed: ${e.message}")
+            shownTitle = null
         }
     }
 

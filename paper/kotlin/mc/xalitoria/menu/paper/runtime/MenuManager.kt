@@ -157,7 +157,8 @@ class MenuManager(private val plugin: XaliMenu) {
         if (!menu.open.passes(ctx, run = true)) return
 
         val view = MenuView(plugin, target.name, menu, ctx, target.bySlot)
-        val title = ctx.component(menu.title)
+        val title = view.title()
+        @Suppress("DEPRECATION") // the title is legacy text, the only kind that can be changed once the menu is open
         val inventory = if (menu.type == "chest") {
             Bukkit.createInventory(view, menu.size.coerceIn(9, 54) / 9 * 9, title)
         } else {

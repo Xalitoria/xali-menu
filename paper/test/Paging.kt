@@ -19,6 +19,7 @@ import mc.xalitoria.menu.paper.runtime.Placeholders
 import mc.xalitoria.menu.paper.runtime.layoutPage
 import mc.xalitoria.menu.paper.runtime.numbered
 import mc.xalitoria.menu.paper.runtime.sortElements
+import mc.xalitoria.menu.paper.util.legacy
 import org.bukkit.entity.Player
 import org.bukkit.plugin.Plugin
 
@@ -114,6 +115,19 @@ class Paging {
         assertEquals(0, layout.state.page)
         assertEquals("1", layout.state.values()["pages"])
         assertTrue(layoutPage(emptyList(), [0], null, false, 0) { true }.empty)
+    }
+
+    @Test
+    fun miniMessageComesOutAsLegacyTextWithHexKept() {
+        assertEquals("§x§1§2§3§4§5§6text §c§lbold text", ctx().legacy("<color:#123456>text <red><bold>bold text</bold>"))
+    }
+
+    @Test
+    fun aTitleIsColoredByTheColorLibrary() {
+        val ctx = ctx("%rank%" to "&aVIP", args = mapOf("who" to "&cSteve"))
+        assertEquals("§x§f§f§0§0§0§0Hi", ctx.legacy("&#ff0000Hi"))
+        assertEquals("§aPlayers §7(2/5)", ctx.legacy("&aPlayers &7(2/5)"))
+        assertEquals("§aVIP §7Steve", ctx.legacy("%rank% &7{who}"), "colors typed in an argument are taken out")
     }
 
     // The catalogs, against a context that answers placeholders from a table.

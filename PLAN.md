@@ -40,7 +40,10 @@ Each step ends with tests, the README section, and a commit.
 - `{page}`, `{pages}`, `{total}`, `{page_next}`, `{page_prev}` in any text of the menu, `{index}` and the catalog's own
   fields in the template; `%xalimenu_page%` and the like for other plugins.
 - The `page` action (`by`, `to`), `MenuContext.pageBy` / `pageTo`.
-- Not in this step: the `entities` catalog (needs an entity scope that is safe on Folia), a catalog of items, and page numbers in the title (done in the next commit).
+- Not in this step: the `entities` catalog (needs an entity scope that is safe on Folia), and a catalog of items.
+- Titles update while the menu is open (`{page}` and placeholders), through the deprecated but working
+  `InventoryView.setTitle`, which resends the window with the new title. Sent only when the text changes.
+  Titles are the usual component (color library, then MiniMessage) serialized to legacy text with hex kept.
 - Covered by unit tests: the layout (`layoutPage`), the catalogs, the context scope, the `page` action, reading the menu
   and external catalogs. **Not covered:** `MenuView.draw` and the click path against a real inventory. The dev server's
   Folia 26.2 cannot be joined by mineflayer (it stops at 26.1), so that needs a real client or ViaVersion.

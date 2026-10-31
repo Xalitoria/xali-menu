@@ -100,7 +100,7 @@ slots named in `slots`. The `players` catalog gives the players who are online, 
 **File** `plugins/XaliMenu/menus/players.conf`
 
 ```hocon
-title = "&8Players"
+title = "&8Players &7({page}/{pages})"
 size = 54
 commands = ["players"]
 pages {
@@ -122,8 +122,10 @@ items {
 
 `example-pages.conf` is written on the first start.
 
-The title is fixed when the menu opens and is read before the first page is known, so it cannot show the page; put the
-numbers on an item, as the example does.
+The title may hold placeholders and the page values. When its text changes, because the page turned or a placeholder
+changed on a refresh, the open menu gets the new title (Paper sends the window again, so the client puts the mouse back
+in the middle; this is done only when the text differs). Titles are colored like all text and handed over as legacy
+text, which is all Paper can change on an open menu, so a font or a click event in a title is lost.
 
 | Catalog | Elements | Values |
 |---|---|---|
@@ -321,8 +323,7 @@ commands exist is read from a quick scan of the files, so adding or removing one
 
 ### Not supported
 
-No animated menus and no WorldGuard-style activators (menus open by command only). The title of a paged menu cannot show the
-page. The plan for closing the gap to AbstractMenus is [`PLAN.md`](PLAN.md). The item-count condition and the
+No animated menus and no WorldGuard-style activators (menus open by command only). The plan for closing the gap to AbstractMenus is [`PLAN.md`](PLAN.md). The item-count condition and the
 economy, permission and skin hooks are not tested against a live server. The personal variables of every player are
 loaded at startup.
 
