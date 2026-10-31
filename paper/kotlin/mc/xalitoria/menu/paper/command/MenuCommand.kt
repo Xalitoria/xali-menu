@@ -27,8 +27,7 @@ import org.bukkit.entity.Player
 /**
  * `/xmenu import deluxemenus [overwrite] [folder]` converts the menus of a DeluxeMenus folder (`plugins/DeluxeMenus`
  * unless a folder is given) into `menus/<name>.conf`. A menu that already has a file is kept as it is unless
- * `overwrite` comes before the folder. `/xmenu reload` reads the configuration and the messages again, and
- * `/xmenu pack update` installs the GUI packs that `packs` in the configuration names.
+ * `overwrite` comes before the folder. `/xmenu reload` reads the configuration and the messages again.
  */
 object MenuCommand {
     private val plugin get() = XaliMenu.INSTANCE
@@ -75,20 +74,6 @@ object MenuCommand {
                     .argument("player", ArgumentTypes.player())
                     .executes { ctx -> open(ctx, StringArgumentType.getString(ctx, "menu"), ctx.getPlayer("player")) }
                 )
-            )
-        )
-        .then(Commands
-            .literal("pack")
-            .then(Commands
-                .literal("update")
-                .executes { ctx ->
-                    val sender = ctx.source.sender
-                    if (!sender.allowed()) return@executes Command.SINGLE_SUCCESS
-                    debug("{0} updates the packs", sender.name)
-                    // Downloads and unpacks, so not on a region thread.
-                    plugin.scope.launch { plugin.installPacks(sender) }
-                    Command.SINGLE_SUCCESS
-                }
             )
         )
         .then(Commands

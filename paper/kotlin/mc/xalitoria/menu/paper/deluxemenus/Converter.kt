@@ -3,10 +3,6 @@ package mc.xalitoria.menu.paper.deluxemenus
 import com.charleskorn.kaml.YamlMap
 import kotlin.time.Duration.Companion.seconds
 import mc.xalitoria.menu.api.model.*
-import mc.xalitoria.menu.api.Action
-import mc.xalitoria.menu.api.Condition
-import mc.xalitoria.menu.paper.action.Actions
-import mc.xalitoria.menu.paper.condition.Conditions
 import net.kyori.adventure.nbt.CompoundBinaryTag
 import net.kyori.adventure.nbt.TagStringIO
 

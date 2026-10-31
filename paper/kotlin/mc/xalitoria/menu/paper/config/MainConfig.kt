@@ -20,33 +20,7 @@ data class MainConfig(
     val database: Database = Database(),
     @YamlComment("Where each variable lives, and how the servers keep their copies of the shared ones current.")
     val variables: Variables = Variables(),
-    @YamlComment("GUI packs (glyphs and button icons) for the plugin that serves your resource pack. Nothing is downloaded unless a handler is set.")
-    val packs: Packs = Packs(),
 ) {
-    @Serializable
-    data class Packs(
-        @YamlComment(
-            "The plugin the packs are installed into: none, nexo or itemsadder. With none nothing is downloaded. Reload that plugin",
-            "(/nexo reload, /iazip) after the first install and after each update.",
-        )
-        val handler: Handler = Handler.NONE,
-        @YamlComment(
-            "Where the zipped packs are downloaded from (https), for example the assets of a GitHub release. Each pack is fetched as",
-            "<url>/<pack>-<handler>.zip and checked against <url>/<pack>-<handler>.zip.sha256, and only fetched again when that changes.",
-        )
-        val url: String = "https://github.com/audizian/xalicraft/releases/latest/download",
-        @YamlComment("The packs to install.")
-        val install: List<String> = ["friends-gui"],
-    ) {
-        /** [folder] is the plugin folder under plugins/ that the pack is unpacked into. */
-        @Serializable
-        enum class Handler(val id: String, val folder: String?) {
-            @SerialName("none") NONE("none", null),
-            @SerialName("nexo") NEXO("nexo", "Nexo"),
-            @SerialName("itemsadder") ITEMSADDER("itemsadder", "ItemsAdder"),
-        }
-    }
-
     /** Where a variable is kept. */
     @Serializable
     enum class StoreKind {

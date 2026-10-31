@@ -195,6 +195,7 @@ object Actions {
         }
 
         /** `entity.player.levelup`, `minecraft:entity.player.levelup`, or the old `ENTITY_PLAYER_LEVELUP`. */
+        @Suppress("DEPRECATION") // `Registry.match` is the lenient lookup for the plain names menus use (`ENTITY_PLAYER_LEVELUP`)
         private fun key(name: String): Key? {
             val trimmed = name.trim()
             if (':' in trimmed || '.' in trimmed) return runCatching { Key.key(trimmed.lowercase()) }.getOrNull()

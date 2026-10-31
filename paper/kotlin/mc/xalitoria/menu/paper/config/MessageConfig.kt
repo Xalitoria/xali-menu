@@ -23,14 +23,12 @@ data class MessageConfig(
             &d/{0} &rlist
             &d/{0} &ropen &7<menu> [player]
             &d/{0} &rimport deluxemenus &7[overwrite] [folder]
-            &d/{0} &rpack update
         """.trimIndent(),
         val reload: Reload = Reload(),
         val menu: Menu = Menu(),
         val variable: Variable = Variable(),
         @SerialName("import")
         val importer: Import = Import(),
-        val pack: Pack = Pack(),
     ) {
         fun help(label: String): String = help.formatArgs(label)
 
@@ -96,24 +94,6 @@ data class MessageConfig(
             fun loaded(count: Int): String = loaded.formatArgs(count)
             fun list(count: Int, names: String): String = list.formatArgs(count, names)
             fun commandsChanged(labels: String): String = commandsChanged.formatArgs(labels)
-        }
-
-        @Serializable
-        data class Pack(
-            val disabled: String = "No pack handler is set (packs.handler in config.yml), so there is nothing to install.",
-            @SerialName("not-installed")
-            private val notInstalled: String = "The pack handler {0} is not installed.",
-            @SerialName("bad-url")
-            private val badUrl: String = "packs.url must start with https:// (it is {0}).",
-            private val installed: String = "Installed {0} ({1}). Reload {2} to use it.",
-            private val current: String = "{0} is up to date.",
-            private val failed: String = "Could not install {0}: {1}",
-        ) {
-            fun notInstalled(plugin: String): String = notInstalled.formatArgs(plugin)
-            fun badUrl(url: String): String = badUrl.formatArgs(url)
-            fun installed(file: String, detail: String, reload: String): String = installed.formatArgs(file, detail, reload)
-            fun current(file: String): String = current.formatArgs(file)
-            fun failed(file: String, reason: String): String = failed.formatArgs(file, reason)
         }
 
         @Serializable

@@ -9,7 +9,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import mc.xalitoria.menu.api.XaliMenuApi
 import mc.xalitoria.menu.paper.action.Actions
@@ -26,19 +25,15 @@ import mc.xalitoria.menu.paper.hook.HeadDatabaseSource
 import mc.xalitoria.menu.paper.hook.Heads
 import mc.xalitoria.menu.paper.hook.ItemsAdderSource
 import mc.xalitoria.menu.paper.hook.NexoSource
-import mc.xalitoria.menu.paper.pack.HttpDownloader
-import mc.xalitoria.menu.paper.pack.PackInstaller
 import mc.xalitoria.menu.paper.runtime.ActionRunner
 import mc.xalitoria.menu.paper.runtime.ItemFactory
 import mc.xalitoria.menu.paper.runtime.MenuListener
 import mc.xalitoria.menu.paper.runtime.MenuManager
 import mc.xalitoria.menu.paper.runtime.PluginListener
-import mc.xalitoria.menu.paper.util.verbatim
 import mc.xalitoria.menu.paper.variable.VariableExpansion
 import mc.xalitoria.menu.paper.variable.VariableStore
 import mc.xalitoria.util.config.YamlFile
 import mc.xalitoria.util.message.*
-import org.bukkit.command.CommandSender
 import org.bukkit.plugin.ServicePriority
 import org.bukkit.plugin.java.JavaPlugin
 
@@ -128,8 +123,6 @@ class XaliMenu : JavaPlugin() {
             VariableCommand.register(event.registrar())
         }
         debug("Enabled: language={0}", config.data.language)
-        // The handler plugin has enabled by now (menu/build.gradle.kts loads this after it); the download is off the main thread.
-        if (config.data.packs.handler != MainConfig.Packs.Handler.NONE) scope.launch { installPacks() }
     }
 
     override fun onDisable() {
@@ -153,37 +146,6 @@ class XaliMenu : JavaPlugin() {
         if (changed.isNotEmpty()) logger warn messageConfig.data.commands.menu.commandsChanged(changed.joinToString { "/$it" })
         debug("Reloaded: language={0}", config.data.language)
         logger.pass(messageConfig.data.commands.reload.pass)
-    }
-
-    /**
-     * Installs the GUI packs that `packs` in the configuration asks for into the plugin that serves them, and tells the
-     * console and [sender] how it went. Does nothing, but say so to [sender], when no handler is set.
-     */
-    suspend fun installPacks(sender: CommandSender? = null) {
-        val packs = config.data.packs
-        val msg = messageConfig.data.commands.pack
-        fun pass(text: String) { logger pass text; sender?.pass(text) }
-        fun warn(text: String) { logger warn text; sender?.warn(text) }
-        fun fail(text: String) { logger fail text; sender?.fail(text) }
-
-        val handler = packs.handler
-        if (handler.folder == null) {
-            sender?.info(msg.disabled)
-            return
-        }
-        if (!packs.url.startsWith("https://")) return fail(msg.badUrl(packs.url.verbatim()))
-        if (server.pluginManager.getPlugin(handler.folder) == null) return warn(msg.notInstalled(handler.folder))
-
-        val installer = PackInstaller(HttpDownloader(), server.pluginsFolder.toPath(), dataPath.resolve("packs"))
-        val reload = if (handler == MainConfig.Packs.Handler.NEXO) "Nexo (/nexo reload)" else "ItemsAdder (/iazip)"
-        for (result in installer.install(handler, packs.url, packs.install)) {
-            when (result.status) {
-                PackInstaller.Status.INSTALLED -> pass(msg.installed(result.pack, result.detail, reload))
-                PackInstaller.Status.CURRENT -> sender?.info(msg.current(result.pack))
-                PackInstaller.Status.FAILED -> fail(msg.failed(result.pack, result.detail.verbatim()))
-            }
-            debug("Pack {0}: {1} ({2})", result.pack, result.status, result.detail)
-        }
     }
 
     /** The first start has no menus, so one is written to show the format. */

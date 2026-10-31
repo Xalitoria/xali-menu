@@ -19,6 +19,7 @@ class Economy(private val plugin: Plugin) {
     private val hasPermissionApi = present("net.milkbowl.vault.permission.Permission")
 
     private val economy: Economy? get() = if (hasEconomyApi) plugin.server.servicesManager.load(Economy::class.java) else null
+    @Suppress("DEPRECATION") // VaultUnlocked deprecates the Vault permission API but still provides it
     private val permission: Permission? get() = if (hasPermissionApi) plugin.server.servicesManager.load(Permission::class.java) else null
 
     private fun present(className: String) = runCatching { Class.forName(className, false, plugin.javaClass.classLoader) }.isSuccess

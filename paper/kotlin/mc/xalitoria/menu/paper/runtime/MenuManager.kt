@@ -162,7 +162,7 @@ class MenuManager(private val plugin: XaliMenu) {
         // Registered first, so closing the menu this player had open isn't taken for the end of this one.
         views.put(player.uniqueId, view)?.stopRefresh()
         if (player.openInventory(inventory) == null) {
-            // Another plugin cancelled it.
+            // Another plugin canceled it.
             views.remove(player.uniqueId, view)
             return
         }

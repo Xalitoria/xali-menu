@@ -28,7 +28,7 @@ data class Item(
     val hide: List<String> = [],
     val unbreakable: Boolean = false,
     val model: Int? = null,
-    /** Dye colour of leather armour and the like, as `#rrggbb`. */
+    /** Dye color of leather armor and the like, as `#rrggbb`. */
     val color: String? = null,
     val banner: List<BannerLayer> = [],
     val potion: List<PotionEffect> = [],

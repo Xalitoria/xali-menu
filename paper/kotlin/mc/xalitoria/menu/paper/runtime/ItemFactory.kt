@@ -61,6 +61,8 @@ class ItemFactory(private val plugin: XaliMenu) {
             val hidden = item.hide.mapNotNull(::componentType).toTypedArray()
             stack.setData(DataComponentTypes.TOOLTIP_DISPLAY, TooltipDisplay.tooltipDisplay().addHiddenComponents(*hidden).build())
         }
+        // `nbt` is raw SNBT; UnsafeValues is the only API that applies it.
+        @Suppress("DEPRECATION")
         item.nbt?.let { snbt -> stack = Bukkit.getUnsafe().modifyItemStack(stack, "[custom_data=$snbt]") }
         return stack
     }

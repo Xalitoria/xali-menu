@@ -3,7 +3,6 @@ package mc.xalitoria.menu.paper.deluxemenus
 import com.charleskorn.kaml.YamlMap
 import com.charleskorn.kaml.YamlNode
 import mc.xalitoria.menu.api.Action
-import mc.xalitoria.menu.paper.action.Actions
 import mc.xalitoria.menu.api.model.Check
 import mc.xalitoria.menu.api.Condition
 import mc.xalitoria.menu.paper.condition.Conditions
