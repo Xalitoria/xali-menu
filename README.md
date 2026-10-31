@@ -92,6 +92,53 @@ drawn as a barrier. Menus are checked when they are read, but the checks do not 
 later. Money conditions and actions use VaultUnlocked (`currency` picks one when there are several). Permission actions
 use whatever provides Vault's `Permission`.
 
+### Actions
+
+An action is `{ type = "...", ... }`. Text in them takes colors and placeholders, and `{name}` for the menu's arguments, the
+page of a paged menu and the element a slot shows. A list of actions runs in order; one that fails is logged and the rest
+go on, and one that cannot do what the next depends on (`take-item` without enough items, `money` without enough money,
+`stop`) ends the list.
+
+| Type | Does | Settings |
+|---|---|---|
+| `player`, `console`, `chat` | Run a command as the viewer, as the console, or say something | `command`, `text` |
+| `message`, `broadcast`, `actionbar`, `json` | Send text | `text`; `json` has `json`, `broadcast` |
+| `title` | A title and subtitle | `title`, `subtitle`, `fade-in`, `stay`, `fade-out` (ticks) |
+| `boss-bar` | A boss bar for a while | `text`, `color`, `style`, `progress` (0 to 1), `duration` |
+| `book` | Open a written book | `pages` (one per page), `title`, `author` |
+| `sound`, `particle` | Play a sound, show a particle | `sound`, `volume`, `pitch`, `scope`; `particle`, `count`, `spread`, `speed`, `dx`, `dy`, `dz`, `everyone` |
+| `open`, `close`, `refresh`, `page` | Move between menus and pages | `menu`, `args`; `by` or `to` |
+| `give-item` | Give an item (the settings of a menu item) | `item`, `overflow` (`DROP` at the feet, or `ABORT` and give nothing) |
+| `take-item` | Take items, or abort if there are fewer | `material`, `amount`, `name`, `model` |
+| `clear-items` | Take every matching item; with no setting, everything | `material`, `name`, `model` |
+| `potion` | An effect on the viewer, or off them | `effect`, `duration`, `amplifier`, `particles`, `remove` (`effect = all` clears every one) |
+| `teleport` | Move the viewer | `x`, `y`, `z`, `yaw`, `pitch` (a number, or `~` and `~5` relative to where they are), `world` |
+| `gamemode` | Change the game mode | `mode` |
+| `health`, `food` | Set, `ADD` to or `TAKE` from, held in range | `amount`, `change` (`SET`, `ADD`, `TAKE`); `food` also `saturation` |
+| `experience`, `level` | Points or levels; `take` charges, and aborts if they have too few | `amount`, `take` |
+| `money`, `permission`, `group` | Through Vault: pay or charge, give or take a node or a group | `amount`, `take`, `currency`; `node`, `take`; `name`, `take` |
+| `meta` | A LuckPerms meta value (LuckPerms is needed); no `value` removes it | `key`, `value` |
+| `input` | Close the menu and ask for a chat reply, which runs `then` as `{input}` | `prompt`, `then`, `cancel` (word, default `cancel`), `on-cancel`, `timeout`, `match` (regex the reply must fit), `invalid` |
+| `all`, `random` | Run actions as a unit, or pick `count` of them at random | `actions`, `count` |
+| `run-for` | Run actions for each element of a catalog, with `{index}` and its values | `catalog`, `actions`, `limit` (default 100) |
+| `delay`, `chance`, `stop` | Later, by chance, end the list | `ticks`, `action`; `percent`, `action` |
+| `variable` | Change a variable, see [Variables](#variables) | |
+| `log` | Write to the server log | `text`, `level` (`INFO`, `WARNING`, `ERROR`) |
+| `connect` | Send the viewer to another server of the proxy | `server` |
+
+`input` asks the viewer to type, so it closes the menu; nothing else the viewer types counts until they answer, and what
+they type is not said in chat. Chaining a `variable` action in `then` stores the answer:
+
+```hocon
+click.any.actions = [{
+    type = "input"
+    prompt = "&eType the new nickname, or cancel"
+    match = "[A-Za-z0-9_]{3,16}"
+    invalid = "&c3 to 16 letters, digits or underscores"
+    then = [{ type = "variable", name = "nick", scope = "PLAYER", value = "{input}" }, { type = "open", menu = "profile" }]
+}]
+```
+
 ### Paged menus
 
 A menu with `pages` lists the elements of a **catalog** a page at a time, each drawn as the same item template into the
@@ -403,7 +450,7 @@ commands exist is read from a quick scan of the files, so adding or removing one
 ### Not supported
 
 No activators for regions (WorldGuard) or Citizens NPCs; an NPC that is an entity can be matched by `entity`. The plan for closing the gap to AbstractMenus is [`PLAN.md`](PLAN.md). The item-count condition and the
-economy, permission and skin hooks are not tested against a live server. The personal variables of every player are
+economy, permission and skin hooks, and the `group` and `meta` actions, are not tested against a live server. The personal variables of every player are
 loaded at startup.
 
 ## Development

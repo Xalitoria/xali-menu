@@ -47,6 +47,10 @@ object Actions {
         registry.action<Chance>()
         registry.action<Stop>()
         registry.action<Variable>()
+        Flow.register(registry)
+        Inventory.register(registry)
+        Effects.register(registry)
+        Social.register(registry)
     }
 
     /** The viewer runs [command]. */

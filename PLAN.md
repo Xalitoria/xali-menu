@@ -14,7 +14,7 @@ types in it. It does not aim for file compatibility with AM. It aims for the sam
 | Menu kinds | simple, animated, generated (paged) | step 3: simple, animated, paged (with layouts) |
 | Paging | `GeneratedMenu`, catalogs, `pageNext` / `pagePrev` | step 1, below |
 | Activators | ~18 (command, click item / block / entity / NPC, join, chat, region, sign, lever, button, plate, swap items) | step 2: commands, item, join, chat, swap-hands, block (sign, lever, button, plate), entity |
-| Actions | ~67 | 19 |
+| Actions | ~67 | 40 |
 | Rules | ~30 | 8 |
 | Item properties | ~34 | the common ones |
 | Variables | SQLite | memory, SQLite and MySQL, with sync. **Ahead.** |
@@ -75,12 +75,26 @@ Each step ends with tests, the README section, and a commit.
 - Not done: layouts for menus that are not paged (a legend of characters to items), which would make `items` shorter to
   write.
 
-### 4. Actions
+### 4. Actions (done, tested live)
 
-Parity first, then beyond: item give / take / clear, potion effects, teleport, game mode, health, food, title and
-subtitle, boss bar, book, particle, `input` (chat prompt that fills a variable), bulk and random action lists, `place-item`,
-LuckPerms group and meta (soft), skin set / reset (soft), `log`, and `run-for` (an action list for every element of a
-catalog).
+- **Items**: `give-item` (any item a menu can show, with `overflow` drop or abort), `take-item` (aborts when there are too few,
+  so it can stand before what is given for them), `clear-items`. Matching is by material, plain name and custom model.
+- **The viewer**: `potion` (add, remove, clear all), `teleport` (`~` relative coordinates, other worlds, on the async
+  teleport that is safe on Folia), `gamemode`, `health` and `food` (`SET` / `ADD` / `TAKE`, held in range), `level`.
+- **Showing things**: `title`, `boss-bar` (hidden after `duration`), `book`, `particle`.
+- **Asking**: `input`, a chat prompt that closes the menu, keeps the reply out of chat, validates it with a regex and runs
+  `then` with `{input}`; `cancel` word, `timeout`, `on-cancel`.
+- **Flow**: `all`, `random` (pick `count`), `run-for` (an action list for each element of a catalog, with `{index}`), `log`.
+- **Permissions**: `group` (Vault) and `meta` (LuckPerms, through its command).
+- Unit tests: removals across stacks, range and coordinate helpers, prompt verdicts, quoting for the console, flow actions,
+  and reading and writing every new action. Live (Folia 26.2, bot): give / take with name match and the abort when there is
+  nothing to take, clear, potion packet, teleport relative on x and z, game mode, health and food, levels, title packets,
+  boss bar shown and hidden, book packet, particle packet and a bad particle failing alone, `run-for` and `random`, the
+  `input` prompt (invalid reply, valid reply, timeout, cancel word) and ordinary chat afterwards.
+- Not tested live: `group` (needs Vault's permission provider) and `meta` (needs LuckPerms).
+- Not done: `skin` set / reset (SkinsRestorer; needs its skin lookup and an installed plugin to test), `place-item` and the
+  other per-slot item actions of AM (`button-set`, `item-refresh`, ...), whose job `view` gates and `update` already do, and
+  recipes (`recipe-add`).
 
 ### 5. Conditions
 

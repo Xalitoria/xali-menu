@@ -50,4 +50,10 @@ class Economy(private val plugin: Plugin) {
         val permission = permission ?: return false
         return if (take) permission.playerRemove(player, node) else permission.playerAdd(player, node)
     }
+
+    /** Whether a permission provider put [player] in [group], or with [take] took them out. */
+    fun group(player: Player, group: String, take: Boolean): Boolean {
+        val permission = permission ?: return false
+        return if (take) permission.playerRemoveGroup(player, group) else permission.playerAddGroup(player, group)
+    }
 }

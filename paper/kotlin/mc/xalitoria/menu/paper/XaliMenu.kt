@@ -28,6 +28,7 @@ import mc.xalitoria.menu.paper.hook.ItemsAdderSource
 import mc.xalitoria.menu.paper.hook.NexoSource
 import mc.xalitoria.menu.paper.runtime.ActionRunner
 import mc.xalitoria.menu.paper.runtime.ActivatorListener
+import mc.xalitoria.menu.paper.runtime.Inputs
 import mc.xalitoria.menu.paper.runtime.ItemFactory
 import mc.xalitoria.menu.paper.runtime.MenuListener
 import mc.xalitoria.menu.paper.runtime.MenuManager
@@ -59,6 +60,9 @@ class XaliMenu : JavaPlugin() {
         private set
 
     lateinit var items: ItemFactory
+        private set
+
+    lateinit var inputs: Inputs
         private set
 
     lateinit var actions: ActionRunner
@@ -119,6 +123,8 @@ class XaliMenu : JavaPlugin() {
         pm.registerEvents(listener, this)
         pm.registerEvents(MenuListener(this), this)
         pm.registerEvents(ActivatorListener(this), this)
+        inputs = Inputs(this)
+        pm.registerEvents(inputs, this)
         server.globalRegionScheduler.runDelayed(this, { if (!menus.isLoaded) listener.loadMenus() }, 40)
 
         lifecycleManager.registerEventHandler(LifecycleEvents.COMMANDS) { event ->
