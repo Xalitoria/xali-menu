@@ -296,5 +296,5 @@ Notes for changes:
 
 - [XaliFriends](../friends/README.md) — friend menus built on XaliMenu
 - [XaliChat](../chat/README.md) — the text formatting XaliMenu shares
-- [Gradle plugin](../plugin/README.md) — descriptors and library loading
+- [Gradle plugin](../xali-gradle/README.md) — descriptors and library loading
 - [AbstractMenus](https://github.com/AbstractMenus/minecraft-plugin) — the plugin XaliMenu is modeled on
