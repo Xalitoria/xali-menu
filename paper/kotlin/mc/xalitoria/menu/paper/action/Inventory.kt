@@ -26,13 +26,9 @@ object Inventory {
 
     /**
      * Which items of the inventory an action means: the ones of [material] (any when absent), with the name [name] as it
-     * reads without colors, and the custom model [model].
+     * reads without colors, and the custom model [model]. A material that is no item matches nothing.
      */
     class Filter(private val material: String?, private val name: String?, private val model: Int?) {
-        init {
-            require(material == null || '%' in material || ItemFactory.material(material) != null) { "'$material' isn't an item" }
-        }
-
         fun matches(stack: ItemStack?, ctx: MenuContext): Boolean {
             if (stack == null || stack.isEmpty) return false
             if (material != null) {
@@ -88,7 +84,6 @@ object Inventory {
     ) : Action {
         init {
             require(amount >= 1) { "take-item takes at least one" }
-            Filter(material, name, model)
         }
 
         override fun run(ctx: MenuContext) {
@@ -111,10 +106,6 @@ object Inventory {
     /** Takes every item that matches from the viewer: with nothing to match on, the whole inventory. */
     @Serializable @SerialName("clear-items")
     data class ClearItems(val material: String? = null, val name: String? = null, val model: Int? = null) : Action {
-        init {
-            Filter(material, name, model)
-        }
-
         override fun run(ctx: MenuContext) {
             val inventory = ctx.player.inventory
             if (material == null && name == null && model == null) return inventory.clear()

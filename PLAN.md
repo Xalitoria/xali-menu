@@ -14,8 +14,8 @@ types in it. It does not aim for file compatibility with AM. It aims for the sam
 | Menu kinds | simple, animated, generated (paged) | step 3: simple, animated, paged (with layouts) |
 | Paging | `GeneratedMenu`, catalogs, `pageNext` / `pagePrev` | step 1, below |
 | Activators | ~18 (command, click item / block / entity / NPC, join, chat, region, sign, lever, button, plate, swap items) | step 2: commands, item, join, chat, swap-hands, block (sign, lever, button, plate), entity |
-| Actions | ~67 | 40 |
-| Rules | ~30 | 8 |
+| Actions | ~67 | 41 |
+| Rules | ~30 | 26 |
 | Item properties | ~34 | the common ones |
 | Variables | SQLite | memory, SQLite and MySQL, with sync. **Ahead.** |
 | Addon API | `Types` registry, Java and Kotlin types | actions, conditions, item sources, no Kotlin types. **Ahead.** |
@@ -96,10 +96,19 @@ Each step ends with tests, the README section, and a commit.
   other per-slot item actions of AM (`button-set`, `item-refresh`, ...), whose job `view` gates and `update` already do, and
   recipes (`recipe-add`).
 
-### 5. Conditions
+### 5. Conditions (done, tested live)
 
-Parity: free slot, held item, group, game mode, health, food, level, world, online, region (soft), `and`, `or`, `one-of`,
-`chance`, variable exists. Beyond: `cooldown` (per player and per key, kept in the variable store) and `once`.
+- Parity: `free-slots`, `held-item`, `group` (Vault), `gamemode`, `health`, `food`, `level`, `experience`, `world`, `online`,
+  `online-count`, `variable-exists`, `and`, `or`, `one-of`, `at-least`, `chance`. The ranges take `min` / `max` as numbers or
+  placeholders. The DeluxeMenus importer maps `has exp` (points or `level: true`).
+- Beyond: `cooldown` and a `cooldown` action. A condition only looks, so starting the cooldown is an action; the state is the
+  variable `cooldown_<key>` with an expiry, so it is kept wherever the variables are (shared across servers with the right
+  rule), and a store that has not loaded counts as running. `once` is a cooldown with no duration.
+- Unit tests: the combinations and that they stop as soon as the answer is known, the ranges and their placeholders,
+  settings that are refused, reading and writing every new condition. Live (bot, items shown or hidden by `view`): free
+  slots with and without items, held item, game mode, health, food, level, experience on both sides of its limit, worlds,
+  online, the four combinations, `chance` at both ends, a cooldown ending and a once-only one staying, and `variable-exists`.
+- Not tested live: `group` (needs a Vault permission provider). Not done: `region` (WorldGuard, soft), JavaScript.
 
 ### 6. Item properties
 

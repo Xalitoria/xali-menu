@@ -123,6 +123,7 @@ go on, and one that cannot do what the next depends on (`take-item` without enou
 | `run-for` | Run actions for each element of a catalog, with `{index}` and its values | `catalog`, `actions`, `limit` (default 100) |
 | `delay`, `chance`, `stop` | Later, by chance, end the list | `ticks`, `action`; `percent`, `action` |
 | `variable` | Change a variable, see [Variables](#variables) | |
+| `cooldown` | Start a cooldown for a `cooldown` condition; no `duration` means for good | `key`, `duration`, `scope` |
 | `log` | Write to the server log | `text`, `level` (`INFO`, `WARNING`, `ERROR`) |
 | `connect` | Send the viewer to another server of the proxy | `server` |
 
@@ -137,6 +138,44 @@ click.any.actions = [{
     invalid = "&c3 to 16 letters, digits or underscores"
     then = [{ type = "variable", name = "nick", scope = "PLAYER", value = "{input}" }, { type = "open", menu = "profile" }]
 }]
+```
+
+### Conditions
+
+A condition is `{ type = "...", ... }` in a `require` of a gate: `view.require = [{ condition = { type = "free-slots", min = 3 } }]`.
+Conditions are asked on every refresh, so they only look. Numbers can be placeholders. A limit that is left out doesn't limit.
+
+| Type | Holds when | Settings |
+|---|---|---|
+| `permission`, `group` | the viewer has a node, or is in a group (Vault) | `node`; `name` |
+| `money`, `item` | the viewer has money, or carries items | `amount`, `currency`; `material`, `amount`, `name`, `lore` |
+| `held-item` | the item in a hand matches | `material`, `name`, `model`, `amount`, `hand` (`HAND`, `OFF_HAND`) |
+| `free-slots` | the inventory has `min` empty slots (default 1) | `min` |
+| `health`, `food`, `level`, `experience`, `online-count` | the number is between `min` and `max` | `min`, `max` |
+| `gamemode`, `world` | the viewer is in one of the modes, or worlds | `modes` (`SURVIVAL`...); `names` |
+| `online` | the player is online | `player` |
+| `compare`, `text`, `regex` | numbers, text or a pattern fit; see [Variables](#variables) | `left`, `op`, `right`; `input`, `op`, `value`; `input`, `pattern` |
+| `variable-exists` | a variable exists | `name`, `scope` (`GLOBAL`, `PLAYER`) |
+| `cooldown` | the cooldown `key` is not running | `key`, `scope` (`PLAYER`, `GLOBAL`) |
+| `and`, `or`, `one-of`, `at-least`, `not` | other conditions combine | `conditions`; `count`, `conditions`; `condition` |
+| `chance` | luck decides, `percent` times in a hundred | `percent` |
+
+A `cooldown` is started by the `cooldown` action, with a `duration`; one without a `duration` never ends, which makes
+something that can be done once. The state is the variable `cooldown_<key>` (so it lives in whichever store the variable
+rules give that name), and while the variables have not loaded the cooldown counts as running. `chance` is asked again on
+every redraw, so it belongs in the `require` of a click, not in the `view` of an item.
+
+```hocon
+daily {
+    material = "chest"
+    slot = 13
+    view = { require = [{ condition = { type = "cooldown", key = "daily" } }] }
+    click.any.actions = [
+        { type = "cooldown", key = "daily", duration = "24h" },
+        { type = "give-item", item = { material = "diamond", amount = 5 }, overflow = "ABORT" },
+        { type = "refresh" },
+    ]
+}
 ```
 
 ### Paged menus

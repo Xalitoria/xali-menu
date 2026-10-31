@@ -6,6 +6,7 @@ import mc.xalitoria.menu.api.Action
 import mc.xalitoria.menu.api.model.Check
 import mc.xalitoria.menu.api.Condition
 import mc.xalitoria.menu.paper.condition.Conditions
+import mc.xalitoria.menu.paper.condition.PlayerConditions
 import mc.xalitoria.menu.api.model.Gate
 
 private val GATE_OPTIONS: Set<String>  = ["requirements", "minimum_requirements", "stop_at_success", "success_commands", "deny_commands"]
@@ -66,6 +67,9 @@ private fun Context.parseCheck(body: YamlMap): Check? {
                 name = take("name"),
                 lore = body.option("lore").texts().also { if (it.isNotEmpty()) used += "lore" },
             )
+        }
+        "has exp", "hasexp" -> take("amount")?.let { amount ->
+            if (take("level")?.toBooleanStrictOrNull() == true) PlayerConditions.Level(min = amount) else PlayerConditions.Experience(min = amount)
         }
         "string equals", "stringequals" -> text(::take, EQUALS)
         "string equals ignorecase", "stringequalsignorecase" -> text(::take, EQUALS_IGNORE_CASE)

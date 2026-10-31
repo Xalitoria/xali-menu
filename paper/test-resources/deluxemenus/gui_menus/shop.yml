@@ -67,6 +67,13 @@ items:
           type: regex matches
           input: '%player_name%'
           regex: '[A-Z].*'
+        exp:
+          type: has exp
+          amount: 100
+        levels:
+          type: has exp
+          amount: 5
+          level: true
         script:
           type: javascript
           expression: '%player_level% > 5'

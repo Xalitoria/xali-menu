@@ -56,4 +56,8 @@ class Economy(private val plugin: Plugin) {
         val permission = permission ?: return false
         return if (take) permission.playerRemoveGroup(player, group) else permission.playerAddGroup(player, group)
     }
+
+    val hasPermissionProvider: Boolean get() = permission != null
+
+    fun inGroup(player: Player, group: String): Boolean = permission?.playerInGroup(player, group) == true
 }

@@ -98,6 +98,8 @@ class DeluxeMenusImporter {
                 Conditions.Text("%vault_rank%", Conditions.Text.Op.EQUALS_IGNORE_CASE, "vip"),
                 Conditions.Compare("%player_level%", Conditions.Compare.Op.GTE, "10"),
                 Conditions.Regex("%player_name%", "[A-Z].*"),
+                mc.xalitoria.menu.paper.condition.PlayerConditions.Experience(min = "100"),
+                mc.xalitoria.menu.paper.condition.PlayerConditions.Level(min = "5"),
                 Conditions.Never,
             ],
             checks,

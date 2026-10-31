@@ -10,6 +10,7 @@ import mc.xalitoria.menu.api.model.DurationAsString
 import mc.xalitoria.menu.paper.XaliMenu
 import mc.xalitoria.menu.paper.XaliMenu.Companion.debug
 import mc.xalitoria.menu.paper.api.TypeRegistry
+import mc.xalitoria.menu.paper.condition.PlayerConditions
 import mc.xalitoria.menu.paper.runtime.Context
 import mc.xalitoria.menu.paper.runtime.Prompt
 
@@ -19,6 +20,7 @@ object Social {
         registry.action<Input>()
         registry.action<Group>()
         registry.action<Meta>()
+        registry.action<Cooldown>()
     }
 
     /**
@@ -80,6 +82,36 @@ object Social {
             val meta = ctx.parse(key).trim()
             require(meta.isNotEmpty() && meta.none { it.isWhitespace() }) { "'$meta' isn't a meta key" }
             ctx.console(if (value == null) "lp user $name meta unset $meta" else "lp user $name meta set $meta ${quote(ctx.parse(value))}")
+        }
+    }
+
+    /**
+     * Starts the cooldown [key] for the viewer (or for everybody with [scope] `GLOBAL`), which the `cooldown` condition
+     * with the same key holds off until [duration] has passed. Without a [duration] it never ends, which makes a thing
+     * that can be done once. The state is the variable `cooldown_<key>`, so it is kept where the variables are.
+     */
+    @Serializable @SerialName("cooldown")
+    data class Cooldown(
+        val key: String,
+        @Serializable(with = DurationAsString::class)
+        val duration: Duration? = null,
+        val scope: PlayerConditions.VariableExists.Scope = PlayerConditions.VariableExists.Scope.PLAYER,
+    ) : Action {
+        init {
+            require(key.isNotBlank()) { "a cooldown needs a key" }
+            require(duration == null || duration.isPositive()) { "duration must be positive" }
+        }
+
+        override fun run(ctx: MenuContext) {
+            val variables = XaliMenu.INSTANCE.variables
+            val name = PlayerConditions.variable(ctx.parse(key))
+            val owner = if (scope == PlayerConditions.VariableExists.Scope.GLOBAL) mc.xalitoria.menu.api.Scope.Global
+            else mc.xalitoria.menu.api.Scope.Player(ctx.player.uniqueId)
+            val until = duration?.let { java.time.Instant.now().plusMillis(it.inWholeMilliseconds) }
+            if (!variables.isAvailable(name) || !variables.set(owner, name, "1", until, true)) {
+                debug("Could not start the cooldown {0} for {1}", name, ctx.player.name)
+                ctx.abort()
+            }
         }
     }
 

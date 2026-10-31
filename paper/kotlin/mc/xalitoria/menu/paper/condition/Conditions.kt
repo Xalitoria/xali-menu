@@ -23,6 +23,8 @@ object Conditions {
         registry.condition<Regex>()
         registry.condition<Not>()
         registry.condition<Never>()
+        Logic.register(registry)
+        PlayerConditions.register(registry)
     }
 
     private fun number(ctx: MenuContext, text: String): BigDecimal? = ctx.parse(text).trim().toBigDecimalOrNull()
