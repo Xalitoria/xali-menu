@@ -31,10 +31,33 @@ data class Menu(
     val onOpen: List<Action> = [],
     val onClose: List<Action> = [],
     val items: Map<String, Item> = emptyMap(),
+    /**
+     * The menu as it looks, in rows of nine characters, for items to be placed by: each character of the [legend] puts the
+     * item it names in every slot where it stands, besides the item's own `slot` and `slots`. A row of fewer characters
+     * ends in blanks, and a character the legend doesn't know is a blank.
+     */
+    val layout: List<String> = [],
+    /** The character of the [layout] to the name of the item in [items] that goes where it stands. */
+    val legend: Map<String, String> = emptyMap(),
     /** What a player can do to open the menu besides its [commands]. */
     val openWith: List<Activator> = [],
     /** Frames that play over the menu once it is open. */
     val animation: Animation? = null,
     /** Makes the menu list the elements of a catalog, a page at a time. */
     val pages: Pages? = null,
-)
+) {
+    init {
+        require(layout.all { it.length <= 9 }) { "a row of layout has more than 9 characters" }
+        require(legend.keys.all { it.length == 1 }) { "the legend names single characters, not '${legend.keys.first { it.length != 1 }}'" }
+        legend.forEach { [character, name] -> require(name in items) { "the legend gives '$character' the item '$name', which isn't in items" } }
+    }
+
+    /** The [items] with the slots the [layout] gives them added to their own. */
+    fun placed(): Map<String, Item> {
+        if (layout.isEmpty() || legend.isEmpty()) return items
+        val slots = layout.flatMapIndexed { row, text ->
+            text.mapIndexedNotNull { column, c -> legend[c.toString()]?.let { it to row * 9 + column } }
+        }.groupBy({ it.first }, { it.second })
+        return items.mapValues { [name, item] -> slots[name]?.let { item.copy(slots = (item.slots + it).distinct()) } ?: item }
+    }
+}

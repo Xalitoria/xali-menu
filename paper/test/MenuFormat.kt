@@ -55,6 +55,50 @@ class MenuFormat {
     }
 }
 
+class MenuLayout {
+    private val menu = Registry.format.decode(
+        """
+        title = "Hi"
+        size = 27
+        layout = ["#########", "#  o    #", "##### ###"]
+        legend { "#" = border, o = ok }
+        items {
+          border { material = gray_stained_glass_pane, name = " " }
+          ok { material = lime_wool, slot = 0 }
+        }
+        """.trimIndent()
+    )
+
+    @Test
+    fun theLegendPlacesItemsWhereTheirCharactersStand() {
+        val slots = menu.placed().getValue("border").slots
+        assertEquals((0..8).toList() + listOf(9, 17) + (18..22).toList() + (24..26).toList(), slots)
+    }
+
+    @Test
+    fun anItemKeepsItsOwnSlotsToo() {
+        val ok = menu.placed().getValue("ok")
+        assertEquals(0, ok.slot)
+        assertEquals([12], ok.slots)
+    }
+
+    @Test
+    fun aMenuWithoutALayoutIsLeftAlone() {
+        val plain = Registry.format.decode("title = \"Hi\"\nitems.a { material = stone, slot = 3 }")
+        assertTrue(plain.placed() === plain.items)
+    }
+
+    @Test
+    fun badLayoutsAreRefused() {
+        val long = runCatching { Menu(title = "x", layout = ["0123456789"]) }
+        assertTrue(long.exceptionOrNull() is IllegalArgumentException)
+        val word = runCatching { Menu(title = "x", legend = mapOf("ab" to "a"), items = mapOf("a" to Item(material = "stone"))) }
+        assertTrue(word.exceptionOrNull() is IllegalArgumentException)
+        val unknown = runCatching { Menu(title = "x", legend = mapOf("a" to "gone")) }
+        assertTrue(unknown.exceptionOrNull() is IllegalArgumentException)
+    }
+}
+
 class ExampleMenu {
     @Test
     fun theBundledPagedExampleReads() {

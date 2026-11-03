@@ -25,7 +25,7 @@ import org.bukkit.event.inventory.InventoryType
 /** A menu that has been read from its file, with its items sorted into the slots they claim. */
 class LoadedMenu(val name: String, val menu: Menu) {
     /** Per slot, the items claiming it with the lowest priority number first, equal ones by name (a file has no order). */
-    val bySlot: Map<Int, List<Pair<String, Item>>> = slotted(menu.items)
+    val bySlot: Map<Int, List<Pair<String, Item>>> = slotted(menu.placed())
 }
 
 private fun Item.allSlots(): List<Int> = listOfNotNull(slot) + slots
@@ -165,7 +165,8 @@ class MenuManager(private val plugin: XaliMenu) {
         if (definition.type == "chest" && (definition.size !in 9..54 || definition.size % 9 != 0)) {
             problems += "size ${definition.size} isn't 9, 18, ... 54"
         }
-        for ((key, value) in definition.items) {
+        if (definition.layout.size * 9 > definition.size && definition.type == "chest") problems += "layout has ${definition.layout.size} rows, more than the menu"
+        for ((key, value) in definition.placed()) {
             if (value.allSlots().isEmpty()) problems += "item '$key' has no slot, so it is never shown"
             if (definition.type == "chest") {
                 value.allSlots().filter { it !in 0 until definition.size }.forEach { problems += "item '$key' is in slot $it, outside the menu" }

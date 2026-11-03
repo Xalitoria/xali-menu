@@ -78,6 +78,23 @@ items {
 
 Enum values in menu files are upper case. HOCON objects have no key order.
 
+**Layout.** Instead of listing slot numbers, draw the menu: `layout` is rows of nine characters and `legend` names the item
+each character stands for. The item goes in every slot where its character stands, besides its own `slot` / `slots`. A
+character the legend doesn't know is a blank, and a short row ends in blanks. Quote a character that HOCON reads as
+something else, such as `"#"`.
+
+```hocon
+size = 27
+layout = ["#########", "#  o   x#", "####c####"]
+legend { "#" = border, o = ok, x = extra, c = close }
+items {
+    border { material = "gray_stained_glass_pane", name = " " }
+    ok { material = "lime_wool", name = "Ok" }
+    extra { material = "stone", name = "Extra" }
+    close { material = "barrier", name = "Close", click.any.actions = [{ type = "close" }] }
+}
+```
+
 ### How a menu behaves
 
 Opening checks the menu's `open` gate, then draws the items. Of the items claiming a slot, the one with the lowest

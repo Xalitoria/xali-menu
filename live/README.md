@@ -18,6 +18,7 @@ The server is offline-mode and meant to be thrown away. Do not pipe a bot into `
 | `bot/act.js` | `t` (`/xt`) | The actions: items given, taken by name and cleared, potion, teleport, game mode, health and food, levels, title, boss bar, book, particle, `run-for`, `random` and the `input` prompt with its timeout and cancel word. |
 | `bot/cond.js` | `c` (`/xc`) | The conditions, by which items `view` leaves in the menu after each change of state: free slots, held item, game mode, cooldowns and variables. |
 | `bot/props.js` | `i` (`/xi`) | The item properties: it gives one item of every kind; then read the saved player data with `python3 bot/nbt.py <server>/world/players/data/<uuid>.dat` (Folia has no `/data` for entities). |
+| `bot/layout.js` | `l` (`/xl`) | A `layout` with a `legend`: the item in every slot of the window. |
 | `bot/tools.js` | `c` | `/xmenu inspect`, `info`, `validate` and `reload <menu>` (the answers are in `server/server.log`). |
 
 `menus/` has the menus these use; `i.conf` holds one item that is wrong on purpose, for `/xmenu validate`.

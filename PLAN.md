@@ -72,8 +72,9 @@ Each step ends with tests, the README section, and a commit.
   is documented and tested.
 - Tested live with the bot: frame timing (500 ms steps to within a tick), additive and clearing frames, the base item
   coming back, `on-start` / `on-end`, a layout filling its cells over two pages, and an element opening a nested menu.
-- Not done: layouts for menus that are not paged (a legend of characters to items), which would make `items` shorter to
-  write.
+- **Layout for any menu** (done after the seven steps): `layout` (rows of nine characters) and `legend` (character to item
+  name) put each item in every slot where its character stands, besides its own `slot` / `slots` (`Menu.placed()`). Tested
+  by unit tests and live (`live/bot/layout.js`).
 
 ### 4. Actions (done, tested live)
 
