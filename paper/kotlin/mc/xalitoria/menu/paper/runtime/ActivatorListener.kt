@@ -118,6 +118,19 @@ class ActivatorListener(private val plugin: XaliMenu) : Listener {
         first(event.player, index.swaps, event, { emptyMap() }) { it.matches(event.player.isSneaking) }
     }
 
+    /**
+     * A player clicked the NPC called [name] (with the id [id]); [left] says which click, null if it is not known. The event
+     * may come on any thread, so only the NPC is looked at here and the gate is asked on the player's own thread.
+     */
+    fun onNpc(player: Player, event: Cancellable, name: String, id: String, left: Boolean?) {
+        if (index.npcs.isEmpty()) return
+        val sneaking = player.isSneaking
+        val matching = index.npcs.filter { it.activator.matches(name, id, left, sneaking) }
+        val first = matching.firstOrNull() ?: return
+        if (first.activator.cancel) event.isCancelled = true
+        player.scheduler.run(plugin, { for (entry in matching) if (trigger(player, entry, mapOf("npc" to name, "npc_id" to id))) break }, null)
+    }
+
     @EventHandler
     fun onJoin(event: PlayerJoinEvent) {
         val player = event.player

@@ -22,6 +22,7 @@ import mc.xalitoria.menu.paper.condition.Conditions
 import mc.xalitoria.menu.paper.config.MainConfig
 import mc.xalitoria.menu.paper.config.MessageConfig
 import mc.xalitoria.menu.paper.hook.Economy
+import mc.xalitoria.menu.paper.hook.FancyNpcs
 import mc.xalitoria.menu.paper.hook.HeadDatabaseSource
 import mc.xalitoria.menu.paper.hook.Heads
 import mc.xalitoria.menu.paper.hook.ItemsAdderSource
@@ -122,7 +123,9 @@ class XaliMenu : JavaPlugin() {
         val listener = PluginListener(this)
         pm.registerEvents(listener, this)
         pm.registerEvents(MenuListener(this), this)
-        pm.registerEvents(ActivatorListener(this), this)
+        val activators = ActivatorListener(this)
+        pm.registerEvents(activators, this)
+        if (pm.isPluginEnabled("FancyNpcs")) FancyNpcs(this, activators).register()
         inputs = Inputs(this)
         pm.registerEvents(inputs, this)
         server.globalRegionScheduler.runDelayed(this, { if (!menus.isLoaded) listener.loadMenus() }, 40)

@@ -53,6 +53,8 @@ sed -i "s/^online-mode=.*/online-mode=false/; s/^server-port=.*/server-port=$por
 echo "eula=true" > "$server/eula.txt"
 cp "$plugin" "$server/plugins/"
 ls "$src"/plugins/PlaceholderAPI-*.jar >/dev/null && cp "$src"/plugins/PlaceholderAPI-*.jar "$server/plugins/"
+# Other plugins of the dev server to try the menus with, by the start of their jar's name: XM_PLUGINS="FancyNpcs SkinsRestorer".
+for name in ${XM_PLUGINS:-}; do cp "$src"/plugins/"$name"*.jar "$server/plugins/"; done
 cp "$here"/menus/*.conf "$server/plugins/XaliMenu/menus/"
 
 # The plugin asks for util $util_version, which is only published once released; give the server the one just built.

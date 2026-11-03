@@ -18,6 +18,7 @@ sources through an [addon API](#extending).
 | Nexo | No | The `nexo:<id>` item source. |
 | SkinsRestorer | No | Skins for `head:<player>`. |
 | HeadDatabase | No | The `hdb:<id>` item source. |
+| FancyNpcs | No | The `npc` activator. Citizens is not supported. |
 
 ### Modules
 
@@ -336,6 +337,7 @@ open-with = [
     { type = "chat", text = "!shop", match = "STARTS_WITH", args = ["{message}"] },
     { type = "block", types = ["#minecraft:buttons", "lever"], at { x = 12, y = 64, z = -3, world = "spawn" } },
     { type = "entity", types = ["villager"], name = "&aShop" },
+    { type = "npc", npcs = ["banker"], click = "RIGHT", args = ["{npc}"] },
     { type = "swap-hands", sneaking = true }
 ]
 ```
@@ -348,6 +350,7 @@ open-with = [
 | `swap-hands` | a player presses the hand-swap key | `sneaking` | |
 | `block` | a player clicks, or steps on, a block | `types` (keys or `#tags`), `at` (`x`, `y`, `z`, `world`), `click` (`LEFT`, `RIGHT`, `ANY`, `PHYSICAL`), `sneaking` | `{block}`, `{world}`, `{x}`, `{y}`, `{z}` |
 | `entity` | a player right-clicks an entity | `types`, `name`, `sneaking` | `{entity}`, `{entity_name}` |
+| `npc` | a player clicks an NPC of FancyNpcs | `npcs` (names or ids; any when empty), `click` (`LEFT`, `RIGHT`, `ANY`), `sneaking` | `{npc}`, `{npc_id}` |
 
 Buttons, levers, signs and pressure plates are all `block`: name them in `types` or with a tag, and use `click =
 "PHYSICAL"` for stepping on a plate. Every entry also takes:
@@ -536,7 +539,7 @@ commands exist is read from a quick scan of the files, so adding or removing one
 
 ### Not supported
 
-No activators for regions (WorldGuard) or Citizens NPCs; an NPC that is an entity can be matched by `entity`. The plan for closing the gap to AbstractMenus is [`PLAN.md`](PLAN.md). The item-count condition and the
+No activators for regions (WorldGuard), and no Citizens support (use FancyNpcs); an NPC that is an entity can be matched by `entity`. The plan for closing the gap to AbstractMenus is [`PLAN.md`](PLAN.md). The item-count condition and the
 economy, permission and skin hooks, and the `group` and `meta` actions, are not tested against a live server. The personal variables of every player are
 loaded at startup.
 

@@ -224,6 +224,7 @@ class MenuManager(private val plugin: XaliMenu) {
                 if (activator.types.isEmpty() && activator.name == null) add("an entity activator without types or name fires for every entity")
                 activator.types.filter { entityType(it) == null }.forEach { add("'$it' isn't an entity type") }
             }
+            is Activator.Npc -> if (!Bukkit.getPluginManager().isPluginEnabled("FancyNpcs")) add("an npc activator needs FancyNpcs, which isn't installed")
             is Activator.Chat -> if (activator.text.isEmpty()) add("a chat activator with empty text")
             is Activator.Join, is Activator.SwapHands -> Unit
         }

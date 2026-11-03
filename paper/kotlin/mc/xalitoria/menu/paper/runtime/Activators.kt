@@ -18,6 +18,7 @@ class ActivatorIndex(menus: Map<String, List<Activator>>) {
     val swaps: List<Entry<Activator.SwapHands>> = of()
     val blocks: List<Entry<Activator.Block>> = of()
     val entities: List<Entry<Activator.Entity>> = of()
+    val npcs: List<Entry<Activator.Npc>> = of()
 
     val isEmpty: Boolean get() = all.isEmpty()
 
@@ -81,5 +82,12 @@ fun Activator.Entity.matches(type: String, name: String?, sneaking: Boolean, wan
     if (types.isNotEmpty() && types.none { key(it) == type }) return false
     val wantedEntityName = this.name
     if (wantedEntityName != null && wantedName(wantedEntityName) != name) return false
+    return this.sneaking.accepts(sneaking)
+}
+
+/** Whether a click on an NPC matches; [left] says which click it was, null for one that is both. */
+fun Activator.Npc.matches(name: String, id: String, left: Boolean?, sneaking: Boolean): Boolean {
+    if (left != null && (click == Click.LEFT && !left || click == Click.RIGHT && left)) return false
+    if (npcs.isNotEmpty() && npcs.none { it.equals(name, ignoreCase = true) || it.equals(id, ignoreCase = true) }) return false
     return this.sneaking.accepts(sneaking)
 }

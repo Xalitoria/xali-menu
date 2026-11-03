@@ -109,6 +109,20 @@ sealed interface Activator {
         override val cancel: Boolean = true,
         override val args: List<String> = [],
     ) : Activator
+
+    /**
+     * The player clicks an NPC of FancyNpcs: one of [npcs], by the NPC's name or id (any NPC when empty). `{npc}` is its name
+     * and `{npc_id}` its id. [cancel] stops the NPC's own actions from running.
+     */
+    @Serializable @SerialName("npc")
+    data class Npc(
+        val npcs: List<String> = [],
+        val click: Click = Click.ANY,
+        val sneaking: Boolean? = null,
+        override val require: Gate? = null,
+        override val cancel: Boolean = true,
+        override val args: List<String> = [],
+    ) : Activator
 }
 
 enum class Click { LEFT, RIGHT, ANY }

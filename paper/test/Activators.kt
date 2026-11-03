@@ -96,6 +96,20 @@ class Activators {
     }
 
     @Test
+    fun anNpcMatchesByNameOrIdAndClick() {
+        val anyone = Activator.Npc()
+        assertTrue(anyone.matches("Banker", "id-1", left = true, sneaking = false))
+
+        val banker = Activator.Npc(npcs = ["banker", "OTHER"], click = Click.RIGHT, sneaking = false)
+        assertTrue(banker.matches("Banker", "id-1", left = false, sneaking = false))
+        assertTrue(banker.matches("x", "other", left = false, sneaking = false), "by id")
+        assertTrue(banker.matches("Banker", "id-1", left = null, sneaking = false), "a click that is both")
+        assertFalse(banker.matches("Banker", "id-1", left = true, sneaking = false))
+        assertFalse(banker.matches("Smith", "id-2", left = false, sneaking = false))
+        assertFalse(banker.matches("Banker", "id-1", left = false, sneaking = true))
+    }
+
+    @Test
     fun theIndexKeepsKindsApartAndInOrder() {
         val index = ActivatorIndex(
             mapOf(
@@ -124,7 +138,8 @@ class Activators {
                 require = { require = [{ condition { type = permission, node = "shop.chat" } }] } },
               { type = swap-hands, cancel = false, args = ["hands"] },
               { type = block, types = ["#minecraft:buttons", "lever"], at { x = 1, y = 64, z = -3, world = spawn }, click = ANY, args = ["{block}"] },
-              { type = entity, types = [villager], name = "&aShop", args = ["npc"] }
+              { type = entity, types = [villager], name = "&aShop", args = ["npc"] },
+              { type = npc, npcs = [banker], click = LEFT, args = ["{npc}"] }
             ]
             """.trimIndent()
         )
@@ -138,6 +153,7 @@ class Activators {
         assertEquals(Activator.SwapHands(cancel = false, args = ["hands"]), read[3])
         assertEquals(Activator.Block(["#minecraft:buttons", "lever"], BlockAt(1, 64, -3, "spawn"), BlockClick.ANY, args = ["{block}"]), read[4])
         assertEquals(Activator.Entity(["villager"], "&aShop", args = ["npc"]), read[5])
+        assertEquals(Activator.Npc(["banker"], Click.LEFT, args = ["{npc}"]), read[6])
     }
 
     @Test

@@ -58,8 +58,11 @@ Each step ends with tests, the README section, and a commit.
 - Matching is pure functions (`Activators.kt`) covered by unit tests. Live, with the bot: `chat` (exact, ignoring case,
   canceled, and other messages left alone), `item` (right click opens, a swing does not), `swap-hands`, `join` and
   `block` (a button at a position). Not tried live: `entity`, and `sneaking` / `require` gates.
-- Not done: `region-enter` / `region-leave` (WorldGuard, soft dependency) and the Citizens NPC click (soft). Both need
-  their plugins on the dev server.
+- `npc`: a click on an NPC of FancyNpcs (soft dependency, its event is read by reflection so nothing links to its API), by
+  name or id, `LEFT` / `RIGHT` / `ANY`, with `cancel` stopping the NPC's own actions. Citizens is not supported on purpose.
+  Tested live (`live/bot/npc.js`, `XM_PLUGINS=FancyNpcs`): right click opens, an unmatched left click does not, a
+  sneaking left click opens with `{npc_id}`.
+- Not done: `region-enter` / `region-leave` (WorldGuard, soft dependency).
 - An addon API for activators (`registerActivator`) is open: activators are event-driven, so it needs a design of its own.
 
 ### 3. Menu kinds (done, tested live)
