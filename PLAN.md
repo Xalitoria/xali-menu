@@ -130,6 +130,14 @@ Each step ends with tests, the README section, and a commit.
   `trim_material` and `item_model`. The names were checked against the DeluxeMenus 1.14.1 jar (the option names it reads, and
   its six bundled example menus import with no warning but its own stray `sweet: true`). It has no `open_with_item`. It also
   reads `light_level`, `tooltip_style`, `lore_append_mode` and `model_data_component`, which are warned about and ignored.
+- Checked against the running plugin (DeluxeMenus 1.14.1 on Paper 26.2, `live/bot/compare.js`: both open the same menu, the
+  windows and the chat from clicks are compared). That found and fixed: `data` is the `damage` of a current material (was
+  turned into a variant); `minimum_requirements` leaves non-optional requirements mandatory (a gate's `minimum` did the
+  opposite, now it follows DeluxeMenus); the requirement aliases (`item`, `money`, `perm`, `contains`, `equals`, `regex`, the
+  long comparison names, `does not have item`), `has permissions` and `string length` were missing; `[jsonbroadcast]`; and an
+  `amount` above the stack size of the material was cut (up to 99 now). The harness was also using stale util / color jars.
+  Not carried over: `[meta]` and the `has meta` requirement (DeluxeMenus' persistent meta; the variables are the nearest
+  thing, but the placeholders would have to be rewritten), `is near`, `javascript`, `is object`, `[placeholder]`.
 - Tested live: the player data of a bot that was given every kind of item shows each component with the value written
   (the server has no `/data` for entities on Folia, so the saved data was read instead).
 - Not done: the tool component (rules and speeds), attribute modifiers, tooltip styles, equippable.

@@ -11,6 +11,7 @@ import mc.xalitoria.menu.paper.deluxemenus.*
 import mc.xalitoria.menu.api.model.*
 import mc.xalitoria.menu.paper.action.Actions
 import mc.xalitoria.menu.paper.condition.Conditions
+import mc.xalitoria.menu.paper.condition.Logic
 
 class DeluxeMenusImporter {
     /** A few of the old ids the fixtures use, and which names are old ones. */
@@ -68,6 +69,26 @@ class DeluxeMenusImporter {
         assertEquals("red_wool", jobs.getValue("2").material)
         assertEquals("zombie_spawn_egg", menu("Shop").items.getValue("spawner").material)
         assertEquals("head:%player_name%", menu("help").items.getValue("info").material)
+    }
+
+    @Test
+    fun dataOfARealMaterialIsItsDamageAsInDeluxeMenus114() {
+        val items = menu("Shop").items
+        assertEquals("stone" to 1, items.getValue("old_data").let { it.material to it.damage })
+        assertEquals(9, items.getValue("data_and_damage").damage, "damage wins over data")
+        assertNull(menu("Jobs").items.getValue("2").damage, "the data of an old id is the variant, not damage")
+    }
+
+    @Test
+    fun theOtherNamesOfRequirementsAreRead() {
+        val checks = menu("Shop").items.getValue("aliases").view!!.require.map { it.condition }
+        assertEquals(Conditions.Permission("x.y"), checks[0])
+        assertEquals(Conditions.Text("abc", Conditions.Text.Op.CONTAINS, "b"), checks[1])
+        assertEquals(Conditions.Compare("1", Conditions.Compare.Op.NEQ, "2"), checks[2])
+        assertEquals(Conditions.Not(Conditions.Item("dirt", 1)), checks[3])
+        assertEquals(Logic.AtLeast(2, ["p.a", "p.b", "p.c"].map(Conditions::Permission)), checks[4])
+        assertEquals(Logic.AtLeast(1, ["p.a", "p.b"].map { Conditions.Not(Conditions.Permission(it)) }), checks[5], "missing at least one")
+        assertEquals(Conditions.Regex("%x%", ".{2,5}"), checks[6])
     }
 
     @Test

@@ -137,7 +137,7 @@ private fun Context.convertItem(item: YamlMap): Item? {
         enchants = enchants(item),
         hide = hide.toList(),
         unbreakable = item.option("unbreakable").bool() ?: false,
-        damage = item.option("damage").int(),
+        damage = item.option("damage").int() ?: data?.takeIf { it != 0 && dataIsDamage(raw) },
         rarity = item.option("rarity").text()?.let { name ->
             Rarity.entries.firstOrNull { it.name.equals(name.trim(), ignoreCase = true) } ?: null.also { warn("rarity '$name' isn't one of COMMON, UNCOMMON, RARE, EPIC") }
         },

@@ -4,7 +4,7 @@
 #   menu/live/setup.sh            build what is needed and set everything up in $XM_DIR (default /tmp/xm-live)
 #
 # It needs node and npm, the java of the workspace (JAVA_HOME), and a dev server in run/folia (its Folia jar and
-# libraries are copied: `./gradlew :run:...` or the workspace README says how that one is made).
+# libraries are copied, or XM_PAPER=<paper jar> uses that one instead; the dev server's server.properties and plugins are still used: `./gradlew :run:...` or the workspace README says how that one is made).
 set -euo pipefail
 here=$(cd "$(dirname "$0")" && pwd)
 ws=$(cd "$here/../.." && pwd)
@@ -45,9 +45,14 @@ server="$dir/server"
 mkdir -p "$server/plugins/XaliMenu/menus"
 src="$ws/run/folia"
 [ -d "$src" ] || { echo "no dev server in $src to copy the Folia jar from" >&2; exit 1; }
-for item in folia-*.jar libraries versions cache config bukkit.yml spigot.yml; do
-  [ -e "$server/$item" ] || cp -r "$src"/$item "$server"/
-done
+if [ -n "${XM_PAPER:-}" ]; then
+  # A Paper jar instead (for plugins that don't run on Folia): it fetches its own libraries on the first start.
+  cp "$XM_PAPER" "$server/"
+else
+  for item in folia-*.jar libraries versions cache config bukkit.yml spigot.yml; do
+    [ -e "$server/$item" ] || cp -r "$src"/$item "$server"/
+  done
+fi
 cp "$src"/server.properties "$server/server.properties"
 sed -i "s/^online-mode=.*/online-mode=false/; s/^server-port=.*/server-port=$port/" "$server/server.properties"
 echo "eula=true" > "$server/eula.txt"
@@ -60,8 +65,6 @@ cp "$here"/menus/*.conf "$server/plugins/XaliMenu/menus/"
 # The plugin asks for util $util_version, which is only published once released; give the server the one just built.
 lib="$server/libraries/mc/xalitoria"
 for module in util color; do
-  jar=$(ls "$ws/$module/build/libs/xali-$module-"*.jar | head -1)
-  version=$(basename "$jar" .jar); version=${version#xali-$module-}
   if [ "$module" = util ]; then
     version=$util_version
   else
@@ -73,6 +76,9 @@ print(re.search(r'<artifactId>color</artifactId>\s*<version>([^<]+)</version>', 
 PY
 )
   fi
+  # The jars of the modules are collected in build/libs/<module> of the workspace, not in the module's own build folder.
+  jar="$ws/build/libs/$module/xali-$module-$version.jar"
+  [ -f "$jar" ] || { echo "no $jar: the workspace did not build $module $version" >&2; exit 1; }
   target="$lib/$module/$version"
   mkdir -p "$target"
   cp "$jar" "$target/$module-$version.jar"

@@ -15,7 +15,7 @@ case "${1:-}" in
     # Something has to keep the pipe open, or the server reads the end of the file when a command has been written.
     [ -f .holder ] || { (sleep 7200 > in) >/dev/null 2>&1 & echo $! > .holder; }
     : > server.log
-    nohup "$JAVA_HOME/bin/java" -Xmx1500M -jar folia-*.jar --nogui < in > server.log 2>&1 &
+    nohup "$JAVA_HOME/bin/java" -Xmx1500M -jar "$(ls folia-*.jar paper-*.jar 2>/dev/null | head -1)" --nogui < in > server.log 2>&1 &
     for _ in $(seq 1 180); do grep -aq 'Done (' server.log && break; sleep 1; done
     sed 's/\x1b\[[0-9;]*m//g' server.log | grep -aE "Done \(|XaliMenu\] (Item|Loaded|Menu)|ERROR|Exception" | head -20 ;;
   stop)

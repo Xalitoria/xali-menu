@@ -33,7 +33,7 @@ internal fun parseAction(line: String, warn: (String) -> Unit): Action? {
         "broadcast", "minibroadcast" -> Actions.Broadcast(argument)
         "actionbar" -> Actions.ActionBar(argument)
         "json" -> Actions.Json(argument)
-        "broadcastjson" -> Actions.Json(argument, broadcast = true)
+        "broadcastjson", "jsonbroadcast" -> Actions.Json(argument, broadcast = true)
         "openguimenu", "openmenu" -> argument.split(' ').filter { it.isNotEmpty() }.let {
             if (it.isEmpty()) null else Actions.Open(it.first(), it.drop(1))
         }

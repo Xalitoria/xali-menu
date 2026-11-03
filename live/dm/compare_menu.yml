@@ -1,0 +1,148 @@
+menu_title: '&8Compare &6&lthis &r&7menu'
+open_command: dmcompare
+size: 54
+open_commands:
+- '[message] opened'
+close_commands:
+- '[message] closed'
+items:
+  names:
+    material: DIAMOND_SWORD
+    slot: 0
+    display_name: '&6&lGold &r&7gray &#ff8800hex &b&oaqua italic'
+    lore:
+    - '&7First'
+    - ''
+    - '&aSecond &lbold &rnormal'
+    amount: 3
+    enchantments:
+    - DAMAGE_ALL;4
+    - FIRE_ASPECT;1
+    hide_enchantments: true
+    unbreakable: true
+    damage: 20
+    rarity: EPIC
+    model_data: 77
+    left_click_commands:
+    - '[message] names left'
+    right_click_commands:
+    - '[message] names right'
+    shift_left_click_commands:
+    - '[message] names shift-left'
+    shift_right_click_commands:
+    - '[message] names shift-right'
+    middle_click_commands:
+    - '[message] names middle'
+  glint:
+    material: STONE
+    slot: 1
+    enchantment_glint_override: true
+    display_name: 'glint'
+  tooltipless:
+    material: DIRT
+    slot: 2
+    hide_tooltip: true
+  armor:
+    material: LEATHER_CHESTPLATE
+    slot: 3
+    rgb: '10, 200, 30'
+    trim_pattern: coast
+    trim_material: gold
+    item_flags:
+    - HIDE_ATTRIBUTES
+    - HIDE_DYE
+  banner:
+    material: WHITE_BANNER
+    slot: 4
+    banner_meta:
+    - RED;STRIPE_TOP
+    - BLUE;CROSS
+  potion:
+    material: POTION
+    slot: 5
+    potion_effects:
+    - SPEED;600;2
+    - JUMP_BOOST;200;1
+  egg:
+    material: MONSTER_EGG
+    entity_type: ZOMBIE
+    slot: 6
+  model:
+    material: PAPER
+    slot: 7
+    item_model: 'mypack:crown'
+    nbt_string: 'owner:somebody'
+    nbt_int: 'tier:3'
+  head:
+    material: head-Notch
+    slot: 8
+  texture:
+    material: basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvNDQ3YjZmYjc3YjBjYWM4ZmJlYzQ4NWU3YjdlNzRlOGJjYWMxZWM1ZjE0ZTUxMWNlNjQ5YzY1ZDFmMWUzZGUifX19
+    slot: 9
+  slots_range:
+    material: GLASS_PANE
+    slots:
+    - 18-20
+    - 22
+    display_name: ' '
+  hidden_by_perm:
+    material: BARRIER
+    slot: 27
+    priority: 1
+    view_requirement:
+      requirements:
+        perm:
+          type: has permission
+          permission: nobody.has.this
+    display_name: 'should not show'
+  fallback:
+    material: COAL
+    slot: 27
+    priority: 2
+    display_name: 'fallback'
+  numbers:
+    material: EMERALD
+    slot: 28
+    view_requirement:
+      minimum_requirements: 2
+      requirements:
+        one:
+          type: '>'
+          input: '5'
+          output: '3'
+        two:
+          type: '=='
+          input: '2'
+          output: '3'
+        three:
+          type: string contains
+          input: 'hello world'
+          output: 'wor'
+        four:
+          type: regex matches
+          input: 'abc123'
+          regex: '[a-z]+\d+'
+    display_name: 'two of four'
+  denied_click:
+    material: REDSTONE
+    slot: 29
+    display_name: 'click needs perm'
+    left_click_requirement:
+      requirements:
+        perm:
+          type: has permission
+          permission: nobody.has.this
+      deny_commands:
+      - '[message] denied'
+    left_click_commands:
+    - '[message] allowed'
+  sequence:
+    material: CLOCK
+    slot: 30
+    display_name: 'sequence'
+    click_commands:
+    - '[message] one'
+    - '[message] <chance=100> two'
+    - '[message] <chance=0> never'
+    - '[sound] ENTITY_PLAYER_LEVELUP 1 1'
+    - '[close]'

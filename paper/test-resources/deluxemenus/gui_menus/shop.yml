@@ -106,3 +106,49 @@ items:
     slot: 8
   broken:
     slot: 1
+  old_data:
+    material: stone
+    data: 1
+    slot: 10
+  data_and_damage:
+    material: stone
+    data: 1
+    damage: 9
+    slot: 11
+  aliases:
+    material: stone
+    slot: 12
+    view_requirement:
+      requirements:
+        a:
+          type: perm
+          permission: x.y
+        b:
+          type: contains
+          input: abc
+          output: b
+        c:
+          type: not equal to
+          input: '1'
+          output: '2'
+        d:
+          type: does not have item
+          material: dirt
+        e:
+          type: has permissions
+          permissions:
+          - p.a
+          - p.b
+          - p.c
+          minimum: 2
+        f:
+          type: '!has permissions'
+          permissions:
+          - p.a
+          - p.b
+          minimum: 1
+        g:
+          type: string length
+          input: '%x%'
+          min: 2
+          max: 5

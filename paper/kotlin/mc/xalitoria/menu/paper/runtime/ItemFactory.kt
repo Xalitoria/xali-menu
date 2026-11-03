@@ -58,7 +58,7 @@ class ItemFactory(private val plugin: XaliMenu) {
         var stack = base(spec, loaded) ?: ItemStack(Material.BARRIER)
 
         val amount = item.dynamicAmount?.let { ctx.parse(it).trim().toDoubleOrNull()?.toInt() } ?: item.amount
-        stack.amount = amount.coerceIn(1, stack.maxStackSize.coerceAtLeast(1))
+        stack.amount = amount.coerceIn(1, 99)
 
         stack.editMeta { meta ->
             item.name?.let { meta.displayName(ctx.component(it).decorationIfAbsent(TextDecoration.ITALIC, TextDecoration.State.FALSE)) }

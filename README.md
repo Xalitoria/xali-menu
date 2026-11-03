@@ -454,6 +454,13 @@ restart; the rest of a menu reloads live.
 item ids and data values are converted by the server, so the first import of such a config makes Paper log its legacy
 material warning.
 
+The importer was checked against DeluxeMenus 1.14.1 itself: its example menus and a menu with most item options were opened
+with both plugins, and the items, names, lore and the chat from clicks compared. Where they differ: names that have no
+color code are italic in DeluxeMenus and not here, and a `material` that DeluxeMenus 1.14 rejects (an old name such as
+`MONSTER_EGG`) is converted instead of being left out. The `data` option of a current material is its `damage`, as it is in
+DeluxeMenus; only numeric ids and old names read it as a variant. `minimum_requirements` works as it does there: a
+requirement that is not `optional` must hold, and at least that many must.
+
 What cannot be carried over is listed at the top of each file and summed up in chat and the console: `[meta]` and
 `[placeholder]` commands, the `javascript`, `is near`, `is object` and `has meta` requirements, and a
 few item options. A requirement of a type that cannot be run becomes `type = "never"`, so the menu fails closed instead

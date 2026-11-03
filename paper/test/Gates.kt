@@ -102,12 +102,21 @@ class Gates {
     }
 
     @Test
-    fun aMinimumCountsAnyChecks() {
+    fun aMinimumCountsTheChecksThatHold() {
         val ctx = ctx(player = player(setOf("b", "c")))
-        val checks = ["a", "b", "c"].map { check(Conditions.Permission(it), deny = [Actions.Message("no $it")]) }
+        val checks = ["a", "b", "c"].map { check(Conditions.Permission(it), optional = true, deny = [Actions.Message("no $it")]) }
         assertTrue(Gate(checks, minimum = 2).passes(ctx, run = true))
         assertEquals(listOf<Action>(Actions.Message("no a")), ran, "all are looked at")
         assertFalse(Gate(checks, minimum = 3).passes(ctx, run = false))
+    }
+
+    @Test
+    fun aCheckThatIsNotOptionalMustHoldWhateverTheMinimum() {
+        val ctx = ctx(player = player(setOf("b", "c")))
+        val required = check(Conditions.Permission("a"))
+        val optional = ["b", "c"].map { check(Conditions.Permission(it), optional = true) }
+        assertFalse(Gate([required] + optional, minimum = 1).passes(ctx, run = false), "'a' is missing")
+        assertTrue(Gate(optional + check(Conditions.Permission("b")), minimum = 3).passes(ctx, run = false))
     }
 
     @Test

@@ -6,11 +6,31 @@ import mc.xalitoria.menu.api.Action
 import mc.xalitoria.menu.api.model.Check
 import mc.xalitoria.menu.api.Condition
 import mc.xalitoria.menu.paper.condition.Conditions
+import mc.xalitoria.menu.paper.condition.Logic
 import mc.xalitoria.menu.paper.condition.PlayerConditions
 import mc.xalitoria.menu.api.model.Gate
 
 private val GATE_OPTIONS: Set<String>  = ["requirements", "minimum_requirements", "stop_at_success", "success_commands", "deny_commands"]
 private val CHECK_OPTIONS: Set<String> = ["type", "optional", "success_commands", "deny_commands"]
+
+/** The other names DeluxeMenus 1.14 gives each type of requirement (the `!` before a name is read separately). */
+private val ALIASES = mapOf(
+    "has perm" to "has permission", "hasperm" to "has permission", "perm" to "has permission", "haspermission" to "has permission",
+    "has perms" to "has permissions", "hasperms" to "has permissions", "haspermissions" to "has permissions", "perms" to "has permissions",
+    "money" to "has money", "hasmoney" to "has money",
+    "item" to "has item", "hasitem" to "has item",
+    "exp" to "has exp", "hasexp" to "has exp",
+    "contains" to "string contains", "stringcontains" to "string contains",
+    "equals" to "string equals", "stringequals" to "string equals",
+    "equalsignorecase" to "string equals ignorecase", "stringequalsignorecase" to "string equals ignorecase",
+    "regex" to "regex matches",
+    "greater than" to ">", "greaterthan" to ">",
+    "greater than or equal to" to ">=", "greaterthanorequalto" to ">=",
+    "equal to" to "==", "equalto" to "==",
+    "not equal to" to "!=", "notequalto" to "!=",
+    "less than or equal to" to "<=", "lessthanorequalto" to "<=",
+    "less than" to "<", "lessthan" to "<",
+)
 
 /**
  * Turns a DeluxeMenus requirement block (what `open_requirement`, `view_requirement` and the click requirements hold)
@@ -53,11 +73,19 @@ private fun Context.parseCheck(body: YamlMap): Check? {
     val used = mutableSetOf<String>()
     fun take(key: String): String? = body.option(key).text()?.also { used += key }
 
-    val negate = type.startsWith("!") && type != "!="
-    val base = type.removePrefix("!").lowercase().replace(Regex("[ _]+"), " ").trim()
+    val lowered = type.lowercase().replace(Regex("[ _]+"), " ").trim()
+    val negate = lowered.startsWith("!") && lowered != "!=" || lowered == "does not have item"
+    val named = if (lowered == "does not have item") "has item" else lowered.removePrefix("!").trim().let { if (lowered == "!=") lowered else it }
+    val base = ALIASES[named] ?: named
 
     val condition: Condition = when (base) {
         "has permission", "haspermission" -> take("permission")?.let(Conditions::Permission)
+        "has permissions" -> permissions(body, negate, ::take).also { used += "permissions" }
+        "string length" -> take("input")?.let { input ->
+            val min = take("min")?.toIntOrNull() ?: 0
+            val max = take("max")?.toIntOrNull()
+            Conditions.Regex(input, ".{$min,${max ?: ""}}")
+        }
         "has money", "hasmoney" -> take("amount")?.let { Conditions.Money(it) }
         "has item", "hasitem" -> take("material")?.let {
             val data = take("data")?.toIntOrNull()
@@ -93,11 +121,23 @@ private fun Context.parseCheck(body: YamlMap): Check? {
     (body.keys - CHECK_OPTIONS - used).forEach { warn("option '$it' is ignored") }
 
     return Check(
-        condition = if (negate && condition != Conditions.Never) Conditions.Not(condition) else condition,
+        condition = if (negate && condition != Conditions.Never && base != "has permissions") Conditions.Not(condition) else condition,
         optional = body.option("optional").bool() ?: false,
         pass = actions(body.option("success_commands")),
         deny = actions(body.option("deny_commands")),
     )
+}
+
+/**
+ * A list of permissions of which at least `minimum` (all, by default) are needed. Negated, DeluxeMenus asks for at least
+ * `minimum` of them to be missing, which is not the same as not having `minimum` of them.
+ */
+private fun Context.permissions(body: YamlMap, negate: Boolean, take: (String) -> String?): Condition? {
+    val list = body.option("permissions").texts()
+    if (list.isEmpty()) return null
+    val minimum = (take("minimum")?.toIntOrNull() ?: list.size).coerceIn(1, list.size)
+    val checks = list.map<String, Condition>(Conditions::Permission)
+    return Logic.AtLeast(minimum, if (negate) checks.map(Conditions::Not) else checks)
 }
 
 private fun text(take: (String) -> String?, op: Conditions.Text.Op): Conditions.Text? {

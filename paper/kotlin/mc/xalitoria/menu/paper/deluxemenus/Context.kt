@@ -51,13 +51,19 @@ internal class Context(val materials: Materials) {
         }
 
         val name = lower.removePrefix("minecraft:").replace(' ', '_')
-        val legacy = when {
-            data != null && data != 0 -> materials.legacy(name, data)
-            !materials.exists(name) -> materials.legacy(name, 0)
-            else -> null
-        }
+        val legacy = if (!materials.exists(name)) materials.legacy(name, data ?: 0) else null
         if (legacy == null && !materials.exists(name)) warn("material '$value' isn't a known item")
         return legacy ?: name
+    }
+
+    /**
+     * Whether the `data` of an item with the `material` [raw] is a damage value. DeluxeMenus 1.14 reads `data` as an old way to
+     * write `damage`; only the numeric ids and old names of old configurations give it a meaning of its own (a color, a variant).
+     */
+    fun dataIsDamage(raw: String): Boolean {
+        val lower = raw.trim().lowercase()
+        if (lower.substringBefore(':').toIntOrNull() != null) return false
+        return materials.exists(lower.removePrefix("minecraft:").replace(' ', '_'))
     }
 
     private class Source(val prefix: String, val source: String)
