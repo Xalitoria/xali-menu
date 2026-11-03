@@ -10,6 +10,7 @@ import mc.xalitoria.menu.api.model.Click
 import mc.xalitoria.menu.api.model.Menu
 import mc.xalitoria.menu.api.model.TextMatch
 import mc.xalitoria.menu.paper.runtime.ActivatorIndex
+import mc.xalitoria.menu.paper.runtime.RegionChange
 import mc.xalitoria.menu.paper.runtime.matches
 
 class Activators {
@@ -110,6 +111,25 @@ class Activators {
     }
 
     @Test
+    fun aRegionMatchesByIdOrAny() {
+        assertTrue(Activator.RegionEnter().matches("spawn"))
+        assertTrue(Activator.RegionEnter(["Spawn", "shop"]).matches("spawn"))
+        assertFalse(Activator.RegionEnter(["shop"]).matches("spawn"))
+        assertTrue(Activator.RegionLeave(["shop"]).matches("SHOP"))
+    }
+
+    @Test
+    fun movingBetweenRegionsEntersAndLeavesTheDifference() {
+        val inside = RegionChange.within(["a", "b"], ["b", "c", "d"])
+        assertEquals(["c", "d"], inside.entered)
+        assertEquals(["a"], inside.left)
+        assertFalse(RegionChange.within(["a"], ["a"]).any)
+        val away = RegionChange.between(["a"], ["a", "b"])
+        assertEquals(["a", "b"], away.entered, "the same id in another world is another region")
+        assertEquals(["a"], away.left)
+    }
+
+    @Test
     fun theIndexKeepsKindsApartAndInOrder() {
         val index = ActivatorIndex(
             mapOf(
@@ -139,7 +159,9 @@ class Activators {
               { type = swap-hands, cancel = false, args = ["hands"] },
               { type = block, types = ["#minecraft:buttons", "lever"], at { x = 1, y = 64, z = -3, world = spawn }, click = ANY, args = ["{block}"] },
               { type = entity, types = [villager], name = "&aShop", args = ["npc"] },
-              { type = npc, npcs = [banker], click = LEFT, args = ["{npc}"] }
+              { type = npc, npcs = [banker], click = LEFT, args = ["{npc}"] },
+              { type = region-enter, regions = [spawn], args = ["{region}"] },
+              { type = region-leave }
             ]
             """.trimIndent()
         )
@@ -154,6 +176,8 @@ class Activators {
         assertEquals(Activator.Block(["#minecraft:buttons", "lever"], BlockAt(1, 64, -3, "spawn"), BlockClick.ANY, args = ["{block}"]), read[4])
         assertEquals(Activator.Entity(["villager"], "&aShop", args = ["npc"]), read[5])
         assertEquals(Activator.Npc(["banker"], Click.LEFT, args = ["{npc}"]), read[6])
+        assertEquals(Activator.RegionEnter(["spawn"], args = ["{region}"]), read[7])
+        assertEquals(Activator.RegionLeave(), read[8])
     }
 
     @Test

@@ -11,6 +11,7 @@ plugins {
 
 repositories {
     mavenNexo()
+    maven("https://maven.enginehub.org/repo/")
 }
 
 dependencies {
@@ -30,6 +31,7 @@ dependencies {
     compileOnly(libs.nexo)
     compileOnly(libs.skinsrestorer)
     compileOnly(libs.headdatabase)
+    compileOnly("com.sk89q.worldguard:worldguard-bukkit:7.0.19")
 
     testImplementation(libs.xalicraft.util)
     testImplementation(libs.kotlinx.serialization.hocon)

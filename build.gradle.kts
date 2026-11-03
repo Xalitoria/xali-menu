@@ -34,6 +34,7 @@ paper {
         register("SkinsRestorer") { load = RelativeLoad.BEFORE; required = false }
         register("HeadDatabase") { load = RelativeLoad.BEFORE; required = false }
         register("FancyNpcs") { load = RelativeLoad.BEFORE; required = false }
+        register("WorldGuard") { load = RelativeLoad.BEFORE; required = false }
     }
     // ItemsAdder, Nexo, SkinsRestorer and HeadDatabase aren't downloadable without an account: put their jars in the
     // server's plugins by hand.

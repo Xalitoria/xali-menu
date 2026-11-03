@@ -19,6 +19,8 @@ class ActivatorIndex(menus: Map<String, List<Activator>>) {
     val blocks: List<Entry<Activator.Block>> = of()
     val entities: List<Entry<Activator.Entity>> = of()
     val npcs: List<Entry<Activator.Npc>> = of()
+    val regionEnters: List<Entry<Activator.RegionEnter>> = of()
+    val regionLeaves: List<Entry<Activator.RegionLeave>> = of()
 
     val isEmpty: Boolean get() = all.isEmpty()
 
@@ -90,4 +92,26 @@ fun Activator.Npc.matches(name: String, id: String, left: Boolean?, sneaking: Bo
     if (left != null && (click == Click.LEFT && !left || click == Click.RIGHT && left)) return false
     if (npcs.isNotEmpty() && npcs.none { it.equals(name, ignoreCase = true) || it.equals(id, ignoreCase = true) }) return false
     return this.sneaking.accepts(sneaking)
+}
+
+/** Whether a region called [id] is one the activator is for; ids are lower case in WorldGuard, and people write them as they like. */
+private fun matchesRegion(regions: List<String>, id: String) = regions.isEmpty() || regions.any { it.equals(id, ignoreCase = true) }
+
+fun Activator.RegionEnter.matches(id: String) = matchesRegion(regions, id)
+
+fun Activator.RegionLeave.matches(id: String) = matchesRegion(regions, id)
+
+/** The regions a player entered and left, each in order of id. */
+class RegionChange(entered: Collection<String>, left: Collection<String>) {
+    val entered: List<String> = entered.sorted()
+    val left: List<String> = left.sorted()
+    val any: Boolean get() = this.entered.isNotEmpty() || this.left.isNotEmpty()
+
+    companion object {
+        /** Moving from standing in [before] to standing in [after], in the same world. */
+        fun within(before: Set<String>, after: Set<String>) = RegionChange(after - before, before - after)
+
+        /** Moving to another world: all the regions of the one are left and all those of the other entered. */
+        fun between(before: Set<String>, after: Set<String>) = RegionChange(after, before)
+    }
 }

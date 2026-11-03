@@ -123,6 +123,27 @@ sealed interface Activator {
         override val cancel: Boolean = true,
         override val args: List<String> = [],
     ) : Activator
+
+    /**
+     * The player enters a WorldGuard region: one of [regions] by its id (any region when empty). `{region}` is the id of the
+     * region and `{world}` the world. Joining the server inside a region is not entering it. [cancel] has no meaning.
+     */
+    @Serializable @SerialName("region-enter")
+    data class RegionEnter(
+        val regions: List<String> = [],
+        override val require: Gate? = null,
+        override val cancel: Boolean = false,
+        override val args: List<String> = [],
+    ) : Activator
+
+    /** The player leaves a WorldGuard region, in the same way [RegionEnter] enters one; `{region}` is the region left. */
+    @Serializable @SerialName("region-leave")
+    data class RegionLeave(
+        val regions: List<String> = [],
+        override val require: Gate? = null,
+        override val cancel: Boolean = false,
+        override val args: List<String> = [],
+    ) : Activator
 }
 
 enum class Click { LEFT, RIGHT, ANY }

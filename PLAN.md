@@ -62,7 +62,11 @@ Each step ends with tests, the README section, and a commit.
   name or id, `LEFT` / `RIGHT` / `ANY`, with `cancel` stopping the NPC's own actions. Citizens is not supported on purpose.
   Tested live (`live/bot/npc.js`, `XM_PLUGINS=FancyNpcs`): right click opens, an unmatched left click does not, a
   sneaking left click opens with `{npc_id}`.
-- Not done: `region-enter` / `region-leave` (WorldGuard, soft dependency).
+- `region-enter` / `region-leave` (WorldGuard, compiled against its API as `compileOnly`, a soft dependency): from the
+  move and teleport events, once a block is crossed, comparing the regions at the block with those the player stood in
+  (`RegionChange`, tested); the menu opens two ticks later, since a teleport closes what is open. Joining inside a region is
+  silent, a change of world leaves all and enters all. A `region` condition too. Tested live on Paper with FAWE and
+  WorldGuard 7.0.19 (`live/bot/region.js`): entering, moving inside (silent), leaving, and the condition inside and out.
 - An addon API for activators (`registerActivator`) is open: activators are event-driven, so it needs a design of its own.
 
 ### 3. Menu kinds (done, tested live)
@@ -115,7 +119,7 @@ Each step ends with tests, the README section, and a commit.
   settings that are refused, reading and writing every new condition. Live (bot, items shown or hidden by `view`): free
   slots with and without items, held item, game mode, health, food, level, experience on both sides of its limit, worlds,
   online, the four combinations, `chance` at both ends, a cooldown ending and a once-only one staying, and `variable-exists`.
-- Not tested live: `group` (needs a Vault permission provider). Not done: `region` (WorldGuard, soft), JavaScript.
+- Not tested live: `group` (needs a Vault permission provider). Not done: JavaScript.
 
 ### 6. Item properties (done, tested live)
 

@@ -27,6 +27,7 @@ import mc.xalitoria.menu.paper.hook.HeadDatabaseSource
 import mc.xalitoria.menu.paper.hook.Heads
 import mc.xalitoria.menu.paper.hook.ItemsAdderSource
 import mc.xalitoria.menu.paper.hook.NexoSource
+import mc.xalitoria.menu.paper.hook.Regions
 import mc.xalitoria.menu.paper.hook.Skins
 import mc.xalitoria.menu.paper.runtime.ActionRunner
 import mc.xalitoria.menu.paper.runtime.ActivatorListener
@@ -63,6 +64,10 @@ class XaliMenu : JavaPlugin() {
 
     /** The skins of players, when SkinsRestorer is here. */
     var skins: Skins? = null
+        private set
+
+    /** The regions of WorldGuard, when it is here. */
+    var regions: Regions? = null
         private set
 
     lateinit var items: ItemFactory
@@ -113,6 +118,7 @@ class XaliMenu : JavaPlugin() {
         if (pm.isPluginEnabled("HeadDatabase")) registry.addSource(null, HeadDatabaseSource())
         heads = Heads(this, pm.isPluginEnabled("SkinsRestorer"))
         if (pm.isPluginEnabled("SkinsRestorer")) skins = Skins(this)
+        if (pm.isPluginEnabled("WorldGuard")) regions = Regions()
         items = ItemFactory(this)
         actions = ActionRunner(this)
         menus = MenuManager(this)

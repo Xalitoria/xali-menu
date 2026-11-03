@@ -142,16 +142,18 @@ class MoreConditions {
                 { condition { type = cooldown, key = daily } }
                 { condition { type = experience, min = "10" } }
                 { condition { type = online-count, max = "50" } }
+                { condition { type = region, names = [spawn, "{arg}"] } }
               ]
             }
         """.trimIndent()
         val menu = Registry.format.decode(text)
         val conditions = menu.items.getValue("a").view!!.require.map { it.condition }
-        assertEquals(10, conditions.size)
+        assertEquals(11, conditions.size)
         assertEquals(Logic.And([PlayerConditions.FreeSlots(3), PlayerConditions.Health(min = "10")]), conditions[0])
         assertEquals(PlayerConditions.Gamemode([GameMode.SURVIVAL, GameMode.ADVENTURE]), (conditions[1] as Logic.Or).conditions[0])
         assertEquals(EquipmentSlot.OFF_HAND, (conditions[2] as PlayerConditions.HeldItem).hand)
         assertEquals(PlayerConditions.Cooldown("daily"), conditions[7])
+        assertEquals(PlayerConditions.Region(["spawn", "{arg}"]), conditions[10])
         assertEquals(menu, Registry.format.decode(Registry.format.encode(menu, [])))
     }
 

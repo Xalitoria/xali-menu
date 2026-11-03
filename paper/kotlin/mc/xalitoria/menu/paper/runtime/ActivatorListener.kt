@@ -22,9 +22,14 @@ import org.bukkit.event.block.Action
 import org.bukkit.event.player.PlayerInteractEntityEvent
 import org.bukkit.event.player.PlayerInteractEvent
 import org.bukkit.event.player.PlayerJoinEvent
+import org.bukkit.event.player.PlayerMoveEvent
+import org.bukkit.event.player.PlayerQuitEvent
+import org.bukkit.event.player.PlayerTeleportEvent
 import org.bukkit.event.player.PlayerSwapHandItemsEvent
 import org.bukkit.inventory.EquipmentSlot
 import org.bukkit.inventory.ItemStack
+import java.util.UUID
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Opens menus for what the players do: the `open-with` of the menus. The events of a player come on the thread of the
@@ -129,6 +134,46 @@ class ActivatorListener(private val plugin: XaliMenu) : Listener {
         val first = matching.firstOrNull() ?: return
         if (first.activator.cancel) event.isCancelled = true
         player.scheduler.run(plugin, { for (entry in matching) if (trigger(player, entry, mapOf("npc" to name, "npc_id" to id))) break }, null)
+    }
+
+    /** The regions each player stood in when they last moved, with the world; kept only while a menu has a region activator. */
+    private val standing = ConcurrentHashMap<UUID, Pair<UUID, Set<String>>>()
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    fun onTeleport(event: PlayerTeleportEvent) = onMove(event)
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    fun onMove(event: PlayerMoveEvent) {
+        val regions = plugin.regions ?: return
+        if (index.regionEnters.isEmpty() && index.regionLeaves.isEmpty()) return
+        val from = event.from
+        val to = event.to
+        if (event !is PlayerTeleportEvent && from.world == to.world && from.blockX == to.blockX && from.blockY == to.blockY && from.blockZ == to.blockZ) return
+
+        val player = event.player
+        val before = standing[player.uniqueId] ?: (from.world.uid to regions.at(from))
+        val after = to.world.uid to regions.at(to)
+        standing[player.uniqueId] = after
+        val change = if (before.first == after.first) RegionChange.within(before.second, after.second) else RegionChange.between(before.second, after.second)
+        if (!change.any) return
+
+        // A teleport is not done yet when its event is heard, and it closes the menu a player has open, so this waits for it.
+        val values = { id: String -> mapOf("region" to id, "world" to to.world.name) }
+        player.scheduler.runDelayed(plugin, {
+            for (id in change.entered) {
+                val matching = index.regionEnters.filter { it.activator.matches(id) }
+                if (matching.any { trigger(player, it, values(id)) }) return@runDelayed
+            }
+            for (id in change.left) {
+                val matching = index.regionLeaves.filter { it.activator.matches(id) }
+                if (matching.any { trigger(player, it, values(id)) }) return@runDelayed
+            }
+        }, null, 2)
+    }
+
+    @EventHandler
+    fun onQuit(event: PlayerQuitEvent) {
+        standing.remove(event.player.uniqueId)
     }
 
     @EventHandler

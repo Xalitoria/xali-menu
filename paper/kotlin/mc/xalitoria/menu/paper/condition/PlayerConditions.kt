@@ -26,6 +26,7 @@ object PlayerConditions {
         registry.condition<Level>()
         registry.condition<Experience>()
         registry.condition<World>()
+        registry.condition<Region>()
         registry.condition<Online>()
         registry.condition<OnlineCount>()
         registry.condition<Group>()
@@ -121,6 +122,18 @@ object PlayerConditions {
         }
 
         override fun test(ctx: MenuContext): Boolean = names.any { ctx.parse(it).trim().equals(ctx.player.world.name, ignoreCase = true) }
+    }
+
+    /**
+     * The viewer stands in one of the WorldGuard regions [names] (placeholders allowed), or in any region when there are none.
+     * Without WorldGuard it never holds.
+     */
+    @Serializable @SerialName("region")
+    data class Region(val names: List<String> = []) : Condition {
+        override fun test(ctx: MenuContext): Boolean {
+            val here = XaliMenu.INSTANCE.regions?.at(ctx.player.location) ?: return false
+            return if (names.isEmpty()) here.isNotEmpty() else names.any { wanted -> here.any { it.equals(ctx.parse(wanted).trim(), ignoreCase = true) } }
+        }
     }
 
     /** The player called [player] (a name; may be a placeholder) is online. */

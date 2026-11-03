@@ -19,6 +19,7 @@ sources through an [addon API](#extending).
 | SkinsRestorer | No | Skins for `head:<player>`; the `skin` and `skin-reset` actions. |
 | HeadDatabase | No | The `hdb:<id>` item source. |
 | FancyNpcs | No | The `npc` activator. Citizens is not supported. |
+| WorldGuard | No | The `region-enter` and `region-leave` activators and the `region` condition. |
 
 ### Modules
 
@@ -201,6 +202,7 @@ Conditions are asked on every refresh, so they only look. Numbers can be placeho
 | `free-slots` | the inventory has `min` empty slots (default 1) | `min` |
 | `health`, `food`, `level`, `experience`, `online-count` | the number is between `min` and `max` | `min`, `max` |
 | `gamemode`, `world` | the viewer is in one of the modes, or worlds | `modes` (`SURVIVAL`...); `names` |
+| `region` | the viewer stands in a WorldGuard region (one of `names`, any when none) | `names` |
 | `online` | the player is online | `player` |
 | `compare`, `text`, `regex` | numbers, text or a pattern fit; see [Variables](#variables) | `left`, `op`, `right`; `input`, `op`, `value`; `input`, `pattern` |
 | `variable-exists` | a variable exists | `name`, `scope` (`GLOBAL`, `PLAYER`) |
@@ -352,6 +354,7 @@ open-with = [
 | `swap-hands` | a player presses the hand-swap key | `sneaking` | |
 | `block` | a player clicks, or steps on, a block | `types` (keys or `#tags`), `at` (`x`, `y`, `z`, `world`), `click` (`LEFT`, `RIGHT`, `ANY`, `PHYSICAL`), `sneaking` | `{block}`, `{world}`, `{x}`, `{y}`, `{z}` |
 | `entity` | a player right-clicks an entity | `types`, `name`, `sneaking` | `{entity}`, `{entity_name}` |
+| `region-enter`, `region-leave` | a player enters, or leaves, a WorldGuard region (joining inside one is not entering it) | `regions` (ids; any when empty) | `{region}`, `{world}` |
 | `npc` | a player clicks an NPC of FancyNpcs | `npcs` (names or ids; any when empty), `click` (`LEFT`, `RIGHT`, `ANY`), `sneaking` | `{npc}`, `{npc_id}` |
 
 Buttons, levers, signs and pressure plates are all `block`: name them in `types` or with a tag, and use `click =
@@ -548,7 +551,7 @@ commands exist is read from a quick scan of the files, so adding or removing one
 
 ### Not supported
 
-No activators for regions (WorldGuard), and no Citizens support (use FancyNpcs); an NPC that is an entity can be matched by `entity`. The plan for closing the gap to AbstractMenus is [`PLAN.md`](PLAN.md). The item-count condition and the
+No Citizens support (use FancyNpcs); an NPC that is an entity can be matched by `entity`. The plan for closing the gap to AbstractMenus is [`PLAN.md`](PLAN.md). The item-count condition and the
 economy, permission and skin hooks, and the `group` and `meta` actions, are not tested against a live server. The personal variables of every player are
 loaded at startup.
 
