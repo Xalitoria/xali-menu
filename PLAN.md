@@ -96,7 +96,10 @@ Each step ends with tests, the README section, and a commit.
   boss bar shown and hidden, book packet, particle packet and a bad particle failing alone, `run-for` and `random`, the
   `input` prompt (invalid reply, valid reply, timeout, cancel word) and ordinary chat afterwards.
 - Not tested live: `group` (needs Vault's permission provider) and `meta` (needs LuckPerms).
-- Not done: `skin` set / reset (SkinsRestorer; needs its skin lookup and an installed plugin to test), `place-item` and the
+- `skin` (a player's name or a link, `slim` for a picture) and `skin-reset` through SkinsRestorer: looked up off the region
+  threads, stored for the next visit, put on on the player's thread; one that can't be found is a console warning. Tested
+  live (`live/bot/skin.js`): the stored skin after the set (Notch's id), after the reset (gone), and a name that doesn't exist.
+- Not done: `place-item` and the
   other per-slot item actions of AM (`button-set`, `item-refresh`, ...), whose job `view` gates and `update` already do, and
   recipes (`recipe-add`).
 

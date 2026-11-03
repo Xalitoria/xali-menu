@@ -10,6 +10,7 @@ import kotlinx.serialization.Serializable
 import mc.xalitoria.menu.api.Action
 import mc.xalitoria.menu.api.MenuContext
 import mc.xalitoria.menu.api.model.DurationAsString
+import mc.xalitoria.menu.paper.XaliMenu
 import mc.xalitoria.menu.paper.XaliMenu.Companion.debug
 import mc.xalitoria.menu.paper.api.TypeRegistry
 import net.kyori.adventure.bossbar.BossBar
@@ -35,6 +36,8 @@ object Effects {
         registry.action<ShowBossBar>()
         registry.action<OpenBook>()
         registry.action<ShowParticle>()
+        registry.action<Skin>()
+        registry.action<SkinReset>()
     }
 
     /** How a number is changed by an amount. */
@@ -248,6 +251,39 @@ object Effects {
             val at = player.location.add(dx, dy, dz)
             if (everyone) player.world.spawnParticle(type, at, count, spread, spread, spread, speed)
             else player.spawnParticle(type, at, count, spread, spread, spread, speed)
+        }
+    }
+
+    /**
+     * Gives the viewer the skin of the player [skin], or of the picture at that link, with SkinsRestorer, which keeps it for
+     * their next visit. [slim] picks the thinner arms for a picture. It is looked up in the background and put on when found,
+     * so the actions after it don't wait; one that can't be found is noted in the console.
+     */
+    @Serializable @SerialName("skin")
+    data class Skin(val skin: String, val slim: Boolean = false) : Action {
+        override fun run(ctx: MenuContext) {
+            val skins = XaliMenu.INSTANCE.skins
+            if (skins == null) {
+                debug("SkinsRestorer isn't installed, so the skin of {0} stays", ctx.player.name)
+                ctx.abort()
+                return
+            }
+            val source = ctx.parse(skin).trim()
+            skins.set(ctx.player, source, slim) { XaliMenu.INSTANCE.logger.warning("Skin '$source' for ${ctx.player.name}: $it") }
+        }
+    }
+
+    /** Takes the skin a menu gave the viewer off them again, with SkinsRestorer. */
+    @Serializable @SerialName("skin-reset")
+    data object SkinReset : Action {
+        override fun run(ctx: MenuContext) {
+            val skins = XaliMenu.INSTANCE.skins
+            if (skins == null) {
+                debug("SkinsRestorer isn't installed, so the skin of {0} stays", ctx.player.name)
+                ctx.abort()
+                return
+            }
+            skins.reset(ctx.player) { XaliMenu.INSTANCE.logger.warning("Resetting the skin of ${ctx.player.name}: $it") }
         }
     }
 }

@@ -204,12 +204,14 @@ class MoreActions {
                 { type = random, actions = [ { type = close }, { type = refresh } ], count = 2 }
                 { type = run-for, catalog { type = players }, actions = [ { type = close } ], limit = 5 }
                 { type = log, text = "hi", level = WARNING }
+                { type = skin, skin = "Notch", slim = true }
+                { type = skin-reset }
               ]
             }
             """.trimIndent()
         )
         val actions = menu.items.getValue("a").click.any!!.actions
-        assertEquals(20, actions.size)
+        assertEquals(22, actions.size)
         assertEquals(Inventory.Overflow.ABORT, (actions[0] as Inventory.GiveItem).overflow)
         assertEquals(2, (actions[0] as Inventory.GiveItem).item.amount)
         assertEquals(10.seconds, (actions[3] as Effects.Potion).duration)
@@ -217,6 +219,8 @@ class MoreActions {
         assertEquals(5, (actions[9] as Effects.ShowTitle).fadeIn)
         assertEquals(1.minutes, (actions[13] as Social.Input).timeout)
         assertEquals(Catalogs.Players(), (actions[18] as Flow.RunFor).catalog)
+        assertEquals(Effects.Skin("Notch", slim = true), actions[20])
+        assertEquals(Effects.SkinReset, actions[21])
     }
 
     @Test
@@ -228,6 +232,8 @@ class MoreActions {
             Effects.Health("5", Effects.Change.TAKE),
             Flow.RunFor(Catalogs.Range("1", "4"), [Flow.All([Actions.Close])], limit = 3),
             Social.Input("?", [Actions.Close], onCancel = [Actions.Refresh], match = "x+"),
+            Effects.Skin("{arg}"),
+            Effects.SkinReset,
         )
         val menu = mc.xalitoria.menu.api.model.Menu(
             title = "t",

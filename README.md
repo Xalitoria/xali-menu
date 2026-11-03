@@ -16,7 +16,7 @@ sources through an [addon API](#extending).
 | VaultUnlocked (or Vault) | No | Money conditions and actions (several currencies), permission actions. |
 | ItemsAdder | No | The `itemsadder:<id>` item source. Runs on **Paper only**, see [Troubleshooting](#troubleshooting). |
 | Nexo | No | The `nexo:<id>` item source. |
-| SkinsRestorer | No | Skins for `head:<player>`. |
+| SkinsRestorer | No | Skins for `head:<player>`; the `skin` and `skin-reset` actions. |
 | HeadDatabase | No | The `hdb:<id>` item source. |
 | FancyNpcs | No | The `npc` activator. Citizens is not supported. |
 
@@ -158,6 +158,8 @@ go on, and one that cannot do what the next depends on (`take-item` without enou
 | `take-item` | Take items, or abort if there are fewer | `material`, `amount`, `name`, `model` |
 | `clear-items` | Take every matching item; with no setting, everything | `material`, `name`, `model` |
 | `potion` | An effect on the viewer, or off them | `effect`, `duration`, `amplifier`, `particles`, `remove` (`effect = all` clears every one) |
+| `skin` | The skin of a player or of a picture at a link, kept for the next visit (SkinsRestorer) | `skin` (a name or a link; `{arg}` works), `slim` |
+| `skin-reset` | Takes that skin off again (SkinsRestorer) | |
 | `teleport` | Move the viewer | `x`, `y`, `z`, `yaw`, `pitch` (a number, or `~` and `~5` relative to where they are), `world` |
 | `gamemode` | Change the game mode | `mode` |
 | `health`, `food` | Set, `ADD` to or `TAKE` from, held in range | `amount`, `change` (`SET`, `ADD`, `TAKE`); `food` also `saturation` |
