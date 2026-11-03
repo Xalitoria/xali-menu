@@ -450,7 +450,7 @@ item ids and data values are converted by the server, so the first import of suc
 material warning.
 
 What cannot be carried over is listed at the top of each file and summed up in chat and the console: `[meta]` and
-`[placeholder]` commands, `open_with_item`, the `javascript`, `is near`, `is object` and `has meta` requirements, and a
+`[placeholder]` commands, the `javascript`, `is near`, `is object` and `has meta` requirements, and a
 few item options. A requirement of a type that cannot be run becomes `type = "never"`, so the menu fails closed instead
 of opening or showing an item for everyone.
 

@@ -50,7 +50,7 @@ private val ITEM_OPTIONS = [
     "material", "data", "slot", "slots", "priority", "update", "display_name", "name", "lore", "amount",
     "dynamic_amount", "model_data", "rgb", "enchantments", "banner_meta", "potion_effects", "unbreakable",
     "item_flags", "entity_type", "entitytype", "view_requirement", "damage", "rarity", "hide_tooltip",
-    "enchantment_glint_override", "trim_material", "trim_pattern",
+    "enchantment_glint_override", "trim_material", "trim_pattern", "item_model",
 ] + HIDES.keys
 
 private val CLICK_OPTIONS = ClickKind.entries.flatMap { [it.commands, it.requirement] }
@@ -144,6 +144,7 @@ private fun Context.convertItem(item: YamlMap): Item? {
         hideTooltip = item.option("hide_tooltip").bool() ?: false,
         glow = item.option("enchantment_glint_override").bool(),
         trim = trim(item),
+        itemModel = item.option("item_model").text()?.trim()?.lowercase(),
         model = item.option("model_data").int(),
         color = item.option("rgb").text()?.let(::color).also { if (item.option("rgb").text() != null && it == null) warn("rgb isn't three numbers") },
         banner = banner(item),

@@ -83,6 +83,7 @@ class DeluxeMenusImporter {
         assertEquals(Rarity.EPIC, sword.rarity)
         assertEquals(true, sword.glow)
         assertEquals(Trim("coast", "gold"), sword.trim)
+        assertEquals("mypack:crown", sword.itemModel)
         assertEquals([PotionEffect("haste", 200, 1)], sword.potion)
         assertEquals([BannerLayer("red", "base")], sword.banner)
         assertNotNull(sword.nbt).let {

@@ -59,7 +59,7 @@ Each step ends with tests, the README section, and a commit.
   canceled, and other messages left alone), `item` (right click opens, a swing does not), `swap-hands`, `join` and
   `block` (a button at a position). Not tried live: `entity`, and `sneaking` / `require` gates.
 - Not done: `region-enter` / `region-leave` (WorldGuard, soft dependency) and the Citizens NPC click (soft). Both need
-  their plugins on the dev server. The DeluxeMenus importer could now carry `open_with_item` over as an `item` entry.
+  their plugins on the dev server.
 - An addon API for activators (`registerActivator`) is open: activators are event-driven, so it needs a design of its own.
 
 ### 3. Menu kinds (done, tested live)
@@ -121,7 +121,9 @@ Each step ends with tests, the README section, and a commit.
   take the whole menu's drawing down (found by a deliberately bad item, `damage = -3`); it is now a barrier, noted once, and
   the values that Paper would refuse are held in range.
 - The DeluxeMenus importer maps `damage`, `rarity`, `hide_tooltip`, `enchantment_glint_override`, `trim_pattern` and
-  `trim_material` (by the names in its documentation; not tried against a DeluxeMenus server).
+  `trim_material` and `item_model`. The names were checked against the DeluxeMenus 1.14.1 jar (the option names it reads, and
+  its six bundled example menus import with no warning but its own stray `sweet: true`). It has no `open_with_item`. It also
+  reads `light_level`, `tooltip_style`, `lore_append_mode` and `model_data_component`, which are warned about and ignored.
 - Tested live: the player data of a bot that was given every kind of item shows each component with the value written
   (the server has no `/data` for entities on Folia, so the saved data was read instead).
 - Not done: the tool component (rules and speeds), attribute modifiers, tooltip styles, equippable.
