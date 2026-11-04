@@ -50,9 +50,12 @@ textarea.json, textarea.raw { font-family: ui-monospace, monospace; font-size: 1
 .window .title { color: #404040; padding: 2px 2px 6px; min-height: 22px; font-family: ui-monospace, monospace; font-size: 15px; } .window .title .mc { color: inherit; }
 .slots { display: grid; gap: 0; } .slot { position: relative; width: 54px; height: 54px; background: #8b8b8b; border: 3px solid; border-color: #373737 #fff #fff #373737; cursor: pointer; display: grid; place-items: center; }
 .slot.picked { outline: 3px solid var(--accent); outline-offset: -3px; z-index: 1; } .slot.shared::after { content: ""; position: absolute; top: 2px; right: 2px; width: 8px; height: 8px; background: #e6c14c; border-radius: 50%; }
-.slot .number { position: absolute; left: 3px; top: 1px; font-size: 9px; color: #fff8; pointer-events: none; } .slot .amount { position: absolute; right: 4px; bottom: 2px; color: #fff; font-weight: 700; text-shadow: 1px 1px #000; }
-.layered-window { position: relative; padding: 0; border: 0; background: none; } .layered-window canvas { position: absolute; left: 0; top: 0; image-rendering: pixelated; }
-.slots.layered { position: absolute; left: 24px; top: 54px; } .slots.layered .slot { background: transparent; border: 0; box-shadow: inset 0 0 0 1px rgba(0,0,0,.25); }
+.slot .number { position: absolute; left: 4px; top: 2px; font-size: 9px; color: #000a; pointer-events: none; opacity: 0; z-index: 4; } .slot:hover .number, .slot.picked .number { opacity: 1; } .slot .amount { position: absolute; right: 4px; bottom: 2px; color: #fff; font-weight: 700; text-shadow: 1px 1px #000; }
+.layered-window { position: relative; padding: 0; border: 0; background: none; } .layered-window canvas.window-canvas { position: absolute; left: 0; top: 0; image-rendering: pixelated; }
+.slots.layered { position: absolute; } .slots.layered .slot { background: transparent; border: 0; }
+.slots.layered .slot:hover::before { content: ""; position: absolute; inset: 3px; background: rgba(255, 255, 255, 0.5); z-index: 2; pointer-events: none; }
+.decorations { position: absolute; inset: 0; width: 54px; height: 54px; image-rendering: pixelated; pointer-events: none; z-index: 3; }
+.tooltip { position: fixed; z-index: 100; pointer-events: none; } .tooltip canvas { image-rendering: pixelated; }
 .icon-wrap { position: relative; display: grid; place-items: center; width: 48px; height: 48px; } .icon-wrap .pixel { position: absolute; inset: 0; width: 48px; height: 48px; image-rendering: pixelated; }
 .tile { display: grid; place-items: center; width: 36px; height: 36px; color: #fff; font-size: 11px; font-weight: 700; border-radius: 4px; }
 .picker { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; margin-top: 10px; } .picker button.active { border-color: var(--accent); color: var(--accent); }

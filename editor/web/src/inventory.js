@@ -4,12 +4,13 @@
 import { h, fill } from './dom.js'
 import { slotCount } from './check.js'
 import { icon } from './icons.js'
-import { render as renderText } from './mctext.js'
-
-const COLUMNS = { hopper: 5, dispenser: 3, dropper: 3, crafter: 3 }
+import { geometry, SCALE } from './window.js'
+import { decorations } from './decorations.js'
+import { tooltipLines, drawTooltip } from './tooltip.js'
+import { services } from './services.js'
 
 /** One slot is 18 pixels of the game; the window is drawn at three times that. */
-const CELL = 54
+const CELL = 18 * SCALE
 
 /** The slots each item claims: its `slot` and `slots`, and the cells of the layout that its legend character stands for. */
 export function placements(menu) {
@@ -41,29 +42,29 @@ export function bySlot(menu) {
 export class Inventory {
   /**
    * @param {import('./store.js').Store} store
-   * @param {{select: (slot: number, items: string[]) => void, title: (text: string) => HTMLElement}} events
+   * @param {{select: (slot: number, items: string[]) => void}} events
    */
   constructor(store, events) {
     this.store = store
     this.events = events
     this.slot = null
     this.root = h('div', { class: 'inventory' })
+    this.tip = null
   }
 
+  /** The window as the game draws it with the slots of the menu over it; the items are drawn in as their models arrive. */
   draw() {
     const menu = this.store.value
     const count = slotCount(menu)
-    const type = String(menu.type ?? 'chest').toLowerCase()
-    const columns = COLUMNS[type] ?? 9
+    const g = geometry(menu)
     const slots = bySlot(menu)
-    const grid = h('div', { class: 'slots', style: `grid-template-columns:repeat(${columns}, ${CELL}px)` })
+    const grid = h('div', { class: 'slots layered', style: `left:${g.x * SCALE}px;top:${g.y * SCALE}px;grid-template-columns:repeat(${g.columns}, ${CELL}px)` })
     for (let slot = 0; slot < count; slot++) {
       const names = slots.get(slot) ?? []
-      const shown = names.find((n) => true)
+      const shown = names[0]
       const item = shown ? menu.items[shown] : null
-      const cell = h('div', {
+      grid.append(h('div', {
         class: `slot ${this.slot === slot ? 'picked' : ''} ${names.length > 1 ? 'shared' : ''}`, 'data-slot': slot,
-        title: item ? this.describe(shown, item, names) : `slot ${slot}`,
         draggable: Boolean(item && typeof item.slot === 'number' && !item.slots?.length),
         onclick: () => { this.slot = slot; this.events.select(slot, names); this.draw() },
         ondragstart: (e) => e.dataTransfer.setData('text/plain', shown),
@@ -73,25 +74,39 @@ export class Inventory {
           const name = e.dataTransfer.getData('text/plain')
           if (name && menu.items[name]) { this.store.set(['items', name, 'slot'], slot); this.slot = slot }
         },
-      }, item && icon(item),
-      item && (item.amount ?? 1) > 1 && h('span', { class: 'amount' }, item.amount),
-      h('span', { class: 'number' }, slot))
-      grid.append(cell)
+        onmouseenter: (e) => this.showTip(item, shown, names, slot, e),
+        onmousemove: (e) => this.moveTip(e),
+        onmouseleave: () => this.hideTip(),
+      }, item && icon(item), item && decorations(item, services.text), h('span', { class: 'number' }, slot)))
     }
-    // With a resource pack the window is a picture with the glyph of the title in it, and the slots lie over it where the game puts them.
-    const background = this.events.window?.(menu)
-    if (background) {
-      grid.classList.add('layered')
-      fill(this.root, h('div', { class: 'window layered-window', style: `width:${background.width}px;height:${background.height}px` }, background, grid))
-    } else {
-      fill(this.root, h('div', { class: 'window' }, h('div', { class: 'title' }, this.events.title(menu.title ?? '')), grid))
-    }
+    const background = services.window.draw(menu)
+    fill(this.root, h('div', { class: 'window layered-window', style: `width:${g.width * SCALE}px;height:${g.height * SCALE}px` }, background, grid))
   }
 
-  describe(name, item, names) {
-    const lines = [`${name}: ${item.material}`]
-    if (item.name) lines.push(item.name)
-    if (names.length > 1) lines.push(`also claimed by ${names.filter((n) => n !== name).join(', ')}`)
-    return lines.join('\n')
+  /** The tooltip of the item the pointer is over, next to the pointer; an empty slot says which slot it is. */
+  async showTip(item, name, names, slot, event) {
+    this.hideTip()
+    const tip = h('div', { class: 'tooltip' })
+    this.tip = tip
+    document.body.append(tip)
+    this.moveTip(event)
+    try {
+      const lang = (await services.assets.json('minecraft', 'lang', 'en_us')) ?? {}
+      const lines = item ? tooltipLines(item, lang, services.renderer.knownName?.(item)) : [{ text: `Slot ${slot}`, color: '#aaaaaa' }]
+      if (item && names.length > 1) lines.push({ text: `Also claimed by ${names.filter((n) => n !== name).join(', ')}`, color: '#ffaa00' })
+      const canvas = await drawTooltip(lines, services.text, services.assets)
+      if (this.tip === tip) tip.append(canvas)
+    } catch { /* the tooltip is a convenience */ }
+  }
+
+  moveTip(event) {
+    if (!this.tip) return
+    this.tip.style.left = `${event.clientX + 8}px`
+    this.tip.style.top = `${event.clientY - 8}px`
+  }
+
+  hideTip() {
+    this.tip?.remove()
+    this.tip = null
   }
 }

@@ -10,9 +10,7 @@ import { fromHash, decodeData, Server, readFile, toFile, download } from './sour
 import { parse } from './hocon.js'
 import { write } from './hoconWriter.js'
 import { render as renderText } from './mctext.js'
-import { icon, settings as iconSettings } from './icons.js'
-import { Assets } from './assets.js'
-import { ItemRenderer } from './itemrender.js'
+import { services } from './services.js'
 import { PackPanel } from './panel.js'
 
 const TABS = ['Menu', 'Items', 'Raw', 'Pack']
@@ -34,14 +32,11 @@ export class App {
     this.status = ''
     this.inventory = new Inventory(this.store, {
       select: (slot, names) => { this.picked = { slot, item: names[0] ?? null }; this.draw() },
-      title: (text) => this.titleView(text),
-      window: (menu) => this.pack.window(menu, false),
     })
     this.pack = new PackPanel(this)
     this.store.onChange((quiet) => { this.refreshHeader(); if (!quiet) this.draw() })
     window.addEventListener('keydown', (e) => this.keys(e))
     window.addEventListener('beforeunload', (e) => { if (this.store.dirty) e.preventDefault() })
-    iconSettings.renderer = new ItemRenderer(new Assets())
     this.build()
   }
 
@@ -209,11 +204,6 @@ export class App {
   }
 
   // ---- title
-
-  /** The title as the game draws it; the pack panel adds the glyphs of a resource pack. */
-  titleView(text) {
-    return this.pack.title(text) ?? renderText(text)
-  }
 
   // ---- files and the server
 

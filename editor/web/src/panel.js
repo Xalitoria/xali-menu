@@ -5,16 +5,8 @@ import { h, fill } from './dom.js'
 import { Pack } from './pack.js'
 import { DEFAULT_FONT, key as fontKey, spaces as spaceMap } from './fonts.js'
 import { parseHead, realign, insert } from './glyphs.js'
-import { runs } from './mctext.js'
-import { slotCount } from './check.js'
+import { services, configure } from './services.js'
 import { settings } from './icons.js'
-import { Assets } from './assets.js'
-import { ItemRenderer } from './itemrender.js'
-
-/** The scale the window is drawn at: one pixel of the game is this many pixels on the page. */
-export const SCALE = 3
-const WIDTH = 176
-const TITLE_COLOR = '#404040'
 
 export class PackPanel {
   /** @param {import('./app.js').App} app */
@@ -36,15 +28,15 @@ export class PackPanel {
     this.app.draw()
     try {
       this.pack = await Pack.load(blob, label)
-      settings.pack = this.pack
-      settings.renderer = new ItemRenderer(new Assets({ pack: this.pack }))
+      configure(this.pack)
+      services.text.preprocess = (text) => this.expand(text)
+      await this.glyphFonts()
       this.fontKey = this.pack.fontKeys().includes(DEFAULT_FONT) ? DEFAULT_FONT : (this.pack.fontKeys()[0] ?? DEFAULT_FONT)
       const summary = await this.pack.summary()
       this.message = `${label}: ${summary.namespaces.length} namespaces, ${summary.fonts} fonts, ${summary.bitmaps} picture providers.`
     } catch (error) {
       this.pack = null
-      settings.pack = null
-      settings.renderer = new ItemRenderer(new Assets())
+      configure(null)
       this.message = `The pack could not be read: ${error.message}`
     }
     this.app.draw()
@@ -71,15 +63,7 @@ export class PackPanel {
     try { for (const [material, data] of Object.entries(await server.resolve(materials))) settings.resolved.set(material, data) } catch { /* optional */ }
   }
 
-  // ---- drawing text
-
-  /** The fonts the runs of [text] need, loaded. */
-  async fontsFor(runList) {
-    const keys = new Set(runList.map((r) => fontKey(r.font ?? DEFAULT_FONT)))
-    const fonts = new Map()
-    for (const k of keys) fonts.set(k, await this.pack.font(k))
-    return fonts
-  }
+  // ---- names of glyphs
 
   /** Which font has each picture character, found once per pack: plugin glyphs are usually in a font of their own. @returns {Promise<Map<string, string>>} */
   glyphFonts() {
@@ -94,6 +78,7 @@ export class PackPanel {
           for (const k of [...pack.fontKeys()].sort((a, b) => (b === DEFAULT_FONT) - (a === DEFAULT_FONT))) {
             for (const character of (await pack.font(k)).glyphs.keys()) if (!found.has(character)) found.set(character, k)
           }
+          this.fontIndex.found = found
           return found
         })(),
       }
@@ -101,7 +86,7 @@ export class PackPanel {
     return this.fontIndex.map
   }
 
-  /** Turns the names plugins define (`<glyph:name>`, `:name:`, `%img_name%`) and `<shift:N>` into characters. */
+  /** Turns the names plugins define (`<glyph:name>`, `:name:`, `%img_name%`) into characters; the text draws what this gives. */
   expand(text) {
     let result = text
     for (const glyph of this.catalog) {
@@ -110,61 +95,6 @@ export class PackPanel {
       for (const form of [`<glyph:${glyph.name}>`, `:${glyph.name}:`, `%img_${glyph.name}%`]) result = result.split(form).join(wrapped)
     }
     return result
-  }
-
-  /**
-   * Draws [text] at [x], [y] (top of the line) on [ctx]. Characters the pack's fonts have are drawn as pictures, the rest as text.
-   * @returns {Promise<number>} where the text ends, in canvas pixels
-   */
-  async drawText(ctx, text, x, y) {
-    const found = await this.glyphFonts()
-    this.fontIndex.found = found
-    const list = runs(this.expand(text))
-    const fonts = await this.fontsFor(list)
-    ctx.textBaseline = 'top'
-    for (const run of list) {
-      const font = fonts.get(fontKey(run.font ?? DEFAULT_FONT))
-      ctx.font = `${run.bold ? 'bold ' : ''}${8 * SCALE}px monospace`
-      ctx.fillStyle = run.color ?? TITLE_COLOR
-      for (const character of run.text) {
-        const advance = font.draw(ctx, character, x, y, SCALE, run.color ?? '#ffffff')
-        if (advance !== null) { x += advance * SCALE; continue }
-        ctx.fillText(character, x, y)
-        x += Math.round(ctx.measureText(character).width / SCALE) * SCALE
-      }
-    }
-    return x
-  }
-
-  /** The title as a canvas, or null without a pack. */
-  title(text) {
-    if (!this.pack) return null
-    const canvas = h('canvas', { class: 'title-canvas', width: WIDTH * SCALE, height: 14 * SCALE })
-    this.drawText(canvas.getContext('2d'), text, 8 * SCALE, 3 * SCALE).catch(() => {})
-    return canvas
-  }
-
-  /** The window of the menu: background, title with its glyphs, and the outline of the slots. Null without a pack or for a window that is not a chest. */
-  window(menu, outline = true, margin = 0) {
-    if (!this.pack || String(menu.type ?? 'chest').toLowerCase() !== 'chest') return null
-    const rows = Math.max(1, Math.ceil(slotCount(menu) / 9))
-    const m = margin * SCALE
-    const canvas = h('canvas', { class: 'window-canvas', width: WIDTH * SCALE + 2 * m, height: (24 + rows * 18) * SCALE + 2 * m })
-    const ctx = canvas.getContext('2d')
-    // The margin shows what a glyph draws outside the window, as it does in the game; the window itself is the gray part.
-    ctx.fillStyle = margin ? '#26292f' : '#c6c6c6'
-    ctx.fillRect(0, 0, canvas.width, canvas.height)
-    ctx.fillStyle = '#c6c6c6'
-    ctx.fillRect(m, m, WIDTH * SCALE, (24 + rows * 18) * SCALE)
-    this.drawText(ctx, menu.title ?? '', m + 8 * SCALE, m + 6 * SCALE).then(() => {
-      if (!outline) return
-      ctx.strokeStyle = 'rgba(0,0,0,0.35)'
-      ctx.lineWidth = 1
-      for (let slot = 0; slot < rows * 9; slot++) {
-        ctx.strokeRect(m + (8 + (slot % 9) * 18) * SCALE + 0.5, m + (18 + Math.floor(slot / 9) * 18) * SCALE + 0.5, 18 * SCALE - 1, 18 * SCALE - 1)
-      }
-    }).catch(() => {})
-    return canvas
   }
 
   // ---- the tab
@@ -240,7 +170,7 @@ export class PackPanel {
           h('button', { onclick: () => apply(Number(offset.value)) }, head ? 'Move' : 'Put in title'),
           [-8, -1, 1, 8].map((d) => h('button', { onclick: nudge(d), disabled: !head && !this.glyph }, d > 0 ? `+${d}` : `${d}`)),
           head && h('button', { class: 'danger', onclick: () => this.app.store.set(['title'], head.rest) }, 'Remove')),
-        this.window(menu, true, 64) ?? h('p', { class: 'muted' }, 'Only chest menus are drawn here.'))
+        services.window.draw(menu, { margin: 64, slots: true }))
     })
     return h('section', null, h('h2', null, 'Align a glyph'),
       h('p', { class: 'muted' }, 'A glyph is moved by the space characters in front of it. The text after it stays where it was. Moving it up or down is set by "ascent" in the pack\'s font file.'),

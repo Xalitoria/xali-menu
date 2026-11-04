@@ -6,7 +6,7 @@ import { DEFAULT_FONT, readFonts, flatten, cells, spaces, key } from './fonts.js
 import { split, pickModel, modelTexture } from './models.js'
 
 /** One character of a font that is a picture. [advance] is how far it moves the text on, in pixels of the game's font (8 high). */
-class Glyph {
+export class Glyph {
   constructor(image, sx, sy, sw, sh, ascent, height, advance) {
     Object.assign(this, { image, sx, sy, sw, sh, ascent, height, advance })
     this.scale = height / sh
@@ -81,25 +81,10 @@ export class Pack {
 
   async buildFont(fontKey) {
     const providers = flatten(this.fontProviders, fontKey)
-    const glyphs = new Map()
-    for (const provider of providers) {
-      if (provider.type !== 'bitmap' || !provider.file) continue
-      const image = await this.image(`assets/${split(provider.file).ns}/textures/${split(provider.file).path}`)
-      if (!image) continue
-      const rows = provider.chars.map(cells)
-      const columns = Math.max(...rows.map((r) => r.length))
-      const sw = Math.floor(image.width / columns)
-      const sh = Math.floor(image.height / rows.length)
-      const height = provider.height ?? 8
-      const scale = height / sh
-      const pixels = readPixels(image)
-      rows.forEach((row, r) => row.forEach((character, c) => {
-        if (character === '\u0000' || glyphs.has(character)) return
-        const width = visibleWidth(pixels, image.width, c * sw, r * sh, sw, sh)
-        glyphs.set(character, new Glyph(image, c * sw, r * sh, sw, sh, provider.ascent ?? 0, height, Math.round(width * scale) + 1))
-      }))
-    }
-    return new Font(glyphs, spaces(providers))
+    return buildFont(providers, async (file) => {
+      const image = await this.image(`assets/${split(file).ns}/textures/${split(file).path}`)
+      return image ? { image, width: image.width, height: image.height, pixels: readPixels(image) } : null
+    })
   }
 
   /** The decoded picture at [path] of the zip, or null. */
@@ -152,6 +137,33 @@ export class Pack {
     const providers = [...this.fontProviders.keys()].map((k) => flatten(this.fontProviders, k)).flat()
     return { namespaces: this.namespaces, fonts: this.fontProviders.size, bitmaps: providers.filter((p) => p.type === 'bitmap').length }
   }
+}
+
+/**
+ * A font from its flattened providers: the bitmaps become glyphs, the spaces advances. [load] gives the picture, its size and its pixels for
+ * the file of a bitmap provider (`ns:path`), or null if there is none.
+ * @param {any[]} providers
+ * @param {(file: string) => Promise<{image: CanvasImageSource, width: number, height: number, pixels: Uint8ClampedArray}|null>} load
+ */
+export async function buildFont(providers, load) {
+  const glyphs = new Map()
+  for (const provider of providers) {
+    if (provider.type !== 'bitmap' || !provider.file) continue
+    const loaded = await load(provider.file)
+    if (!loaded) continue
+    const rows = provider.chars.map(cells)
+    const columns = Math.max(...rows.map((r) => r.length))
+    const sw = Math.floor(loaded.width / columns)
+    const sh = Math.floor(loaded.height / rows.length)
+    const height = provider.height ?? 8
+    const scale = height / sh
+    rows.forEach((row, r) => row.forEach((character, c) => {
+      if (character === '\u0000' || glyphs.has(character)) return
+      const width = visibleWidth(loaded.pixels, loaded.width, c * sw, r * sh, sw, sh)
+      glyphs.set(character, new Glyph(loaded.image, c * sw, r * sh, sw, sh, provider.ascent ?? 0, height, Math.round(width * scale) + 1))
+    }))
+  }
+  return new Font(glyphs, spaces(providers))
 }
 
 function readPixels(image) {
