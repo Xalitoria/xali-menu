@@ -70,7 +70,7 @@ export class WindowView {
       ctx.strokeStyle = 'rgba(0,0,0,0.35)'
       ctx.lineWidth = 1
       for (let slot = 0; slot < g.rows * g.columns; slot++) {
-        ctx.strokeRect(m + (g.x + (slot % g.columns) * 18) * SCALE + 0.5, m + (g.y + Math.floor(slot / g.columns) * 18) * SCALE + 0.5, 18 * SCALE - 1, 18 * SCALE - 1)
+        ctx.strokeRect(m + (g.x - 1 + (slot % g.columns) * 18) * SCALE + 0.5, m + (g.y - 1 + Math.floor(slot / g.columns) * 18) * SCALE + 0.5, 18 * SCALE - 1, 18 * SCALE - 1)
       }
     }
   }

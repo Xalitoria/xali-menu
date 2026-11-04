@@ -65,7 +65,8 @@ export class Inventory {
     const room = services.room
     const cell = 18 * S
     const slots = bySlot(menu)
-    const grid = h('div', { class: 'slots layered', style: `left:${(room + g.x) * S}px;top:${(room + g.y) * S}px;grid-template-columns:repeat(${g.columns}, ${cell}px)` })
+    // The coordinates of the game are those of the item, which lies one pixel inside the slot's border: the square of the slot starts one pixel up and to the left.
+    const grid = h('div', { class: 'slots layered', style: `left:${(room + g.x - 1) * S}px;top:${(room + g.y - 1) * S}px;grid-template-columns:repeat(${g.columns}, ${cell}px)` })
     for (let slot = 0; slot < count; slot++) {
       const names = slots.get(slot) ?? []
       const shown = names[0]
