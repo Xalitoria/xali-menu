@@ -2,8 +2,6 @@
 
 import { shadowOf } from './text.js'
 
-const SCALE = 3
-
 /** The color of the bar of a worn item: from green to red as the item wears out. */
 export function barColor(fraction) {
   const hue = Math.max(0, Math.min(1, fraction)) / 3
@@ -31,7 +29,7 @@ export function barWidth(damage, maxDamage) {
  * @param {import('./text.js').Text} text
  * @param {number} [maxDamage]
  */
-export function decorations(item, text, maxDamage = 0) {
+export function decorations(item, text, maxDamage = 0, SCALE = 3) {
   const canvas = document.createElement('canvas')
   canvas.className = 'decorations'
   canvas.width = 18 * SCALE

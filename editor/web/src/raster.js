@@ -176,3 +176,33 @@ export function addGlint(image, glint) {
   }
   return image
 }
+
+/**
+ * Shrinks [image] by the whole number [factor] (each output pixel is the average of a factor-by-factor square, weighted by alpha), which
+ * is what drawing at a higher resolution and scaling down gives: the edges of the shapes are smooth, and every texel keeps its color.
+ * @param {Image} image
+ * @returns {Image}
+ */
+export function downsample(image, factor) {
+  if (factor === 1) return image
+  const width = image.width / factor
+  const height = image.height / factor
+  const out = new Uint8ClampedArray(width * height * 4)
+  const area = factor * factor
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      let r = 0, g = 0, b = 0, a = 0
+      for (let dy = 0; dy < factor; dy++) {
+        for (let dx = 0; dx < factor; dx++) {
+          const i = ((y * factor + dy) * image.width + x * factor + dx) * 4
+          const alpha = image.data[i + 3]
+          r += image.data[i] * alpha; g += image.data[i + 1] * alpha; b += image.data[i + 2] * alpha; a += alpha
+        }
+      }
+      const o = (y * width + x) * 4
+      if (a > 0) { out[o] = r / a; out[o + 1] = g / a; out[o + 2] = b / a }
+      out[o + 3] = a / area
+    }
+  }
+  return { width, height, data: out }
+}

@@ -3,7 +3,6 @@
 
 import { nineSlice } from './ninepatch.js'
 
-const SCALE = 3
 const RARITY = { COMMON: '#ffffff', UNCOMMON: '#ffff55', RARE: '#55ffff', EPIC: '#ff55ff' }
 const ROMAN = ['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X']
 /** Enchantments that have one level, which the game shows without a number. */
@@ -46,7 +45,7 @@ export function tooltipLines(item, lang, known = {}) {
  * @param {import('./text.js').Text} text
  * @param {import('./assets.js').Assets} assets
  */
-export async function drawTooltip(lines, text, assets) {
+export async function drawTooltip(lines, text, assets, SCALE = 3) {
   const widths = await Promise.all(lines.map((l) => text.measure(l.text)))
   const textWidth = Math.max(...widths)
   // Ten pixels a line, and two more after the name when there is more than the name.

@@ -125,3 +125,13 @@ test('the glint brightens the pixels of the item and leaves empty ones alone', (
   assert.equal(data[7], 0)
   assert.equal(data[4], 0, 'an empty pixel stays empty')
 })
+
+import { downsample } from '../src/raster.js'
+
+test('shrinking averages each square by alpha, so an edge is partly covered and the colors stay', () => {
+  const data = new Uint8ClampedArray(2 * 2 * 4)
+  data.set([200, 100, 50, 255], 0) // one opaque pixel of four
+  const small = downsample({ width: 2, height: 2, data }, 2)
+  assert.deepEqual([...small.data], [200, 100, 50, 64], 'a quarter covered, with the color of what is there')
+  assert.equal(downsample({ width: 2, height: 2, data }, 1).data, data)
+})

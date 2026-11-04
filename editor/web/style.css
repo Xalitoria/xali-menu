@@ -44,8 +44,11 @@ h1, h2 { margin: 0 0 8px; } h2 { font-size: 16px; display: flex; gap: 12px; alig
 textarea.json, textarea.raw { font-family: ui-monospace, monospace; font-size: 12px; width: 100%; } textarea.raw { height: 70vh; } textarea.bad { border-color: var(--danger); }
 
 /* the window */
-.items-tab { display: grid; grid-template-columns: auto 1fr; gap: 22px; align-items: start; }
-.items-tab .right { min-width: 340px; max-width: 640px; }
+.items-tab { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 20px; align-items: start; }
+.items-tab .right { position: sticky; top: 0; }
+.items-tab .toolbar { display: flex; gap: 16px; align-items: center; margin-bottom: 8px; color: var(--muted); }
+.stage { display: flex; overflow: auto; max-height: calc(100vh - 230px); background: #26292f; border-radius: 6px; border: 1px solid var(--line); }
+.stage > .inventory { margin: auto; flex: none; }
 .window { background: #c6c6c6; padding: 8px; border-radius: 3px; width: max-content; border: 2px solid #fff; border-right-color: #555; border-bottom-color: #555; }
 .window .title { color: #404040; padding: 2px 2px 6px; min-height: 22px; font-family: ui-monospace, monospace; font-size: 15px; } .window .title .mc { color: inherit; }
 .slots { display: grid; gap: 0; } .slot { position: relative; width: 54px; height: 54px; background: #8b8b8b; border: 3px solid; border-color: #373737 #fff #fff #373737; cursor: pointer; display: grid; place-items: center; }

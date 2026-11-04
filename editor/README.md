@@ -31,14 +31,16 @@ The editor draws what a player sees, from the same files the game reads, with no
 - **Items** are drawn from their item definition (`assets/<namespace>/items/<name>.json`) and model json, found in the resource
   pack first and in the game's own files after it. The `gui` display transform, the model's parents, element rotation, texture
   rotation, tints (dyed leather, grass, potions), `custom_model_data` and `item-model` choices are followed, and the result is drawn
-  in software at three pixels per pixel of the game with the game's two item lights and nearest-neighbour textures. Compared
+  in software with the game's two item lights and nearest-neighbour textures, at four times the size and shrunk, so edges are smooth (the
+  game itself draws without that, and the code can too). The size is the GUI scale of the Items tab, 1 to 4 or fit to the space. Compared
   with icons the game rendered itself (the wiki's), stone, a furnace, stairs and a sword differ in at most a few of about six hundred
   pixels, and a creeper head and a shulker box in none.
 - **Drawn from code in the game**, and so built here from boxes with the game's texture layout: player and mob heads (a `texture:`
   material shows its skin, fetched through the server because Mojang's texture host does not allow other sites), chests and shulker
   boxes. Banners, shields, signs, beds drawn by block entities, armor trims and the animation of compasses and clocks are not drawn
   that way yet: they show their base model, or a tile.
-- **The window** is the game's container texture for the inventory type (chest, hopper, dispenser, dropper), the title is in the
+- **The window** sits in the middle of a stage with room around it (none to huge), for glyphs that are used as overlays and reach past the
+  window; scroll the stage to see all of it. It is the game's container texture for the inventory type (chest, hopper, dispenser, dropper), the title is in the
   game's font with the glyphs of the resource pack, and the player's inventory is below it. Counts and the durability bar are drawn as
   the game draws them, and the tooltip uses the game's own sprites, with the name, enchantments and lore.
 - **The game's files** are read from a public copy of Mojang's assets (`editor/web/src/assets.js` names it and the version) and are not

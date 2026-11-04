@@ -36,15 +36,17 @@ export function parts(material) {
  * @param {object} item the item as the menu writes it
  * @returns {HTMLElement}
  */
-export function icon(item) {
+export function icon(item, scale = 3) {
   const material = String(item.material ?? '')
   const { prefix, id } = parts(material)
   const label = (prefix ? prefix : id).replace(/_/g, ' ').split(' ').map((w) => w[0] ?? '').join('').slice(0, 3).toUpperCase()
-  const wrapper = h('span', { class: 'icon-wrap' }, tile(label || '?', material || '?'))
+  const wrapper = h('span', { class: 'icon-wrap', style: `width:${16 * scale}px;height:${16 * scale}px` }, tile(label || '?', material || '?'))
   const known = settings.resolved.get(material) ?? {}
   if (!material.includes('%') && settings.renderer) {
-    settings.renderer.render(item, known).then((image) => {
-      if (image) wrapper.replaceChildren(toCanvas(image))
+    // The picture has a pixel for each pixel of the screen, so it is sharp on a screen that has more than one to the point.
+    const density = Math.max(1, Math.ceil(window.devicePixelRatio || 1))
+    settings.renderer.render(item, known, scale * density).then((image) => {
+      if (image) wrapper.replaceChildren(toCanvas(image, 16 * scale))
       else fallback(wrapper, material, prefix, id, item, known)
     })
   } else fallback(wrapper, material, prefix, id, item, known)
@@ -52,8 +54,8 @@ export function icon(item) {
 }
 
 /** The pixels of a render as a canvas. */
-function toCanvas(image) {
-  const canvas = h('canvas', { class: 'pixel', width: image.width, height: image.height })
+function toCanvas(image, size) {
+  const canvas = h('canvas', { class: 'pixel', width: image.width, height: image.height, style: `width:${size}px;height:${size}px` })
   canvas.getContext('2d').putImageData(new ImageData(image.data, image.width, image.height), 0, 0)
   return canvas
 }

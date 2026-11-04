@@ -72,6 +72,7 @@ export class App {
   async open(name) {
     if (this.store.dirty && !confirm('Discard the changes to the menu that is open?')) return
     this.name = name
+    this.centerStage = true
     this.store.load(await this.server.menu(name))
     this.serverProblems = []
     this.picked = { slot: null, item: null }
@@ -132,9 +133,19 @@ export class App {
   }
 
   draw() {
+    // The window is wider than the space when it has room around it: keep where the person scrolled to, or start in the middle of it.
+    const before = this.view.querySelector('.stage')
+    if (before) this.stageScroll = [before.scrollLeft, before.scrollTop]
     for (const button of this.tabs.children) button.classList.toggle('active', button.dataset.tab === this.tab)
     const content = { Menu: () => this.menuTab(), Items: () => this.itemsTab(), Raw: () => this.rawTab(), Pack: () => this.pack.view() }[this.tab]()
     fill(this.view, content)
+    const stage = this.view.querySelector('.stage')
+    if (stage) {
+      const at = this.stageScroll
+      if (at && !this.centerStage) { stage.scrollLeft = at[0]; stage.scrollTop = at[1] }
+      else { stage.scrollLeft = (stage.scrollWidth - stage.clientWidth) / 2; stage.scrollTop = (stage.scrollHeight - stage.clientHeight) / 2 }
+      this.centerStage = false
+    }
     this.drawProblems()
     this.refreshHeader()
   }
@@ -160,12 +171,17 @@ export class App {
   itemsTab() {
     const menu = this.store.value
     if (Object.keys(menu).length === 0) return this.welcome()
-    this.inventory.draw()
+    // The space for the window: what the page gives the view, less the column of the item.
+    this.inventory.draw(Math.max(300, (this.view.clientWidth || 900) - 380))
     const names = Object.keys(menu.items ?? {})
     const claimed = this.picked.slot !== null ? (bySlot(menu).get(this.picked.slot) ?? []) : []
     const item = this.picked.item && menu.items?.[this.picked.item] ? this.picked.item : null
     return h('div', { class: 'items-tab' },
-      h('div', { class: 'left' }, this.inventory.root,
+      h('div', { class: 'left' },
+        h('div', { class: 'toolbar' },
+          h('label', null, 'GUI scale ', this.choice([['0', 'Fit'], ['1', '1'], ['2', '2'], ['3', '3'], ['4', '4']], String(services.scale), (v) => { services.scale = Number(v); this.centerStage = true; this.draw() })),
+          h('label', null, 'Room around ', this.choice([['0', 'None'], ['32', 'Small'], ['64', 'Medium'], ['128', 'Large'], ['256', 'Huge']], String(services.room), (v) => { services.room = Number(v); this.centerStage = true; this.draw() }))),
+        h('div', { class: 'stage' }, this.inventory.root),
         h('div', { class: 'picker' },
           this.picked.slot !== null && h('span', null, `Slot ${this.picked.slot}: `),
           claimed.map((n) => h('button', { class: n === item ? 'active' : '', onclick: () => { this.picked.item = n; this.draw() } }, n)),
@@ -176,6 +192,12 @@ export class App {
         ? [h('h2', null, item, h('button', { class: 'danger', onclick: () => this.removeItem(item) }, 'Delete item')),
            this.form.object('Item', ['items', item], { first: ITEM_FIRST })]
         : h('p', { class: 'muted' }, 'Pick a slot to see what it holds, or add an item to it.')))
+  }
+
+  /** A small select with [options] as `[value, label]`; [change] gets the value picked. */
+  choice(options, current, change) {
+    const select = h('select', { onchange: () => change(select.value) }, options.map(([value, label]) => h('option', { value, selected: value === current }, label)))
+    return select
   }
 
   addItem() {

@@ -4,7 +4,7 @@
 import { Assets, split } from './assets.js'
 import { Model, loadModel, bakeElements, bakeLayers } from './bake.js'
 import { chooseModels } from './itemdef.js'
-import { renderItem, addGlint } from './raster.js'
+import { renderItem, addGlint, downsample } from './raster.js'
 import { specialQuads } from './special.js'
 
 /** The size of the pixel of the game on the page: items are drawn 16 of these wide. */
@@ -59,14 +59,19 @@ export class ItemRenderer {
    * The icon of the item as pixels, or null if nothing could be drawn.
    * @returns {Promise<{width: number, height: number, data: Uint8ClampedArray}|null>}
    */
-  render(item, known = {}, scale = SCALE) {
+  render(item, known = {}, scale = SCALE, smooth = true) {
     const described = stateOf(item, known)
-    const key = JSON.stringify([described, scale])
-    if (!this.cache.has(key)) this.cache.set(key, this.draw(described, scale).catch(() => null))
+    const key = JSON.stringify([described, scale, smooth])
+    if (!this.cache.has(key)) this.cache.set(key, this.draw(described, scale, smooth).catch(() => null))
     return this.cache.get(key)
   }
 
-  async draw({ material, itemModel, state, glint, skin }, scale) {
+  /**
+   * [smooth] draws four times as large and shrinks the result, so the edges are not stairs; the game itself draws without it, which is what
+   * `smooth = false` gives.
+   */
+  async draw({ material, itemModel, state, glint, skin }, scale, smooth) {
+    const oversample = smooth ? 4 : 1
     const entries = await this.entries(material, itemModel, state)
     const layers = []
     const needed = new Set()
@@ -88,12 +93,12 @@ export class ItemRenderer {
     if (layers.some((l) => l.quads.some((q) => q.texture === 'minecraft:entity/player/wide/steve')) && !textures.has('minecraft:entity/player/wide/steve')) {
       textures.set('minecraft:entity/player/wide/steve', await this.assets.texture('minecraft', 'entity/player/wide/steve'))
     }
-    const image = renderItem(layers, (key) => textures.get(key) ?? null, scale)
+    const image = renderItem(layers, (key) => textures.get(key) ?? null, scale * oversample)
     if (glint) {
       const sheen = await this.assets.texture('minecraft', 'misc/enchanted_glint_item')
       if (sheen) addGlint(image, sheen)
     }
-    return image
+    return downsample(image, oversample)
   }
 
   /** The models the item definition picks; an item without a definition is drawn with the model of the same name. */
@@ -121,7 +126,7 @@ export class ItemRenderer {
     if (!model) return null
     if (entry.special) {
       const built = specialQuads(entry.special, skin ? `url:${skin}` : null)
-      if (!built) return model.elements ? this.plain(model, entry, key) : null
+      if (!built) return null // drawn by code in the game and not built here: better no picture than half of one
       return { quads: built.quads, display: model.display.gui, guiLight: model.guiLight ?? 'side', tints: [], alpha: undefined }
     }
     return this.plain(model, entry, key)

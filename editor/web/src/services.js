@@ -7,7 +7,13 @@ import { WindowView } from './window.js'
 import { ItemRenderer } from './itemrender.js'
 import { settings as iconSettings } from './icons.js'
 
-export const services = { assets: null, text: null, window: null, renderer: null, pack: null }
+export const services = {
+  assets: null, text: null, window: null, renderer: null, pack: null,
+  /** Screen pixels to a pixel of the game (the GUI scale), or 0 to fit the window to the space there is. */
+  scale: 0,
+  /** Pixels of the game left around the window, for glyphs that reach past it. */
+  room: 64,
+}
 
 /** Starts over with [pack] (or none) in front of the game's own files. */
 export function configure(pack = null) {

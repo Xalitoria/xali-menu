@@ -5,9 +5,6 @@
 import { blit } from './ninepatch.js'
 import { slotCount } from './check.js'
 
-/** The pixel of the game is this many pixels on the page. */
-export const SCALE = 3
-
 /** Backgrounds by inventory type: the texture, its size on screen, the slot columns and the place of the first slot. */
 const KINDS = {
   hopper: { texture: 'gui/container/hopper', width: 176, height: 133, columns: 5, x: 44, y: 20, inventoryLabel: 39 },
@@ -37,21 +34,22 @@ export class WindowView {
   }
 
   /**
-   * The window as a canvas, filled in as the textures and fonts arrive. [margin] pixels of the game are left around it, for a glyph that is
-   * bigger than the window; [slots] draws the outline of each slot.
+   * The window as a canvas, filled in as the textures and fonts arrive. [scale] screen pixels make a pixel of the game. [margin] pixels of the
+   * game are left around it, for a glyph that is bigger than the window; [slots] draws the outline of each slot.
    */
-  draw(menu, { margin = 0, slots = false } = {}) {
+  draw(menu, { scale = 3, margin = 0, slots = false } = {}) {
     const g = geometry(menu)
+    const SCALE = scale
     const m = margin * SCALE
     const canvas = document.createElement('canvas')
     canvas.className = 'window-canvas'
     canvas.width = g.width * SCALE + 2 * m
     canvas.height = g.height * SCALE + 2 * m
-    this.fill(canvas, menu, g, m, slots).catch(() => {})
+    this.fill(canvas, menu, g, m, slots, SCALE).catch(() => {})
     return canvas
   }
 
-  async fill(canvas, menu, g, m, slots) {
+  async fill(canvas, menu, g, m, slots, SCALE) {
     const ctx = canvas.getContext('2d')
     if (m) { ctx.fillStyle = '#26292f'; ctx.fillRect(0, 0, canvas.width, canvas.height) }
     const texture = await this.assets.texture('minecraft', g.texture)

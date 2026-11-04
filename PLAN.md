@@ -196,4 +196,4 @@ Each step ends with tests, the README section, and a commit.
   creeper head and shulker box exact, chests about 85 %). Heads, chests and shulker boxes are built from boxes (`special.js`).
   The window, title font, counts, durability bar and tooltip use the game's own textures and fonts; skins are fetched through
   `/v1/skin`, which only fetches from textures.minecraft.net; `/v1/items` also says how much each item wears.
-- Not done: banners and shields with patterns, signs, trims, animated glint, potion colors by effect, Unifont, a GUI scale other than 3.
+- Not done: banners and shields with patterns, signs, trims, animated glint, potion colors by effect, Unifont. Icons are drawn smooth (4x oversampled), the GUI scale is 1 to 4 or fit, and the window sits centered in a stage with room for oversized glyphs. Every one of 43 more icons the game rendered (fences, doors, lanterns, anvils, hoppers...) matches within 0 to 9 % of pixels, except beds, which the game draws from code: those and other unbuilt entity models are now a tile instead of a partial picture.
