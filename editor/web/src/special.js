@@ -15,12 +15,14 @@ import { Model, bakeElements } from './bake.js'
  * @param {number[]} offset the texture offset (u, v) in texture pixels
  * @param {number[]} sheet the size of the texture
  * @param {string} texture `#name` of the texture of the model
- * @param {{grow?: number, tintindex?: number, swapCaps?: boolean}} [options] [grow] puts the box that many pixels outward on every side (the hat of a head);
+ * @param {{grow?: number, tintindex?: number, swapCaps?: boolean, turned?: boolean, extent?: number[]|null}} [options] [grow] puts the box that many pixels outward on every side (the hat of a head);
+ *   [extent] is the size of the box when it differs from the size of its texture layout (a model scaled by the item definition);
  *   [swapCaps] swaps the textures of the top and the bottom, and [turned] turns the four sides half way round, for the models of the game that
  *   are built the other way up and round (the chest)
  */
-export function box(from, size, offset, sheet, texture, { grow = 0, tintindex, swapCaps = false, turned = false } = {}) {
+export function box(from, size, offset, sheet, texture, { grow = 0, tintindex, swapCaps = false, turned = false, extent = null } = {}) {
   const [dx, dy, dz] = size
+  const reach = extent ?? size
   const [u, v] = offset
   const unit = (px, axis) => (axis === 0 ? (px * 16) / sheet[0] : (px * 16) / sheet[1])
   const region = (u1, v1, u2, v2) => [unit(u1, 0), unit(v1, 1), unit(u2, 0), unit(v2, 1)]
@@ -31,7 +33,7 @@ export function box(from, size, offset, sheet, texture, { grow = 0, tintindex, s
   const left = [u + dz + dx, v + dz, u + 2 * dz + dx, v + dz + dy]
   return {
     from: from.map((c) => c - grow),
-    to: from.map((c, i) => c + size[i] + grow),
+    to: from.map((c, i) => c + reach[i] + grow),
     faces: {
       south: face(turned ? back : front),
       north: face(turned ? front : back),
@@ -112,4 +114,48 @@ export function specialQuads(special, skin = null) {
   else if (type === 'chest') built = chestModel(special.texture)
   else if (type === 'shulker_box') built = shulkerModel(special.texture)
   return built ? { quads: bakeElements(built.model), textures: built.textures } : null
+}
+
+/** The colors of the dyes as banners use them. */
+export const DYES = {
+  white: 0xf9fffe, orange: 0xf9801d, magenta: 0xc74ebd, light_blue: 0x3ab3da, yellow: 0xfed83d, lime: 0x80c71f, pink: 0xf38baa, gray: 0x474f52,
+  light_gray: 0x9d9d97, cyan: 0x169c9c, purple: 0x8932b8, blue: 0x3c44aa, brown: 0x835432, green: 0x5e7c16, red: 0xb02e26, black: 0x1d1d21,
+}
+
+/**
+ * The layers of a banner: the pole, the bar and the cloth, then a layer of the cloth for each pattern in its own color. The model is
+ * the game's (a 20 by 40 cloth on a pole and a bar) with the scale the item definition gives it (two thirds, upside down and
+ * turned, as an entity model is), put on the block so that the display transform of the base model applies as to any other.
+ * @param {string} color the color of the banner (`white`)
+ * @param {{color: string, pattern: string}[]} [patterns]
+ * @returns {{layers: {quads: import('./bake.js').Quad[], tints: number[]}[], textures: string[]}}
+ */
+export function bannerLayers(color, patterns = []) {
+  const k = 2 / 3
+  // entity coordinates (pixels, y down) to the block: scale (k, -k, -k), and the middle of the block in all three directions
+  const at = (x, y, z) => [x * k + 8, -y * k + 8, -z * k + 8]
+  const sheet = [64, 64]
+  const cloth = (texture, tintindex) => {
+    const from = at(-10, 8, -1) // the low corner: the cloth hangs from y = -32 to 8, in front of z = -2..-1
+    const element = box([from[0], from[1], from[2]], [20, 40, 1], [0, 0], sheet, '#t', { tintindex, extent: [20 * k, 40 * k, 1 * k] })
+    return new Model({ textures: { t: texture }, elements: [element] })
+  }
+  const pole = (() => {
+    const lowPole = at(-1, 12, 1)
+    const lowBar = at(-10, -30, 1)
+    return new Model({ textures: { t: 'minecraft:entity/banner/base' }, elements: [
+      box(lowPole, [2, 42, 2], [44, 0], sheet, '#t', { tintindex: 0, extent: [2 * k, 42 * k, 2 * k] }),
+      box(lowBar, [20, 2, 2], [0, 42], sheet, '#t', { tintindex: 0, extent: [20 * k, 2 * k, 2 * k] }),
+    ] })
+  })()
+  const dye = DYES[color] ?? DYES.white
+  const layers = [{ quads: bakeElements(cloth('minecraft:entity/banner/base', 0)), tints: [dye] }, { quads: bakeElements(pole), tints: [dye] }]
+  const textures = ['minecraft:entity/banner/base']
+  for (const { color: c, pattern } of patterns) {
+    const name = String(pattern ?? '').replace(/^minecraft:/, '')
+    const key = `minecraft:entity/banner/${name}`
+    layers.push({ quads: bakeElements(cloth(key, 0)), tints: [DYES[String(c).toLowerCase()] ?? DYES.white] })
+    textures.push(key)
+  }
+  return { layers, textures }
 }

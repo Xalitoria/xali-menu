@@ -33,6 +33,32 @@ internal class ResourcePacks(private val plugin: XaliMenu) {
         return mapOf("vanilla" to vanilla, "custom" to custom)
     }
 
+    /**
+     * The color a potion shows, for each of [specs] (a base potion type, and custom effects): the average of the colors of its effects, each
+     * as often as its level, as the game works it out; the color of water when there are no effects. Null for a spec that names nothing.
+     */
+    fun potionColors(specs: List<Pair<String?, List<Pair<String, Int>>>>): List<Int?> = specs.map { spec ->
+        val type = spec.first
+        val custom = spec.second
+        val registry = io.papermc.paper.registry.RegistryAccess.registryAccess()
+        val base = type?.let { name -> org.bukkit.NamespacedKey.fromString(name.lowercase())?.let { registry.getRegistry(io.papermc.paper.registry.RegistryKey.POTION).get(it) } }
+        val effects = (base?.potionEffects?.map { it.type to it.amplifier }.orEmpty()) + custom.mapNotNull { entry ->
+            val name = entry.first
+            val level = entry.second
+            org.bukkit.NamespacedKey.fromString(name.lowercase())?.let { registry.getRegistry(io.papermc.paper.registry.RegistryKey.MOB_EFFECT).get(it) }?.let { it to level }
+        }
+        if (type != null && base == null && custom.isEmpty()) return@map null
+        var red = 0L; var green = 0L; var blue = 0L; var weight = 0L
+        for (entry in effects) {
+            val effect = entry.first
+            val level = entry.second
+            val color = effect.color
+            val w = (level + 1).toLong()
+            red += color.red * w; green += color.green * w; blue += color.blue * w; weight += w
+        }
+        if (weight == 0L) 0x385DC6 else ((red / weight).toInt() shl 16) or ((green / weight).toInt() shl 8) or (blue / weight).toInt()
+    }
+
     /** The pack file: the configured one, otherwise the first of the supported plugins that has one. */
     fun pack(): Path? {
         val configured = plugin.config.data.editor.pack

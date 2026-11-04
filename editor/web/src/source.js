@@ -70,6 +70,11 @@ export class Server {
     return (await (await this.request('/items', { method: 'POST', body: JSON.stringify({ materials }) })).json()).items ?? {}
   }
 
+  /** The colors potions show: for each `{type, effects}`, an rgb number or null. */
+  async colors(potions) {
+    return (await (await this.request('/colors', { method: 'POST', body: JSON.stringify({ potions }) })).json()).colors ?? []
+  }
+
   /** A skin of Mojang's texture server, through the server of the plugin. */
   async skin(url) {
     return (await this.request(`/skin?url=${encodeURIComponent(url)}`, { headers: { Accept: 'image/png' } })).blob()

@@ -18,7 +18,7 @@ import { split } from './assets.js'
  * @property {{grass?: object, foliage?: object}} [colormaps] the pixels of the colormaps, for tints by climate
  */
 
-/** @typedef {{model?: string, tints: (number|null)[], special?: object, base?: string}} Entry */
+/** @typedef {{model?: string, tints: (number|null)[], special?: object, base?: string, transformation?: {left_rotation?: number[], right_rotation?: number[], scale?: number[], translation?: number[]}}} Entry */
 
 const WHITE = 0xffffff
 
@@ -76,7 +76,7 @@ function walk(node, state, out, depth) {
   if (!node || typeof node !== 'object' || depth > 32) return
   switch (bare(node.type ?? 'model')) {
     case 'model':
-      if (typeof node.model === 'string') out.push({ model: node.model, tints: (node.tints ?? []).map((t) => tintColor(t, state)) })
+      if (typeof node.model === 'string') out.push({ model: node.model, tints: (node.tints ?? []).map((t) => tintColor(t, state)), ...(node.transformation ? { transformation: node.transformation } : {}) })
       break
     case 'composite': for (const m of node.models ?? []) walk(m, state, out, depth + 1); break
     case 'condition': walk(condition(node, state) ? node.on_true : node.on_false, state, out, depth + 1); break

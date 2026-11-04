@@ -37,7 +37,7 @@ export function transformOf(display) {
 }
 
 /**
- * @typedef {{quads: import('./bake.js').Quad[], display?: object, guiLight?: string|null, tints?: (number|null|undefined)[], alpha?: 'cutout'|'translucent'}} Layer
+ * @typedef {{quads: import('./bake.js').Quad[], display?: object, guiLight?: string|null, tints?: (number|null|undefined)[], alpha?: 'cutout'|'translucent', brightness?: number}} Layer
  * @typedef {{width: number, height: number, data: Uint8ClampedArray}} Image
  */
 
@@ -60,7 +60,7 @@ export function renderItem(layers, texture, scale = 3) {
     for (const quad of layer.quads) {
       const normal = apply(matrix, quad.normal)
       if (normal[2] <= 1e-6) continue // facing away from the viewer
-      const lit = flat ? 1 : sideLight(apply(matrix, DIRECTIONS[quad.direction]))
+      const lit = layer.brightness ?? (flat ? 1 : sideLight(apply(matrix, DIRECTIONS[quad.direction])))
       const tex = quad.texture ? texture(quad.texture) : null
       const tint = layer.tints?.[quad.tintIndex]
       const vertices = quad.positions.map((p, i) => {

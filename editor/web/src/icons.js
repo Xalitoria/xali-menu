@@ -10,6 +10,8 @@ export const settings = {
   pack: null,
   /** @type {import('./itemrender.js').ItemRenderer|null} draws items from their models; made again when the pack changes */
   renderer: null,
+  /** The color of each potion the server worked out, by `potionKey`. */
+  potionColors: new Map(),
   /** What the server's plugins say custom items are: material (key) to `{material, itemModel, customModelData}`. */
   resolved: new Map(),
 }
@@ -30,6 +32,15 @@ export function parts(material) {
   return { prefix, id: text.slice(colon + 1) }
 }
 
+/** What identifies the potion of an item: its base type and its custom effects, or null if it has neither. */
+export function potionSpec(item) {
+  const type = item['potion-type'] ?? null
+  const effects = (item.potion ?? []).map((e) => ({ type: e.type, amplifier: e.amplifier ?? 0 }))
+  return type || effects.length ? { type, effects } : null
+}
+
+export const potionKey = (spec) => JSON.stringify(spec)
+
 /**
  * The icon of a menu item: a colored tile at once, then the item as the game draws it when the model and its textures are found,
  * otherwise a picture from the pack or from a public copy of the textures.
@@ -41,7 +52,8 @@ export function icon(item, scale = 3) {
   const { prefix, id } = parts(material)
   const label = (prefix ? prefix : id).replace(/_/g, ' ').split(' ').map((w) => w[0] ?? '').join('').slice(0, 3).toUpperCase()
   const wrapper = h('span', { class: 'icon-wrap', style: `width:${16 * scale}px;height:${16 * scale}px` }, tile(label || '?', material || '?'))
-  const known = settings.resolved.get(material) ?? {}
+  const spec = potionSpec(item)
+  const known = { ...(settings.resolved.get(material) ?? {}), ...(spec && settings.potionColors.has(potionKey(spec)) ? { potionColor: settings.potionColors.get(potionKey(spec)) } : {}) }
   if (!material.includes('%') && settings.renderer) {
     // The picture has a pixel for each pixel of the screen, so it is sharp on a screen that has more than one to the point.
     const density = Math.max(1, Math.ceil(window.devicePixelRatio || 1))

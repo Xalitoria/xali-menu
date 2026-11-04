@@ -186,3 +186,30 @@ export function nearestDirection(normal) {
 }
 
 export { DIRECTIONS }
+
+/**
+ * Moves the quads by a `transformation` of an item definition (a rotation, a scale, another rotation and a translation, in blocks), as the game
+ * does for a model of a composite such as the two halves of a bed. The positions of the quads are in sixteenths of a block.
+ * @param {Quad[]} quads
+ * @param {{left_rotation?: number[], right_rotation?: number[], scale?: number[], translation?: number[]}} transformation
+ * @returns {Quad[]}
+ */
+export function transformQuads(quads, transformation) {
+  const left = quaternionMatrix(transformation.left_rotation ?? [0, 0, 0, 1])
+  const right = quaternionMatrix(transformation.right_rotation ?? [0, 0, 0, 1])
+  const scale = transformation.scale ?? [1, 1, 1]
+  const move = (transformation.translation ?? [0, 0, 0]).map((v) => v * 16)
+  const place = (p) => apply(left, apply(right, p).map((v, i) => v * scale[i])).map((v, i) => v + move[i])
+  return quads.map((quad) => ({ ...quad, positions: quad.positions.map(place), normal: apply(left, apply(right, quad.normal)) }))
+}
+
+/** The rotation matrix of a quaternion given as [x, y, z, w]. */
+export function quaternionMatrix([x, y, z, w]) {
+  const n = Math.hypot(x, y, z, w) || 1
+  const [a, b, c, d] = [x / n, y / n, z / n, w / n]
+  return [
+    [1 - 2 * (b * b + c * c), 2 * (a * b - c * d), 2 * (a * c + b * d)],
+    [2 * (a * b + c * d), 1 - 2 * (a * a + c * c), 2 * (b * c - a * d)],
+    [2 * (a * c - b * d), 2 * (b * c + a * d), 1 - 2 * (a * a + b * b)],
+  ]
+}

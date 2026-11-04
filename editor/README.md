@@ -35,18 +35,17 @@ The editor draws what a player sees, from the same files the game reads, with no
   game itself draws without that, and the code can too). The size is the GUI scale of the Items tab, 1 to 4 or fit to the space. Compared
   with icons the game rendered itself (the wiki's), stone, a furnace, stairs and a sword differ in at most a few of about six hundred
   pixels, and a creeper head and a shulker box in none.
-- **Drawn from code in the game**, and so built here from boxes with the game's texture layout: player and mob heads (a `texture:`
+- **Drawn from code in the game**, and so built here from boxes with the game's texture layout: banners (the base color and each pattern in its dye), player and mob heads (a `texture:`
   material shows its skin, fetched through the server because Mojang's texture host does not allow other sites), chests and shulker
-  boxes. Banners, shields, signs, beds drawn by block entities, armor trims and the animation of compasses and clocks are not drawn
-  that way yet: they show their base model, or a tile.
+  boxes. Shields, signs, armor trims and the animation of compasses and clocks are not drawn that way yet: they show a tile. Beds and
+  other items the game draws as several models (`transformation` in the item definition) are drawn from their models.
 - **The window** sits in the middle of a stage with room around it (none to huge), for glyphs that are used as overlays and reach past the
   window; scroll the stage to see all of it. It is the game's container texture for the inventory type (chest, hopper, dispenser, dropper), the title is in the
   game's font with the glyphs of the resource pack, and the player's inventory is below it. Counts and the durability bar are drawn as
   the game draws them, and the tooltip uses the game's own sprites, with the name, enchantments and lore.
 - **The game's files** are read from a public copy of Mojang's assets (`editor/web/src/assets.js` names it and the version) and are not
   part of this repository. Everything is fetched the first time it is needed, so the first draw of a menu takes a moment.
-- Not exact: the shimmer of an enchanted item (it moves in the game; one moment of it is shown), the colors of potions by effect,
-  `head:<name>` heads (they use the default skin; only `texture:` skins are fetched), and text outside the Latin range (the game's
+- Not exact: the shimmer of an enchanted item (it moves in the game; one moment of it is shown), `head:<name>` heads (they use the default skin; only `texture:` skins are fetched), and text outside the Latin range (the game's
   Unifont is not read).
 
 ## Using it

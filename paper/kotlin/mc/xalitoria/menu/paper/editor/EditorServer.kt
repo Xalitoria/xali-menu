@@ -23,6 +23,7 @@ import mc.xalitoria.menu.paper.XaliMenu
  * GET  /v1/catalog               {vanilla: [...], custom: {prefix: [...]}}  every item a menu can use
  * GET  /v1/glyphs                {glyphs: [{name, char, plugin}]}
  * POST /v1/items                 {materials: [...]}  ->  {items: {material: {material, itemModel, customModelData, maxDamage}}}
+ * POST /v1/colors               {potions: [{type, effects: [{type, amplifier}]}]}  ->  {colors: [rgb or null]}
  * GET  /v1/skin?url=<address>    the skin png at a textures.minecraft.net address (the editor's browser cannot read it from there)
  * ```
  */
@@ -108,6 +109,18 @@ internal class EditorServer(private val plugin: XaliMenu, val sessions: EditorSe
                 exchange.responseHeaders.add("Content-Type", "application/zip")
                 exchange.sendResponseHeaders(200, file.fileSize())
                 Files.copy(file, exchange.responseBody)
+            }
+            path == listOf("colors") && method == "POST" -> {
+                val request = Json.read(exchange.requestBody.readNBytes(MAX_BODY).decodeToString()).unwrapped()
+                val specs = (request["potions"] as? List<*>).orEmpty().take(200).map { entry ->
+                    val map = entry as? Map<*, *>
+                    val effects = (map?.get("effects") as? List<*>).orEmpty().mapNotNull { e ->
+                        val m = e as? Map<*, *> ?: return@mapNotNull null
+                        (m["type"] as? String)?.let { it to ((m["amplifier"] as? Number)?.toInt() ?: 0) }
+                    }
+                    (map?.get("type") as? String) to effects
+                }
+                reply(exchange, 200, Json.write(mapOf("colors" to packs.potionColors(specs))))
             }
             path == listOf("catalog") && method == "GET" -> reply(exchange, 200, Json.write(packs.catalog()))
             path == listOf("glyphs") && method == "GET" -> reply(exchange, 200, Json.write(mapOf("glyphs" to packs.glyphs())))

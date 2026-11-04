@@ -12,7 +12,7 @@ import { write } from './hoconWriter.js'
 import { render as renderText } from './mctext.js'
 import { services, forgetCatalog } from './services.js'
 import { materialPicker } from './picker.js'
-import { settings as iconSettings } from './icons.js'
+import { settings as iconSettings, potionSpec, potionKey } from './icons.js'
 import { settings as assetSettings } from './assets.js'
 import { PackPanel } from './panel.js'
 
@@ -93,11 +93,15 @@ export class App {
   /** Asks the server what the items of the open menu are (custom items, and how much each wears), once for each material. */
   async resolveItems() {
     if (!this.server) return
-    const materials = [...new Set(Object.values(this.store.value.items ?? {}).map((i) => i.material).filter((m) => typeof m === 'string' && m && !m.includes('%') && !this.asked.has(m)))]
-    if (materials.length === 0) return
+    const items = Object.values(this.store.value.items ?? {})
+    const materials = [...new Set(items.map((i) => i.material).filter((m) => typeof m === 'string' && m && !m.includes('%') && !this.asked.has(m)))]
+    const potions = [...new Map(items.map(potionSpec).filter((s) => s && !this.asked.has(potionKey(s))).map((s) => [potionKey(s), s])).values()]
+    if (materials.length === 0 && potions.length === 0) return
     materials.forEach((m) => this.asked.add(m))
+    potions.forEach((s) => this.asked.add(potionKey(s)))
     try {
-      for (const [material, data] of Object.entries(await this.server.resolve(materials))) iconSettings.resolved.set(material, data)
+      if (materials.length) for (const [material, data] of Object.entries(await this.server.resolve(materials))) iconSettings.resolved.set(material, data)
+      if (potions.length) (await this.server.colors(potions)).forEach((color, i) => { if (color !== null) iconSettings.potionColors.set(potionKey(potions[i]), color) })
       this.draw()
     } catch { /* the server may not know; the items are then drawn from what the menu says */ }
   }

@@ -197,3 +197,6 @@ Each step ends with tests, the README section, and a commit.
   The window, title font, counts, durability bar and tooltip use the game's own textures and fonts; skins are fetched through
   `/v1/skin`, which only fetches from textures.minecraft.net; `/v1/items` also says how much each item wears.
 - Not done: banners and shields with patterns, signs, trims, animated glint, potion colors by effect, Unifont. Icons are drawn smooth (4x oversampled), the GUI scale is 1 to 4 or fit, and the window sits centered in a stage with room for oversized glyphs. Every one of 43 more icons the game rendered (fences, doors, lanterns, anvils, hoppers...) matches within 0 to 9 % of pixels, except beds, which the game draws from code: those and other unbuilt entity models are now a tile instead of a partial picture.
+- Third pass: item definitions' `transformation` (the foot of a bed is a model moved one block, which was the offset seen on beds; now 4 %),
+  banners with patterns (mask 5 %, color 1 % against the game's icon), potion colors (`/v1/colors`: the average of the effects' colors as the
+  game works it out), and a searchable item list for `material`. Not done: shields, signs, trims, animated glint, Unifont.

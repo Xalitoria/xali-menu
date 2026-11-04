@@ -135,3 +135,29 @@ test('shrinking averages each square by alpha, so an edge is partly covered and 
   assert.deepEqual([...small.data], [200, 100, 50, 64], 'a quarter covered, with the color of what is there')
   assert.equal(downsample({ width: 2, height: 2, data }, 1).data, data)
 })
+
+import { transformQuads, quaternionMatrix } from '../src/bake.js'
+
+test('a transformation of an item definition moves the quads, as the foot of a bed is moved a block', () => {
+  const quad = { positions: [[0, 0, 0], [16, 0, 0], [16, 16, 0], [0, 16, 0]], uvs: [], normal: [0, 0, -1], direction: 'north', texture: 'a:b', tintIndex: -1 }
+  const [moved] = transformQuads([quad], { translation: [0, 0, 1] })
+  assert.deepEqual(moved.positions[0], [0, 0, 16])
+  assert.deepEqual(moved.normal, [0, 0, -1])
+  const [scaled] = transformQuads([quad], { scale: [0.5, 1, 1] })
+  assert.deepEqual(scaled.positions[1], [8, 0, 0])
+  // a quarter turn about y turns north to west... checked through the matrix: x axis goes to -z
+  const turn = quaternionMatrix([0, Math.sin(Math.PI / 4), 0, Math.cos(Math.PI / 4)])
+  assert.ok(Math.abs(turn[2][0] + 1) < 1e-9)
+})
+
+import { bannerLayers, DYES } from '../src/special.js'
+
+test('a banner is a cloth on a pole and a bar, with a layer of the cloth for each pattern in its own dye', () => {
+  const { layers, textures } = bannerLayers('white', [{ color: 'red', pattern: 'minecraft:stripe_top' }, { color: 'blue', pattern: 'creeper' }])
+  assert.equal(layers.length, 4)
+  assert.deepEqual(layers[0].tints, [DYES.white])
+  assert.deepEqual(layers.slice(2).map((l) => l.tints[0]), [DYES.red, DYES.blue])
+  assert.deepEqual(textures, ['minecraft:entity/banner/base', 'minecraft:entity/banner/stripe_top', 'minecraft:entity/banner/creeper'])
+  const ys = layers[0].quads.flatMap((q) => q.positions.map((p) => p[1]))
+  assert.ok(Math.abs(Math.max(...ys) - Math.min(...ys) - 40 * (2 / 3)) < 1e-9, 'the cloth is two thirds of 40 pixels tall')
+})

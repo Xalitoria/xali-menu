@@ -2,10 +2,10 @@
 // own files), bakes the quads, and rasterizes them with the `gui` display transform and the game's lights (see raster.js).
 
 import { Assets, split } from './assets.js'
-import { Model, loadModel, bakeElements, bakeLayers } from './bake.js'
+import { Model, loadModel, bakeElements, bakeLayers, transformQuads } from './bake.js'
 import { chooseModels } from './itemdef.js'
 import { renderItem, addGlint, downsample } from './raster.js'
-import { specialQuads } from './special.js'
+import { specialQuads, bannerLayers } from './special.js'
 
 /** The size of the pixel of the game on the page: items are drawn 16 of these wide. */
 export const SCALE = 3
@@ -35,6 +35,7 @@ export function stateOf(item, known = {}) {
   return {
     material: head ? 'player_head' : (known.material ?? text.replace(/^minecraft:/, '')),
     skin: skinUrl(text),
+    banner: Array.isArray(item.banner) ? item.banner : [],
     glint: item.glow === true || (item.glow !== false && (Object.keys(item.enchants ?? {}).length > 0 || Object.keys(item['stored-enchants'] ?? {}).length > 0)),
     itemModel: item['item-model'] ?? known.itemModel ?? null,
     state: {
@@ -43,6 +44,7 @@ export function stateOf(item, known = {}) {
       maxDamage: known.maxDamage ?? 0,
       count: item.amount ?? 1,
       dyedColor: color,
+      potionColor: known.potionColor ?? null,
       components: [],
     },
   }
@@ -70,16 +72,18 @@ export class ItemRenderer {
    * [smooth] draws four times as large and shrinks the result, so the edges are not stairs; the game itself draws without it, which is what
    * `smooth = false` gives.
    */
-  async draw({ material, itemModel, state, glint, skin }, scale, smooth) {
+  async draw({ material, itemModel, state, glint, skin, banner }, scale, smooth) {
     const oversample = smooth ? 4 : 1
     const entries = await this.entries(material, itemModel, state)
     const layers = []
     const needed = new Set()
     for (const entry of entries) {
-      const layer = await this.layer(entry, skin)
-      if (!layer) continue
-      layers.push(layer)
-      for (const quad of layer.quads) if (quad.texture) needed.add(quad.texture)
+      const made = await this.layer(entry, skin, banner)
+      for (const layer of [made].flat()) {
+        if (!layer) continue
+        layers.push(layer)
+        for (const quad of layer.quads) if (quad.texture) needed.add(quad.texture)
+      }
     }
     if (layers.length === 0) return null
     const textures = new Map()
@@ -119,11 +123,16 @@ export class ItemRenderer {
   }
 
   /** The quads of one entry, placed by the display transform of its model. */
-  async layer(entry, skin = null) {
+  async layer(entry, skin = null, banner = []) {
     const key = entry.model ?? entry.base
     if (!key) return null
     const model = await loadModel(this.assets, key)
     if (!model) return null
+    if (entry.special && String(entry.special.type).replace(/^minecraft:/, '') === 'banner') {
+      const built = bannerLayers(entry.special.color, banner)
+      // The game lights the cloth of a banner at about three quarters, measured from icons it rendered; no light of the item matches it.
+      return built.layers.map((l) => ({ quads: l.quads, display: model.display.gui, guiLight: model.guiLight ?? 'side', tints: l.tints, brightness: 0.766 }))
+    }
     if (entry.special) {
       const built = specialQuads(entry.special, skin ? `url:${skin}` : null)
       if (!built) return null // drawn by code in the game and not built here: better no picture than half of one
@@ -138,6 +147,7 @@ export class ItemRenderer {
     else if (model.builtin === 'entity') return null
     else quads = bakeElements(model)
     if (quads.length === 0) return null
+    if (entry.transformation) quads = transformQuads(quads, entry.transformation)
     return { quads, display: model.display.gui, guiLight: model.guiLight ?? 'side', tints: entry.tints, alpha: translucent(key) ? 'translucent' : undefined }
   }
 }
