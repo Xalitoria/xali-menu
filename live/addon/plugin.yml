@@ -1,0 +1,9 @@
+name: XmDemo
+version: 1.0
+main: XmDemo
+api-version: "26.1"
+depend: [XaliMenu]
+folia-supported: true
+commands:
+  xmwave:
+    description: Fires the xmdemo:emote activator

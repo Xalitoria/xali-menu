@@ -9,6 +9,7 @@ import kotlinx.serialization.modules.SerializersModule
 import kotlinx.serialization.modules.polymorphic
 import kotlinx.serialization.serializer
 import mc.xalitoria.menu.api.Action
+import mc.xalitoria.menu.api.ActivatorType
 import mc.xalitoria.menu.api.Catalog
 import mc.xalitoria.menu.api.CatalogType
 import mc.xalitoria.menu.api.ActionType
@@ -37,6 +38,9 @@ class TypeRegistry {
     private val externalConditions = CopyOnWriteArrayList<External<Condition>>()
     private val catalogs = CopyOnWriteArrayList<Type<Catalog>>()
     private val externalCatalogs = CopyOnWriteArrayList<External<Catalog>>()
+    private class ExternalActivator(val owner: Plugin, val type: ActivatorType)
+
+    private val activators = ConcurrentHashMap<String, ExternalActivator>()
     private val itemSources = ConcurrentHashMap<String, Source>()
 
     @Volatile
@@ -45,6 +49,12 @@ class TypeRegistry {
 
     /** The names (`plugin:name`) of the actions, conditions and catalogs other plugins added: the `type`s that need [packExternals][mc.xalitoria.menu.paper.format.packExternals]. */
     val externalNames: Set<String> get() = (externalActions + externalConditions + externalCatalogs).mapTo(HashSet()) { it.name }
+
+    /** The names of the activators other plugins added, which a menu file writes as `type` and which [packExternals][mc.xalitoria.menu.paper.format.packExternals] turns into `addon` activators. */
+    val activatorNames: Set<String> get() = activators.keys.toSet()
+
+    /** The type of the activator [name], null if no plugin added one. */
+    fun activator(name: String): ActivatorType? = activators[name]?.type
 
     /** The item sources by prefix. */
     val sources: Map<String, ItemSource> get() = itemSources.mapValues { it.value.source }
@@ -74,6 +84,11 @@ class TypeRegistry {
         addExternal(externalCatalogs, owner, name, ExternalSerializer(name, type::create))
     }
 
+    fun addActivator(owner: Plugin, name: String, type: ActivatorType) {
+        require(NAME.matches(name)) { "'$name' isn't a name for an activator; use lower case as plugin:name, such as myplugin:emote" }
+        require(activators.putIfAbsent(name, ExternalActivator(owner, type)) == null) { "There is already an activator '$name'" }
+    }
+
     private fun <B : Any> addExternal(list: CopyOnWriteArrayList<External<B>>, owner: Plugin, name: String, serializer: DeserializationStrategy<B>) {
         require(NAME.matches(name)) { "'$name' isn't a name for an action or condition; use lower case as plugin:name, such as myplugin:reward" }
         require(list.none { it.name == name }) { "There is already a '$name' of that kind" }
@@ -98,7 +113,7 @@ class TypeRegistry {
         val removed = actions.removeIf { it.owner == owner } or conditions.removeIf { it.owner == owner } or
             catalogs.removeIf { it.owner == owner } or externalActions.removeIf { it.owner == owner } or
             externalConditions.removeIf { it.owner == owner } or externalCatalogs.removeIf { it.owner == owner } or
-            itemSources.values.removeIf { it.owner == owner }
+            activators.values.removeIf { it.owner == owner } or itemSources.values.removeIf { it.owner == owner }
         if (removed) module = build()
         return removed
     }

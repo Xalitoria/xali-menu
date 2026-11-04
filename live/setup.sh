@@ -60,6 +60,18 @@ cp "$plugin" "$server/plugins/"
 ls "$src"/plugins/PlaceholderAPI-*.jar >/dev/null && cp "$src"/plugins/PlaceholderAPI-*.jar "$server/plugins/"
 # Other plugins of the dev server to try the menus with, by the start of their jar's name: XM_PLUGINS="FancyNpcs SkinsRestorer".
 for name in ${XM_PLUGINS:-}; do cp "$src"/plugins/"$name"*.jar "$server/plugins/"; done
+# XM_ADDON=1 also builds addon/XmDemo.java, a plugin in Java that adds an activator (bot/addon.js uses it).
+if [ -n "${XM_ADDON:-}" ]; then
+  # The jars of the Gradle cache the API classes of the plugin come from (the newest of each), without their sources.
+  libs=$(for name in paper-api adventure-api adventure-key examination-api jspecify annotations bungeecord-chat; do
+    find "$HOME/.gradle/caches/modules-2" -name "$name-[0-9]*.jar" ! -name '*sources*' | sort | tail -1
+  done | paste -sd:)
+  classes=$(mktemp -d)
+  "$JAVA_HOME/bin/javac" -d "$classes" -cp "$libs:$plugin" "$here"/addon/XmDemo.java
+  cp "$here"/addon/plugin.yml "$classes/"
+  (cd "$classes" && "$JAVA_HOME/bin/jar" cf "$server/plugins/XmDemo.jar" .)
+  rm -rf "$classes"
+fi
 cp "$here"/menus/*.conf "$server/plugins/XaliMenu/menus/"
 
 # The plugin asks for util $util_version, which is only published once released; give the server the one just built.

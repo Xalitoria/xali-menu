@@ -1,5 +1,6 @@
 package mc.xalitoria.menu.paper.runtime
 
+import mc.xalitoria.menu.api.ActivatorFilter
 import mc.xalitoria.menu.api.model.Activator
 import mc.xalitoria.menu.api.model.BlockClick
 import mc.xalitoria.menu.api.model.Click
@@ -8,8 +9,15 @@ import mc.xalitoria.menu.api.model.TextMatch
 /** An activator of the menu called [menu]. */
 class Entry<A : Activator>(val menu: String, val activator: A)
 
-/** The activators of all the loaded menus, by kind, in the order they are tried: by menu name, then as written. */
-class ActivatorIndex(menus: Map<String, List<Activator>>) {
+/** An activator another plugin added, with what its type made of the keys written for it. */
+class Added(val entry: Entry<Activator.Addon>, val filter: ActivatorFilter)
+
+/**
+ * The activators of all the loaded menus, by kind, in the order they are tried: by menu name, then as written. [filterOf]
+ * builds what decides for an activator that another plugin added; one it gives null for (the plugin isn't here, or
+ * refused the keys) never fires, and is reported when the menu is checked.
+ */
+class ActivatorIndex(menus: Map<String, List<Activator>>, filterOf: (Activator.Addon) -> ActivatorFilter? = { null }) {
     private val all: List<Entry<Activator>> = menus.entries.sortedBy { it.key }.flatMap { entry -> entry.value.map { Entry(entry.key, it) } }
 
     val items: List<Entry<Activator.HeldItem>> = of()
@@ -21,6 +29,8 @@ class ActivatorIndex(menus: Map<String, List<Activator>>) {
     val npcs: List<Entry<Activator.Npc>> = of()
     val regionEnters: List<Entry<Activator.RegionEnter>> = of()
     val regionLeaves: List<Entry<Activator.RegionLeave>> = of()
+
+    val added: List<Added> = of<Activator.Addon>().mapNotNull { entry -> filterOf(entry.activator)?.let { Added(entry, it) } }
 
     val isEmpty: Boolean get() = all.isEmpty()
 

@@ -38,6 +38,12 @@ interface XaliMenuApi {
     /** Adds a catalog type for paged menus, named and built the same way as an action's. */
     fun registerCatalog(owner: Plugin, name: String, type: CatalogType)
 
+    /**
+     * Adds an activator type, named like an action's. [type] builds the activator from the keys written next to `type`; the
+     * returned source is how you tell the menus that a player did what it stands for.
+     */
+    fun registerActivator(owner: Plugin, name: String, type: ActivatorType): ActivatorSource
+
     fun registerItemSource(owner: Plugin, source: ItemSource)
 
     companion object {

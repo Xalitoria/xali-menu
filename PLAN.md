@@ -67,7 +67,13 @@ Each step ends with tests, the README section, and a commit.
   (`RegionChange`, tested); the menu opens two ticks later, since a teleport closes what is open. Joining inside a region is
   silent, a change of world leaves all and enters all. A `region` condition too. Tested live on Paper with FAWE and
   WorldGuard 7.0.19 (`live/bot/region.js`): entering, moving inside (silent), leaving, and the condition inside and out.
-- An addon API for activators (`registerActivator`) is open: activators are event-driven, so it needs a design of its own.
+- Addon activators: `XaliMenuApi.registerActivator(owner, "plugin:name", type)` returns a source; the addon calls
+  `source.fire(player, values)` when its event happens, and the activators of that type whose filter (built by `type` from the
+  keys of the menu file) matches the values open their menus. Matching on the caller's thread, gate and opening on the
+  player's; `fire` says whether to cancel. Read as `Activator.Addon` (the file's `{type = "plugin:name", ...}` is rewritten
+  by `packExternals`, keeping `require`, `cancel` and `args` in place). Unit tested (reading, matching, removal with the
+  plugin), and live with a plugin written in Java (`live/addon/XmDemo.java`, `live/bot/addon.js`): no match, a match, the
+  gate denying, `cancel` as returned, and `validate` on keys the type refuses.
 
 ### 3. Menu kinds (done, tested live)
 

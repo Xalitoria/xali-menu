@@ -136,6 +136,28 @@ class ActivatorListener(private val plugin: XaliMenu) : Listener {
         player.scheduler.run(plugin, { for (entry in matching) if (trigger(player, entry, mapOf("npc" to name, "npc_id" to id))) break }, null)
     }
 
+    /**
+     * [player] did what the activators of the plugin type [name] stand for, described by [values]. Matching is done here, on
+     * the thread of the caller, and the gate on the player's own. @return whether the first activator that matches asks for
+     * the event to be canceled
+     */
+    fun onAdded(name: String, player: Player, values: Map<String, String>): Boolean {
+        val matching = index.added.filter { it.entry.activator.name == name && matches(it, values) }
+        val first = matching.firstOrNull() ?: return false
+        player.scheduler.run(plugin, { for (added in matching) if (trigger(player, added.entry, values)) break }, null)
+        return first.entry.activator.cancel
+    }
+
+    private val complained = ConcurrentHashMap.newKeySet<String>()
+
+    /** A filter is another plugin's code; one that throws doesn't match, and is noted once. */
+    private fun matches(added: Added, values: Map<String, String>): Boolean = try {
+        added.filter.matches(values)
+    } catch (e: RuntimeException) {
+        if (complained.add(added.entry.activator.name)) plugin.logger.warning("The activator '${added.entry.activator.name}' threw while matching, so it doesn't: $e")
+        false
+    }
+
     /** The regions each player stood in when they last moved, with the world; kept only while a menu has a region activator. */
     private val standing = ConcurrentHashMap<UUID, Pair<UUID, Set<String>>>()
 

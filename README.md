@@ -479,7 +479,7 @@ of opening or showing an item for everyone.
 
 ## Extending
 
-An addon adds its own action, condition or item source in `onEnable`. List XaliMenu as a dependency of the addon
+An addon adds its own action, condition, catalog, activator or item source in `onEnable`. List XaliMenu as a dependency of the addon
 (`join-classpath` on). Menus are read after every plugin has enabled, and again when one is disabled, so they are never
 read without what they use.
 
@@ -500,6 +500,10 @@ class MyPlugin : JavaPlugin() {
         api.registerCondition(this, "myplugin:lucky") { settings -> Lucky(settings.double("odds", 0.5)) }
         api.registerItemSource(this, MyItems)               // material = "myitems:ruby"
         api.registerCatalog(this, "myplugin:homes") { Homes() }   // pages { catalog { type = "myplugin:homes" } ... }
+        emotes = api.registerActivator(this, "myplugin:emote") { settings ->   // open-with = [{ type = "myplugin:emote", name = "wave" }]
+            val wanted = settings.requireString("name")
+            ActivatorFilter { values -> values["emote"] == wanted }
+        }
     }
 }
 ```
@@ -518,6 +522,16 @@ signature. Addon actions, conditions and catalogs can be read from menu files bu
 A `Catalog` gives a paged menu its elements: `elements(ctx)` returns a list of maps of named strings, each map one
 element, and the menu's template uses the values as `{name}`. It is called on the viewer's region thread on every refresh
 of the menu, so it must be cheap.
+
+An activator is event-driven, so the addon gets a source back and calls it when something happens:
+`if (emotes.fire(player, mapOf("emote" to "wave"))) event.isCancelled = true`. The values are what the activators of the menus
+are matched with (the filter their type built from the keys of the menu file, which must be cheap and must not change
+anything) and reach the gate and the menu's `args` as `{emote}`. `fire` can be called from any thread: it matches on the
+caller's, and asks the gate and opens the menu on the player's own. It returns whether the first matching activator asks for
+the event to be canceled (`cancel`, true by default); the gate isn't known by then. `require`, `cancel` and `args` are read
+as for the built-in activators, and the other keys go to the type. An activator whose type refuses its keys (or whose plugin
+is gone) never fires, and `/xmenu validate` says why. A menu that names a type no plugin added doesn't load, as with an action.
+`menu/live/addon/XmDemo.java` is a small plugin in Java that does this.
 
 Actions run on the player's region thread (Folia); use `ctx.runLater` and `ctx.console` for anything that has to happen
 later or elsewhere. A list of actions runs in order, and a failing one is logged. `ctx.abort()` ends the list, for a step

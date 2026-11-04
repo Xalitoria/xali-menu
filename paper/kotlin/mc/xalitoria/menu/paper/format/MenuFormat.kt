@@ -14,7 +14,7 @@ import mc.xalitoria.menu.api.model.Menu
  * Reads and writes menus as HOCON, the format of every file in `menus/`. The actions and conditions in a file are
  * resolved through [module], which holds the built-in ones and whatever other plugins have added.
  */
-class MenuFormat(module: SerializersModule, private val externals: Set<String> = emptySet()) {
+class MenuFormat(module: SerializersModule, private val externals: Set<String> = emptySet(), private val activators: Set<String> = emptySet()) {
     private val hocon = Hocon {
         serializersModule = module
         encodeDefaults = false
@@ -25,7 +25,7 @@ class MenuFormat(module: SerializersModule, private val externals: Set<String> =
     fun decode(text: String): Menu {
         val root = ConfigFactory.parseString(text).resolve().root()
         // Only a menu that uses something another plugin added is rewritten; any other is read as written.
-        val packed = if (externals.none { it in text }) root else root.packExternals(externals) as ConfigObject
+        val packed = if ((externals + activators).none { it in text }) root else root.packExternals(externals, activators) as ConfigObject
         return hocon.decodeFromConfig(packed.toConfig())
     }
 

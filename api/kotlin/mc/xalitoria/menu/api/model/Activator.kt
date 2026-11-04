@@ -144,6 +144,21 @@ sealed interface Activator {
         override val cancel: Boolean = false,
         override val args: List<String> = [],
     ) : Activator
+
+    /**
+     * An activator another plugin added with [mc.xalitoria.menu.api.XaliMenuApi.registerActivator], written in a menu file as
+     * `{ type = "myplugin:name", ... }`. The menu is read with [name] as the type and the keys other than the ones every
+     * activator has as one JSON text in [values], which the plugin's type turns into what decides whether it matches. This is
+     * not written by hand: it is what the reading of the file makes of such an object.
+     */
+    @Serializable @SerialName("addon")
+    data class Addon(
+        val name: String,
+        val values: String = "{}",
+        override val require: Gate? = null,
+        override val cancel: Boolean = true,
+        override val args: List<String> = [],
+    ) : Activator
 }
 
 enum class Click { LEFT, RIGHT, ANY }

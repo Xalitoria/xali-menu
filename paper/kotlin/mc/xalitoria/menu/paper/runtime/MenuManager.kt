@@ -7,6 +7,8 @@ import java.util.concurrent.ConcurrentHashMap
 import kotlin.io.path.isDirectory
 import kotlin.io.path.nameWithoutExtension
 import kotlin.time.Duration
+import mc.xalitoria.menu.api.ActivatorFilter
+import mc.xalitoria.menu.api.Settings
 import mc.xalitoria.menu.paper.XaliMenu
 import mc.xalitoria.menu.api.model.Activator
 import mc.xalitoria.menu.api.model.Item
@@ -97,7 +99,7 @@ class MenuManager(private val plugin: XaliMenu) {
     /** Reads every .conf file of the menus folder again. A file that can't be read is reported and left out; the rest still load. */
     fun load(): Int {
         scan()
-        val format = MenuFormat(plugin.registry.module, plugin.registry.externalNames)
+        val format = MenuFormat(plugin.registry.module, plugin.registry.externalNames, plugin.registry.activatorNames)
         val found = mutableMapOf<String, LoadedMenu>()
         val failed = mutableMapOf<String, String>()
         for (file in files()) {
@@ -113,7 +115,7 @@ class MenuManager(private val plugin: XaliMenu) {
         plugin.heads.clear()
         failures = failed
         loaded = found
-        activators = ActivatorIndex(found.mapValues { it.value.menu.openWith })
+        activators = ActivatorIndex(found.mapValues { it.value.menu.openWith }, ::filterOf)
         isLoaded = true
         found.values.forEach(::check)
         return found.size
@@ -137,7 +139,7 @@ class MenuManager(private val plugin: XaliMenu) {
         val file = files().firstOrNull { it.nameWithoutExtension.equals(name, ignoreCase = true) } ?: return Reread.NoFile
         val key = file.nameWithoutExtension
         val entry = try {
-            LoadedMenu(key, MenuFormat(plugin.registry.module, plugin.registry.externalNames).read(file.toPath()))
+            LoadedMenu(key, MenuFormat(plugin.registry.module, plugin.registry.externalNames, plugin.registry.activatorNames).read(file.toPath()))
         } catch (e: Exception) {
             failures += key to (e.message ?: e::class.simpleName.orEmpty())
             return Reread.Failed(e.message ?: e::class.simpleName.orEmpty())
@@ -146,7 +148,7 @@ class MenuManager(private val plugin: XaliMenu) {
         failures -= key
         val menus = loaded + (key to entry)
         loaded = menus
-        activators = ActivatorIndex(menus.mapValues { it.value.menu.openWith })
+        activators = ActivatorIndex(menus.mapValues { it.value.menu.openWith }, ::filterOf)
         scan()
         return Reread.Done(problemsOf(entry).also { found -> found.forEach { plugin.logger warn "Menu '$key': $it" } })
     }
@@ -209,6 +211,13 @@ class MenuManager(private val plugin: XaliMenu) {
         return problems
     }
 
+    /** What the plugin that added the activator [activator] makes of its keys, null if there is no such plugin or it refuses them. */
+    private fun filterOf(activator: Activator.Addon): ActivatorFilter? = try {
+        plugin.registry.activator(activator.name)?.create(Settings(ConfigFactory.parseString(activator.values).root().unwrapped()))
+    } catch (e: RuntimeException) {
+        null
+    }
+
     /** What is wrong with [activator] that doesn't depend on who triggers it. */
     private fun activatorProblems(activator: Activator): List<String> = buildList {
         when (activator) {
@@ -229,6 +238,15 @@ class MenuManager(private val plugin: XaliMenu) {
             is Activator.RegionEnter, is Activator.RegionLeave ->
                 if (!Bukkit.getPluginManager().isPluginEnabled("WorldGuard")) add("a region activator needs WorldGuard, which isn't installed")
             is Activator.Chat -> if (activator.text.isEmpty()) add("a chat activator with empty text")
+            is Activator.Addon -> {
+                val type = plugin.registry.activator(activator.name)
+                if (type == null) add("the activator '${activator.name}' isn't added by any plugin that is installed")
+                else try {
+                    type.create(Settings(ConfigFactory.parseString(activator.values).root().unwrapped()))
+                } catch (e: RuntimeException) {
+                    add("the activator '${activator.name}' refuses its keys: ${e.message}")
+                }
+            }
             is Activator.Join, is Activator.SwapHands -> Unit
         }
     }

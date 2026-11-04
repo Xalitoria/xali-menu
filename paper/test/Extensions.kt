@@ -5,16 +5,20 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 import mc.xalitoria.menu.api.Action
 import mc.xalitoria.menu.api.ActionType
+import mc.xalitoria.menu.api.ActivatorFilter
+import mc.xalitoria.menu.api.ActivatorType
 import mc.xalitoria.menu.api.Condition
 import mc.xalitoria.menu.api.ConditionType
 import mc.xalitoria.menu.api.ItemSource
 import mc.xalitoria.menu.api.MenuContext
 import mc.xalitoria.menu.api.Settings
+import mc.xalitoria.menu.api.model.Activator
 import mc.xalitoria.menu.api.model.Handler
 import mc.xalitoria.menu.paper.action.Actions
 import mc.xalitoria.menu.paper.api.TypeRegistry
 import mc.xalitoria.menu.paper.condition.Conditions
 import mc.xalitoria.menu.paper.format.MenuFormat
+import mc.xalitoria.menu.paper.runtime.ActivatorIndex
 import org.bukkit.inventory.ItemStack
 import org.bukkit.plugin.Plugin
 
@@ -143,5 +147,56 @@ class Extensions {
         assertFailsWith<IllegalArgumentException> { registry.addSource(owner, source) }
         registry.removeAll(owner)
         assertEquals(emptySet(), registry.sources.keys)
+    }
+
+    private val emoteMenu = """
+        title = "x"
+        open-with = [
+          { type = "test:emote", name = wave, repeat = 2, cancel = false, args = ["{emote}"], require { require = [{ condition = { type = "test:lucky", odds = 3 } }] } }
+          { type = "join" }
+        ]
+    """.trimIndent()
+
+    @Test
+    fun anAddedActivatorIsReadWithTheKeysEveryActivatorHas() {
+        val registry = registry()
+        registry.addCondition(owner, "test:lucky", luckyType)
+        registry.addActivator(owner, "test:emote", ActivatorType { ActivatorFilter { values -> values["emote"] == it.requireString("name") } })
+        assertEquals(setOf("test:emote"), registry.activatorNames)
+        val menu = MenuFormat(registry.module, registry.externalNames, registry.activatorNames).decode(emoteMenu)
+        val added = menu.openWith.first() as Activator.Addon
+        assertEquals("test:emote", added.name)
+        assertEquals(false, added.cancel)
+        assertEquals(listOf("{emote}"), added.args)
+        assertEquals(Lucky(3), added.require?.require?.single()?.condition, "the gate is read like any other")
+        assertEquals(Activator.Join(), menu.openWith[1], "the built-in ones are read as before")
+        val values = com.typesafe.config.ConfigFactory.parseString(added.values).root().unwrapped()
+        assertEquals(mapOf<String, Any?>("name" to "wave", "repeat" to 2), values, "only the plugin's own keys are left for it")
+    }
+
+    @Test
+    fun anAddedActivatorOnlyFiresWhenItsFilterAgrees() {
+        val registry = registry()
+        registry.addActivator(owner, "test:emote", ActivatorType { ActivatorFilter { values -> values["emote"] == it.requireString("name") } })
+        val menu = MenuFormat(registry.module, registry.externalNames, registry.activatorNames).decode("""
+            title = x
+            open-with = [{ type = "test:emote", name = wave }, { type = "test:emote", name = bow }]
+        """.trimIndent())
+        val index = ActivatorIndex(mapOf("m" to menu.openWith)) { registry.activator(it.name)?.create(Settings(com.typesafe.config.ConfigFactory.parseString(it.values).root().unwrapped())) }
+        assertEquals(2, index.added.size)
+        assertEquals(listOf(true, false), index.added.map { it.filter.matches(mapOf("emote" to "wave")) })
+        assertEquals(0, ActivatorIndex(mapOf("m" to menu.openWith)).added.size, "no plugin, no activator")
+    }
+
+    @Test
+    fun anAddedActivatorGoesWithItsPlugin() {
+        val registry = registry()
+        registry.addActivator(owner, "test:emote", ActivatorType { ActivatorFilter { true } })
+        assertFailsWith<IllegalArgumentException> { registry.addActivator(owner, "test:emote", ActivatorType { ActivatorFilter { true } }) }
+        assertFailsWith<IllegalArgumentException> { registry.addActivator(owner, "emote", ActivatorType { ActivatorFilter { true } }) }
+        assertTrue(registry.removeAll(owner))
+        assertEquals(emptySet(), registry.activatorNames)
+        assertEquals(null, registry.activator("test:emote"))
+        assertFailsWith<Exception> { MenuFormat(registry.module, registry.externalNames, registry.activatorNames).decode(emoteMenu) }
     }
 }

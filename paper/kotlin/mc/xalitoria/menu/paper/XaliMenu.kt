@@ -82,6 +82,10 @@ class XaliMenu : JavaPlugin() {
     lateinit var menus: MenuManager
         private set
 
+    /** Hears what the players do that opens menus, and what other plugins tell it about. */
+    lateinit var activators: ActivatorListener
+        private set
+
     lateinit var variables: VariableStore
         private set
 
@@ -135,7 +139,7 @@ class XaliMenu : JavaPlugin() {
         val listener = PluginListener(this)
         pm.registerEvents(listener, this)
         pm.registerEvents(MenuListener(this), this)
-        val activators = ActivatorListener(this)
+        activators = ActivatorListener(this)
         pm.registerEvents(activators, this)
         if (pm.isPluginEnabled("FancyNpcs")) FancyNpcs(this, activators).register()
         inputs = Inputs(this)
