@@ -20,7 +20,34 @@ data class MainConfig(
     val database: Database = Database(),
     @YamlComment("Where each variable lives, and how the servers keep their copies of the shared ones current.")
     val variables: Variables = Variables(),
+    @YamlComment(
+        "The web editor for menus, at the address of `site`. /xmenu edit prints a link that opens it. With `enabled` the plugin",
+        "also listens on `host` and `port` so the editor can read and save menus directly; see the README for how to make that",
+        "reachable. Off, the link carries the menu itself and the editor gives you a file to put in the menus folder.",
+    )
+    val editor: Editor = Editor(),
 ) {
+    @Serializable
+    data class Editor(
+        val enabled: Boolean = false,
+        @YamlComment("The address the plugin listens on. 127.0.0.1 only accepts the machine itself; use a reverse proxy for anything else.")
+        val host: String = "127.0.0.1",
+        val port: Int = 8123,
+        @YamlComment("The address the editor uses to reach this server, as the admin's browser sees it. Empty: http://host:port.")
+        @SerialName("public-url")
+        val publicUrl: String = "",
+        @YamlComment("Where the editor is hosted. Only this site (and localhost, for development) may call the plugin.")
+        val site: String = "https://menu.xali.to",
+        @YamlComment("How long the link from /xmenu edit works, in minutes.")
+        @SerialName("session-minutes")
+        val sessionMinutes: Int = 60,
+        @YamlComment(
+            "The resource pack the editor shows, as a path of a zip file. Empty: the pack of Nexo, Oraxen or ItemsAdder, whichever",
+            "is installed. The pack is sent to the editor, which never stores it.",
+        )
+        val pack: String = "",
+    )
+
     /** Where a variable is kept. */
     @Serializable
     enum class StoreKind {

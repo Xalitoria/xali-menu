@@ -2341,6 +2341,46 @@
         }
       ]
     },
+    "Condition:near": {
+      "doc": "The viewer is less than `distance` blocks from the point `x`, `y`, `z` of the world `world`.",
+      "fields": [
+        {
+          "key": "world",
+          "type": {
+            "kind": "string"
+          },
+          "required": true
+        },
+        {
+          "key": "x",
+          "type": {
+            "kind": "number"
+          },
+          "required": true
+        },
+        {
+          "key": "y",
+          "type": {
+            "kind": "number"
+          },
+          "required": true
+        },
+        {
+          "key": "z",
+          "type": {
+            "kind": "number"
+          },
+          "required": true
+        },
+        {
+          "key": "distance",
+          "type": {
+            "kind": "number"
+          },
+          "required": true
+        }
+      ]
+    },
     "Condition:never": {
       "doc": "Never holds. The importer writes it for a test XaliMenu cannot run (a JavaScript expression, say), so the menu fails closed instead of quietly showing an item or opening for everyone.",
       "fields": []
@@ -3728,6 +3768,7 @@
       "item": "Condition:item",
       "level": "Condition:level",
       "money": "Condition:money",
+      "near": "Condition:near",
       "never": "Condition:never",
       "not": "Condition:not",
       "one-of": "Condition:one-of",

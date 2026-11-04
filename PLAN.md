@@ -169,3 +169,24 @@ Each step ends with tests, the README section, and a commit.
 - Tab completion for a menu's `args`: a `complete` map from an argument name to its words, `@players` or `@worlds`. A name
   that isn't an argument is a `validate` problem. Unit tested (`MenuArgs.suggestions`) and live (`live/bot/complete.js`).
   Not done for the commands of several words, which aren't registered.
+
+### 8. Dev experience and the web editor (done, tested live)
+
+- KDoc in the style of the Gentoo wiki (`CONTRIBUTING.md` says what that means here), every property of the model documented,
+  and a map of the code with how to add an action, condition, item property or activator.
+- `editor` module: `web/` is a static site for GitHub Pages (no build step, no dependencies, tests with `node --test`), and Kotlin
+  code writes `web/schema.json` from the serializer descriptors and the comments of the sources. `:menu:editor:test` fails when it is
+  stale. The form, window, checks, undo, HOCON reading and writing, and the resource pack code are in `web/src`.
+- Plugin side (`paper/.../editor`): `/xmenu edit`, tokens (hashed, expiring), a JDK HTTP endpoint (off by default; CORS only for the
+  editor's site and localhost; menu names cannot leave the folder; saves are read through the model first, written atomically, old
+  file kept), the pack and glyph names of Nexo, Oraxen and ItemsAdder, and the lookup of custom items. Without the endpoint the
+  link carries the menu (gzip, base64url, after the `#`).
+- Resource pack: the zip is read in the browser (directory first, entries inflated on demand), fonts follow `reference` providers,
+  title text is drawn with bitmap and space providers, and a glyph is moved by rewriting the space characters at the start of the
+  title (a glyph of another font gets a `<font:...>` tag). Item pictures come from the pack through item definitions and custom model
+  data. Tested against Nexo's real pack (loaded, glyphs drawn behind the slots, a glyph put in and moved).
+- Live (`XM_EDITOR=1`): `/xmenu edit` link, curl against every route (token, origin, preflight, unknown menu, path traversal, a refused
+  and a checked menu, a new menu saved, the backup), and the page in a browser connected to the server: menus listed, the server's
+  pack and 8 glyph names loaded, a title with `<glyph:menu_items>` drawn, and a save that changed the file.
+- Not tested: ItemsAdder and Oraxen (only Nexo's data was at hand; ItemsAdder's glyphs are read through its API by reflection),
+  custom item pictures through `/v1/items` with a real Nexo item, and the deploy workflow itself (it runs on GitHub).

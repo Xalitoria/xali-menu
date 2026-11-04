@@ -12,7 +12,13 @@ import kotlin.io.path.isDirectory
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import com.typesafe.config.ConfigRenderOptions
 import mc.xalitoria.menu.paper.XaliMenu
+import mc.xalitoria.menu.paper.editor.EditorLink
+import net.kyori.adventure.text.Component
+import net.kyori.adventure.text.event.ClickEvent
+import net.kyori.adventure.text.format.NamedTextColor
+import net.kyori.adventure.text.event.HoverEvent
 import mc.xalitoria.menu.paper.XaliMenu.Companion.debug
 import mc.xalitoria.menu.paper.deluxemenus.BukkitMaterials
 import mc.xalitoria.menu.paper.deluxemenus.DeluxeMenusImporter
@@ -95,6 +101,11 @@ object MenuCommand {
                     .executes { ctx -> open(ctx, StringArgumentType.getString(ctx, "menu"), ctx.getPlayer("player")) }
                 )
             )
+        )
+        .then(Commands
+            .literal("edit")
+            .executes { ctx -> edit(ctx, null) }
+            .then(menuArgument().executes { ctx -> edit(ctx, StringArgumentType.getString(ctx, "menu")) })
         )
         .then(Commands
             .literal("import")
@@ -215,6 +226,54 @@ object MenuCommand {
             }
         }, null)
         return Command.SINGLE_SUCCESS
+    }
+
+    /**
+     * Prints the link to the web editor. With the endpoint on, the link carries a token for this server; without it, the link
+     * carries the menu itself, which needs a name.
+     */
+    private fun edit(ctx: CommandContext<CommandSourceStack>, menu: String?): Int {
+        val sender = ctx.source.sender
+        if (!sender.allowed()) return Command.SINGLE_SUCCESS
+        val messages = cmdMsg.edit
+        val settings = plugin.config.data.editor
+        if (plugin.editor.running) {
+            val token = plugin.editor.sessions.create(sender.name)
+            val address = settings.publicUrl.ifBlank { "http://${settings.host}:${settings.port}" }
+            val link = EditorLink.server(settings.site, address, token, menu)
+            sender.sendMessage(linkMessage(messages.linkServer.replace("{minutes}", settings.sessionMinutes.toString()), link))
+            return Command.SINGLE_SUCCESS
+        }
+        if (menu == null) {
+            sender fail messages.needsMenu
+            return Command.SINGLE_SUCCESS
+        }
+        val json = plugin.editor.menus.read(menu)?.render(ConfigRenderOptions.concise())
+        if (json == null) {
+            sender fail menuMsg.unknown(menu.verbatim())
+            return Command.SINGLE_SUCCESS
+        }
+        val link = EditorLink.data(settings.site, menu, json)
+        if (link == null) {
+            sender fail messages.tooBig(menu.verbatim())
+            return Command.SINGLE_SUCCESS
+        }
+        sender.sendMessage(linkMessage(messages.linkData.replace("{menu}", menu.verbatim()), link))
+        sender info messages.dataHint
+        return Command.SINGLE_SUCCESS
+    }
+
+    /**
+     * [template] with `{link}` replaced by [link], which is added as plain text (its `&` and `=` must not be read as formatting)
+     * and clicks open the address.
+     */
+    private fun linkMessage(template: String, link: String): Component {
+        val before = template.substringBefore("{link}").toComponent()
+        val after = template.substringAfter("{link}", "").toComponent()
+        val address = Component.text(link, NamedTextColor.AQUA)
+            .clickEvent(ClickEvent.openUrl(link))
+            .hoverEvent(HoverEvent.showText(cmdMsg.edit.clickToOpen.toComponent()))
+        return before.append(address).append(after)
     }
 
     /** Opens [menu] for [target], or for the sender if it is a player and no target is given. */

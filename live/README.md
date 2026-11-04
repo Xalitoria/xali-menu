@@ -10,7 +10,7 @@ user $ node /tmp/xm-live/bot/act.js > /tmp/xm-live/act.txt; cat /tmp/xm-live/act
 user $ menu/live/server.sh stop
 ```
 
-`XM_PAPER=<jar>` makes the server a Paper one instead of the dev server's Folia. `XM_PLUGINS="Name ..."` copies plugins of the dev server by the start of their jar name. `XM_DIR` (default `/tmp/xm-live`) says where everything is put and `XM_PORT` (default 25599) which port the server uses.
+`XM_PAPER=<jar>` makes the server a Paper one instead of the dev server's Folia. `XM_PLUGINS="Name ..."` copies plugins of the dev server by the start of their jar name. `XM_EDITOR=1` turns the web editor's endpoint on (`XM_EDITOR_PORT`, `XM_EDITOR_PACK` for a pack zip, `XM_GLYPHS` for a Nexo glyphs folder); `/xmenu edit` then prints a link, and `curl` with its token tries the endpoint. `XM_DIR` (default `/tmp/xm-live`) says where everything is put and `XM_PORT` (default 25599) which port the server uses.
 The server is offline-mode and meant to be thrown away. Do not pipe a bot into `head`: closing the pipe ends it early.
 
 | Script | Menu | Shows |

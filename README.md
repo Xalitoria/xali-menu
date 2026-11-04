@@ -479,6 +479,14 @@ What cannot be carried over is listed at the top of each file and summed up in c
 few item options. A requirement of a type that cannot be run becomes `type = "never"`, so the menu fails closed instead
 of opening or showing an item for everyone.
 
+## Web editor
+
+`/xmenu edit [menu]` prints a link to the editor at <https://menu.xali.to>: a form for every key of the format (built from the plugin's own
+classes, with the comments as help), the window with its items, problem checks while you type, and a view of the server's resource
+pack for custom items and for moving glyphs in titles. With `editor.enabled` in `config.yml` the editor reads and saves the menus
+on the server directly (the old file is kept as `<name>.conf.bak`); without it the link carries the menu and the editor gives a
+file back. How to host it and how to reach a server from it: `editor/README.md`.
+
 ## Extending
 
 An addon adds its own action, condition, catalog, activator or item source in `onEnable`. List XaliMenu as a dependency of the addon

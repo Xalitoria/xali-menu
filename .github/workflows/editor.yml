@@ -1,0 +1,53 @@
+# Tests the web editor on every change, and publishes it to GitHub Pages (https://menu.xali.to) from main.
+# The site is static: editor/web is served as it is, so there is nothing to build. schema.json is written by
+# `./gradlew :menu:editor:schema` and kept in step with the plugin by the Gradle tests (`:menu:editor:test`).
+name: Editor
+
+on:
+  push:
+    branches: [main]
+    paths: ["editor/web/**", ".github/workflows/editor.yml"]
+  pull_request:
+    paths: ["editor/web/**", ".github/workflows/editor.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: editor-pages
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node --test editor/web/test/
+
+  deploy:
+    if: github.event_name != 'pull_request'
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Collect the site
+        run: |
+          mkdir site
+          cp -r editor/web/. site/
+          rm -rf site/test site/_test
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      - id: deployment
+        uses: actions/deploy-pages@v4

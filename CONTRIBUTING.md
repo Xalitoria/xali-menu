@@ -11,6 +11,7 @@ The project has two modules.
 |---|---|
 | `api` | What addons and the menu files are made of: the `Action`, `Condition`, `Catalog` interfaces, `XaliMenuApi`, and the menu model in `model/` (`Menu`, `Item`, `Gate`, `Activator`, ...). It does not depend on the server, except for Bukkit types. |
 | `paper` | The plugin. It implements the API and runs menus on Paper and Folia. |
+| `editor` | The web editor (`web/`, static files for GitHub Pages) and the code that writes its `schema.json` from the plugin's classes and comments. See `editor/README.md`. |
 
 The packages of `paper`, under `mc.xalitoria.menu.paper`:
 
@@ -25,7 +26,9 @@ The packages of `paper`, under `mc.xalitoria.menu.paper`:
 | `hook` | One class per other plugin that is used: Vault, SkinsRestorer, WorldGuard, FancyNpcs, HeadDatabase. |
 | `deluxemenus` | The importer for DeluxeMenus files. |
 
-Tests are in `paper/test` and `api/test`. Menus and bots for testing on a real server are in `live/`.
+The plugin side of the editor is in `paper/.../editor`. After a change to the menu model, a built-in action or condition, or a comment on either, run `./gradlew :menu:editor:schema`; `:menu:editor:test` fails when `editor/web/schema.json` is out of date.
+
+Tests are in `paper/test`, `api/test` and `editor/test`; the page has its own in `editor/web/test`, run with `node --test`. Menus and bots for testing on a real server are in `live/`.
 
 ## Adding a feature
 

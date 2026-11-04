@@ -1,0 +1,68 @@
+// Writes plain objects as HOCON in the style the plugin uses for the menus it writes (see HoconWriter.kt): short plain
+// objects and lists stay on one line, longer ones are spread out, and the keys that name things come first.
+
+const WIDTH = 100
+const INDENT = '    '
+const FIRST = ['type', 'title', 'size', 'material', 'slot', 'slots', 'name', 'command']
+const BARE = /^[A-Za-z_][A-Za-z0-9_-]*$/
+
+/** @param {object} root @returns {string} */
+export function write(root) {
+  return body(root, '')
+}
+
+function keys(object) {
+  const rank = (key) => { const i = FIRST.indexOf(key); return i < 0 ? FIRST.length : i }
+  return Object.keys(object).sort((a, b) => rank(a) - rank(b) || (a < b ? -1 : a > b ? 1 : 0))
+}
+
+function label(key) {
+  return BARE.test(key) ? key : quote(key)
+}
+
+function quote(text) {
+  return JSON.stringify(text)
+}
+
+function isObject(value) { return typeof value === 'object' && value !== null && !Array.isArray(value) }
+
+function body(object, indent) {
+  let out = ''
+  for (const key of keys(object)) {
+    const value = object[key]
+    if (isObject(value) && inline(value) === null) {
+      out += `${indent}${label(key)} {\n${body(value, indent + INDENT)}${indent}}\n`
+    } else {
+      out += `${indent}${label(key)} = ${render(value, indent)}\n`
+    }
+  }
+  return out
+}
+
+function render(value, indent) {
+  const flat = inline(value)
+  if (flat !== null) return flat
+  if (Array.isArray(value)) {
+    return `[\n${value.map((item) => `${indent + INDENT}${render(item, indent + INDENT)}\n`).join('')}${indent}]`
+  }
+  return `{\n${body(value, indent + INDENT)}${indent}}`
+}
+
+/** [value] on one line, or null if it has to span several. */
+function inline(value) {
+  let text
+  if (value === null) text = 'null'
+  else if (typeof value === 'string') text = quote(value)
+  else if (Array.isArray(value)) {
+    const items = value.map(inline)
+    if (items.includes(null)) return null
+    text = `[${items.join(', ')}]`
+    return text.length <= WIDTH ? text : null
+  } else if (isObject(value)) {
+    const entries = keys(value).map((key) => { const flat = inline(value[key]); return flat === null ? null : `${label(key)} = ${flat}` })
+    if (entries.includes(null)) return null
+    text = entries.length === 0 ? '{}' : `{ ${entries.join(', ')} }`
+    return text.length <= WIDTH ? text : null
+  } else text = String(value)
+  return text
+}

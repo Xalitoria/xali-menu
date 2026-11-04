@@ -25,12 +25,14 @@ data class MessageConfig(
             &d/{0} &rvalidate &7[menu]
             &d/{0} &rinspect &7[player]
             &d/{0} &ropen &7<menu> [player]
+            &d/{0} &redit &7[menu]
             &d/{0} &rimport deluxemenus &7[overwrite] [folder]
         """.trimIndent(),
         val reload: Reload = Reload(),
         val menu: Menu = Menu(),
         val tools: Tools = Tools(),
         val variable: Variable = Variable(),
+        val edit: Edit = Edit(),
         @SerialName("import")
         val importer: Import = Import(),
     ) {
@@ -138,6 +140,27 @@ data class MessageConfig(
             fun inspectClosed(player: String): String = inspectClosed.formatArgs(player)
             fun inspectHeader(player: String, menu: String): String = inspectHeader.formatArgs(player, menu)
             fun inspectMore(count: Int): String = inspectMore.formatArgs(count)
+        }
+
+        @Serializable
+        data class Edit(
+            @SerialName("link-server")
+            val linkServer: String = "&aOpen the editor: {link} &7(works for {minutes} minutes)",
+            @SerialName("link-data")
+            val linkData: String = "&aOpen the menu '{menu}' in the editor: {link}",
+            @SerialName("data-hint")
+            val dataHint: String = "&7The editor is not connected to this server. Download the file there and put it in the menus folder, then run /xmenu reload <menu>.",
+            @SerialName("needs-menu")
+            val needsMenu: String = "&cName a menu: /xmenu edit <menu>. The editor is not turned on, so the link carries one menu.",
+            @SerialName("too-big")
+            private val tooBig: String = "&cThe menu '{0}' is too big for a link. Turn on `editor.enabled` in config.yml, or open the file in the editor yourself.",
+            @SerialName("click-to-open")
+            val clickToOpen: String = "Click to open the editor",
+            @SerialName("not-listening")
+            private val notListening: String = "&cThe editor could not listen on {0}: {1}",
+        ) {
+            fun tooBig(menu: String): String = tooBig.formatArgs(menu)
+            fun notListening(address: String, reason: String): String = notListening.formatArgs(address, reason)
         }
 
         @Serializable

@@ -30,6 +30,8 @@ import mc.xalitoria.menu.paper.hook.NexoSource
 import mc.xalitoria.menu.paper.hook.Regions
 import mc.xalitoria.menu.paper.hook.Skins
 import mc.xalitoria.menu.paper.runtime.ActionRunner
+import mc.xalitoria.menu.paper.editor.EditorServer
+import mc.xalitoria.menu.paper.editor.EditorSessions
 import mc.xalitoria.menu.paper.runtime.ActivatorListener
 import mc.xalitoria.menu.paper.runtime.Inputs
 import mc.xalitoria.menu.paper.runtime.ItemFactory
@@ -80,6 +82,10 @@ class XaliMenu : JavaPlugin() {
         private set
 
     lateinit var menus: MenuManager
+        private set
+
+    /** The endpoint of the web editor; listening only when `editor.enabled` is on. */
+    internal lateinit var editor: EditorServer
         private set
 
     /** Hears what the players do that opens menus, and what other plugins tell it about. */
@@ -144,6 +150,8 @@ class XaliMenu : JavaPlugin() {
         if (pm.isPluginEnabled("FancyNpcs")) FancyNpcs(this, activators).register()
         inputs = Inputs(this)
         pm.registerEvents(inputs, this)
+        editor = EditorServer(this, EditorSessions({ config.data.editor.sessionMinutes }))
+        startEditor()
         server.globalRegionScheduler.runDelayed(this, { if (!menus.isLoaded) listener.loadMenus() }, 40)
 
         lifecycleManager.registerEventHandler(LifecycleEvents.COMMANDS) { event ->
@@ -156,6 +164,7 @@ class XaliMenu : JavaPlugin() {
 
     override fun onDisable() {
         if (::menus.isInitialized) menus.closeAll()
+        if (::editor.isInitialized) editor.stop()
         expansion?.unregister()
         server.servicesManager.unregisterAll(this)
         server.messenger.unregisterOutgoingPluginChannel(this)
@@ -169,12 +178,23 @@ class XaliMenu : JavaPlugin() {
         config.save()
         loadMessages()
         applyDebug()
+        startEditor()
         val before = OpenCommands.registered
         logger pass messageConfig.data.commands.menu.loaded(menus.load())
         val changed = menus.registered().keys.symmetricDifference(before)
         if (changed.isNotEmpty()) logger warn messageConfig.data.commands.menu.commandsChanged(changed.joinToString { "/$it" })
         debug("Reloaded: language={0}", config.data.language)
         logger.pass(messageConfig.data.commands.reload.pass)
+    }
+
+    /** Starts or stops the editor endpoint to match `editor.enabled`; a changed address or port takes effect here too. */
+    private fun startEditor() {
+        editor.stop()
+        if (!config.data.editor.enabled) return
+        val settings = config.data.editor
+        val failure = editor.start()
+        if (failure != null) logger warn messageConfig.data.commands.edit.notListening("${settings.host}:${settings.port}", failure)
+        else logger info "The menu editor listens on ${settings.host}:${settings.port}; /xmenu edit prints a link for it."
     }
 
     /** The first start has no menus, so two are written to show the format. */
