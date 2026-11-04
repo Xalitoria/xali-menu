@@ -159,6 +159,7 @@ class MenuManager(private val plugin: XaliMenu) {
         val problems = mutableListOf<String>()
         val definition = entry.menu
         MenuArgs.problems(definition.args).forEach { problems += it }
+        MenuArgs.unknown(definition.args, definition.complete).forEach { problems += "complete gives words for '$it', which isn't one of the args" }
         if (definition.type != "chest" && runCatching { InventoryType.valueOf(definition.type.uppercase()) }.isFailure) {
             problems += "inventory type '${definition.type}' doesn't exist"
         }

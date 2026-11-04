@@ -444,6 +444,11 @@ Each one-word entry of a menu's `commands` is registered as a command and opens 
 menu's `args` (`{name}` in text), one word per name. A last name ending in `...` (`args = ["player", "reason..."]`) takes
 the rest of the line; without it, extra words show the usage message.
 
+`complete` gives tab completion for them, by name: `complete { player = ["@players"], mode = ["fast", "slow"] }`. `@players`
+is the players online and `@worlds` the worlds; a name with no entry offers nothing, and a name that is not one of the `args`
+is reported by `validate`. A name that takes the rest of the line offers its words for each word of it. This works for the
+one-word commands that are registered, not for the entries of several words.
+
 Players type these words, so they are cleaned before they go into text and commands: `%` and control characters are
 taken out, colors and MiniMessage tags in displayed text are taken out or shown as written, and in a `json` action they
 are escaped. A menu author still has to put them in sensible places (a `regex` pattern built from an argument is the

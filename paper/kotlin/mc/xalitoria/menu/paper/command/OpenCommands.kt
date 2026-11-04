@@ -2,9 +2,13 @@ package mc.xalitoria.menu.paper.command
 
 import com.mojang.brigadier.Command
 import com.mojang.brigadier.arguments.StringArgumentType
+import com.mojang.brigadier.suggestion.Suggestions
+import com.mojang.brigadier.suggestion.SuggestionsBuilder
+import java.util.concurrent.CompletableFuture
 import io.papermc.paper.command.brigadier.CommandSourceStack
 import io.papermc.paper.command.brigadier.Commands
 import mc.xalitoria.menu.paper.XaliMenu
+import mc.xalitoria.menu.paper.runtime.MenuArgs
 import mc.xalitoria.util.message.*
 import org.bukkit.command.PluginIdentifiableCommand
 import org.bukkit.entity.Player
@@ -36,9 +40,27 @@ object OpenCommands {
         .executes { ctx -> open(ctx.source, menu, "") }
         .then(Commands
             .argument("args", StringArgumentType.greedyString())
+            .suggests { _, builder -> suggest(menu, builder) }
             .executes { ctx -> open(ctx.source, menu, StringArgumentType.getString(ctx, "args")) }
         )
         .build()
+
+    /** The words for the argument being typed; they replace only that word, not the ones before it. */
+    private fun suggest(menu: String, builder: SuggestionsBuilder): CompletableFuture<Suggestions> {
+        val definition = plugin.menus.menu(menu)?.menu ?: return builder.buildFuture()
+        val typed = builder.remaining
+        val words = typed.split(' ')
+        val offered = MenuArgs.suggestions(definition.args, definition.complete, words) { kind ->
+            when (kind) {
+                "@players" -> plugin.server.onlinePlayers.map { it.name }
+                "@worlds" -> plugin.server.worlds.map { it.name }
+                else -> emptyList()
+            }
+        }
+        val word = builder.createOffset(builder.start + typed.length - words.last().length)
+        offered.forEach { word.suggest(it) }
+        return word.buildFuture()
+    }
 
     private fun open(source: CommandSourceStack, menu: String, args: String): Int {
         val player = source.sender as? Player

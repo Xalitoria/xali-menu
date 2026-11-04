@@ -18,6 +18,7 @@ The server is offline-mode and meant to be thrown away. Do not pipe a bot into `
 | `bot/act.js` | `t` (`/xt`) | The actions: items given, taken by name and cleared, potion, teleport, game mode, health and food, levels, title, boss bar, book, particle, `run-for`, `random` and the `input` prompt with its timeout and cancel word. |
 | `bot/cond.js` | `c` (`/xc`) | The conditions, by which items `view` leaves in the menu after each change of state: free slots, held item, game mode, cooldowns and variables. |
 | `bot/props.js` | `i` (`/xi`) | The item properties: it gives one item of every kind; then read the saved player data with `python3 bot/nbt.py <server>/world/players/data/<uuid>.dat` (Folia has no `/data` for entities). |
+| `bot/complete.js` | `a` (`/xa`) | Tab completion of a menu's `args` from its `complete` map: players, fixed words, the rest of the line. |
 | `bot/layout.js` | `l` (`/xl`) | A `layout` with a `legend`: the item in every slot of the window. |
 | `bot/npc.js` | `n` (`/xn`) | FancyNpcs `npc` activators: creates an NPC and right- and left-clicks it (set up with `XM_PLUGINS=FancyNpcs`). |
 | `bot/skin.js` | `s` (`/xs`) | The `skin` and `skin-reset` actions with SkinsRestorer (`XM_PLUGINS=SkinsRestorer`): what it stores for the player after each, and a skin that does not exist. |

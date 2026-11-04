@@ -24,6 +24,11 @@ data class Menu(
     val register: Boolean = true,
     val args: List<String> = [],
     val argsUsage: String? = null,
+    /**
+     * What tab completion offers for each of [args], by name: the words themselves, or `@players` for the names of the
+     * players online and `@worlds` for those of the worlds. An argument with no entry gets nothing.
+     */
+    val complete: Map<String, List<String>> = emptyMap(),
     /** How often the menu draws the items marked `update` again; never when absent. */
     @Serializable(with = DurationAsString::class)
     val refresh: Duration? = null,

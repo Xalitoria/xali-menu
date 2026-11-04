@@ -159,4 +159,6 @@ Each step ends with tests, the README section, and a commit.
 - The bot-driven live test is in the repository: `menu/live` (`setup.sh`, `server.sh`, `bot/*.js`, the menus they use and a
   README). Tried from scratch in a fresh folder: it built, set up, started a server and ran the action and condition runs.
 - Messages for these are in the language file (`commands.tools`), written back on the first start.
-- Not done: tab completion for the words of a menu's own `args`.
+- Tab completion for a menu's `args`: a `complete` map from an argument name to its words, `@players` or `@worlds`. A name
+  that isn't an argument is a `validate` problem. Unit tested (`MenuArgs.suggestions`) and live (`live/bot/complete.js`).
+  Not done for the commands of several words, which aren't registered.

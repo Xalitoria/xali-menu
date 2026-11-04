@@ -20,6 +20,21 @@ object MenuArgs {
         if (names.size != names.toSet().size) add("argument names repeat")
     }
 
+    /** The names of [complete] that aren't one of the [args]. */
+    fun unknown(args: List<String>, complete: Map<String, List<String>>): List<String> = (complete.keys - args.map(::name).toSet()).toList()
+
+    /**
+     * What to offer for the last of [words], the one being typed (empty after a space): the entries of [complete] for the
+     * argument it is, with `@name` entries turned into words by [expand]. A name that takes the rest of the line keeps
+     * offering for every word after it; words beyond the names get nothing.
+     */
+    fun suggestions(args: List<String>, complete: Map<String, List<String>>, words: List<String>, expand: (String) -> Collection<String>): List<String> {
+        val index = words.lastIndex
+        val spec = args.getOrNull(index) ?: args.lastOrNull()?.takeIf { it.endsWith(REST) } ?: return emptyList()
+        return (complete[name(spec)] ?: return emptyList()).flatMap { if (it.startsWith("@")) expand(it) else listOf(it) }
+            .filter { it.startsWith(words.last(), ignoreCase = true) }
+    }
+
     /** `<player> <reason...>` for a usage message. */
     fun usage(args: List<String>): String = args.joinToString(" ") { "<$it>" }
 

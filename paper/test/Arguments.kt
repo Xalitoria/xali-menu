@@ -36,6 +36,22 @@ class Arguments {
     }
 
     @Test
+    fun tabCompletionOffersWhatTheArgumentGets() {
+        val complete = mapOf("player" to ["@players", "everyone"], "mode" to ["fast", "slow"], "reason" to ["spam"])
+        val expand = { kind: String -> if (kind == "@players") listOf("Steve", "Alex") else emptyList() }
+        val args = ["player", "mode", "reason..."]
+        assertEquals(["Steve", "Alex", "everyone"], MenuArgs.suggestions(args, complete, [""], expand))
+        assertEquals(["Steve"], MenuArgs.suggestions(args, complete, ["st"], expand), "the start of the word, in any case")
+        assertEquals(["fast", "slow"], MenuArgs.suggestions(args, complete, ["Steve", ""], expand), "the second word is the second name")
+        assertEquals(["slow"], MenuArgs.suggestions(args, complete, ["Steve", "s"], expand))
+        assertEquals(["spam"], MenuArgs.suggestions(args, complete, ["Steve", "fast", ""], expand))
+        assertEquals(["spam"], MenuArgs.suggestions(args, complete, ["Steve", "fast", "one", ""], expand), "the rest of the line keeps going")
+        assertEquals(emptyList(), MenuArgs.suggestions(["player"], complete, ["Steve", ""], expand), "no word beyond the names")
+        assertEquals(emptyList(), MenuArgs.suggestions(["amount"], complete, [""], expand), "a name with no entry")
+        assertEquals(["x"], MenuArgs.unknown(["player"], mapOf("player" to [], "x" to [])))
+    }
+
+    @Test
     fun wordsFillTheNamesOneEach() {
         assertEquals(mapOf("player" to "Steve", "amount" to "5"), MenuArgs.bind(["player", "amount"], ["Steve", "5"]))
         assertNull(MenuArgs.bind(["player", "amount"], ["Steve"]), "too few")
