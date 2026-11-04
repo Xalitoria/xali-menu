@@ -6,7 +6,12 @@ import io.papermc.paper.datacomponent.item.CustomModelData
 import io.papermc.paper.datacomponent.item.DyedItemColor
 import io.papermc.paper.datacomponent.item.Equippable
 import io.papermc.paper.datacomponent.item.FoodProperties
+import io.papermc.paper.datacomponent.item.Tool
 import io.papermc.paper.datacomponent.item.TooltipDisplay
+import io.papermc.paper.registry.TypedKey
+import io.papermc.paper.registry.set.RegistrySet
+import io.papermc.paper.registry.tag.TagKey
+import net.kyori.adventure.util.TriState
 import io.papermc.paper.registry.RegistryAccess
 import io.papermc.paper.registry.RegistryKey
 import java.util.concurrent.ConcurrentHashMap
@@ -131,6 +136,18 @@ class ItemFactory(private val plugin: XaliMenu) {
             spec.cameraOverlay?.let { key -> namespaced(key)?.let { builder.cameraOverlay(Key.key(it.namespace, it.key)) } }
             stack.setData(DataComponentTypes.EQUIPPABLE, builder.build())
         }
+        item.tool?.let { spec ->
+            val rules = spec.rules.mapNotNull { rule ->
+                val blocks = blocks(rule.blocks)
+                if (blocks.isEmpty()) null
+                else Tool.rule(RegistrySet.keySet(RegistryKey.BLOCK, blocks), rule.speed, rule.drops?.let(TriState::byBoolean) ?: TriState.NOT_SET)
+            }
+            stack.setData(
+                DataComponentTypes.TOOL,
+                Tool.tool().defaultMiningSpeed(spec.miningSpeed).damagePerBlock(spec.damagePerBlock.coerceAtLeast(0))
+                    .canDestroyBlocksInCreative(spec.canDestroyInCreative).addRules(rules).build(),
+            )
+        }
         item.food?.let { stack.setData(DataComponentTypes.FOOD, FoodProperties.food().nutrition(it.nutrition.coerceAtLeast(0)).saturation(it.saturation).canAlwaysEat(it.alwaysEdible).build()) }
         // `nbt` is raw SNBT; UnsafeValues is the only API that applies it.
         @Suppress("DEPRECATION")
@@ -157,6 +174,13 @@ class ItemFactory(private val plugin: XaliMenu) {
         item.equippable?.let { spec ->
             if (equipmentSlot(spec.slot) == null) problems += "equippable slot '${spec.slot}' doesn't exist"
             listOfNotNull(spec.model, spec.cameraOverlay).filter { namespaced(it) == null }.forEach { problems += "equippable key '$it' isn't a key" }
+        }
+        item.tool?.let { spec ->
+            if (spec.damagePerBlock < 0) problems += "tool damage-per-block can't be negative"
+            spec.rules.forEach { rule ->
+                if (rule.blocks.isEmpty()) problems += "a tool rule needs blocks"
+                rule.blocks.filter { entry -> blocks(listOf(entry)).isEmpty() }.forEach { problems += "tool rule: '$it' isn't a block or a tag of blocks" }
+            }
         }
         item.maxStackSize?.let { if (it !in 1..99) problems += "max-stack-size $it isn't between 1 and 99" }
         item.damage?.let { if (it < 0) problems += "damage can't be negative" }
@@ -192,6 +216,16 @@ class ItemFactory(private val plugin: XaliMenu) {
         fun enchantment(key: String) = RegistryAccess.registryAccess().getRegistry(RegistryKey.ENCHANTMENT).get(Key.key(key))
 
         private fun namespaced(key: String): NamespacedKey? = NamespacedKey.fromString(key.trim().lowercase())
+
+        /** The blocks for keys such as `stone` and tags such as `#minecraft:mineable/pickaxe`; what can't be found is left out. */
+        private fun blocks(specs: List<String>): List<TypedKey<org.bukkit.block.BlockType>> {
+            val registry = RegistryAccess.registryAccess().getRegistry(RegistryKey.BLOCK)
+            return specs.flatMap { spec ->
+                val key = namespaced(spec.removePrefix("#")) ?: return@flatMap emptyList()
+                if (spec.startsWith("#")) runCatching { registry.getTag(TagKey.create(RegistryKey.BLOCK, key)).toList() }.getOrDefault(emptyList())
+                else if (registry.get(key) != null) listOf(TypedKey.create(RegistryKey.BLOCK, key)) else emptyList()
+            }
+        }
 
         private fun attribute(key: String) = namespaced(key)?.let { RegistryAccess.registryAccess().getRegistry(RegistryKey.ATTRIBUTE).get(it) }
 

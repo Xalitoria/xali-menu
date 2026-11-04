@@ -109,9 +109,9 @@ Each step ends with tests, the README section, and a commit.
 - `skin` (a player's name or a link, `slim` for a picture) and `skin-reset` through SkinsRestorer: looked up off the region
   threads, stored for the next visit, put on on the player's thread; one that can't be found is a console warning. Tested
   live (`live/bot/skin.js`): the stored skin after the set (Notch's id), after the reset (gone), and a name that doesn't exist.
-- Not done: `place-item` and the
-  other per-slot item actions of AM (`button-set`, `item-refresh`, ...), whose job `view` gates and `update` already do, and
-  recipes (`recipe-add`).
+- Left out on purpose: `place-item` and the other per-slot item actions of AM (`button-set`, `item-refresh`, ...) change a
+  menu while it is open, which `view` gates, `update` and the variables already do without code that edits the window by
+  hand; `recipe-add` changes the server's recipes, which is not a menu's job.
 
 ### 5. Conditions (done, tested live)
 
@@ -147,13 +147,14 @@ Each step ends with tests, the README section, and a commit.
   long comparison names, `does not have item`), `has permissions` and `string length` were missing; `[jsonbroadcast]`; and an
   `amount` above the stack size of the material was cut (up to 99 now). The harness was also using stale util / color jars.
   Not carried over: `[meta]` and the `has meta` requirement (DeluxeMenus' persistent meta; the variables are the nearest
-  thing, but the placeholders would have to be rewritten), `is near`, `javascript`, `is object`, `[placeholder]`.
+  thing, but the placeholders would have to be rewritten), `javascript`, `is object`, `[placeholder]`.
 - Tested live: the player data of a bot that was given every kind of item shows each component with the value written
   (the server has no `/data` for entities on Folia, so the saved data was read instead).
 - `attributes` (attack damage, max health and the like, per slot group), `tooltip-style` and `equippable` (slot, model, camera
   overlay, swappable, dispensable, damage on hurt). Bad names are reported by `validate`; tested live (the saved data of a
   player holds each component as written, and `validate` lists the wrong ones).
-- Not done: the tool component (rules and speeds).
+- `tool` (default speed, damage per block, rules over block keys and `#tags`). Tested live: the saved stick holds the rule with
+  the tag expanded; wrong blocks and tags are reported by `validate`.
 
 ### 7. Housekeeping (done, tested live)
 

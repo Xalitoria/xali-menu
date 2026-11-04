@@ -24,6 +24,7 @@ private val ALIASES = mapOf(
     "equals" to "string equals", "stringequals" to "string equals",
     "equalsignorecase" to "string equals ignorecase", "stringequalsignorecase" to "string equals ignorecase",
     "regex" to "regex matches",
+    "near" to "is near",
     "greater than" to ">", "greaterthan" to ">",
     "greater than or equal to" to ">=", "greaterthanorequalto" to ">=",
     "equal to" to "==", "equalto" to "==",
@@ -86,6 +87,7 @@ private fun Context.parseCheck(body: YamlMap): Check? {
             val max = take("max")?.toIntOrNull()
             Conditions.Regex(input, ".{$min,${max ?: ""}}")
         }
+        "is near" -> near(take("location"), take("distance"))
         "has money", "hasmoney" -> take("amount")?.let { Conditions.Money(it) }
         "has item", "hasitem" -> take("material")?.let {
             val data = take("data")?.toIntOrNull()
@@ -138,6 +140,15 @@ private fun Context.permissions(body: YamlMap, negate: Boolean, take: (String) -
     val minimum = (take("minimum")?.toIntOrNull() ?: list.size).coerceIn(1, list.size)
     val checks = list.map<String, Condition>(Conditions::Permission)
     return Logic.AtLeast(minimum, if (negate) checks.map(Conditions::Not) else checks)
+}
+
+/** `world,x,y,z` and a distance. DeluxeMenus accepts a location with no world, which it cannot compare, so that is left out. */
+private fun near(location: String?, distance: String?): Condition? {
+    val parts = location?.split(',', limit = 4)?.map { it.trim() } ?: return null
+    if (parts.size != 4) return null
+    val numbers = parts.drop(1).map { it.toDoubleOrNull() ?: return null }
+    val range = distance?.trim()?.toDoubleOrNull()?.takeIf { it > 0 } ?: return null
+    return PlayerConditions.Near(parts[0], numbers[0], numbers[1], numbers[2], range)
 }
 
 private fun text(take: (String) -> String?, op: Conditions.Text.Op): Conditions.Text? {

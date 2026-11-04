@@ -13,6 +13,8 @@ import mc.xalitoria.menu.api.model.Food
 import mc.xalitoria.menu.api.model.Item
 import mc.xalitoria.menu.api.model.Menu
 import mc.xalitoria.menu.api.model.Rarity
+import mc.xalitoria.menu.api.model.Tool
+import mc.xalitoria.menu.api.model.ToolRule
 import mc.xalitoria.menu.api.model.Trim
 
 class ItemProperties {
@@ -45,6 +47,7 @@ class ItemProperties {
                 ]
                 tooltip-style = "mypack:fancy"
                 equippable { slot = HEAD, model = "mypack:crown", swappable = false }
+                tool { mining-speed = 2.5, damage-per-block = 2, rules = [ { blocks = ["#minecraft:mineable/pickaxe", stone], speed = 8, drops = true } ] }
               }
             }
             """.trimIndent()
@@ -70,6 +73,7 @@ class ItemProperties {
         )
         assertEquals("mypack:fancy", item.tooltipStyle)
         assertEquals(Equippable("HEAD", "mypack:crown", swappable = false), item.equippable)
+        assertEquals(Tool(2.5f, 2, rules = [ToolRule(["#minecraft:mineable/pickaxe", "stone"], 8f, true)]), item.tool)
         assertNull(Item("stone").glow, "a property that is left out stays out")
     }
 
@@ -81,6 +85,7 @@ class ItemProperties {
             firework = Firework([FireworkEffect(colors = ["#ffffff"])]), fish = Fish("KOB"),
             attributes = [AttributeModifier("attack_damage", 2.0, AttributeOperation.MULTIPLY_TOTAL, "hand")], tooltipStyle = "a:b",
             equippable = Equippable("CHEST", cameraOverlay = "a:b", damageOnHurt = false),
+            tool = Tool(rules = [ToolRule(["stone"])]),
         )
         val menu = Menu(title = "t", items = mapOf("a" to item))
         assertEquals(menu, Registry.format.decode(Registry.format.encode(menu, [])))

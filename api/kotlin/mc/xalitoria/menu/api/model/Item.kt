@@ -59,6 +59,7 @@ data class Item(
     /** The key of the tooltip background a resource pack gives the item, such as `mypack:fancy`. */
     val tooltipStyle: String? = null,
     val equippable: Equippable? = null,
+    val tool: Tool? = null,
     /** Extra NBT as an SNBT compound, such as `{menu:"jobs",tier:3}`. */
     val nbt: String? = null,
     /** Draw this item again on every menu refresh, to keep its placeholders current. */
@@ -117,6 +118,25 @@ data class Equippable(
     val dispensable: Boolean = true,
     val damageOnHurt: Boolean = true,
 )
+
+/**
+ * Makes an item mine blocks, whatever it is made of. [miningSpeed] is the speed for blocks no rule covers (1 is the speed of
+ * a hand) and [damagePerBlock] the durability it loses for each block mined.
+ */
+@Serializable
+data class Tool(
+    val miningSpeed: Float = 1f,
+    val damagePerBlock: Int = 1,
+    val canDestroyInCreative: Boolean = true,
+    val rules: List<ToolRule> = [],
+)
+
+/**
+ * One rule of a [Tool]: for the [blocks] (block keys such as `stone`, or tags such as `#minecraft:mineable/pickaxe`) the
+ * mining speed is [speed] if there is one, and [drops] says whether they drop their items when mined with it.
+ */
+@Serializable
+data class ToolRule(val blocks: List<String>, val speed: Float? = null, val drops: Boolean? = null)
 
 /** One burst. [colors] and [fade] are `#rrggbb`. */
 @Serializable

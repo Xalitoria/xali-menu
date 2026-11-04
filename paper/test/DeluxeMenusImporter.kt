@@ -12,6 +12,7 @@ import mc.xalitoria.menu.api.model.*
 import mc.xalitoria.menu.paper.action.Actions
 import mc.xalitoria.menu.paper.condition.Conditions
 import mc.xalitoria.menu.paper.condition.Logic
+import mc.xalitoria.menu.paper.condition.PlayerConditions
 
 class DeluxeMenusImporter {
     /** A few of the old ids the fixtures use, and which names are old ones. */
@@ -89,6 +90,8 @@ class DeluxeMenusImporter {
         assertEquals(Logic.AtLeast(2, ["p.a", "p.b", "p.c"].map(Conditions::Permission)), checks[4])
         assertEquals(Logic.AtLeast(1, ["p.a", "p.b"].map { Conditions.Not(Conditions.Permission(it)) }), checks[5], "missing at least one")
         assertEquals(Conditions.Regex("%x%", ".{2,5}"), checks[6])
+        assertEquals(PlayerConditions.Near("world", 10.5, 64.0, -3.0, 8.0), checks[7])
+        assertEquals(Conditions.Not(PlayerConditions.Near("world", 0.0, 70.0, 0.0, 3.0)), checks[8])
     }
 
     @Test

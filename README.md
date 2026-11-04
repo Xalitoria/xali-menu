@@ -134,6 +134,7 @@ cannot be built at all is shown as a barrier and noted once in the log rather th
 | `trim` | `pattern` and `material` of an armor trim, such as `coast` and `gold`. |
 | `book` | `pages` (text), `title` and `author` of a written book. |
 | `firework` | `power` (rockets), and `effects` with `type`, `colors`, `fade`, `flicker` and `trail`; a star shows the first. |
+| `tool` | Makes the item mine blocks: `mining-speed`, `damage-per-block`, `can-destroy-in-creative` and `rules` (`blocks` as keys or `#tags`, `speed`, `drops`). |
 | `fish` | `pattern`, `body-color` and `pattern-color` of a bucket of tropical fish. |
 | `attributes` | A list of `attribute` (`attack_damage`), `amount`, `operation` (`ADD`, `MULTIPLY_BASE`, `MULTIPLY_TOTAL`) and `slot` (`any`, `mainhand`, `offhand`, `hand`, `head`, `chest`, `legs`, `feet`, `armor`, `body`). They replace the ones the material has. |
 | `tooltip-style` | The key of a resource pack's tooltip background. |
@@ -206,6 +207,7 @@ Conditions are asked on every refresh, so they only look. Numbers can be placeho
 | `health`, `food`, `level`, `experience`, `online-count` | the number is between `min` and `max` | `min`, `max` |
 | `gamemode`, `world` | the viewer is in one of the modes, or worlds | `modes` (`SURVIVAL`...); `names` |
 | `region` | the viewer stands in a WorldGuard region (one of `names`, any when none) | `names` |
+| `near` | the viewer is less than `distance` blocks from a point | `world`, `x`, `y`, `z`, `distance` |
 | `online` | the player is online | `player` |
 | `compare`, `text`, `regex` | numbers, text or a pattern fit; see [Variables](#variables) | `left`, `op`, `right`; `input`, `op`, `value`; `input`, `pattern` |
 | `variable-exists` | a variable exists | `name`, `scope` (`GLOBAL`, `PLAYER`) |
@@ -473,7 +475,7 @@ DeluxeMenus; only numeric ids and old names read it as a variant. `minimum_requi
 requirement that is not `optional` must hold, and at least that many must.
 
 What cannot be carried over is listed at the top of each file and summed up in chat and the console: `[meta]` and
-`[placeholder]` commands, the `javascript`, `is near`, `is object` and `has meta` requirements, and a
+`[placeholder]` commands, the `javascript`, `is object` and `has meta` requirements, and a
 few item options. A requirement of a type that cannot be run becomes `type = "never"`, so the menu fails closed instead
 of opening or showing an item for everyone.
 

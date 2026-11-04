@@ -152,3 +152,11 @@ items:
           input: '%x%'
           min: 2
           max: 5
+        h:
+          type: is near
+          location: world,10.5,64,-3
+          distance: 8
+        i:
+          type: '!is near'
+          location: world,0,70,0
+          distance: 3

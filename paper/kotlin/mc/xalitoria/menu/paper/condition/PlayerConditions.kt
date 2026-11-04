@@ -27,6 +27,7 @@ object PlayerConditions {
         registry.condition<Experience>()
         registry.condition<World>()
         registry.condition<Region>()
+        registry.condition<Near>()
         registry.condition<Online>()
         registry.condition<OnlineCount>()
         registry.condition<Group>()
@@ -112,6 +113,23 @@ object PlayerConditions {
     @Serializable @SerialName("experience")
     data class Experience(val min: String? = null, val max: String? = null) : Condition {
         override fun test(ctx: MenuContext): Boolean = within(ctx, ctx.player.calculateTotalExperiencePoints().toDouble(), min, max)
+    }
+
+    /** The viewer is less than [distance] blocks from the point [x], [y], [z] of the world [world]. */
+    @Serializable @SerialName("near")
+    data class Near(val world: String, val x: Double, val y: Double, val z: Double, val distance: Double) : Condition {
+        init {
+            require(distance > 0) { "near needs a distance above 0" }
+        }
+
+        override fun test(ctx: MenuContext): Boolean {
+            val at = ctx.player.location
+            if (!at.world.name.equals(world, ignoreCase = true)) return false
+            val dx = at.x - x
+            val dy = at.y - y
+            val dz = at.z - z
+            return dx * dx + dy * dy + dz * dz < distance * distance
+        }
     }
 
     /** The viewer is in one of the worlds [names] (placeholders allowed). */

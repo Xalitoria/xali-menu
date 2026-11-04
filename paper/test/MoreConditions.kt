@@ -41,6 +41,27 @@ class MoreConditions {
         override fun test(ctx: MenuContext): Boolean { asked++; return answer }
     }
 
+    /** A context whose player stands at [x], [y], [z] in the world called [world]. */
+    private fun standingAt(world: String, x: Double, y: Double, z: Double): Context {
+        val level = Proxy.newProxyInstance(org.bukkit.World::class.java.classLoader, arrayOf(org.bukkit.World::class.java)) { _, method, _ ->
+            if (method.name == "getName") world else null
+        } as org.bukkit.World
+        val player = Proxy.newProxyInstance(Player::class.java.classLoader, arrayOf(Player::class.java)) { _, method, _ ->
+            if (method.name == "getLocation") org.bukkit.Location(level, x, y, z) else null
+        } as Player
+        return Context(player, "test", emptyMap(), host)
+    }
+
+    @Test
+    fun nearIsLessThanTheDistanceAndInTheWorld() {
+        val near = PlayerConditions.Near("world", 0.0, 64.0, 0.0, 5.0)
+        assertTrue(near.test(standingAt("world", 3.0, 64.0, 3.0)))
+        assertFalse(near.test(standingAt("world", 3.0, 68.0, 3.0)), "the height counts")
+        assertFalse(near.test(standingAt("world", 5.0, 64.0, 0.0)), "exactly the distance is not less")
+        assertFalse(near.test(standingAt("nether", 0.0, 64.0, 0.0)), "another world")
+        assertTrue(near.test(standingAt("World", 0.0, 64.0, 0.0)), "the name of the world in any case")
+    }
+
     @Test
     fun andOrAndOneOf() {
         assertTrue(Logic.And([yes, yes]).test(ctx))
@@ -120,6 +141,7 @@ class MoreConditions {
         assertFailsWith<IllegalArgumentException> { PlayerConditions.HeldItem(hand = EquipmentSlot.HEAD) }
         assertFailsWith<IllegalArgumentException> { PlayerConditions.Gamemode([]) }
         assertFailsWith<IllegalArgumentException> { PlayerConditions.World([]) }
+        assertFailsWith<IllegalArgumentException> { PlayerConditions.Near("world", 0.0, 0.0, 0.0, 0.0) }
         assertFailsWith<IllegalArgumentException> { Social.Cooldown(" ") }
         assertFailsWith<IllegalArgumentException> { Social.Cooldown("k", duration = kotlin.time.Duration.ZERO) }
     }
@@ -143,17 +165,19 @@ class MoreConditions {
                 { condition { type = experience, min = "10" } }
                 { condition { type = online-count, max = "50" } }
                 { condition { type = region, names = [spawn, "{arg}"] } }
+                { condition { type = near, world = world, x = 1.5, y = 64, z = -2, distance = 10 } }
               ]
             }
         """.trimIndent()
         val menu = Registry.format.decode(text)
         val conditions = menu.items.getValue("a").view!!.require.map { it.condition }
-        assertEquals(11, conditions.size)
+        assertEquals(12, conditions.size)
         assertEquals(Logic.And([PlayerConditions.FreeSlots(3), PlayerConditions.Health(min = "10")]), conditions[0])
         assertEquals(PlayerConditions.Gamemode([GameMode.SURVIVAL, GameMode.ADVENTURE]), (conditions[1] as Logic.Or).conditions[0])
         assertEquals(EquipmentSlot.OFF_HAND, (conditions[2] as PlayerConditions.HeldItem).hand)
         assertEquals(PlayerConditions.Cooldown("daily"), conditions[7])
         assertEquals(PlayerConditions.Region(["spawn", "{arg}"]), conditions[10])
+        assertEquals(PlayerConditions.Near("world", 1.5, 64.0, -2.0, 10.0), conditions[11])
         assertEquals(menu, Registry.format.decode(Registry.format.encode(menu, [])))
     }
 
