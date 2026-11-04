@@ -41,4 +41,4 @@ plugins {
 }
 
 rootProject.name = "menu"
-include("api", "paper")
+include("api", "paper", "editor")

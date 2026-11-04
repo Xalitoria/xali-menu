@@ -73,6 +73,7 @@ object Actions {
         override fun run(ctx: MenuContext) = ctx.player.chat(ctx.parse(text))
     }
 
+    /** Sends [text] to the viewer in chat. Colors, placeholders and `{name}` arguments are allowed. */
     @Serializable @SerialName("message")
     data class Message(val text: String) : Action {
         override fun run(ctx: MenuContext) {
@@ -80,6 +81,7 @@ object Actions {
         }
     }
 
+    /** Sends [text] in chat to every player on the server. */
     @Serializable @SerialName("broadcast")
     data class Broadcast(val text: String) : Action {
         override fun run(ctx: MenuContext) {
@@ -87,6 +89,7 @@ object Actions {
         }
     }
 
+    /** Shows [text] above the hotbar of the viewer. */
     @Serializable @SerialName("actionbar")
     data class ActionBar(val text: String) : Action {
         override fun run(ctx: MenuContext) = ctx.player.sendActionBar(ctx.component(text))
@@ -107,6 +110,7 @@ object Actions {
         override fun run(ctx: MenuContext) = ctx.open(menu, args.map(ctx::parse))
     }
 
+    /** Closes the menu of the viewer. */
     @Serializable @SerialName("close")
     data object Close : Action {
         override fun run(ctx: MenuContext) = ctx.close()
@@ -173,6 +177,7 @@ object Actions {
         }
     }
 
+    /** Gives the viewer [amount] points of experience, or with [take] removes them. Aborts the list when the viewer has too few. */
     @Serializable @SerialName("experience")
     data class Experience(val amount: String, val take: Boolean = false) : Action {
         override fun run(ctx: MenuContext) {
@@ -197,6 +202,7 @@ object Actions {
         }
     }
 
+    /** Plays [sound] to the viewer, a sound key such as `entity.experience_orb.pickup`. */
     @Serializable @SerialName("sound")
     data class Sound(
         val sound: String,

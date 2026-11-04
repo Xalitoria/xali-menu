@@ -1,0 +1,3745 @@
+{
+  "version": "0.0.1",
+  "root": "Menu",
+  "types": {
+    "Action:actionbar": {
+      "doc": "Shows `text` above the hotbar of the viewer.",
+      "fields": [
+        {
+          "key": "text",
+          "type": {
+            "kind": "string"
+          },
+          "required": true
+        }
+      ]
+    },
+    "Action:all": {
+      "doc": "Runs `actions` in order, as a unit: one that stops ends this list only, and the list it is in goes on.",
+      "fields": [
+        {
+          "key": "actions",
+          "type": {
+            "kind": "list",
+            "of": {
+              "kind": "poly",
+              "base": "Action"
+            }
+          },
+          "required": true
+        }
+      ]
+    },
+    "Action:book": {
+      "doc": "Opens a written book for the viewer, one entry of `pages` to a page.",
+      "fields": [
+        {
+          "key": "pages",
+          "type": {
+            "kind": "list",
+            "of": {
+              "kind": "string"
+            }
+          },
+          "required": true
+        },
+        {
+          "key": "title",
+          "type": {
+            "kind": "string"
+          },
+          "required": false,
+          "default": "Book"
+        },
+        {
+          "key": "author",
+          "type": {
+            "kind": "string"
+          },
+          "required": false,
+          "default": ""
+        }
+      ]
+    },
+    "Action:boss-bar": {
+      "doc": "Shows the viewer a boss bar with `text` for `duration`, then takes it away.",
+      "fields": [
+        {
+          "key": "text",
+          "type": {
+            "kind": "string"
+          },
+          "required": true
+        },
+        {
+          "key": "color",
+          "type": {
+            "kind": "enum",
+            "values": [
+              "PINK",
+              "BLUE",
+              "RED",
+              "GREEN",
+              "YELLOW",
+              "PURPLE",
+              "WHITE"
+            ]
+          },
+          "required": false
+        },
+        {
+          "key": "style",
+          "type": {
+            "kind": "enum",
+            "values": [
+              "PROGRESS",
+              "NOTCHED_6",
+              "NOTCHED_10",
+              "NOTCHED_12",
+              "NOTCHED_20"
+            ]
+          },
+          "required": false
+        },
+        {
+          "key": "progress",
+          "type": {
+            "kind": "number"
+          },
+          "required": false
+        },
+        {
+          "key": "duration",
+          "type": {
+            "kind": "duration"
+          },
+          "required": false,
+          "default": "5s"
+        }
+      ]
+    },
+    "Action:broadcast": {
+      "doc": "Sends `text` in chat to every player on the server.",
+      "fields": [
+        {
+          "key": "text",
+          "type": {
+            "kind": "string"
+          },
+          "required": true
+        }
+      ]
+    },
+    "Action:chance": {
+      "doc": "Runs `action` with a chance of `percent` (0 to 100). If it aborts, so does the list this is in.",
+      "fields": [
+        {
+          "key": "percent",
+          "type": {
+            "kind": "number"
+          },
+          "required": true
+        },
+        {
+          "key": "action",
+          "type": {
+            "kind": "poly",
+            "base": "Action"
+          },
+          "required": true
+        }
+      ]
+    },
+    "Action:chat": {
+      "doc": "The viewer says `text` in chat.",
+      "fields": [
+        {
+          "key": "text",
+          "type": {
+            "kind": "string"
+          },
+          "required": true
+        }
+      ]
+    },
+    "Action:clear-items": {
+      "doc": "Takes every item that matches from the viewer: with nothing to match on, the whole inventory.",
+      "fields": [
+        {
+          "key": "material",
+          "type": {
+            "kind": "string"
+          },
+          "required": false
+        },
+        {
+          "key": "name",
+          "type": {
+            "kind": "string"
+          },
+          "required": false
+        },
+        {
+          "key": "model",
+          "type": {
+            "kind": "int"
+          },
+          "required": false
+        }
+      ]
+    },
+    "Action:close": {
+      "doc": "Closes the menu of the viewer.",
+      "fields": []
+    },
+    "Action:connect": {
+      "doc": "Sends the viewer to another server of the proxy.",
+      "fields": [
+        {
+          "key": "server",
+          "type": {
+            "kind": "string"
+          },
+          "required": true
+        }
+      ]
+    },
+    "Action:console": {
+      "doc": "The console runs `command`.",
+      "fields": [
+        {
+          "key": "command",
+          "type": {
+            "kind": "string"
+          },
+          "required": true
+        }
+      ]
+    },
+    "Action:cooldown": {
+      "doc": "Starts the cooldown `key` for the viewer (or for everybody with `scope` `GLOBAL`), which the `cooldown` condition with the same key holds off until `duration` has passed. Without a `duration` it never ends, which makes a thing that can be done once. The state is the variable `cooldown_<key>`, so it is kept where the variables are.",
+      "fields": [
+        {
+          "key": "key",
+          "type": {
+            "kind": "string"
+          },
+          "required": true
+        },
+        {
+          "key": "duration",
+          "type": {
+            "kind": "duration"
+          },
+          "required": false
+        },
+        {
+          "key": "scope",
+          "type": {
+            "kind": "enum",
+            "values": [
+              "GLOBAL",
+              "PLAYER"
+            ]
+          },
+          "required": false
+        }
+      ]
+    },
+    "Action:delay": {
+      "doc": "Runs `action` after `ticks`.",
+      "fields": [
+        {
+          "key": "ticks",
+          "type": {
+            "kind": "int"
+          },
+          "required": true
+        },
+        {
+          "key": "action",
+          "type": {
+            "kind": "poly",
+            "base": "Action"
+          },
+          "required": true
+        }
+      ]
+    },
+    "Action:experience": {
+      "doc": "Gives the viewer `amount` points of experience, or with `take` removes them. Aborts the list when the viewer has too few.",
+      "fields": [
+        {
+          "key": "amount",
+          "type": {
+            "kind": "string"
+          },
+          "required": true
+        },
+        {
+          "key": "take",
+          "type": {
+            "kind": "boolean"
+          },
+          "required": false,
+          "default": false
+        }
+      ]
+    },
+    "Action:food": {
+      "doc": "Sets the viewer's food level (0 to 20) to `amount`, or with `change` adds or takes that much.",
+      "fields": [
+        {
+          "key": "amount",
+          "type": {
+            "kind": "string"
+          },
+          "required": true
+        },
+        {
+          "key": "change",
+          "type": {
+            "kind": "enum",
+            "values": [
+              "SET",
+              "ADD",
+              "TAKE"
+            ]
+          },
+          "required": false,
+          "default": "SET"
+        },
+        {
+          "key": "saturation",
+          "type": {
+            "kind": "string"
+          },
+          "required": false
+        }
+      ]
+    },
+    "Action:gamemode": {
+      "doc": "Puts the viewer in a game mode: `survival`, `creative`, `adventure` or `spectator`.",
+      "fields": [
+        {
+          "key": "mode",
+          "type": {
+            "kind": "string"
+          },
+          "required": true
+        }
+      ]
+    },
+    "Action:give-item": {
+      "doc": "Gives the viewer `item` (the same settings as an item of a menu, without its slot and clicks).",
+      "fields": [
+        {
+          "key": "item",
+          "type": {
+            "kind": "object",
+            "type": "Item"
+          },
+          "required": true
+        },
+        {
+          "key": "overflow",
+          "type": {
+            "kind": "enum",
+            "values": [
+              "DROP",
+              "ABORT"
+            ]
+          },
+          "required": false,
+          "default": "DROP"
+        }
+      ]
+    },
+    "Action:group": {
+      "doc": "Puts the viewer in the permission group `name`, or with `take` takes them out of it, through Vault.",
+      "fields": [
+        {
+          "key": "name",
+          "type": {
+            "kind": "string"
+          },
+          "required": true
+        },
+        {
+          "key": "take",
+          "type": {
+            "kind": "boolean"
+          },
+          "required": false,
+          "default": false
+        }
+      ]
+    },
+    "Action:health": {
+      "doc": "Sets the viewer's health to `amount`, or with `change` adds or takes that much. It stays between 0 and their maximum.",
+      "fields": [
+        {
+          "key": "amount",
+          "type": {
+            "kind": "string"
+          },
+          "required": true
+        },
+        {
+          "key": "change",
+          "type": {
+            "kind": "enum",
+            "values": [
+              "SET",
+              "ADD",
+              "TAKE"
+            ]
+          },
+          "required": false,
+          "default": "SET"
+        }
+      ]
+    },
+    "Action:input": {
+      "doc": "Closes the menu and asks the viewer to type something in chat. What they type is not said in chat; it runs `then` as `{input}`. Typing `cancel` (or waiting longer than `timeout`) runs `onCancel` instead. With `match`, a regular expression the whole reply must fit, anything else is turned down with `invalid` and the viewer may try again.",
+      "fields": [
+        {
+          "key": "prompt",
+          "type": {
+            "kind": "string"
+          },
+          "required": true
+        },
+        {
+          "key": "then",
+          "type": {
+            "kind": "list",
+            "of": {
+              "kind": "poly",
+              "base": "Action"
+            }
+          },
+          "required": true
+        },
+        {
+          "key": "cancel",
+          "type": {
+            "kind": "string"
+          },
+          "required": false,
+          "default": "cancel"
+        },
+        {
+          "key": "on-cancel",
+          "type": {
+            "kind": "list",
+            "of": {
+              "kind": "poly",
+              "base": "Action"
+            }
+          },
+          "required": false,
+          "default": []
+        },
+        {
+          "key": "timeout",
+          "type": {
+            "kind": "duration"
+          },
+          "required": false,
+          "default": "30s"
+        },
+        {
+          "key": "match",
+          "type": {
+            "kind": "string"
+          },
+          "required": false
+        },
+        {
+          "key": "invalid",
+          "type": {
+            "kind": "string"
+          },
+          "required": false
+        }
+      ]
+    },
+    "Action:json": {
+      "doc": "A component written as JSON, shown to the viewer or, with `broadcast`, to everyone.",
+      "fields": [
+        {
+          "key": "json",
+          "type": {
+            "kind": "string"
+          },
+          "required": true
+        },
+        {
+          "key": "broadcast",
+          "type": {
+            "kind": "boolean"
+          },
+          "required": false,
+          "default": false
+        }
+      ]
+    },
+    "Action:level": {
+      "doc": "Gives the viewer `amount` experience levels, or with `take` takes that many (never below 0).",
+      "fields": [
+        {
+          "key": "amount",
+          "type": {
+            "kind": "string"
+          },
+          "required": true
+        },
+        {
+          "key": "take",
+          "type": {
+            "kind": "boolean"
+          },
+          "required": false,
+          "default": false
+        }
+      ]
+    },
+    "Action:log": {
+      "doc": "Writes `text` to the server's log.",
+      "fields": [
+        {
+          "key": "text",
+          "type": {
+            "kind": "string"
+          },
+          "required": true
+        },
+        {
+          "key": "level",
+          "type": {
+            "kind": "enum",
+            "values": [
+              "INFO",
+              "WARNING",
+              "ERROR"
+            ]
+          },
+          "required": false,
+          "default": "INFO"
+        }
+      ]
+    },
+    "Action:message": {
+      "doc": "Sends `text` to the viewer in chat. Colors, placeholders and `{name}` arguments are allowed.",
+      "fields": [
+        {
+          "key": "text",
+          "type": {
+            "kind": "string"
+          },
+          "required": true
+        }
+      ]
+    },
+    "Action:meta": {
+      "doc": "Sets the LuckPerms meta `key` of the viewer to `value`, or without a value removes it. LuckPerms has to be installed. It is done through its command, which does the saving and the telling of other servers.",
+      "fields": [
+        {
+          "key": "key",
+          "type": {
+            "kind": "string"
+          },
+          "required": true
+        },
+        {
+          "key": "value",
+          "type": {
+            "kind": "string"
+          },
+          "required": false
+        }
+      ]
+    },
+    "Action:money": {
+      "doc": "Pays `amount` to the viewer, or with `take` charges it. `amount` may be a placeholder. `currency` picks one of the economy's currencies (VaultUnlocked has several); without it the default one is used.",
+      "fields": [
+        {
+          "key": "amount",
+          "type": {
+            "kind": "string"
+          },
+          "required": true
+        },
+        {
+          "key": "take",
+          "type": {
+            "kind": "boolean"
+          },
+          "required": false,
+          "default": false
+        },
+        {
+          "key": "currency",
+          "type": {
+            "kind": "string"
+          },
+          "required": false
+        }
+      ]
+    },
+    "Action:open": {
+      "doc": "Opens the menu `menu`, handing it `args` for its own `args`.",
+      "fields": [
+        {
+          "key": "menu",
+          "type": {
+            "kind": "string"
+          },
+          "required": true
+        },
+        {
+          "key": "args",
+          "type": {
+            "kind": "list",
+            "of": {
+              "kind": "string"
+            }
+          },
+          "required": false,
+          "default": []
+        }
+      ]
+    },
+    "Action:page": {
+      "doc": "Turns the pages of a paged menu: `by` pages forward (negative: back), or `to` page `first`, `last` or a number from 1, which may be a placeholder or `{name}` argument. It stops at the first and the last page. One of the two is needed.",
+      "fields": [
+        {
+          "key": "by",
+          "type": {
+            "kind": "int"
+          },
+          "required": false
+        },
+        {
+          "key": "to",
+          "type": {
+            "kind": "string"
+          },
+          "required": false
+        }
+      ]
+    },
+    "Action:particle": {
+      "doc": "Shows a particle at the viewer's feet, moved by `dx`, `dy`, `dz`. `count` of them are spread by `spread` blocks. With `everyone` the players around see it too. Only particles that need no extra data work.",
+      "fields": [
+        {
+          "key": "particle",
+          "type": {
+            "kind": "string"
+          },
+          "required": true
+        },
+        {
+          "key": "count",
+          "type": {
+            "kind": "int"
+          },
+          "required": false,
+          "default": 10
+        },
+        {
+          "key": "spread",
+          "type": {
+            "kind": "number"
+          },
+          "required": false,
+          "default": 0.5
+        },
+        {
+          "key": "speed",
+          "type": {
+            "kind": "number"
+          },
+          "required": false,
+          "default": 0.0
+        },
+        {
+          "key": "dx",
+          "type": {
+            "kind": "number"
+          },
+          "required": false,
+          "default": 0.0
+        },
+        {
+          "key": "dy",
+          "type": {
+            "kind": "number"
+          },
+          "required": false,
+          "default": 1.0
+        },
+        {
+          "key": "dz",
+          "type": {
+            "kind": "number"
+          },
+          "required": false,
+          "default": 0.0
+        },
+        {
+          "key": "everyone",
+          "type": {
+            "kind": "boolean"
+          },
+          "required": false,
+          "default": false
+        }
+      ]
+    },
+    "Action:permission": {
+      "doc": "Gives the viewer `node`, or with `take` removes it, through whatever provides Vault's permissions.",
+      "fields": [
+        {
+          "key": "node",
+          "type": {
+            "kind": "string"
+          },
+          "required": true
+        },
+        {
+          "key": "take",
+          "type": {
+            "kind": "boolean"
+          },
+          "required": false,
+          "default": false
+        }
+      ]
+    },
+    "Action:player": {
+      "doc": "The viewer runs `command`.",
+      "fields": [
+        {
+          "key": "command",
+          "type": {
+            "kind": "string"
+          },
+          "required": true
+        }
+      ]
+    },
+    "Action:potion": {
+      "doc": "Gives the viewer a potion effect, or with `remove` takes `effect` off them (every effect when `effect` is `all`).",
+      "fields": [
+        {
+          "key": "effect",
+          "type": {
+            "kind": "string"
+          },
+          "required": true
+        },
+        {
+          "key": "duration",
+          "type": {
+            "kind": "duration"
+          },
+          "required": false,
+          "default": "30s"
+        },
+        {
+          "key": "amplifier",
+          "type": {
+            "kind": "int"
+          },
+          "required": false,
+          "default": 0
+        },
+        {
+          "key": "particles",
+          "type": {
+            "kind": "boolean"
+          },
+          "required": false,
+          "default": true
+        },
+        {
+          "key": "remove",
+          "type": {
+            "kind": "boolean"
+          },
+          "required": false,
+          "default": false
+        }
+      ]
+    },
+    "Action:random": {
+      "doc": "Runs `count` of the `actions`, picked at random and each at most once.",
+      "fields": [
+        {
+          "key": "actions",
+          "type": {
+            "kind": "list",
+            "of": {
+              "kind": "poly",
+              "base": "Action"
+            }
+          },
+          "required": true
+        },
+        {
+          "key": "count",
+          "type": {
+            "kind": "int"
+          },
+          "required": false,
+          "default": 1
+        }
+      ]
+    },
+    "Action:refresh": {
+      "doc": "Draws the open menu again, so items that depend on placeholders or requirements are re-evaluated.",
+      "fields": []
+    },
+    "Action:run-for": {
+      "doc": "Runs `actions` once for each element of `catalog`, with the element's values as `{name}` (and `{index}`, from 1). The first `limit` elements are used. Each run is a list of its own, so one that stops does not end the others.",
+      "fields": [
+        {
+          "key": "catalog",
+          "type": {
+            "kind": "poly",
+            "base": "Catalog"
+          },
+          "required": true
+        },
+        {
+          "key": "actions",
+          "type": {
+            "kind": "list",
+            "of": {
+              "kind": "poly",
+              "base": "Action"
+            }
+          },
+          "required": true
+        },
+        {
+          "key": "limit",
+          "type": {
+            "kind": "int"
+          },
+          "required": false,
+          "default": 100
+        }
+      ]
+    },
+    "Action:skin": {
+      "doc": "Gives the viewer the skin of the player `skin`, or of the picture at that link, with SkinsRestorer, which keeps it for their next visit. `slim` picks the thinner arms for a picture. It is looked up in the background and put on when found, so the actions after it do not wait; one that cannot be found is noted in the console.",
+      "fields": [
+        {
+          "key": "skin",
+          "type": {
+            "kind": "string"
+          },
+          "required": true
+        },
+        {
+          "key": "slim",
+          "type": {
+            "kind": "boolean"
+          },
+          "required": false,
+          "default": false
+        }
+      ]
+    },
+    "Action:skin-reset": {
+      "doc": "Takes the skin a menu gave the viewer off them again, with SkinsRestorer.",
+      "fields": []
+    },
+    "Action:sound": {
+      "doc": "Plays `sound` to the viewer, a sound key such as `entity.experience_orb.pickup`.",
+      "fields": [
+        {
+          "key": "sound",
+          "type": {
+            "kind": "string"
+          },
+          "required": true
+        },
+        {
+          "key": "volume",
+          "type": {
+            "kind": "number"
+          },
+          "required": false
+        },
+        {
+          "key": "pitch",
+          "type": {
+            "kind": "number"
+          },
+          "required": false
+        },
+        {
+          "key": "scope",
+          "type": {
+            "kind": "enum",
+            "values": [
+              "PLAYER",
+              "WORLD",
+              "SERVER"
+            ]
+          },
+          "required": false,
+          "default": "PLAYER"
+        }
+      ]
+    },
+    "Action:stop": {
+      "doc": "Ends the list of actions it is in; the ones after it do not run. Mostly for a `chance`.",
+      "fields": []
+    },
+    "Action:take-item": {
+      "doc": "Takes `amount` of the items that match from the viewer. If they have fewer nothing is taken and the actions after this one do not run, so it can stand before what is given for them.",
+      "fields": [
+        {
+          "key": "material",
+          "type": {
+            "kind": "string"
+          },
+          "required": false
+        },
+        {
+          "key": "amount",
+          "type": {
+            "kind": "int"
+          },
+          "required": false,
+          "default": 1
+        },
+        {
+          "key": "name",
+          "type": {
+            "kind": "string"
+          },
+          "required": false
+        },
+        {
+          "key": "model",
+          "type": {
+            "kind": "int"
+          },
+          "required": false
+        }
+      ]
+    },
+    "Action:teleport": {
+      "doc": "Moves the viewer to `x`, `y`, `z` in `world` (the one they are in without it), looking `yaw` and `pitch`. Each may be a placeholder or `{name}`, and a coordinate may be `~` or `~5` for relative to where they are now. A coordinate that is left out stays as it is.",
+      "fields": [
+        {
+          "key": "x",
+          "type": {
+            "kind": "string"
+          },
+          "required": false,
+          "default": "~"
+        },
+        {
+          "key": "y",
+          "type": {
+            "kind": "string"
+          },
+          "required": false,
+          "default": "~"
+        },
+        {
+          "key": "z",
+          "type": {
+            "kind": "string"
+          },
+          "required": false,
+          "default": "~"
+        },
+        {
+          "key": "world",
+          "type": {
+            "kind": "string"
+          },
+          "required": false
+        },
+        {
+          "key": "yaw",
+          "type": {
+            "kind": "string"
+          },
+          "required": false,
+          "default": "~"
+        },
+        {
+          "key": "pitch",
+          "type": {
+            "kind": "string"
+          },
+          "required": false,
+          "default": "~"
+        }
+      ]
+    },
+    "Action:title": {
+      "doc": "Shows the viewer a title and a subtitle in the middle of the screen. The times are in ticks, as the game's `/title`.",
+      "fields": [
+        {
+          "key": "title",
+          "type": {
+            "kind": "string"
+          },
+          "required": false,
+          "default": ""
+        },
+        {
+          "key": "subtitle",
+          "type": {
+            "kind": "string"
+          },
+          "required": false,
+          "default": ""
+        },
+        {
+          "key": "fade-in",
+          "type": {
+            "kind": "int"
+          },
+          "required": false,
+          "default": 10
+        },
+        {
+          "key": "stay",
+          "type": {
+            "kind": "int"
+          },
+          "required": false,
+          "default": 70
+        },
+        {
+          "key": "fade-out",
+          "type": {
+            "kind": "int"
+          },
+          "required": false,
+          "default": 20
+        }
+      ]
+    },
+    "Action:variable": {
+      "doc": "Changes a variable. `op` says how: set it to `value`, remove it, or change its number by `value`. It is a global variable, or with `scope` `PLAYER` the personal one of the viewer, or of `player` (a name; may be a placeholder). `expiry` makes a set variable last that long; with `replace` false a variable that already exists is kept. If the variable's store is not ready yet the viewer is told so and nothing changes.",
+      "fields": [
+        {
+          "key": "name",
+          "type": {
+            "kind": "string"
+          },
+          "required": true
+        },
+        {
+          "key": "op",
+          "type": {
+            "kind": "enum",
+            "values": [
+              "SET",
+              "REMOVE",
+              "INC",
+              "DEC",
+              "MUL",
+              "DIV"
+            ]
+          },
+          "required": false,
+          "default": "SET"
+        },
+        {
+          "key": "value",
+          "type": {
+            "kind": "string"
+          },
+          "required": false,
+          "default": ""
+        },
+        {
+          "key": "scope",
+          "type": {
+            "kind": "enum",
+            "values": [
+              "GLOBAL",
+              "PLAYER"
+            ]
+          },
+          "required": false,
+          "default": "GLOBAL"
+        },
+        {
+          "key": "player",
+          "type": {
+            "kind": "string"
+          },
+          "required": false
+        },
+        {
+          "key": "expiry",
+          "type": {
+            "kind": "duration"
+          },
+          "required": false
+        },
+        {
+          "key": "replace",
+          "type": {
+            "kind": "boolean"
+          },
+          "required": false,
+          "default": true
+        }
+      ]
+    },
+    "Activator:addon": {
+      "doc": "An activator another plugin added with `mc.xalitoria.menu.api.XaliMenuApi.registerActivator`, written in a menu file as `{ type = \"myplugin:name\", ... }`. The menu is read with `name` as the type and the keys other than the ones every activator has as one JSON text in `values`, which the plugin's type turns into what decides whether it matches. This is not written by hand: it is what the reading of the file makes of such an object.",
+      "fields": [
+        {
+          "key": "name",
+          "type": {
+            "kind": "string"
+          },
+          "required": true
+        },
+        {
+          "key": "values",
+          "type": {
+            "kind": "string"
+          },
+          "required": false,
+          "default": "{}"
+        },
+        {
+          "key": "require",
+          "type": {
+            "kind": "object",
+            "type": "Gate"
+          },
+          "required": false
+        },
+        {
+          "key": "cancel",
+          "type": {
+            "kind": "boolean"
+          },
+          "required": false,
+          "default": true
+        },
+        {
+          "key": "args",
+          "type": {
+            "kind": "list",
+            "of": {
+              "kind": "string"
+            }
+          },
+          "required": false,
+          "default": []
+        }
+      ]
+    },
+    "Activator:block": {
+      "doc": "The player clicks a block, or steps on it (`BlockClick.PHYSICAL`). `types` are block keys (`stone_button`) or tags (`#minecraft:buttons`); `at` limits it to one block. With neither, any block matches. `{block}`, `{world}`, `{x}`, `{y}` and `{z}` are the block's.",
+      "fields": [
+        {
+          "key": "types",
+          "type": {
+            "kind": "list",
+            "of": {
+              "kind": "string"
+            }
+          },
+          "required": false,
+          "default": []
+        },
+        {
+          "key": "at",
+          "type": {
+            "kind": "object",
+            "type": "BlockAt"
+          },
+          "required": false
+        },
+        {
+          "key": "click",
+          "type": {
+            "kind": "enum",
+            "values": [
+              "LEFT",
+              "RIGHT",
+              "ANY",
+              "PHYSICAL"
+            ]
+          },
+          "required": false,
+          "default": "RIGHT"
+        },
+        {
+          "key": "sneaking",
+          "type": {
+            "kind": "boolean"
+          },
+          "required": false
+        },
+        {
+          "key": "require",
+          "type": {
+            "kind": "object",
+            "type": "Gate"
+          },
+          "required": false
+        },
+        {
+          "key": "cancel",
+          "type": {
+            "kind": "boolean"
+          },
+          "required": false,
+          "default": true
+        },
+        {
+          "key": "args",
+          "type": {
+            "kind": "list",
+            "of": {
+              "kind": "string"
+            }
+          },
+          "required": false,
+          "default": []
+        }
+      ]
+    },
+    "Activator:chat": {
+      "doc": "The player says something in chat that `text` matches as `match` says. `{message}` is what they said.",
+      "fields": [
+        {
+          "key": "text",
+          "type": {
+            "kind": "string"
+          },
+          "required": true
+        },
+        {
+          "key": "match",
+          "type": {
+            "kind": "enum",
+            "values": [
+              "EQUALS",
+              "EQUALS_IGNORE_CASE",
+              "CONTAINS",
+              "STARTS_WITH",
+              "REGEX"
+            ]
+          },
+          "required": false,
+          "default": "EQUALS_IGNORE_CASE"
+        },
+        {
+          "key": "require",
+          "type": {
+            "kind": "object",
+            "type": "Gate"
+          },
+          "required": false
+        },
+        {
+          "key": "cancel",
+          "type": {
+            "kind": "boolean"
+          },
+          "required": false,
+          "default": true
+        },
+        {
+          "key": "args",
+          "type": {
+            "kind": "list",
+            "of": {
+              "kind": "string"
+            }
+          },
+          "required": false,
+          "default": []
+        }
+      ]
+    },
+    "Activator:entity": {
+      "doc": "The player right-clicks an entity: one of `types` (`villager`) and/or called `name`. With neither, any entity matches. `{entity}` is its type and `{entity_name}` its name, empty if it has none.",
+      "fields": [
+        {
+          "key": "types",
+          "type": {
+            "kind": "list",
+            "of": {
+              "kind": "string"
+            }
+          },
+          "required": false,
+          "default": []
+        },
+        {
+          "key": "name",
+          "type": {
+            "kind": "string"
+          },
+          "required": false
+        },
+        {
+          "key": "sneaking",
+          "type": {
+            "kind": "boolean"
+          },
+          "required": false
+        },
+        {
+          "key": "require",
+          "type": {
+            "kind": "object",
+            "type": "Gate"
+          },
+          "required": false
+        },
+        {
+          "key": "cancel",
+          "type": {
+            "kind": "boolean"
+          },
+          "required": false,
+          "default": true
+        },
+        {
+          "key": "args",
+          "type": {
+            "kind": "list",
+            "of": {
+              "kind": "string"
+            }
+          },
+          "required": false,
+          "default": []
+        }
+      ]
+    },
+    "Activator:item": {
+      "doc": "The click of a player, with an item in the hand (any hand: the main one is used).",
+      "fields": [
+        {
+          "key": "material",
+          "type": {
+            "kind": "string"
+          },
+          "required": false,
+          "doc": "The item key of the item in hand, such as `compass`; any item when absent."
+        },
+        {
+          "key": "name",
+          "type": {
+            "kind": "string"
+          },
+          "required": false,
+          "doc": "The name of the item in hand, written as in a menu (colors are ignored when comparing)."
+        },
+        {
+          "key": "model",
+          "type": {
+            "kind": "int"
+          },
+          "required": false
+        },
+        {
+          "key": "click",
+          "type": {
+            "kind": "enum",
+            "values": [
+              "LEFT",
+              "RIGHT",
+              "ANY"
+            ]
+          },
+          "required": false,
+          "default": "ANY"
+        },
+        {
+          "key": "sneaking",
+          "type": {
+            "kind": "boolean"
+          },
+          "required": false,
+          "doc": "Whether the player must be sneaking (`true`) or not (`false`); either when absent."
+        },
+        {
+          "key": "require",
+          "type": {
+            "kind": "object",
+            "type": "Gate"
+          },
+          "required": false
+        },
+        {
+          "key": "cancel",
+          "type": {
+            "kind": "boolean"
+          },
+          "required": false,
+          "default": true
+        },
+        {
+          "key": "args",
+          "type": {
+            "kind": "list",
+            "of": {
+              "kind": "string"
+            }
+          },
+          "required": false,
+          "default": []
+        }
+      ]
+    },
+    "Activator:join": {
+      "doc": "The player joins the server, after `delay` ticks.",
+      "fields": [
+        {
+          "key": "delay",
+          "type": {
+            "kind": "int"
+          },
+          "required": false,
+          "default": 20
+        },
+        {
+          "key": "require",
+          "type": {
+            "kind": "object",
+            "type": "Gate"
+          },
+          "required": false
+        },
+        {
+          "key": "cancel",
+          "type": {
+            "kind": "boolean"
+          },
+          "required": false,
+          "default": false
+        },
+        {
+          "key": "args",
+          "type": {
+            "kind": "list",
+            "of": {
+              "kind": "string"
+            }
+          },
+          "required": false,
+          "default": []
+        }
+      ]
+    },
+    "Activator:npc": {
+      "doc": "The player clicks an NPC of FancyNpcs: one of `npcs`, by the NPC's name or id (any NPC when empty). `{npc}` is its name and `{npc_id}` its id. `cancel` stops the NPC's own actions from running.",
+      "fields": [
+        {
+          "key": "npcs",
+          "type": {
+            "kind": "list",
+            "of": {
+              "kind": "string"
+            }
+          },
+          "required": false,
+          "default": []
+        },
+        {
+          "key": "click",
+          "type": {
+            "kind": "enum",
+            "values": [
+              "LEFT",
+              "RIGHT",
+              "ANY"
+            ]
+          },
+          "required": false,
+          "default": "ANY"
+        },
+        {
+          "key": "sneaking",
+          "type": {
+            "kind": "boolean"
+          },
+          "required": false
+        },
+        {
+          "key": "require",
+          "type": {
+            "kind": "object",
+            "type": "Gate"
+          },
+          "required": false
+        },
+        {
+          "key": "cancel",
+          "type": {
+            "kind": "boolean"
+          },
+          "required": false,
+          "default": true
+        },
+        {
+          "key": "args",
+          "type": {
+            "kind": "list",
+            "of": {
+              "kind": "string"
+            }
+          },
+          "required": false,
+          "default": []
+        }
+      ]
+    },
+    "Activator:region-enter": {
+      "doc": "The player enters a WorldGuard region: one of `regions` by its id (any region when empty). `{region}` is the id of the region and `{world}` the world. Joining the server inside a region is not entering it. `cancel` has no meaning.",
+      "fields": [
+        {
+          "key": "regions",
+          "type": {
+            "kind": "list",
+            "of": {
+              "kind": "string"
+            }
+          },
+          "required": false,
+          "default": []
+        },
+        {
+          "key": "require",
+          "type": {
+            "kind": "object",
+            "type": "Gate"
+          },
+          "required": false
+        },
+        {
+          "key": "cancel",
+          "type": {
+            "kind": "boolean"
+          },
+          "required": false,
+          "default": false
+        },
+        {
+          "key": "args",
+          "type": {
+            "kind": "list",
+            "of": {
+              "kind": "string"
+            }
+          },
+          "required": false,
+          "default": []
+        }
+      ]
+    },
+    "Activator:region-leave": {
+      "doc": "The player leaves a WorldGuard region, in the same way `RegionEnter` enters one; `{region}` is the region left.",
+      "fields": [
+        {
+          "key": "regions",
+          "type": {
+            "kind": "list",
+            "of": {
+              "kind": "string"
+            }
+          },
+          "required": false,
+          "default": []
+        },
+        {
+          "key": "require",
+          "type": {
+            "kind": "object",
+            "type": "Gate"
+          },
+          "required": false
+        },
+        {
+          "key": "cancel",
+          "type": {
+            "kind": "boolean"
+          },
+          "required": false,
+          "default": false
+        },
+        {
+          "key": "args",
+          "type": {
+            "kind": "list",
+            "of": {
+              "kind": "string"
+            }
+          },
+          "required": false,
+          "default": []
+        }
+      ]
+    },
+    "Activator:swap-hands": {
+      "doc": "The player presses the key that swaps the hands.",
+      "fields": [
+        {
+          "key": "sneaking",
+          "type": {
+            "kind": "boolean"
+          },
+          "required": false
+        },
+        {
+          "key": "require",
+          "type": {
+            "kind": "object",
+            "type": "Gate"
+          },
+          "required": false
+        },
+        {
+          "key": "cancel",
+          "type": {
+            "kind": "boolean"
+          },
+          "required": false,
+          "default": true
+        },
+        {
+          "key": "args",
+          "type": {
+            "kind": "list",
+            "of": {
+              "kind": "string"
+            }
+          },
+          "required": false,
+          "default": []
+        }
+      ]
+    },
+    "Animation": {
+      "doc": "Frames that play over a menu once it is open, one after the other: each `Frame` waits for its `delay`, then draws its items on top of the menu. A `loop` starts again from the menu as it is, without what the frames had drawn. `onStart` runs when the menu has opened, `onEnd` when the last frame has played (never for a loop).",
+      "fields": [
+        {
+          "key": "frames",
+          "type": {
+            "kind": "list",
+            "of": {
+              "kind": "object",
+              "type": "Frame"
+            }
+          },
+          "required": true
+        },
+        {
+          "key": "loop",
+          "type": {
+            "kind": "boolean"
+          },
+          "required": false,
+          "default": false,
+          "doc": "Whether the animation starts again after the last frame."
+        },
+        {
+          "key": "on-start",
+          "type": {
+            "kind": "list",
+            "of": {
+              "kind": "poly",
+              "base": "Action"
+            }
+          },
+          "required": false,
+          "default": []
+        },
+        {
+          "key": "on-end",
+          "type": {
+            "kind": "list",
+            "of": {
+              "kind": "poly",
+              "base": "Action"
+            }
+          },
+          "required": false,
+          "default": []
+        }
+      ]
+    },
+    "AttributeModifier": {
+      "doc": "A change to an attribute, such as `attack_damage` or `max_health`. `slot` is where the item must be for it to count: `any`, `mainhand`, `offhand`, `hand`, `head`, `chest`, `legs`, `feet`, `armor` or `body`.",
+      "fields": [
+        {
+          "key": "attribute",
+          "type": {
+            "kind": "string"
+          },
+          "required": true,
+          "doc": "The attribute key, such as `attack_damage`."
+        },
+        {
+          "key": "amount",
+          "type": {
+            "kind": "number"
+          },
+          "required": true
+        },
+        {
+          "key": "operation",
+          "type": {
+            "kind": "enum",
+            "values": [
+              "ADD",
+              "MULTIPLY_BASE",
+              "MULTIPLY_TOTAL"
+            ]
+          },
+          "required": false,
+          "default": "ADD"
+        },
+        {
+          "key": "slot",
+          "type": {
+            "kind": "string"
+          },
+          "required": false,
+          "default": "any"
+        }
+      ]
+    },
+    "BannerLayer": {
+      "doc": "A pattern on a banner.",
+      "fields": [
+        {
+          "key": "color",
+          "type": {
+            "kind": "string"
+          },
+          "required": true,
+          "doc": "A dye color, such as `red`."
+        },
+        {
+          "key": "pattern",
+          "type": {
+            "kind": "string"
+          },
+          "required": true,
+          "doc": "A banner pattern key, such as `stripe_top`."
+        }
+      ]
+    },
+    "BlockAt": {
+      "doc": "One block, by `world` (any world when absent) and coordinates.",
+      "fields": [
+        {
+          "key": "x",
+          "type": {
+            "kind": "int"
+          },
+          "required": true
+        },
+        {
+          "key": "y",
+          "type": {
+            "kind": "int"
+          },
+          "required": true
+        },
+        {
+          "key": "z",
+          "type": {
+            "kind": "int"
+          },
+          "required": true
+        },
+        {
+          "key": "world",
+          "type": {
+            "kind": "string"
+          },
+          "required": false
+        }
+      ]
+    },
+    "Book": {
+      "doc": "The text of a written book. A page is text like any other, with colors and placeholders.",
+      "fields": [
+        {
+          "key": "pages",
+          "type": {
+            "kind": "list",
+            "of": {
+              "kind": "string"
+            }
+          },
+          "required": true
+        },
+        {
+          "key": "title",
+          "type": {
+            "kind": "string"
+          },
+          "required": false,
+          "default": "Book"
+        },
+        {
+          "key": "author",
+          "type": {
+            "kind": "string"
+          },
+          "required": false,
+          "default": ""
+        }
+      ]
+    },
+    "Catalog:players": {
+      "doc": "The players who are online, by name: `name` and `uuid`.",
+      "fields": [
+        {
+          "key": "include-self",
+          "type": {
+            "kind": "boolean"
+          },
+          "required": false,
+          "default": true
+        }
+      ]
+    },
+    "Catalog:range": {
+      "doc": "The whole numbers from `from` to `to`, both included and given as numbers or placeholders, `step` apart: `value`.",
+      "fields": [
+        {
+          "key": "from",
+          "type": {
+            "kind": "string"
+          },
+          "required": true
+        },
+        {
+          "key": "to",
+          "type": {
+            "kind": "string"
+          },
+          "required": true
+        },
+        {
+          "key": "step",
+          "type": {
+            "kind": "int"
+          },
+          "required": false,
+          "default": 1
+        },
+        {
+          "key": "descending",
+          "type": {
+            "kind": "boolean"
+          },
+          "required": false,
+          "default": false
+        }
+      ]
+    },
+    "Catalog:values": {
+      "doc": "Fixed texts, each one element with the value `value`: the entries of `list`, then the pieces of `text` (placeholders are filled in first) cut at `separator`, which is read as written and not as a pattern. Empty pieces are left out.",
+      "fields": [
+        {
+          "key": "list",
+          "type": {
+            "kind": "list",
+            "of": {
+              "kind": "string"
+            }
+          },
+          "required": false,
+          "default": []
+        },
+        {
+          "key": "text",
+          "type": {
+            "kind": "string"
+          },
+          "required": false
+        },
+        {
+          "key": "separator",
+          "type": {
+            "kind": "string"
+          },
+          "required": false,
+          "default": ","
+        },
+        {
+          "key": "trim",
+          "type": {
+            "kind": "boolean"
+          },
+          "required": false,
+          "default": true
+        }
+      ]
+    },
+    "Catalog:worlds": {
+      "doc": "The worlds of the server: `name` and `environment` (`normal`, `nether` or `the_end`).",
+      "fields": []
+    },
+    "Check": {
+      "doc": "A `Condition` with what to run when it fails or holds. A check marked `optional` may fail, as long as `Gate.minimum` checks hold.",
+      "fields": [
+        {
+          "key": "condition",
+          "type": {
+            "kind": "poly",
+            "base": "Condition"
+          },
+          "required": true
+        },
+        {
+          "key": "optional",
+          "type": {
+            "kind": "boolean"
+          },
+          "required": false,
+          "default": false
+        },
+        {
+          "key": "pass",
+          "type": {
+            "kind": "list",
+            "of": {
+              "kind": "poly",
+              "base": "Action"
+            }
+          },
+          "required": false,
+          "default": [],
+          "doc": "Run when the condition holds."
+        },
+        {
+          "key": "deny",
+          "type": {
+            "kind": "list",
+            "of": {
+              "kind": "poly",
+              "base": "Action"
+            }
+          },
+          "required": false,
+          "default": [],
+          "doc": "Run when the condition does not hold."
+        }
+      ]
+    },
+    "Clicks": {
+      "doc": "What a click on an item does, per kind of click. `any` handles the kinds with no handler of their own.",
+      "fields": [
+        {
+          "key": "any",
+          "type": {
+            "kind": "object",
+            "type": "Handler"
+          },
+          "required": false
+        },
+        {
+          "key": "left",
+          "type": {
+            "kind": "object",
+            "type": "Handler"
+          },
+          "required": false
+        },
+        {
+          "key": "right",
+          "type": {
+            "kind": "object",
+            "type": "Handler"
+          },
+          "required": false
+        },
+        {
+          "key": "shift-left",
+          "type": {
+            "kind": "object",
+            "type": "Handler"
+          },
+          "required": false
+        },
+        {
+          "key": "shift-right",
+          "type": {
+            "kind": "object",
+            "type": "Handler"
+          },
+          "required": false
+        },
+        {
+          "key": "middle",
+          "type": {
+            "kind": "object",
+            "type": "Handler"
+          },
+          "required": false
+        }
+      ]
+    },
+    "Condition:and": {
+      "doc": "Holds when all of `conditions` do.",
+      "fields": [
+        {
+          "key": "conditions",
+          "type": {
+            "kind": "list",
+            "of": {
+              "kind": "poly",
+              "base": "Condition"
+            }
+          },
+          "required": true
+        }
+      ]
+    },
+    "Condition:at-least": {
+      "doc": "Holds when `count` or more of `conditions` do.",
+      "fields": [
+        {
+          "key": "count",
+          "type": {
+            "kind": "int"
+          },
+          "required": true
+        },
+        {
+          "key": "conditions",
+          "type": {
+            "kind": "list",
+            "of": {
+              "kind": "poly",
+              "base": "Condition"
+            }
+          },
+          "required": true
+        }
+      ]
+    },
+    "Condition:chance": {
+      "doc": "Holds `percent` times in a hundred (0 to 100). It is asked again on every redraw of an item, so it belongs in the `require` of a click, not in the `view` of an item.",
+      "fields": [
+        {
+          "key": "percent",
+          "type": {
+            "kind": "number"
+          },
+          "required": true
+        }
+      ]
+    },
+    "Condition:compare": {
+      "doc": "Compares `left` and `right` as numbers; if either is not one it never holds.",
+      "fields": [
+        {
+          "key": "left",
+          "type": {
+            "kind": "string"
+          },
+          "required": true
+        },
+        {
+          "key": "op",
+          "type": {
+            "kind": "enum",
+            "values": [
+              "GT",
+              "GTE",
+              "EQ",
+              "NEQ",
+              "LT",
+              "LTE"
+            ]
+          },
+          "required": true
+        },
+        {
+          "key": "right",
+          "type": {
+            "kind": "string"
+          },
+          "required": true
+        }
+      ]
+    },
+    "Condition:cooldown": {
+      "doc": "Holds when the cooldown `key` of the viewer is not running (or, with `scope` `GLOBAL`, the one everybody shares). The cooldown is started by the `cooldown` action, which keeps it as the variable `cooldown_<key>` with an expiry; a store that has not loaded yet counts as running, so waiting for it cannot be used to get around one.",
+      "fields": [
+        {
+          "key": "key",
+          "type": {
+            "kind": "string"
+          },
+          "required": true
+        },
+        {
+          "key": "scope",
+          "type": {
+            "kind": "enum",
+            "values": [
+              "GLOBAL",
+              "PLAYER"
+            ]
+          },
+          "required": false
+        }
+      ]
+    },
+    "Condition:experience": {
+      "doc": "The viewer's experience points in all (as `experience` charges them) are between `min` and `max`.",
+      "fields": [
+        {
+          "key": "min",
+          "type": {
+            "kind": "string"
+          },
+          "required": false
+        },
+        {
+          "key": "max",
+          "type": {
+            "kind": "string"
+          },
+          "required": false
+        }
+      ]
+    },
+    "Condition:food": {
+      "doc": "The viewer's food level (0 to 20) is between `min` and `max`.",
+      "fields": [
+        {
+          "key": "min",
+          "type": {
+            "kind": "string"
+          },
+          "required": false
+        },
+        {
+          "key": "max",
+          "type": {
+            "kind": "string"
+          },
+          "required": false
+        }
+      ]
+    },
+    "Condition:free-slots": {
+      "doc": "The viewer has `min` or more empty slots in their inventory (not counting armor and the off hand).",
+      "fields": [
+        {
+          "key": "min",
+          "type": {
+            "kind": "int"
+          },
+          "required": false,
+          "default": 1
+        }
+      ]
+    },
+    "Condition:gamemode": {
+      "doc": "The viewer is in one of the game modes `modes`.",
+      "fields": [
+        {
+          "key": "modes",
+          "type": {
+            "kind": "list",
+            "of": {
+              "kind": "enum",
+              "values": [
+                "CREATIVE",
+                "SURVIVAL",
+                "ADVENTURE",
+                "SPECTATOR"
+              ]
+            }
+          },
+          "required": true
+        }
+      ]
+    },
+    "Condition:group": {
+      "doc": "The viewer is in the permission group `name`, as the permission plugin behind Vault knows it.",
+      "fields": [
+        {
+          "key": "name",
+          "type": {
+            "kind": "string"
+          },
+          "required": true
+        }
+      ]
+    },
+    "Condition:health": {
+      "doc": "The viewer's health is between `min` and `max`, each a number or a placeholder.",
+      "fields": [
+        {
+          "key": "min",
+          "type": {
+            "kind": "string"
+          },
+          "required": false
+        },
+        {
+          "key": "max",
+          "type": {
+            "kind": "string"
+          },
+          "required": false
+        }
+      ]
+    },
+    "Condition:held-item": {
+      "doc": "The viewer holds at least `amount` of an item that matches, in `hand`.",
+      "fields": [
+        {
+          "key": "material",
+          "type": {
+            "kind": "string"
+          },
+          "required": false
+        },
+        {
+          "key": "name",
+          "type": {
+            "kind": "string"
+          },
+          "required": false
+        },
+        {
+          "key": "model",
+          "type": {
+            "kind": "int"
+          },
+          "required": false
+        },
+        {
+          "key": "amount",
+          "type": {
+            "kind": "int"
+          },
+          "required": false,
+          "default": 1
+        },
+        {
+          "key": "hand",
+          "type": {
+            "kind": "enum",
+            "values": [
+              "HAND",
+              "OFF_HAND",
+              "FEET",
+              "LEGS",
+              "CHEST",
+              "HEAD",
+              "BODY",
+              "SADDLE"
+            ]
+          },
+          "required": false,
+          "default": "HAND"
+        }
+      ]
+    },
+    "Condition:item": {
+      "doc": "The viewer carries `amount` or more of `material`; `name` and `lore`, when set, must match the item's.",
+      "fields": [
+        {
+          "key": "material",
+          "type": {
+            "kind": "string"
+          },
+          "required": true
+        },
+        {
+          "key": "amount",
+          "type": {
+            "kind": "int"
+          },
+          "required": false,
+          "default": 1
+        },
+        {
+          "key": "name",
+          "type": {
+            "kind": "string"
+          },
+          "required": false
+        },
+        {
+          "key": "lore",
+          "type": {
+            "kind": "list",
+            "of": {
+              "kind": "string"
+            }
+          },
+          "required": false,
+          "default": []
+        }
+      ]
+    },
+    "Condition:level": {
+      "doc": "The viewer's experience level is between `min` and `max`.",
+      "fields": [
+        {
+          "key": "min",
+          "type": {
+            "kind": "string"
+          },
+          "required": false
+        },
+        {
+          "key": "max",
+          "type": {
+            "kind": "string"
+          },
+          "required": false
+        }
+      ]
+    },
+    "Condition:money": {
+      "doc": "The viewer has at least `amount` (a number or a placeholder) of `currency`, the default one without it.",
+      "fields": [
+        {
+          "key": "amount",
+          "type": {
+            "kind": "string"
+          },
+          "required": true
+        },
+        {
+          "key": "currency",
+          "type": {
+            "kind": "string"
+          },
+          "required": false
+        }
+      ]
+    },
+    "Condition:never": {
+      "doc": "Never holds. The importer writes it for a test XaliMenu cannot run (a JavaScript expression, say), so the menu fails closed instead of quietly showing an item or opening for everyone.",
+      "fields": []
+    },
+    "Condition:not": {
+      "doc": "Holds when `condition` does not.",
+      "fields": [
+        {
+          "key": "condition",
+          "type": {
+            "kind": "poly",
+            "base": "Condition"
+          },
+          "required": true
+        }
+      ]
+    },
+    "Condition:one-of": {
+      "doc": "Holds when exactly one of `conditions` does.",
+      "fields": [
+        {
+          "key": "conditions",
+          "type": {
+            "kind": "list",
+            "of": {
+              "kind": "poly",
+              "base": "Condition"
+            }
+          },
+          "required": true
+        }
+      ]
+    },
+    "Condition:online": {
+      "doc": "The player called `player` (a name; may be a placeholder) is online.",
+      "fields": [
+        {
+          "key": "player",
+          "type": {
+            "kind": "string"
+          },
+          "required": true
+        }
+      ]
+    },
+    "Condition:online-count": {
+      "doc": "The number of players online is between `min` and `max`.",
+      "fields": [
+        {
+          "key": "min",
+          "type": {
+            "kind": "string"
+          },
+          "required": false
+        },
+        {
+          "key": "max",
+          "type": {
+            "kind": "string"
+          },
+          "required": false
+        }
+      ]
+    },
+    "Condition:or": {
+      "doc": "Holds when any of `conditions` does.",
+      "fields": [
+        {
+          "key": "conditions",
+          "type": {
+            "kind": "list",
+            "of": {
+              "kind": "poly",
+              "base": "Condition"
+            }
+          },
+          "required": true
+        }
+      ]
+    },
+    "Condition:permission": {
+      "doc": "The viewer has the permission `node` (placeholders allowed).",
+      "fields": [
+        {
+          "key": "node",
+          "type": {
+            "kind": "string"
+          },
+          "required": true
+        }
+      ]
+    },
+    "Condition:regex": {
+      "doc": "`input` matches the whole of `pattern`; a pattern that is not valid never matches.",
+      "fields": [
+        {
+          "key": "input",
+          "type": {
+            "kind": "string"
+          },
+          "required": true
+        },
+        {
+          "key": "pattern",
+          "type": {
+            "kind": "string"
+          },
+          "required": true
+        }
+      ]
+    },
+    "Condition:region": {
+      "doc": "The viewer stands in one of the WorldGuard regions `names` (placeholders allowed), or in any region when there are none. Without WorldGuard it never holds.",
+      "fields": [
+        {
+          "key": "names",
+          "type": {
+            "kind": "list",
+            "of": {
+              "kind": "string"
+            }
+          },
+          "required": false,
+          "default": []
+        }
+      ]
+    },
+    "Condition:text": {
+      "doc": "Compares `input` with `value` as `op` says. Both may contain placeholders.",
+      "fields": [
+        {
+          "key": "input",
+          "type": {
+            "kind": "string"
+          },
+          "required": true
+        },
+        {
+          "key": "op",
+          "type": {
+            "kind": "enum",
+            "values": [
+              "EQUALS",
+              "EQUALS_IGNORE_CASE",
+              "CONTAINS"
+            ]
+          },
+          "required": true
+        },
+        {
+          "key": "value",
+          "type": {
+            "kind": "string"
+          },
+          "required": true
+        }
+      ]
+    },
+    "Condition:variable-exists": {
+      "doc": "A variable called `name` exists (and has not expired), a global one or, with `scope` `PLAYER`, the viewer's own.",
+      "fields": [
+        {
+          "key": "name",
+          "type": {
+            "kind": "string"
+          },
+          "required": true
+        },
+        {
+          "key": "scope",
+          "type": {
+            "kind": "enum",
+            "values": [
+              "GLOBAL",
+              "PLAYER"
+            ]
+          },
+          "required": false,
+          "default": "GLOBAL"
+        }
+      ]
+    },
+    "Condition:world": {
+      "doc": "The viewer is in one of the worlds `names` (placeholders allowed).",
+      "fields": [
+        {
+          "key": "names",
+          "type": {
+            "kind": "list",
+            "of": {
+              "kind": "string"
+            }
+          },
+          "required": true
+        }
+      ]
+    },
+    "Equippable": {
+      "doc": "Makes an item wearable in `slot` (`HEAD`, `CHEST`, `LEGS`, `FEET`, `BODY`, `OFF_HAND`...). `model` is the key of the equipment model drawn on the wearer, `cameraOverlay` the key of a texture drawn over the view of the wearer.",
+      "fields": [
+        {
+          "key": "slot",
+          "type": {
+            "kind": "string"
+          },
+          "required": true
+        },
+        {
+          "key": "model",
+          "type": {
+            "kind": "string"
+          },
+          "required": false
+        },
+        {
+          "key": "camera-overlay",
+          "type": {
+            "kind": "string"
+          },
+          "required": false
+        },
+        {
+          "key": "swappable",
+          "type": {
+            "kind": "boolean"
+          },
+          "required": false,
+          "default": true,
+          "doc": "Whether a right click swaps the item with what the player wears in the slot."
+        },
+        {
+          "key": "dispensable",
+          "type": {
+            "kind": "boolean"
+          },
+          "required": false,
+          "default": true,
+          "doc": "Whether a dispenser can put the item on a player."
+        },
+        {
+          "key": "damage-on-hurt",
+          "type": {
+            "kind": "boolean"
+          },
+          "required": false,
+          "default": true,
+          "doc": "Whether the item loses durability when the wearer is hurt."
+        }
+      ]
+    },
+    "Firework": {
+      "doc": "Firework rocket or star settings. A rocket flies for `power` (1 to 3) and bursts with every effect; a star shows the first.",
+      "fields": [
+        {
+          "key": "effects",
+          "type": {
+            "kind": "list",
+            "of": {
+              "kind": "object",
+              "type": "FireworkEffect"
+            }
+          },
+          "required": false,
+          "default": [],
+          "doc": "The bursts."
+        },
+        {
+          "key": "power",
+          "type": {
+            "kind": "int"
+          },
+          "required": false,
+          "default": 1,
+          "doc": "The flight duration of a rocket, 1 to 3."
+        }
+      ]
+    },
+    "FireworkEffect": {
+      "doc": "One burst. `colors` and `fade` are `#rrggbb`.",
+      "fields": [
+        {
+          "key": "type",
+          "type": {
+            "kind": "enum",
+            "values": [
+              "BALL",
+              "BALL_LARGE",
+              "STAR",
+              "BURST",
+              "CREEPER"
+            ]
+          },
+          "required": false,
+          "default": "BALL"
+        },
+        {
+          "key": "colors",
+          "type": {
+            "kind": "list",
+            "of": {
+              "kind": "string"
+            }
+          },
+          "required": true
+        },
+        {
+          "key": "fade",
+          "type": {
+            "kind": "list",
+            "of": {
+              "kind": "string"
+            }
+          },
+          "required": false,
+          "default": []
+        },
+        {
+          "key": "flicker",
+          "type": {
+            "kind": "boolean"
+          },
+          "required": false,
+          "default": false
+        },
+        {
+          "key": "trail",
+          "type": {
+            "kind": "boolean"
+          },
+          "required": false,
+          "default": false
+        }
+      ]
+    },
+    "Fish": {
+      "doc": "A bucket of tropical fish: the look of the fish in it. Patterns are the names the game uses, such as `KOB` or `BRINELY`.",
+      "fields": [
+        {
+          "key": "pattern",
+          "type": {
+            "kind": "string"
+          },
+          "required": true
+        },
+        {
+          "key": "body-color",
+          "type": {
+            "kind": "string"
+          },
+          "required": false,
+          "default": "WHITE",
+          "doc": "A dye color name, such as `RED`."
+        },
+        {
+          "key": "pattern-color",
+          "type": {
+            "kind": "string"
+          },
+          "required": false,
+          "default": "WHITE",
+          "doc": "A dye color name, such as `BLUE`."
+        }
+      ]
+    },
+    "Food": {
+      "doc": "An item that can be eaten, whatever it is made of. `saturation` is what is added to the player's, not a multiple.",
+      "fields": [
+        {
+          "key": "nutrition",
+          "type": {
+            "kind": "int"
+          },
+          "required": true,
+          "doc": "The food points restored, in half drumsticks."
+        },
+        {
+          "key": "saturation",
+          "type": {
+            "kind": "number"
+          },
+          "required": false
+        },
+        {
+          "key": "always-edible",
+          "type": {
+            "kind": "boolean"
+          },
+          "required": false,
+          "default": false,
+          "doc": "Whether the item can be eaten with a full food bar."
+        }
+      ]
+    },
+    "Frame": {
+      "doc": "One step of an `Animation`. After `delay` (counted from the frame before, at least one tick) its `items` are drawn; with `clear`, what the frames before it drew goes first, so it replaces them, and without it the items stay on top. A frame whose `require` gate does not hold at that moment is skipped. A slot that an item of the frame claims shows that item instead of the menu's own, as long as the item's `view` gate passes.",
+      "fields": [
+        {
+          "key": "delay",
+          "type": {
+            "kind": "duration"
+          },
+          "required": false,
+          "default": "1s",
+          "doc": "The wait before the frame, as a duration such as `500ms` or `2s`."
+        },
+        {
+          "key": "clear",
+          "type": {
+            "kind": "boolean"
+          },
+          "required": false,
+          "default": true,
+          "doc": "Whether the frame replaces what the frames before it drew."
+        },
+        {
+          "key": "require",
+          "type": {
+            "kind": "object",
+            "type": "Gate"
+          },
+          "required": false,
+          "doc": "Must hold when the frame comes up, or the frame is skipped."
+        },
+        {
+          "key": "on-start",
+          "type": {
+            "kind": "list",
+            "of": {
+              "kind": "poly",
+              "base": "Action"
+            }
+          },
+          "required": false,
+          "default": [],
+          "doc": "Run when the frame is drawn."
+        },
+        {
+          "key": "on-end",
+          "type": {
+            "kind": "list",
+            "of": {
+              "kind": "poly",
+              "base": "Action"
+            }
+          },
+          "required": false,
+          "default": [],
+          "doc": "Run when the frame is replaced by the next."
+        },
+        {
+          "key": "items",
+          "type": {
+            "kind": "map",
+            "of": {
+              "kind": "object",
+              "type": "Item"
+            }
+          },
+          "required": false,
+          "default": {},
+          "doc": "The items the frame draws."
+        }
+      ]
+    },
+    "Gate": {
+      "doc": "A set of checks that decide whether something happens: opening a menu, showing an item, or a click doing its actions. All the `require` checks must hold, except the `Check.optional` ones, and at least `minimum` of the checks must (the optional ones count too; to accept any two of three, mark the three optional with a minimum of 2). With `stopAtSuccess` the checks after the `minimum`th that holds are not looked at. `pass` and `deny` run for the gate as a whole, after the checks' own.",
+      "fields": [
+        {
+          "key": "require",
+          "type": {
+            "kind": "list",
+            "of": {
+              "kind": "object",
+              "type": "Check"
+            }
+          },
+          "required": false,
+          "default": [],
+          "doc": "The checks, tried in order."
+        },
+        {
+          "key": "minimum",
+          "type": {
+            "kind": "int"
+          },
+          "required": false,
+          "doc": "How many checks must hold, optional ones included. All non-optional checks must hold regardless."
+        },
+        {
+          "key": "stop-at-success",
+          "type": {
+            "kind": "boolean"
+          },
+          "required": false,
+          "default": false
+        },
+        {
+          "key": "pass",
+          "type": {
+            "kind": "list",
+            "of": {
+              "kind": "poly",
+              "base": "Action"
+            }
+          },
+          "required": false,
+          "default": [],
+          "doc": "Run when the gate holds."
+        },
+        {
+          "key": "deny",
+          "type": {
+            "kind": "list",
+            "of": {
+              "kind": "poly",
+              "base": "Action"
+            }
+          },
+          "required": false,
+          "default": [],
+          "doc": "Run when the gate does not hold."
+        }
+      ]
+    },
+    "Handler": {
+      "doc": "Runs `actions` if the `require` gate, when there is one, passes.",
+      "fields": [
+        {
+          "key": "actions",
+          "type": {
+            "kind": "list",
+            "of": {
+              "kind": "poly",
+              "base": "Action"
+            }
+          },
+          "required": false,
+          "default": [],
+          "doc": "Run in order."
+        },
+        {
+          "key": "require",
+          "type": {
+            "kind": "object",
+            "type": "Gate"
+          },
+          "required": false,
+          "doc": "Must hold for the actions to run."
+        }
+      ]
+    },
+    "Item": {
+      "doc": "An item of a menu.\n\n`material` is a Minecraft item key (`diamond_pickaxe`), or a prefixed source: `head:<player>` (a player's head, with their SkinsRestorer skin when it is installed), `texture:<base64>`, `hdb:<id>` (HeadDatabase), `itemsadder:<id>` and `nexo:<id>`. The item sits in `slot` and `slots`; when several items claim a slot, the one with the lowest `priority` whose `view` gate passes is shown.",
+      "fields": [
+        {
+          "key": "material",
+          "type": {
+            "kind": "string"
+          },
+          "required": true,
+          "doc": "The item key or prefixed source. May contain placeholders."
+        },
+        {
+          "key": "slot",
+          "type": {
+            "kind": "int"
+          },
+          "required": false,
+          "doc": "The slot the item occupies. Slots count from 0 at the top left."
+        },
+        {
+          "key": "slots",
+          "type": {
+            "kind": "list",
+            "of": {
+              "kind": "int"
+            }
+          },
+          "required": false,
+          "default": [],
+          "doc": "More slots the item occupies, in addition to `slot`."
+        },
+        {
+          "key": "priority",
+          "type": {
+            "kind": "int"
+          },
+          "required": false,
+          "default": 0,
+          "doc": "Decides between items that claim the same slot: the lowest value is tried first."
+        },
+        {
+          "key": "amount",
+          "type": {
+            "kind": "int"
+          },
+          "required": false,
+          "default": 1,
+          "doc": "The number of items in the stack, 1 to 99."
+        },
+        {
+          "key": "dynamic-amount",
+          "type": {
+            "kind": "string"
+          },
+          "required": false,
+          "doc": "A placeholder that gives the amount at draw time, taking the place of `amount`."
+        },
+        {
+          "key": "name",
+          "type": {
+            "kind": "string"
+          },
+          "required": false,
+          "doc": "The display name. Colors, placeholders and `{name}` arguments are allowed."
+        },
+        {
+          "key": "lore",
+          "type": {
+            "kind": "list",
+            "of": {
+              "kind": "string"
+            }
+          },
+          "required": false,
+          "default": [],
+          "doc": "The lines under the name, with the same formatting as `name`."
+        },
+        {
+          "key": "enchants",
+          "type": {
+            "kind": "map",
+            "of": {
+              "kind": "int"
+            }
+          },
+          "required": false,
+          "default": {},
+          "doc": "Enchantment key to level."
+        },
+        {
+          "key": "hide",
+          "type": {
+            "kind": "list",
+            "of": {
+              "kind": "string"
+            }
+          },
+          "required": false,
+          "default": [],
+          "doc": "Data component keys (`enchantments`, `attribute_modifiers`, ...) left out of the tooltip."
+        },
+        {
+          "key": "unbreakable",
+          "type": {
+            "kind": "boolean"
+          },
+          "required": false,
+          "default": false,
+          "doc": "Whether the item takes no durability damage."
+        },
+        {
+          "key": "model",
+          "type": {
+            "kind": "int"
+          },
+          "required": false,
+          "doc": "The custom model data number that resource packs use to choose a model."
+        },
+        {
+          "key": "color",
+          "type": {
+            "kind": "string"
+          },
+          "required": false,
+          "doc": "Dye color of leather armor and the like, as `#rrggbb`."
+        },
+        {
+          "key": "banner",
+          "type": {
+            "kind": "list",
+            "of": {
+              "kind": "object",
+              "type": "BannerLayer"
+            }
+          },
+          "required": false,
+          "default": [],
+          "doc": "The patterns of a banner, from the bottom layer to the top."
+        },
+        {
+          "key": "potion",
+          "type": {
+            "kind": "list",
+            "of": {
+              "kind": "object",
+              "type": "PotionEffect"
+            }
+          },
+          "required": false,
+          "default": [],
+          "doc": "Custom effects of a potion, splash potion, lingering potion or tipped arrow."
+        },
+        {
+          "key": "potion-type",
+          "type": {
+            "kind": "string"
+          },
+          "required": false,
+          "doc": "The base potion of a potion, tipped arrow or the like, such as `strong_healing`."
+        },
+        {
+          "key": "stored-enchants",
+          "type": {
+            "kind": "map",
+            "of": {
+              "kind": "int"
+            }
+          },
+          "required": false,
+          "default": {},
+          "doc": "Enchantment key to level, kept in an enchanted book rather than put on the item."
+        },
+        {
+          "key": "damage",
+          "type": {
+            "kind": "int"
+          },
+          "required": false,
+          "doc": "How worn out the item is, in points of durability; the bar shows once it is more than 0."
+        },
+        {
+          "key": "item-name",
+          "type": {
+            "kind": "string"
+          },
+          "required": false,
+          "doc": "The base name, which stays plain (not italic) and which renaming in an anvil replaces; `name` is the renamed one."
+        },
+        {
+          "key": "rarity",
+          "type": {
+            "kind": "enum",
+            "values": [
+              "COMMON",
+              "UNCOMMON",
+              "RARE",
+              "EPIC"
+            ]
+          },
+          "required": false,
+          "doc": "The rarity, which sets the color of the name."
+        },
+        {
+          "key": "glow",
+          "type": {
+            "kind": "boolean"
+          },
+          "required": false,
+          "doc": "Whether the item shimmers like an enchanted one: true forces it, false takes it away from an enchanted item."
+        },
+        {
+          "key": "max-stack-size",
+          "type": {
+            "kind": "int"
+          },
+          "required": false,
+          "doc": "How many fit in a stack, 1 to 99."
+        },
+        {
+          "key": "hide-tooltip",
+          "type": {
+            "kind": "boolean"
+          },
+          "required": false,
+          "default": false,
+          "doc": "Show no tooltip at all, not even the name."
+        },
+        {
+          "key": "item-model",
+          "type": {
+            "kind": "string"
+          },
+          "required": false,
+          "doc": "The key of the model resource packs give the item, such as `mypack:crown`."
+        },
+        {
+          "key": "food",
+          "type": {
+            "kind": "object",
+            "type": "Food"
+          },
+          "required": false,
+          "doc": "Makes the item edible."
+        },
+        {
+          "key": "trim",
+          "type": {
+            "kind": "object",
+            "type": "Trim"
+          },
+          "required": false,
+          "doc": "The trim of a piece of armor."
+        },
+        {
+          "key": "book",
+          "type": {
+            "kind": "object",
+            "type": "Book"
+          },
+          "required": false,
+          "doc": "The text of a written book."
+        },
+        {
+          "key": "firework",
+          "type": {
+            "kind": "object",
+            "type": "Firework"
+          },
+          "required": false,
+          "doc": "The effects of a firework rocket or firework star."
+        },
+        {
+          "key": "fish",
+          "type": {
+            "kind": "object",
+            "type": "Fish"
+          },
+          "required": false,
+          "doc": "The look of the fish in a bucket of tropical fish."
+        },
+        {
+          "key": "attributes",
+          "type": {
+            "kind": "list",
+            "of": {
+              "kind": "object",
+              "type": "AttributeModifier"
+            }
+          },
+          "required": false,
+          "default": [],
+          "doc": "Attribute modifiers the item gives while it is held or worn; they replace the ones the material has of its own."
+        },
+        {
+          "key": "tooltip-style",
+          "type": {
+            "kind": "string"
+          },
+          "required": false,
+          "doc": "The key of the tooltip background a resource pack gives the item, such as `mypack:fancy`."
+        },
+        {
+          "key": "equippable",
+          "type": {
+            "kind": "object",
+            "type": "Equippable"
+          },
+          "required": false,
+          "doc": "Makes the item wearable in a slot."
+        },
+        {
+          "key": "tool",
+          "type": {
+            "kind": "object",
+            "type": "Tool"
+          },
+          "required": false,
+          "doc": "Makes the item mine blocks."
+        },
+        {
+          "key": "nbt",
+          "type": {
+            "kind": "string"
+          },
+          "required": false,
+          "doc": "Extra NBT as an SNBT compound, such as `{menu:\"jobs\",tier:3}`."
+        },
+        {
+          "key": "update",
+          "type": {
+            "kind": "boolean"
+          },
+          "required": false,
+          "default": false,
+          "doc": "Draw this item again on every menu refresh, to keep its placeholders current."
+        },
+        {
+          "key": "view",
+          "type": {
+            "kind": "object",
+            "type": "Gate"
+          },
+          "required": false,
+          "doc": "Must hold for the item to be shown. An item that fails it leaves the slot to the next item that claims it."
+        },
+        {
+          "key": "click",
+          "type": {
+            "kind": "object",
+            "type": "Clicks"
+          },
+          "required": false,
+          "doc": "What a click on the item does."
+        }
+      ]
+    },
+    "Menu": {
+      "doc": "A menu, as stored in `menus/<name>.conf`; the file name is the menu's name.\n\n`size` is the number of slots of a chest menu, a multiple of 9 up to 54; other `type`s have a size of their own. Each of `commands` opens the menu, and `args` name the words that must follow it, one word each. A last name that ends in `...` (`reason...`) takes the rest of the line instead. Players type these words, so they are cleaned (no `%`, no control characters) before they are put into `{name}` in text and commands.",
+      "fields": [
+        {
+          "key": "title",
+          "type": {
+            "kind": "string"
+          },
+          "required": true,
+          "doc": "The window title. Colors, placeholders and `{name}` arguments are allowed."
+        },
+        {
+          "key": "size",
+          "type": {
+            "kind": "int"
+          },
+          "required": false,
+          "default": 54,
+          "doc": "The number of slots of a chest menu."
+        },
+        {
+          "key": "type",
+          "type": {
+            "kind": "string"
+          },
+          "required": false,
+          "default": "chest",
+          "doc": "`chest`, or the name of another inventory type, such as `hopper` or `dispenser`."
+        },
+        {
+          "key": "commands",
+          "type": {
+            "kind": "list",
+            "of": {
+              "kind": "string"
+            }
+          },
+          "required": false,
+          "default": [],
+          "doc": "The commands that open the menu. An entry of several words is not registered as a command."
+        },
+        {
+          "key": "register",
+          "type": {
+            "kind": "boolean"
+          },
+          "required": false,
+          "default": true,
+          "doc": "Whether `commands` are registered as commands of the server, or only usable through `open` actions."
+        },
+        {
+          "key": "args",
+          "type": {
+            "kind": "list",
+            "of": {
+              "kind": "string"
+            }
+          },
+          "required": false,
+          "default": [],
+          "doc": "The names of the words that follow a command, in order."
+        },
+        {
+          "key": "args-usage",
+          "type": {
+            "kind": "string"
+          },
+          "required": false,
+          "doc": "The usage text shown when a player gives too few or too many words. Built from `args` when absent."
+        },
+        {
+          "key": "complete",
+          "type": {
+            "kind": "map",
+            "of": {
+              "kind": "list",
+              "of": {
+                "kind": "string"
+              }
+            }
+          },
+          "required": false,
+          "default": {},
+          "doc": "What tab completion offers for each of `args`, by name: the words themselves, or `@players` for the names of the players online and `@worlds` for those of the worlds. An argument with no entry gets nothing."
+        },
+        {
+          "key": "refresh",
+          "type": {
+            "kind": "duration"
+          },
+          "required": false,
+          "doc": "How often the menu draws the items marked `update` again; never when absent."
+        },
+        {
+          "key": "open",
+          "type": {
+            "kind": "object",
+            "type": "Gate"
+          },
+          "required": false,
+          "doc": "Must hold for the menu to open."
+        },
+        {
+          "key": "on-open",
+          "type": {
+            "kind": "list",
+            "of": {
+              "kind": "poly",
+              "base": "Action"
+            }
+          },
+          "required": false,
+          "default": [],
+          "doc": "Run when the menu has opened."
+        },
+        {
+          "key": "on-close",
+          "type": {
+            "kind": "list",
+            "of": {
+              "kind": "poly",
+              "base": "Action"
+            }
+          },
+          "required": false,
+          "default": [],
+          "doc": "Run when the player closes the menu or it is replaced by another."
+        },
+        {
+          "key": "items",
+          "type": {
+            "kind": "map",
+            "of": {
+              "kind": "object",
+              "type": "Item"
+            }
+          },
+          "required": false,
+          "default": {},
+          "doc": "The items of the menu, by name. The name is only used to refer to an item from `legend` and in messages."
+        },
+        {
+          "key": "layout",
+          "type": {
+            "kind": "list",
+            "of": {
+              "kind": "string"
+            }
+          },
+          "required": false,
+          "default": [],
+          "doc": "The menu as it looks, in rows of nine characters, for items to be placed by: each character of the `legend` puts the item it names in every slot where it stands, besides the item's own `slot` and `slots`. A row of fewer characters ends in blanks, and a character the legend does not know is a blank."
+        },
+        {
+          "key": "legend",
+          "type": {
+            "kind": "map",
+            "of": {
+              "kind": "string"
+            }
+          },
+          "required": false,
+          "default": {},
+          "doc": "The character of the `layout` to the name of the item in `items` that goes where it stands."
+        },
+        {
+          "key": "open-with",
+          "type": {
+            "kind": "list",
+            "of": {
+              "kind": "poly",
+              "base": "Activator"
+            }
+          },
+          "required": false,
+          "default": [],
+          "doc": "What a player can do to open the menu besides its `commands`."
+        },
+        {
+          "key": "animation",
+          "type": {
+            "kind": "object",
+            "type": "Animation"
+          },
+          "required": false,
+          "doc": "Frames that play over the menu once it is open."
+        },
+        {
+          "key": "pages",
+          "type": {
+            "kind": "object",
+            "type": "Pages"
+          },
+          "required": false,
+          "doc": "Makes the menu list the elements of a catalog, a page at a time."
+        }
+      ]
+    },
+    "Pages": {
+      "doc": "What makes a menu paged: the elements of `catalog` are drawn one page at a time into `slots`, each as `item`.\n\nThe elements are sorted (see `sort`), then the ones for which the `item`'s `view` gate does not hold are left out, and only then split into pages, so every page but the last is full. The gate and everything the item shows can use the element's values as `{name}`. The item's own `slot` and `slots` are not used; the nth element of the page goes into the nth of `slots`, or of the cells of `layout`. An item of the menu in one of the slots is drawn when the page has no element for it.\n\nA `layout` is rows of nine characters, the way the menu looks (`#########`, `#xxxxxxx#`): every `cell` character is a slot for an element, read left to right and top to bottom, and the other characters are only there to draw by. A row of fewer characters is taken as ending in blanks. Give `slots` or `layout`, not both.",
+      "fields": [
+        {
+          "key": "catalog",
+          "type": {
+            "kind": "poly",
+            "base": "Catalog"
+          },
+          "required": true,
+          "doc": "The source of the elements."
+        },
+        {
+          "key": "slots",
+          "type": {
+            "kind": "list",
+            "of": {
+              "kind": "int"
+            }
+          },
+          "required": false,
+          "default": [],
+          "doc": "The slots the elements go into."
+        },
+        {
+          "key": "item",
+          "type": {
+            "kind": "object",
+            "type": "Item"
+          },
+          "required": true,
+          "doc": "The item drawn for each element."
+        },
+        {
+          "key": "layout",
+          "type": {
+            "kind": "list",
+            "of": {
+              "kind": "string"
+            }
+          },
+          "required": false,
+          "default": [],
+          "doc": "Rows of nine characters that mark the slots of the elements instead of `slots`."
+        },
+        {
+          "key": "cell",
+          "type": {
+            "kind": "string"
+          },
+          "required": false,
+          "default": "x",
+          "doc": "The character of `layout` that stands for an element."
+        },
+        {
+          "key": "sort",
+          "type": {
+            "kind": "string"
+          },
+          "required": false,
+          "doc": "The name of the element value to order by, such as `name`; numbers are ordered as numbers. The catalog's own order when absent."
+        },
+        {
+          "key": "descending",
+          "type": {
+            "kind": "boolean"
+          },
+          "required": false,
+          "default": false,
+          "doc": "Whether the order of `sort` is reversed."
+        },
+        {
+          "key": "empty",
+          "type": {
+            "kind": "object",
+            "type": "Item"
+          },
+          "required": false,
+          "doc": "Drawn in the first of the `slots` when the catalog has no element to list."
+        }
+      ]
+    },
+    "PotionEffect": {
+      "doc": "One effect of a potion.",
+      "fields": [
+        {
+          "key": "type",
+          "type": {
+            "kind": "string"
+          },
+          "required": true,
+          "doc": "The effect key, such as `speed`."
+        },
+        {
+          "key": "duration",
+          "type": {
+            "kind": "int"
+          },
+          "required": true,
+          "doc": "The length in ticks. 20 ticks are one second."
+        },
+        {
+          "key": "amplifier",
+          "type": {
+            "kind": "int"
+          },
+          "required": false,
+          "default": 0,
+          "doc": "The level minus one: 0 is level I."
+        }
+      ]
+    },
+    "Tool": {
+      "doc": "Makes an item mine blocks, whatever it is made of. `miningSpeed` is the speed for blocks no rule covers (1 is the speed of a hand) and `damagePerBlock` the durability it loses for each block mined.",
+      "fields": [
+        {
+          "key": "mining-speed",
+          "type": {
+            "kind": "number"
+          },
+          "required": false
+        },
+        {
+          "key": "damage-per-block",
+          "type": {
+            "kind": "int"
+          },
+          "required": false,
+          "default": 1
+        },
+        {
+          "key": "can-destroy-in-creative",
+          "type": {
+            "kind": "boolean"
+          },
+          "required": false,
+          "default": true,
+          "doc": "Whether a player in creative mode can break blocks with the item."
+        },
+        {
+          "key": "rules",
+          "type": {
+            "kind": "list",
+            "of": {
+              "kind": "object",
+              "type": "ToolRule"
+            }
+          },
+          "required": false,
+          "default": []
+        }
+      ]
+    },
+    "ToolRule": {
+      "doc": "One rule of a `Tool`: for the `blocks` (block keys such as `stone`, or tags such as `#minecraft:mineable/pickaxe`) the mining speed is `speed` if there is one, and `drops` says whether they drop their items when mined with it.",
+      "fields": [
+        {
+          "key": "blocks",
+          "type": {
+            "kind": "list",
+            "of": {
+              "kind": "string"
+            }
+          },
+          "required": true
+        },
+        {
+          "key": "speed",
+          "type": {
+            "kind": "number"
+          },
+          "required": false
+        },
+        {
+          "key": "drops",
+          "type": {
+            "kind": "boolean"
+          },
+          "required": false
+        }
+      ]
+    },
+    "Trim": {
+      "doc": "An armor trim: `pattern` and `material` are keys such as `coast` and `gold`.",
+      "fields": [
+        {
+          "key": "pattern",
+          "type": {
+            "kind": "string"
+          },
+          "required": true
+        },
+        {
+          "key": "material",
+          "type": {
+            "kind": "string"
+          },
+          "required": true
+        }
+      ]
+    }
+  },
+  "poly": {
+    "Action": {
+      "actionbar": "Action:actionbar",
+      "all": "Action:all",
+      "book": "Action:book",
+      "boss-bar": "Action:boss-bar",
+      "broadcast": "Action:broadcast",
+      "chance": "Action:chance",
+      "chat": "Action:chat",
+      "clear-items": "Action:clear-items",
+      "close": "Action:close",
+      "connect": "Action:connect",
+      "console": "Action:console",
+      "cooldown": "Action:cooldown",
+      "delay": "Action:delay",
+      "experience": "Action:experience",
+      "food": "Action:food",
+      "gamemode": "Action:gamemode",
+      "give-item": "Action:give-item",
+      "group": "Action:group",
+      "health": "Action:health",
+      "input": "Action:input",
+      "json": "Action:json",
+      "level": "Action:level",
+      "log": "Action:log",
+      "message": "Action:message",
+      "meta": "Action:meta",
+      "money": "Action:money",
+      "open": "Action:open",
+      "page": "Action:page",
+      "particle": "Action:particle",
+      "permission": "Action:permission",
+      "player": "Action:player",
+      "potion": "Action:potion",
+      "random": "Action:random",
+      "refresh": "Action:refresh",
+      "run-for": "Action:run-for",
+      "skin": "Action:skin",
+      "skin-reset": "Action:skin-reset",
+      "sound": "Action:sound",
+      "stop": "Action:stop",
+      "take-item": "Action:take-item",
+      "teleport": "Action:teleport",
+      "title": "Action:title",
+      "variable": "Action:variable"
+    },
+    "Activator": {
+      "addon": "Activator:addon",
+      "block": "Activator:block",
+      "chat": "Activator:chat",
+      "entity": "Activator:entity",
+      "item": "Activator:item",
+      "join": "Activator:join",
+      "npc": "Activator:npc",
+      "region-enter": "Activator:region-enter",
+      "region-leave": "Activator:region-leave",
+      "swap-hands": "Activator:swap-hands"
+    },
+    "Catalog": {
+      "players": "Catalog:players",
+      "range": "Catalog:range",
+      "values": "Catalog:values",
+      "worlds": "Catalog:worlds"
+    },
+    "Condition": {
+      "and": "Condition:and",
+      "at-least": "Condition:at-least",
+      "chance": "Condition:chance",
+      "compare": "Condition:compare",
+      "cooldown": "Condition:cooldown",
+      "experience": "Condition:experience",
+      "food": "Condition:food",
+      "free-slots": "Condition:free-slots",
+      "gamemode": "Condition:gamemode",
+      "group": "Condition:group",
+      "health": "Condition:health",
+      "held-item": "Condition:held-item",
+      "item": "Condition:item",
+      "level": "Condition:level",
+      "money": "Condition:money",
+      "never": "Condition:never",
+      "not": "Condition:not",
+      "one-of": "Condition:one-of",
+      "online": "Condition:online",
+      "online-count": "Condition:online-count",
+      "or": "Condition:or",
+      "permission": "Condition:permission",
+      "regex": "Condition:regex",
+      "region": "Condition:region",
+      "text": "Condition:text",
+      "variable-exists": "Condition:variable-exists",
+      "world": "Condition:world"
+    }
+  }
+}

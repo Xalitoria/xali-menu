@@ -31,6 +31,7 @@ object Conditions {
 
     private fun plain(component: Component?): String = component?.let(PLAIN::serialize).orEmpty()
 
+    /** The viewer has the permission [node] (placeholders allowed). */
     @Serializable @SerialName("permission")
     data class Permission(val node: String) : Condition {
         override fun test(ctx: MenuContext): Boolean = ctx.player.hasPermission(ctx.parse(node))
@@ -93,6 +94,7 @@ object Conditions {
         }
     }
 
+    /** Compares [input] with [value] as [op] says. Both may contain placeholders. */
     @Serializable @SerialName("text")
     data class Text(val input: String, val op: Op, val value: String) : Condition {
         enum class Op { EQUALS, EQUALS_IGNORE_CASE, CONTAINS }
@@ -119,6 +121,7 @@ object Conditions {
         }
     }
 
+    /** Holds when [condition] does not. */
     @Serializable @SerialName("not")
     data class Not(val condition: Condition) : Condition {
         override fun test(ctx: MenuContext): Boolean = !condition.test(ctx)
