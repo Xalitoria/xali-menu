@@ -10,7 +10,8 @@ import { fromHash, decodeData, Server, readFile, toFile, download } from './sour
 import { parse } from './hocon.js'
 import { write } from './hoconWriter.js'
 import { render as renderText } from './mctext.js'
-import { services } from './services.js'
+import { services, forgetCatalog } from './services.js'
+import { materialPicker } from './picker.js'
 import { settings as iconSettings } from './icons.js'
 import { settings as assetSettings } from './assets.js'
 import { PackPanel } from './panel.js'
@@ -23,7 +24,13 @@ export class App {
     this.root = root
     this.schema = schema
     this.store = new Store({})
-    this.form = new Form(schema, this.store)
+    this.form = new Form(schema, this.store, {
+      material: (path, value) => materialPicker({
+        value: value ?? '', placeholder: 'stone, diamond_sword, nexo:ruby, head:Notch',
+        // Typing changes the menu without drawing the form again (the box would lose the cursor); a pick or leaving the box does.
+        commit: (text, final) => (final ? this.store.set(path, text) : this.store.set(path, text, true)),
+      }),
+    })
     this.tab = 'Menu'
     /** @type {Server|null} */
     this.server = null
@@ -50,6 +57,8 @@ export class App {
       if (hash.server && hash.token) {
         this.server = new Server(hash.server, hash.token)
         assetSettings.skinProxy = (url) => this.server.skin(url)
+        services.server = this.server
+        forgetCatalog()
         const info = await this.server.info()
         this.menuNames = info.menus
         this.serverInfo = info

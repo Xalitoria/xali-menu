@@ -97,6 +97,8 @@ export class Form {
   }
 
   text(path, value, field) {
+    // The material of an item is picked from a search of every item.
+    if (field.key === 'material' && this.hooks.material) return this.hooks.material(path, value, field)
     const key = field.key
     const input = h('input', { type: 'text', value: value ?? '', placeholder: field.placeholder ?? (field.default !== undefined ? String(field.default) : ''),
       oninput: () => { this.store.set(path, input.value, true); this.preview(preview, key, input.value) } })

@@ -6,6 +6,7 @@ import { Text } from './text.js'
 import { WindowView } from './window.js'
 import { ItemRenderer } from './itemrender.js'
 import { settings as iconSettings } from './icons.js'
+import { loadCatalog } from './catalog.js'
 
 export const services = {
   assets: null, text: null, window: null, renderer: null, pack: null,
@@ -13,6 +14,20 @@ export const services = {
   scale: 0,
   /** Pixels of the game left around the window, for glyphs that reach past it. */
   room: 64,
+  /** The server the editor is connected to, if any. */
+  server: null,
+  catalogPromise: null,
+}
+
+/** Every item a menu can use, loaded the first time it is asked for. */
+export function catalog() {
+  services.catalogPromise ??= loadCatalog(services.server, services.assets)
+  return services.catalogPromise
+}
+
+/** Forgets the list, for when the server changes. */
+export function forgetCatalog() {
+  services.catalogPromise = null
 }
 
 /** Starts over with [pack] (or none) in front of the game's own files. */

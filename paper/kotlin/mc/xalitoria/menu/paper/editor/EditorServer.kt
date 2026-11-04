@@ -20,6 +20,7 @@ import mc.xalitoria.menu.paper.XaliMenu
  * PUT  /v1/menus/<name>          {menu: {...}}  ->  {problems: [...]}  or 422 {error}
  * POST /v1/menus/<name>/check    {menu: {...}}  ->  {problems: [...]}  or 422 {error}
  * GET  /v1/pack                  the resource pack, as a zip
+ * GET  /v1/catalog               {vanilla: [...], custom: {prefix: [...]}}  every item a menu can use
  * GET  /v1/glyphs                {glyphs: [{name, char, plugin}]}
  * POST /v1/items                 {materials: [...]}  ->  {items: {material: {material, itemModel, customModelData, maxDamage}}}
  * GET  /v1/skin?url=<address>    the skin png at a textures.minecraft.net address (the editor's browser cannot read it from there)
@@ -108,6 +109,7 @@ internal class EditorServer(private val plugin: XaliMenu, val sessions: EditorSe
                 exchange.sendResponseHeaders(200, file.fileSize())
                 Files.copy(file, exchange.responseBody)
             }
+            path == listOf("catalog") && method == "GET" -> reply(exchange, 200, Json.write(packs.catalog()))
             path == listOf("glyphs") && method == "GET" -> reply(exchange, 200, Json.write(mapOf("glyphs" to packs.glyphs())))
             path == listOf("skin") && method == "GET" -> {
                 val address = exchange.requestURI.rawQuery.orEmpty().split('&').firstOrNull { it.startsWith("url=") }

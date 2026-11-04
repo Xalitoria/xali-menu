@@ -75,6 +75,9 @@ export class Server {
     return (await this.request(`/skin?url=${encodeURIComponent(url)}`, { headers: { Accept: 'image/png' } })).blob()
   }
 
+  /** Every item a menu can use: `{vanilla: [...], custom: {prefix: [...]}}`. */
+  async catalog() { return (await this.request('/catalog')).json() }
+
   async glyphs() { return (await (await this.request('/glyphs')).json()).glyphs ?? [] }
 }
 

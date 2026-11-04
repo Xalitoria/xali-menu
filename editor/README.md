@@ -61,6 +61,10 @@ Run `/xmenu edit` in the game or the console, and open the link. `/xmenu edit <m
 | Raw | The menu as text; Apply reads it back. |
 | Pack | Load a resource pack; see its glyphs; align a glyph in the title. |
 
+The `material` of an item (and of the actions and conditions that name an item) is a search box: type part of a name (`iron sword`, `ruby`)
+and pick from the game's items and, from a server, the items of Nexo and ItemsAdder, each with its picture. Anything typed is kept as it is,
+so heads (`head:Notch`), textures and items of plugins that cannot list theirs still work.
+
 `Ctrl+Z`, `Ctrl+Y` undo and redo; `Ctrl+S` saves to the server, or downloads the file when there is none.
 
 ## Setting it up

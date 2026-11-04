@@ -19,6 +19,20 @@ import org.bukkit.configuration.file.YamlConfiguration
  * its API by name, so nothing here is linked to it.
  */
 internal class ResourcePacks(private val plugin: XaliMenu) {
+    /**
+     * The items a menu can use: every item of the game, and the items of each source that lists them, by prefix (`nexo` to `ruby`...).
+     * Ids are what follows the prefix.
+     */
+    fun catalog(): Map<String, Any> {
+        val vanilla = io.papermc.paper.registry.RegistryAccess.registryAccess().getRegistry(io.papermc.paper.registry.RegistryKey.ITEM)
+            .map { it.key().value() }.sorted()
+        val custom = plugin.registry.sources.entries.mapNotNull { entry ->
+            val ids = (entry.value as? mc.xalitoria.menu.paper.hook.ListsItems)?.let { runCatching { it.ids() }.getOrNull() } ?: return@mapNotNull null
+            entry.key to ids
+        }.toMap()
+        return mapOf("vanilla" to vanilla, "custom" to custom)
+    }
+
     /** The pack file: the configured one, otherwise the first of the supported plugins that has one. */
     fun pack(): Path? {
         val configured = plugin.config.data.editor.pack
