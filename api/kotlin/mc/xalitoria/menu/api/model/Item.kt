@@ -54,6 +54,11 @@ data class Item(
     val book: Book? = null,
     val firework: Firework? = null,
     val fish: Fish? = null,
+    /** Attribute modifiers the item gives while it is held or worn; they replace the ones the material has of its own. */
+    val attributes: List<AttributeModifier> = [],
+    /** The key of the tooltip background a resource pack gives the item, such as `mypack:fancy`. */
+    val tooltipStyle: String? = null,
+    val equippable: Equippable? = null,
     /** Extra NBT as an SNBT compound, such as `{menu:"jobs",tier:3}`. */
     val nbt: String? = null,
     /** Draw this item again on every menu refresh, to keep its placeholders current. */
@@ -83,6 +88,35 @@ data class Book(val pages: List<String>, val title: String = "Book", val author:
 /** Firework rocket or star settings. A rocket flies for [power] (1 to 3) and bursts with every effect; a star shows the first. */
 @Serializable
 data class Firework(val effects: List<FireworkEffect> = [], val power: Int = 1)
+
+/**
+ * A change to an attribute, such as `attack_damage` or `max_health`. [slot] is where the item must be for it to count: `any`,
+ * `mainhand`, `offhand`, `hand`, `head`, `chest`, `legs`, `feet`, `armor` or `body`.
+ */
+@Serializable
+data class AttributeModifier(
+    val attribute: String,
+    val amount: Double,
+    val operation: AttributeOperation = AttributeOperation.ADD,
+    val slot: String = "any",
+)
+
+/** [ADD] adds [AttributeModifier.amount]; [MULTIPLY_BASE] adds that fraction of the base; [MULTIPLY_TOTAL] multiplies the result. */
+enum class AttributeOperation { ADD, MULTIPLY_BASE, MULTIPLY_TOTAL }
+
+/**
+ * Makes an item wearable in [slot] (`HEAD`, `CHEST`, `LEGS`, `FEET`, `BODY`, `OFF_HAND`...). [model] is the key of the
+ * equipment model drawn on the wearer, [cameraOverlay] the key of a texture drawn over the view of the wearer.
+ */
+@Serializable
+data class Equippable(
+    val slot: String,
+    val model: String? = null,
+    val cameraOverlay: String? = null,
+    val swappable: Boolean = true,
+    val dispensable: Boolean = true,
+    val damageOnHurt: Boolean = true,
+)
 
 /** One burst. [colors] and [fade] are `#rrggbb`. */
 @Serializable

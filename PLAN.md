@@ -144,7 +144,10 @@ Each step ends with tests, the README section, and a commit.
   thing, but the placeholders would have to be rewritten), `is near`, `javascript`, `is object`, `[placeholder]`.
 - Tested live: the player data of a bot that was given every kind of item shows each component with the value written
   (the server has no `/data` for entities on Folia, so the saved data was read instead).
-- Not done: the tool component (rules and speeds), attribute modifiers, tooltip styles, equippable.
+- `attributes` (attack damage, max health and the like, per slot group), `tooltip-style` and `equippable` (slot, model, camera
+  overlay, swappable, dispensable, damage on hurt). Bad names are reported by `validate`; tested live (the saved data of a
+  player holds each component as written, and `validate` lists the wrong ones).
+- Not done: the tool component (rules and speeds).
 
 ### 7. Housekeeping (done, tested live)
 

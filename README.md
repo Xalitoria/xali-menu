@@ -135,6 +135,9 @@ cannot be built at all is shown as a barrier and noted once in the log rather th
 | `book` | `pages` (text), `title` and `author` of a written book. |
 | `firework` | `power` (rockets), and `effects` with `type`, `colors`, `fade`, `flicker` and `trail`; a star shows the first. |
 | `fish` | `pattern`, `body-color` and `pattern-color` of a bucket of tropical fish. |
+| `attributes` | A list of `attribute` (`attack_damage`), `amount`, `operation` (`ADD`, `MULTIPLY_BASE`, `MULTIPLY_TOTAL`) and `slot` (`any`, `mainhand`, `offhand`, `hand`, `head`, `chest`, `legs`, `feet`, `armor`, `body`). They replace the ones the material has. |
+| `tooltip-style` | The key of a resource pack's tooltip background. |
+| `equippable` | Makes the item wearable: `slot` (`HEAD`, `CHEST`, ...), `model`, `camera-overlay`, `swappable`, `dispensable`, `damage-on-hurt`. |
 
 Shulker boxes and the like need no key of their own: their color is part of the material (`blue_shulker_box`). The
 importer carries `damage`, `rarity`, `hide_tooltip`, `enchantment_glint_override` and the trim over from DeluxeMenus.

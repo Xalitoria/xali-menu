@@ -4,12 +4,14 @@ import io.papermc.paper.datacomponent.DataComponentType
 import io.papermc.paper.datacomponent.DataComponentTypes
 import io.papermc.paper.datacomponent.item.CustomModelData
 import io.papermc.paper.datacomponent.item.DyedItemColor
+import io.papermc.paper.datacomponent.item.Equippable
 import io.papermc.paper.datacomponent.item.FoodProperties
 import io.papermc.paper.datacomponent.item.TooltipDisplay
 import io.papermc.paper.registry.RegistryAccess
 import io.papermc.paper.registry.RegistryKey
 import java.util.concurrent.ConcurrentHashMap
 import mc.xalitoria.menu.paper.XaliMenu
+import mc.xalitoria.menu.api.model.AttributeOperation
 import mc.xalitoria.menu.api.model.Item
 import mc.xalitoria.menu.api.model.Trim
 import net.kyori.adventure.key.Key
@@ -21,6 +23,9 @@ import org.bukkit.FireworkEffect
 import org.bukkit.NamespacedKey
 import org.bukkit.Material
 import org.bukkit.block.banner.Pattern
+import org.bukkit.attribute.AttributeModifier
+import org.bukkit.inventory.EquipmentSlot
+import org.bukkit.inventory.EquipmentSlotGroup
 import org.bukkit.inventory.ItemStack
 import org.bukkit.entity.TropicalFish
 import org.bukkit.inventory.ItemRarity
@@ -78,6 +83,14 @@ class ItemFactory(private val plugin: XaliMenu) {
             item.glow?.let { meta.setEnchantmentGlintOverride(it) }
             item.maxStackSize?.let { meta.setMaxStackSize(it.coerceIn(1, 99)) }
             item.itemModel?.let { key -> namespaced(key)?.let(meta::setItemModel) }
+            item.tooltipStyle?.let { key -> namespaced(key)?.let(meta::setTooltipStyle) }
+            item.attributes.forEachIndexed { index, spec ->
+                val attribute = attribute(spec.attribute)
+                val group = slotGroup(spec.slot)
+                if (attribute != null && group != null) {
+                    meta.addAttributeModifier(attribute, AttributeModifier(NamespacedKey(plugin, "modifier-$index"), spec.amount, operation(spec.operation), group))
+                }
+            }
             if (meta is EnchantmentStorageMeta) for ((key, value) in item.storedEnchants) enchantment(key)?.let { meta.addStoredEnchant(it, value, true) }
             if (meta is ArmorMeta) item.trim?.let { trim -> armorTrim(trim)?.let(meta::setTrim) }
             if (meta is BookMeta) item.book?.let { book ->
@@ -111,6 +124,13 @@ class ItemFactory(private val plugin: XaliMenu) {
             val hidden = item.hide.mapNotNull(::componentType).toTypedArray()
             stack.setData(DataComponentTypes.TOOLTIP_DISPLAY, TooltipDisplay.tooltipDisplay().hideTooltip(item.hideTooltip).addHiddenComponents(*hidden).build())
         }
+        item.equippable?.let { spec ->
+            val slot = equipmentSlot(spec.slot) ?: return@let
+            val builder = Equippable.equippable(slot).swappable(spec.swappable).dispensable(spec.dispensable).damageOnHurt(spec.damageOnHurt)
+            spec.model?.let { key -> namespaced(key)?.let { builder.assetId(Key.key(it.namespace, it.key)) } }
+            spec.cameraOverlay?.let { key -> namespaced(key)?.let { builder.cameraOverlay(Key.key(it.namespace, it.key)) } }
+            stack.setData(DataComponentTypes.EQUIPPABLE, builder.build())
+        }
         item.food?.let { stack.setData(DataComponentTypes.FOOD, FoodProperties.food().nutrition(it.nutrition.coerceAtLeast(0)).saturation(it.saturation).canAlwaysEat(it.alwaysEdible).build()) }
         // `nbt` is raw SNBT; UnsafeValues is the only API that applies it.
         @Suppress("DEPRECATION")
@@ -129,6 +149,15 @@ class ItemFactory(private val plugin: XaliMenu) {
         item.itemModel?.let { if (namespaced(it) == null) problems += "item-model '$it' isn't a key" }
         item.potionType?.let { if (potionType(it) == null) problems += "potion-type '$it' doesn't exist" }
         item.trim?.let { if (armorTrim(it) == null) problems += "trim ${it.pattern} / ${it.material} doesn't exist" }
+        item.tooltipStyle?.let { if (namespaced(it) == null) problems += "tooltip-style '$it' isn't a key" }
+        item.attributes.forEach { spec ->
+            if (attribute(spec.attribute) == null) problems += "attribute '${spec.attribute}' doesn't exist"
+            if (slotGroup(spec.slot) == null) problems += "attribute slot '${spec.slot}' doesn't exist"
+        }
+        item.equippable?.let { spec ->
+            if (equipmentSlot(spec.slot) == null) problems += "equippable slot '${spec.slot}' doesn't exist"
+            listOfNotNull(spec.model, spec.cameraOverlay).filter { namespaced(it) == null }.forEach { problems += "equippable key '$it' isn't a key" }
+        }
         item.maxStackSize?.let { if (it !in 1..99) problems += "max-stack-size $it isn't between 1 and 99" }
         item.damage?.let { if (it < 0) problems += "damage can't be negative" }
         item.food?.let { if (it.nutrition < 0) problems += "food nutrition can't be negative" }
@@ -163,6 +192,18 @@ class ItemFactory(private val plugin: XaliMenu) {
         fun enchantment(key: String) = RegistryAccess.registryAccess().getRegistry(RegistryKey.ENCHANTMENT).get(Key.key(key))
 
         private fun namespaced(key: String): NamespacedKey? = NamespacedKey.fromString(key.trim().lowercase())
+
+        private fun attribute(key: String) = namespaced(key)?.let { RegistryAccess.registryAccess().getRegistry(RegistryKey.ATTRIBUTE).get(it) }
+
+        private fun slotGroup(name: String): EquipmentSlotGroup? = EquipmentSlotGroup.getByName(name.trim().lowercase())
+
+        private fun equipmentSlot(name: String): EquipmentSlot? = runCatching { EquipmentSlot.valueOf(name.trim().uppercase()) }.getOrNull()
+
+        private fun operation(operation: AttributeOperation) = when (operation) {
+            AttributeOperation.ADD -> AttributeModifier.Operation.ADD_NUMBER
+            AttributeOperation.MULTIPLY_BASE -> AttributeModifier.Operation.ADD_SCALAR
+            AttributeOperation.MULTIPLY_TOTAL -> AttributeModifier.Operation.MULTIPLY_SCALAR_1
+        }
 
         private fun potionType(key: String): PotionType? {
             val id = namespaced(key) ?: return null
