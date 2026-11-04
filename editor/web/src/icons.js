@@ -8,6 +8,8 @@ export const settings = {
   vanilla: 'https://raw.githubusercontent.com/InventivetalentDev/minecraft-assets/1.21.4/assets/minecraft/textures',
   /** @type {import('./pack.js').Pack|null} */
   pack: null,
+  /** @type {import('./itemrender.js').ItemRenderer|null} draws items from their models; made again when the pack changes */
+  renderer: null,
   /** What the server's plugins say custom items are: material (key) to `{material, itemModel, customModelData}`. */
   resolved: new Map(),
 }
@@ -29,19 +31,39 @@ export function parts(material) {
 }
 
 /**
- * @param {string} material
- * @param {{model?: string, itemModel?: string}} [extra] the item model key and custom model data of the item
+ * The icon of a menu item: a colored tile at once, then the item as the game draws it when the model and its textures are found,
+ * otherwise a picture from the pack or from a public copy of the textures.
+ * @param {object} item the item as the menu writes it
  * @returns {HTMLElement}
  */
-export function icon(material, extra = {}) {
+export function icon(item) {
+  const material = String(item.material ?? '')
   const { prefix, id } = parts(material)
   const label = (prefix ? prefix : id).replace(/_/g, ' ').split(' ').map((w) => w[0] ?? '').join('').slice(0, 3).toUpperCase()
   const wrapper = h('span', { class: 'icon-wrap' }, tile(label || '?', material || '?'))
   const known = settings.resolved.get(material) ?? {}
+  if (!material.includes('%') && settings.renderer) {
+    settings.renderer.render(item, known).then((image) => {
+      if (image) wrapper.replaceChildren(toCanvas(image))
+      else fallback(wrapper, material, prefix, id, item, known)
+    })
+  } else fallback(wrapper, material, prefix, id, item, known)
+  return wrapper
+}
+
+/** The pixels of a render as a canvas. */
+function toCanvas(image) {
+  const canvas = h('canvas', { class: 'pixel', width: image.width, height: image.height })
+  canvas.getContext('2d').putImageData(new ImageData(image.data, image.width, image.height), 0, 0)
+  return canvas
+}
+
+/** What was used before items were drawn from their models: the texture with the name of the item. */
+function fallback(wrapper, material, prefix, id, item, known) {
   const details = {
     material: known.material,
-    itemModel: extra.itemModel ?? known.itemModel,
-    customModelData: extra.model !== undefined ? [extra.model] : known.customModelData,
+    itemModel: item['item-model'] ?? known.itemModel,
+    customModelData: typeof item.model === 'number' ? [item.model] : known.customModelData,
   }
   const sources = []
   if (settings.pack) sources.push(...settings.pack.itemTextures(known.material ?? id, details))
@@ -51,7 +73,6 @@ export function icon(material, extra = {}) {
     sources.push(`${settings.vanilla}/item/${known.material}.png`)
   }
   if (sources.length) load(wrapper, sources)
-  return wrapper
 }
 
 /** Tries each URL in turn and puts the first picture that loads over the tile. */

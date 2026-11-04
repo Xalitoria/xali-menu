@@ -53,7 +53,7 @@ textarea.json, textarea.raw { font-family: ui-monospace, monospace; font-size: 1
 .slot .number { position: absolute; left: 3px; top: 1px; font-size: 9px; color: #fff8; pointer-events: none; } .slot .amount { position: absolute; right: 4px; bottom: 2px; color: #fff; font-weight: 700; text-shadow: 1px 1px #000; }
 .layered-window { position: relative; padding: 0; border: 0; background: none; } .layered-window canvas { position: absolute; left: 0; top: 0; image-rendering: pixelated; }
 .slots.layered { position: absolute; left: 24px; top: 54px; } .slots.layered .slot { background: transparent; border: 0; box-shadow: inset 0 0 0 1px rgba(0,0,0,.25); }
-.icon-wrap { position: relative; display: grid; place-items: center; width: 40px; height: 40px; } .icon-wrap .pixel { position: absolute; inset: 0; width: 100%; height: 100%; image-rendering: pixelated; object-fit: contain; }
+.icon-wrap { position: relative; display: grid; place-items: center; width: 48px; height: 48px; } .icon-wrap .pixel { position: absolute; inset: 0; width: 48px; height: 48px; image-rendering: pixelated; }
 .tile { display: grid; place-items: center; width: 36px; height: 36px; color: #fff; font-size: 11px; font-weight: 700; border-radius: 4px; }
 .picker { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; margin-top: 10px; } .picker button.active { border-color: var(--accent); color: var(--accent); }
 .title-canvas, .window-canvas { image-rendering: pixelated; max-width: 100%; background: #c6c6c6; }

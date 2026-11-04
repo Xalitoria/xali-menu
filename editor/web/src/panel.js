@@ -8,6 +8,8 @@ import { parseHead, realign, insert } from './glyphs.js'
 import { runs } from './mctext.js'
 import { slotCount } from './check.js'
 import { settings } from './icons.js'
+import { Assets } from './assets.js'
+import { ItemRenderer } from './itemrender.js'
 
 /** The scale the window is drawn at: one pixel of the game is this many pixels on the page. */
 export const SCALE = 3
@@ -35,12 +37,14 @@ export class PackPanel {
     try {
       this.pack = await Pack.load(blob, label)
       settings.pack = this.pack
+      settings.renderer = new ItemRenderer(new Assets({ pack: this.pack }))
       this.fontKey = this.pack.fontKeys().includes(DEFAULT_FONT) ? DEFAULT_FONT : (this.pack.fontKeys()[0] ?? DEFAULT_FONT)
       const summary = await this.pack.summary()
       this.message = `${label}: ${summary.namespaces.length} namespaces, ${summary.fonts} fonts, ${summary.bitmaps} picture providers.`
     } catch (error) {
       this.pack = null
       settings.pack = null
+      settings.renderer = new ItemRenderer(new Assets())
       this.message = `The pack could not be read: ${error.message}`
     }
     this.app.draw()

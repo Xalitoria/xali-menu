@@ -10,7 +10,9 @@ import { fromHash, decodeData, Server, readFile, toFile, download } from './sour
 import { parse } from './hocon.js'
 import { write } from './hoconWriter.js'
 import { render as renderText } from './mctext.js'
-import { icon } from './icons.js'
+import { icon, settings as iconSettings } from './icons.js'
+import { Assets } from './assets.js'
+import { ItemRenderer } from './itemrender.js'
 import { PackPanel } from './panel.js'
 
 const TABS = ['Menu', 'Items', 'Raw', 'Pack']
@@ -39,6 +41,7 @@ export class App {
     this.store.onChange((quiet) => { this.refreshHeader(); if (!quiet) this.draw() })
     window.addEventListener('keydown', (e) => this.keys(e))
     window.addEventListener('beforeunload', (e) => { if (this.store.dirty) e.preventDefault() })
+    iconSettings.renderer = new ItemRenderer(new Assets())
     this.build()
   }
 

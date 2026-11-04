@@ -73,7 +73,7 @@ export class Inventory {
           const name = e.dataTransfer.getData('text/plain')
           if (name && menu.items[name]) { this.store.set(['items', name, 'slot'], slot); this.slot = slot }
         },
-      }, item && icon(item.material, { itemModel: item['item-model'], model: item.model }),
+      }, item && icon(item),
       item && (item.amount ?? 1) > 1 && h('span', { class: 'amount' }, item.amount),
       h('span', { class: 'number' }, slot))
       grid.append(cell)
