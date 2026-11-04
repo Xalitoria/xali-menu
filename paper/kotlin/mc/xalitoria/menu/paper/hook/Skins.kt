@@ -14,7 +14,7 @@ class Skins(private val plugin: Plugin) {
 
     /**
      * Gives [player] the skin of the player [source] has or, if [source] is a link to an image, that picture. Looking it up
-     * can take a while, so it is done off the region threads, and the skin is put on once it is known. A skin that can't be
+     * can take a while, so it is done off the region threads, and the skin is put on once it is known. A skin that cannot be
      * found is [failed] with the reason. Anything done with a player happens on their own thread.
      */
     fun set(player: Player, source: String, slim: Boolean, failed: (String) -> Unit) {

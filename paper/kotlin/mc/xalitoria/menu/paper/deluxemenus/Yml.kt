@@ -6,7 +6,7 @@ import com.charleskorn.kaml.YamlNode
 import com.charleskorn.kaml.YamlScalar
 
 // DeluxeMenus reads its files loosely: a number may be quoted, a list may be a single value, and a key may hold
-// nothing. These read a node the same way, giving null for whatever isn't there instead of failing.
+// nothing. These read a node the same way, giving null for whatever is not there instead of failing.
 
 /** The value under [key]; named apart from kaml's own generic `get`, which a member would shadow an extension of. */
 internal fun YamlMap.option(key: String): YamlNode? =

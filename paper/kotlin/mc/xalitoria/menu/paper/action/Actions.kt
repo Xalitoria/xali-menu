@@ -243,7 +243,7 @@ object Actions {
         }
     }
 
-    /** Ends the list of actions it is in; the ones after it don't run. Mostly for a `chance`. */
+    /** Ends the list of actions it is in; the ones after it do not run. Mostly for a `chance`. */
     @Serializable @SerialName("stop")
     data object Stop : Action {
         override fun run(ctx: MenuContext) = ctx.abort()
@@ -253,7 +253,7 @@ object Actions {
      * Changes a variable. [op] says how: set it to [value], remove it, or change its number by [value]. It is a global
      * variable, or with [scope] `PLAYER` the personal one of the viewer, or of [player] (a name; may be a placeholder).
      * [expiry] makes a set variable last that long; with [replace] false a variable that already exists is kept. If the
-     * variable's store isn't ready yet the viewer is told so and nothing changes.
+     * variable's store is not ready yet the viewer is told so and nothing changes.
      */
     @Serializable @SerialName("variable")
     data class Variable(

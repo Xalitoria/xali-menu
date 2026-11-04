@@ -257,7 +257,7 @@ object Effects {
     /**
      * Gives the viewer the skin of the player [skin], or of the picture at that link, with SkinsRestorer, which keeps it for
      * their next visit. [slim] picks the thinner arms for a picture. It is looked up in the background and put on when found,
-     * so the actions after it don't wait; one that can't be found is noted in the console.
+     * so the actions after it do not wait; one that cannot be found is noted in the console.
      */
     @Serializable @SerialName("skin")
     data class Skin(val skin: String, val slim: Boolean = false) : Action {

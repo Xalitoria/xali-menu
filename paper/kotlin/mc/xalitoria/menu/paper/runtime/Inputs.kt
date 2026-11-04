@@ -32,7 +32,7 @@ class Prompt(
 }
 
 /**
- * The chat prompts of the `input` action: while a player has one, their next message is theirs to answer it, and isn't
+ * The chat prompts of the `input` action: while a player has one, their next message is theirs to answer it, and is not
  * said in chat. The chat event comes off the main threads, so the answer is only looked at there; what it triggers runs
  * on the player's own region.
  */

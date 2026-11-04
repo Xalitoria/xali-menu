@@ -64,7 +64,7 @@ private val NBT = [
 ]
 private val NBT_OPTIONS = NBT.flatMap { [it.option, it.option + "s"] }
 
-/** Converts a DeluxeMenus menu section into a [Menu], noting what couldn't be carried over in [Context.warnings]. */
+/** Converts a DeluxeMenus menu section into a [Menu], noting what could not be carried over in [Context.warnings]. */
 internal fun Context.convertMenu(section: YamlMap): Menu {
     (section.keys - MENU_OPTIONS).forEach { warn("option '$it' isn't supported and is ignored") }
 

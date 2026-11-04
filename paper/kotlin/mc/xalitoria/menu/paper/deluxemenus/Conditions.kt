@@ -35,7 +35,7 @@ private val ALIASES = mapOf(
 
 /**
  * Turns a DeluxeMenus requirement block (what `open_requirement`, `view_requirement` and the click requirements hold)
- * into a [Gate], or null if [node] holds no requirements. A requirement of a type XaliMenu can't run becomes
+ * into a [Gate], or null if [node] holds no requirements. A requirement of a type XaliMenu cannot run becomes
  * [Conditions.Never] with a warning, so the menu fails closed.
  */
 internal fun Context.parseGate(node: YamlNode?): Gate? {

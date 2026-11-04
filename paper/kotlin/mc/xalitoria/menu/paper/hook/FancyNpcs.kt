@@ -14,7 +14,7 @@ import org.bukkit.plugin.EventExecutor
  * API: the plugin may be missing, or a different version. Make this only when FancyNpcs is enabled.
  */
 class FancyNpcs(private val plugin: XaliMenu, private val activators: ActivatorListener) : Listener {
-    /** Starts listening. @return false if this version of FancyNpcs doesn't have the event it is heard by */
+    /** Starts listening. @return false if this version of FancyNpcs does not have the event it is heard by */
     fun register(): Boolean = try {
         val type = Class.forName("de.oliver.fancynpcs.api.events.NpcInteractEvent", true, plugin.server.pluginManager.getPlugin("FancyNpcs")!!.javaClass.classLoader)
         val npc = type.getMethod("getNpc")

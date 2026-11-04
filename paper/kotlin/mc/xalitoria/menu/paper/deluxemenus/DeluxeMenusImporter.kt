@@ -17,7 +17,7 @@ class ImportedMenu(val name: String, val source: String, val menu: Menu, val war
     val fileName: String get() = name.replace(Regex("[^A-Za-z0-9_.-]"), "_")
 }
 
-/** What [DeluxeMenusImporter.read] found: the menus that came across and a message for each one that didn't. */
+/** What [DeluxeMenusImporter.read] found: the menus that came across and a message for each one that did not. */
 class ImportReport(val menus: List<ImportedMenu>, val failures: List<String>)
 
 /** What [DeluxeMenusImporter.write] did with each menu. */
@@ -25,7 +25,7 @@ class WriteReport(val written: List<Path>, val skipped: List<Path>)
 
 /**
  * Brings a DeluxeMenus folder across: `config.yml` lists the menus under `gui_menus`, each either written out there
- * or kept in a file of the `gui_menus` folder named by `file`. Menus the file doesn't list are not menus to
+ * or kept in a file of the `gui_menus` folder named by `file`. Menus the file does not list are not menus to
  * DeluxeMenus, so they are left out here as well.
  */
 class DeluxeMenusImporter(private val format: MenuFormat, private val materials: Materials = Materials.None) {
@@ -83,7 +83,7 @@ class DeluxeMenusImporter(private val format: MenuFormat, private val materials:
 
     /**
      * Writes each menu of [report] to `<target>/<name>.conf`. A menu whose file already exists is left alone unless
-     * [overwrite] is set, so importing twice doesn't undo edits.
+     * [overwrite] is set, so importing twice does not undo edits.
      */
     fun write(report: ImportReport, target: Path, overwrite: Boolean = false): WriteReport {
         target.createDirectories()

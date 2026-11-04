@@ -77,7 +77,7 @@ class MenuManager(private val plugin: XaliMenu) {
         ?.listFiles { f -> f.extension == "conf" }?.sortedBy { it.name }.orEmpty()
 
     /**
-     * Reads just the commands of every menu file. Commands must be registered when the server starts, before the
+     * Reads only the commands of every menu file. Commands must be registered when the server starts, before the
      * plugins that add actions and conditions have all enabled, which a full read needs.
      */
     fun scan() {
@@ -96,7 +96,7 @@ class MenuManager(private val plugin: XaliMenu) {
         labelsOf = found
     }
 
-    /** Reads every .conf file of the menus folder again. A file that can't be read is reported and left out; the rest still load. */
+    /** Reads every .conf file of the menus folder again. A file that cannot be read is reported and left out; the rest still load. */
     fun load(): Int {
         scan()
         val format = MenuFormat(plugin.registry.module, plugin.registry.externalNames, plugin.registry.activatorNames)
@@ -133,7 +133,7 @@ class MenuManager(private val plugin: XaliMenu) {
 
     /**
      * Reads the file of the menu [name] again and puts it in place of the one loaded, leaving the other menus alone. A file
-     * that can't be read leaves the menu as it was. Commands are registered at startup, so a changed `commands` needs a restart.
+     * that cannot be read leaves the menu as it was. Commands are registered at startup, so a changed `commands` needs a restart.
      */
     fun reload(name: String): Reread {
         val file = files().firstOrNull { it.nameWithoutExtension.equals(name, ignoreCase = true) } ?: return Reread.NoFile
@@ -156,7 +156,7 @@ class MenuManager(private val plugin: XaliMenu) {
     /** Notes in the console what is wrong with [entry], which would otherwise only show when a player opens it. */
     private fun check(entry: LoadedMenu) = problemsOf(entry).forEach { plugin.logger warn "Menu '${entry.name}': $it" }
 
-    /** What is wrong with [entry] that doesn't depend on who opens it. */
+    /** What is wrong with [entry] that does not depend on who opens it. */
     fun problemsOf(entry: LoadedMenu): List<String> {
         val problems = mutableListOf<String>()
         val definition = entry.menu
@@ -218,7 +218,7 @@ class MenuManager(private val plugin: XaliMenu) {
         null
     }
 
-    /** What is wrong with [activator] that doesn't depend on who triggers it. */
+    /** What is wrong with [activator] that does not depend on who triggers it. */
     private fun activatorProblems(activator: Activator): List<String> = buildList {
         when (activator) {
             is Activator.HeldItem -> {
@@ -288,7 +288,7 @@ class MenuManager(private val plugin: XaliMenu) {
         view.attach(inventory)
         view.draw()
 
-        // Registered first, so closing the menu this player had open isn't taken for the end of this one.
+        // Registered first, so closing the menu this player had open is not taken for the end of this one.
         views.put(player.uniqueId, view)?.stopTasks()
         if (player.openInventory(inventory) == null) {
             // Another plugin canceled it.

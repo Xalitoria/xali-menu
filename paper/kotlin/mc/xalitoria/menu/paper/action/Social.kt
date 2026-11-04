@@ -24,7 +24,7 @@ object Social {
     }
 
     /**
-     * Closes the menu and asks the viewer to type something in chat. What they type isn't said in chat; it runs [then] as
+     * Closes the menu and asks the viewer to type something in chat. What they type is not said in chat; it runs [then] as
      * `{input}`. Typing [cancel] (or waiting longer than [timeout]) runs [onCancel] instead. With [match], a regular
      * expression the whole reply must fit, anything else is turned down with [invalid] and the viewer may try again.
      */

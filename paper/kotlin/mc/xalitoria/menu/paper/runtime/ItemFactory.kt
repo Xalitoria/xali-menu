@@ -47,7 +47,7 @@ import org.bukkit.potion.PotionType
 import org.bukkit.inventory.meta.PotionMeta
 import org.bukkit.potion.PotionEffect
 
-/** Builds the stack an [Item] shows as. Anything that can't be resolved is skipped (and noted by [validate]) rather than failing the menu. */
+/** Builds the stack an [Item] shows as. Anything that cannot be resolved is skipped (and noted by [validate]) rather than failing the menu. */
 class ItemFactory(private val plugin: XaliMenu) {
     /**
      * The stack for [item] as [ctx]'s player sees it. [loaded] is called later if part of it (a player's skin) had to be
@@ -56,7 +56,7 @@ class ItemFactory(private val plugin: XaliMenu) {
     fun build(item: Item, ctx: Context, loaded: () -> Unit = {}): ItemStack = try {
         construct(item, ctx, loaded)
     } catch (e: RuntimeException) {
-        // One item that can't be made must not take the whole menu down with it; it shows as a barrier, and is noted once.
+        // One item that cannot be made must not take the whole menu down with it; it shows as a barrier, and is noted once.
         if (failed.add(e.toString())) plugin.logger.warning("Item '${item.material}' in menu '${ctx.menu}' could not be built: ${e.message}")
         ItemStack(Material.BARRIER)
     }
@@ -155,7 +155,7 @@ class ItemFactory(private val plugin: XaliMenu) {
         return stack
     }
 
-    /** What is wrong with [item] that doesn't depend on who looks at it; nothing means it will build. */
+    /** What is wrong with [item] that does not depend on who looks at it; nothing means it will build. */
     fun validate(item: Item): List<String> {
         val problems = mutableListOf<String>()
         if ('%' !in item.material && base(item.material, {}, probe = true) == null) problems += "material '${item.material}' isn't a known item"
@@ -197,7 +197,7 @@ class ItemFactory(private val plugin: XaliMenu) {
         return problems
     }
 
-    /** The stack for a material written as `<prefix>:<id>` or a plain item key; null if it isn't one. */
+    /** The stack for a material written as `<prefix>:<id>` or a plain item key; null if it is not one. */
     private fun base(spec: String, loaded: () -> Unit, probe: Boolean = false): ItemStack? {
         val prefix = spec.substringBefore(':', "")
         return when {
@@ -217,7 +217,7 @@ class ItemFactory(private val plugin: XaliMenu) {
 
         private fun namespaced(key: String): NamespacedKey? = NamespacedKey.fromString(key.trim().lowercase())
 
-        /** The blocks for keys such as `stone` and tags such as `#minecraft:mineable/pickaxe`; what can't be found is left out. */
+        /** The blocks for keys such as `stone` and tags such as `#minecraft:mineable/pickaxe`; what cannot be found is left out. */
         private fun blocks(specs: List<String>): List<TypedKey<org.bukkit.block.BlockType>> {
             val registry = RegistryAccess.registryAccess().getRegistry(RegistryKey.BLOCK)
             return specs.flatMap { spec ->

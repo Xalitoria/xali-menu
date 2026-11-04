@@ -108,7 +108,7 @@ class VariableStore internal constructor(
             val storages = mutableListOf<Storage>()
 
             val memory = Shard("memory", scope, logger)
-            // Made at the first try, so that a file that can't be opened is tried again rather than ending the plugin.
+            // Made at the first try, so that a file that cannot be opened is tried again rather than ending the plugin.
             var sqlite: Storage? = null
             val local = Shard("local", scope, logger, connect = {
                 val storage = sqlite ?: Storage.sqlite(folder, database).also { sqlite = it; storages += it }

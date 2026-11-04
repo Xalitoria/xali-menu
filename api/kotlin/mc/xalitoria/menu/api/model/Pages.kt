@@ -18,13 +18,19 @@ import mc.xalitoria.menu.api.Catalog
  */
 @Serializable
 data class Pages(
+    /** The source of the elements. */
     val catalog: Catalog,
+    /** The slots the elements go into. */
     val slots: List<Int> = [],
+    /** The item drawn for each element. */
     val item: Item,
+    /** Rows of nine characters that mark the slots of the elements instead of [slots]. */
     val layout: List<String> = [],
+    /** The character of [layout] that stands for an element. */
     val cell: String = "x",
     /** The name of the element value to order by, such as `name`; numbers are ordered as numbers. The catalog's own order when absent. */
     val sort: String? = null,
+    /** Whether the order of [sort] is reversed. */
     val descending: Boolean = false,
     /** Drawn in the first of the [slots] when the catalog has no element to list. */
     val empty: Item? = null,

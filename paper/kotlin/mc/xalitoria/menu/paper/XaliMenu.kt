@@ -108,7 +108,7 @@ class XaliMenu : JavaPlugin() {
 
         val pm = server.pluginManager
         // The server's own database is read here, which is quick. The shared one is connected to in the background, so a
-        // database that is slow or down doesn't hold the server up; its variables read as unresolved until it has answered.
+        // database that is slow or down does not hold the server up; its variables read as unresolved until it has answered.
         variables = VariableStore.create(dataPath, config.data, scope, logger)
 
         economyHook = Economy(this)

@@ -38,7 +38,7 @@ object Flow {
 
     /**
      * Runs [actions] once for each element of [catalog], with the element's values as `{name}` (and `{index}`, from 1). The
-     * first [limit] elements are used. Each run is a list of its own, so one that stops doesn't end the others.
+     * first [limit] elements are used. Each run is a list of its own, so one that stops does not end the others.
      */
     @Serializable @SerialName("run-for")
     data class RunFor(val catalog: Catalog, val actions: List<Action>, val limit: Int = 100) : Action {

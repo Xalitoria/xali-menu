@@ -11,7 +11,7 @@ import org.bukkit.entity.Player
 interface MenuContext {
     val player: Player
 
-    /** The name of the menu this happens in; null for something that isn't in a menu. */
+    /** The name of the menu this happens in; null for something that is not in a menu. */
     val menu: String?
 
     /** The words typed after the command that opened the menu, by the names the menu gives them in `args`. */
@@ -40,7 +40,7 @@ interface MenuContext {
     fun run(actions: List<Action>)
 
     /**
-     * Ends the list of actions this is called from: the ones after it don't run. For an action that couldn't do what
+     * Ends the list of actions this is called from: the ones after it do not run. For an action that could not do what
      * the rest depends on, such as charging for something that is given next.
      */
     fun abort(): Nothing

@@ -14,7 +14,7 @@ class Added(val entry: Entry<Activator.Addon>, val filter: ActivatorFilter)
 
 /**
  * The activators of all the loaded menus, by kind, in the order they are tried: by menu name, then as written. [filterOf]
- * builds what decides for an activator that another plugin added; one it gives null for (the plugin isn't here, or
+ * builds what decides for an activator that another plugin added; one it gives null for (the plugin is not here, or
  * refused the keys) never fires, and is reported when the menu is checked.
  */
 class ActivatorIndex(menus: Map<String, List<Activator>>, filterOf: (Activator.Addon) -> ActivatorFilter? = { null }) {

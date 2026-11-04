@@ -9,7 +9,9 @@ import mc.xalitoria.menu.api.Action
 data class Check(
     val condition: Condition,
     val optional: Boolean = false,
+    /** Run when the condition holds. */
     val pass: List<Action> = [],
+    /** Run when the condition does not hold. */
     val deny: List<Action> = [],
 )
 
@@ -22,9 +24,13 @@ data class Check(
  */
 @Serializable
 data class Gate(
+    /** The checks, tried in order. */
     val require: List<Check> = [],
+    /** How many checks must hold, optional ones included. All non-optional checks must hold regardless. */
     val minimum: Int? = null,
     val stopAtSuccess: Boolean = false,
+    /** Run when the gate holds. */
     val pass: List<Action> = [],
+    /** Run when the gate does not hold. */
     val deny: List<Action> = [],
 )

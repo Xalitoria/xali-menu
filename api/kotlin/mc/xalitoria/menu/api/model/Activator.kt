@@ -13,11 +13,11 @@ import kotlinx.serialization.Serializable
  */
 @Serializable
 sealed interface Activator {
-    /** Must hold for the menu to open; its `deny` actions run when it doesn't. */
+    /** Must hold for the menu to open; its `deny` actions run when it does not. */
     val require: Gate?
 
     /**
-     * Whether the event that matched is canceled when the menu opens, so that a lever isn't pulled and a message isn't
+     * Whether the event that matched is canceled when the menu opens, so that a lever is not pulled and a message is not
      * said. The chat is the exception: it is canceled as soon as the message matches, since the gate is asked later, on
      * the player's own thread. It has no meaning for [Join].
      */

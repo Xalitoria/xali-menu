@@ -62,7 +62,7 @@ class Storage private constructor(val source: HikariDataSource, prefix: String) 
                 it[rev] = 0
             }
         }
-        // By hand: the migration doesn't see this index again on SQLite and would try to make it on every start, and
+        // By hand: the migration does not see this index again on SQLite and would try to make it on every start, and
         // MySQL has no "if not exists" for it.
         try {
             transaction(database) { exec("CREATE INDEX ${variableTable}_rev ON $variableTable (rev)") }

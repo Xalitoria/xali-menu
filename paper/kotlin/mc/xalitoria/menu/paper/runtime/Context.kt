@@ -62,7 +62,7 @@ class Context(
         return if ('%' in result) Placeholders.resolver(player, result) else result
     }
 
-    /** The result of a text that can't change (no placeholder, no argument) is kept. */
+    /** The result of a text that cannot change (no placeholder, no argument) is kept. */
     override fun component(text: String): Component =
         if ('%' in text || values.isNotEmpty() && '{' in text) parse(text, UnaryOperator<String> { it.verbatim() }).toComponent()
         else STATIC.computeIfAbsent(text) { it.toComponent() }

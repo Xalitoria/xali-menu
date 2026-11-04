@@ -10,7 +10,7 @@ import org.bukkit.Bukkit
 
 /** The catalogs XaliMenu comes with. Text may hold placeholders: PlaceholderAPI's, and `{name}` for the menu's arguments. */
 object Catalogs {
-    /** The most elements a catalog gives, so a placeholder that comes out huge can't make a menu build a list of millions. */
+    /** The most elements a catalog gives, so a placeholder that comes out huge cannot make a menu build a list of millions. */
     const val LIMIT = 10_000
 
     fun register(registry: TypeRegistry) {

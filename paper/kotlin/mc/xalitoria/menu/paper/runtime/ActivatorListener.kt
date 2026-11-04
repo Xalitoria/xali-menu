@@ -33,7 +33,7 @@ import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Opens menus for what the players do: the `open-with` of the menus. The events of a player come on the thread of the
- * region they are in, where a gate and the opening are done at once. The chat is the one that doesn't, and only has its
+ * region they are in, where a gate and the opening are done at once. The chat is the one that does not, and only has its
  * message looked at there.
  */
 class ActivatorListener(private val plugin: XaliMenu) : Listener {
@@ -150,7 +150,7 @@ class ActivatorListener(private val plugin: XaliMenu) : Listener {
 
     private val complained = ConcurrentHashMap.newKeySet<String>()
 
-    /** A filter is another plugin's code; one that throws doesn't match, and is noted once. */
+    /** A filter is another plugin's code; one that throws does not match, and is noted once. */
     private fun matches(added: Added, values: Map<String, String>): Boolean = try {
         added.filter.matches(values)
     } catch (e: RuntimeException) {

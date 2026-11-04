@@ -15,14 +15,20 @@ import mc.xalitoria.menu.api.Action
  */
 @Serializable
 data class Menu(
+    /** The window title. Colors, placeholders and `{name}` arguments are allowed. */
     val title: String,
+    /** The number of slots of a chest menu. */
     @EncodeDefault
     val size: Int = 54,
+    /** `chest`, or the name of another inventory type, such as `hopper` or `dispenser`. */
     val type: String = "chest",
+    /** The commands that open the menu. An entry of several words is not registered as a command. */
     val commands: List<String> = [],
     /** Whether [commands] are registered as commands of the server, or only usable through `open` actions. */
     val register: Boolean = true,
+    /** The names of the words that follow a command, in order. */
     val args: List<String> = [],
+    /** The usage text shown when a player gives too few or too many words. Built from [args] when absent. */
     val argsUsage: String? = null,
     /**
      * What tab completion offers for each of [args], by name: the words themselves, or `@players` for the names of the
@@ -32,14 +38,18 @@ data class Menu(
     /** How often the menu draws the items marked `update` again; never when absent. */
     @Serializable(with = DurationAsString::class)
     val refresh: Duration? = null,
+    /** Must hold for the menu to open. */
     val open: Gate? = null,
+    /** Run when the menu has opened. */
     val onOpen: List<Action> = [],
+    /** Run when the player closes the menu or it is replaced by another. */
     val onClose: List<Action> = [],
+    /** The items of the menu, by name. The name is only used to refer to an item from [legend] and in messages. */
     val items: Map<String, Item> = emptyMap(),
     /**
      * The menu as it looks, in rows of nine characters, for items to be placed by: each character of the [legend] puts the
      * item it names in every slot where it stands, besides the item's own `slot` and `slots`. A row of fewer characters
-     * ends in blanks, and a character the legend doesn't know is a blank.
+     * ends in blanks, and a character the legend does not know is a blank.
      */
     val layout: List<String> = [],
     /** The character of the [layout] to the name of the item in [items] that goes where it stands. */

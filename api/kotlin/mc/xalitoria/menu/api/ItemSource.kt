@@ -10,6 +10,6 @@ interface ItemSource {
     /** What comes before the colon, in lower case. */
     val prefix: String
 
-    /** The item with [id], or null if there is none (or the plugin hasn't loaded its items yet). Called on any thread. */
+    /** The item with [id], or null if there is none (or the plugin has not loaded its items yet). Called on any thread. */
     fun item(id: String): ItemStack?
 }

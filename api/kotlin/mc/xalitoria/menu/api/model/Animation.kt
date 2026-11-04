@@ -13,6 +13,7 @@ import mc.xalitoria.menu.api.Action
 @Serializable
 data class Animation(
     val frames: List<Frame>,
+    /** Whether the animation starts again after the last frame. */
     val loop: Boolean = false,
     val onStart: List<Action> = [],
     val onEnd: List<Action> = [],
@@ -30,11 +31,17 @@ data class Animation(
  */
 @Serializable
 data class Frame(
+    /** The wait before the frame, as a duration such as `500ms` or `2s`. */
     @Serializable(with = DurationAsString::class)
     val delay: Duration = 1.seconds,
+    /** Whether the frame replaces what the frames before it drew. */
     val clear: Boolean = true,
+    /** Must hold when the frame comes up, or the frame is skipped. */
     val require: Gate? = null,
+    /** Run when the frame is drawn. */
     val onStart: List<Action> = [],
+    /** Run when the frame is replaced by the next. */
     val onEnd: List<Action> = [],
+    /** The items the frame draws. */
     val items: Map<String, Item> = emptyMap(),
 )

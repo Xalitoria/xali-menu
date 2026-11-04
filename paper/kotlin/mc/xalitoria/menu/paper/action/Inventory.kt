@@ -41,7 +41,7 @@ object Inventory {
         }
     }
 
-    /** What to do with the part of the items that doesn't fit into the inventory. */
+    /** What to do with the part of the items that does not fit into the inventory. */
     enum class Overflow {
         /** Drop it at the viewer's feet. */
         DROP,
@@ -73,7 +73,7 @@ object Inventory {
 
     /**
      * Takes [amount] of the items that match from the viewer. If they have fewer nothing is taken and the actions after
-     * this one don't run, so it can stand before what is given for them.
+     * this one do not run, so it can stand before what is given for them.
      */
     @Serializable @SerialName("take-item")
     data class TakeItem(

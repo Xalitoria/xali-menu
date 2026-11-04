@@ -19,6 +19,6 @@ private val LEGACY = LegacyComponentSerializer.builder().character('§').hexColo
 /**
  * [text] for the title of an open menu: the component the chat makes of it (`&` codes, hex, CMI gradients and MiniMessage,
  * with the colors of the menu's arguments taken out) as legacy text, which is all Paper can change on an open menu
- * (`InventoryView.setTitle`). Fonts and events are lost, which a title doesn't use.
+ * (`InventoryView.setTitle`). Fonts and events are lost, which a title does not use.
  */
 fun MenuContext.legacy(text: String): String = LEGACY.serialize(component(text))

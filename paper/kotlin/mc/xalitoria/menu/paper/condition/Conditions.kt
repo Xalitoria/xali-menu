@@ -73,7 +73,7 @@ object Conditions {
         }
     }
 
-    /** Compares [left] and [right] as numbers; if either isn't one it never holds. */
+    /** Compares [left] and [right] as numbers; if either is not one it never holds. */
     @Serializable @SerialName("compare")
     data class Compare(val left: String, val op: Op, val right: String) : Condition {
         enum class Op { GT, GTE, EQ, NEQ, LT, LTE }
@@ -108,7 +108,7 @@ object Conditions {
         }
     }
 
-    /** [input] matches the whole of [pattern]; a pattern that isn't valid never matches. */
+    /** [input] matches the whole of [pattern]; a pattern that is not valid never matches. */
     @Serializable @SerialName("regex")
     data class Regex(val input: String, val pattern: String) : Condition {
         override fun test(ctx: MenuContext): Boolean = try {
@@ -125,7 +125,7 @@ object Conditions {
     }
 
     /**
-     * Never holds. The importer writes it for a test XaliMenu can't run (a JavaScript expression, say), so the menu
+     * Never holds. The importer writes it for a test XaliMenu cannot run (a JavaScript expression, say), so the menu
      * fails closed instead of quietly showing an item or opening for everyone.
      */
     @Serializable @SerialName("never")

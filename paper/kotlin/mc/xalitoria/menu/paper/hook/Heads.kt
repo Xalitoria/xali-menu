@@ -13,7 +13,7 @@ import org.bukkit.plugin.Plugin
 
 /**
  * Player heads. `head:<name>` shows an online player's own skin, which already includes what SkinsRestorer applied; for
- * a name that isn't online the skin is looked up off the main threads, from SkinsRestorer when it is installed (so a
+ * a name that is not online the skin is looked up off the main threads, from SkinsRestorer when it is installed (so a
  * skin set for that name wins) and from Mojang otherwise. `texture:<base64>` needs no lookup.
  */
 class Heads(private val plugin: Plugin, private val skinsRestorer: Boolean) {
@@ -21,7 +21,7 @@ class Heads(private val plugin: Plugin, private val skinsRestorer: Boolean) {
     private val pending = ConcurrentHashMap.newKeySet<String>()
 
     /**
-     * The head for [spec], `head:<name>` or `texture:<base64>`. When the skin of an offline name isn't known yet it is
+     * The head for [spec], `head:<name>` or `texture:<base64>`. When the skin of an offline name is not known yet it is
      * a plain head, and [loaded] runs once the skin has arrived.
      */
     fun head(spec: String, loaded: () -> Unit): ItemStack {
@@ -48,7 +48,7 @@ class Heads(private val plugin: Plugin, private val skinsRestorer: Boolean) {
             try {
                 profiles[key] = lookup(name)
             } catch (e: Exception) {
-                // A skin that can't be found stays a plain head; remembered so it isn't asked for on every redraw.
+                // A skin that cannot be found stays a plain head; remembered so it is not asked for on every redraw.
                 profiles[key] = null
             }
             pending.remove(key)

@@ -66,7 +66,7 @@ class MenuListener(private val plugin: XaliMenu) : Listener {
     }
 
     /**
-     * Opens a menu for commands that can't be registered as commands: the ones of several words, and the ones of menus
+     * Opens a menu for commands that cannot be registered as commands: the ones of several words, and the ones of menus
      * that ask not to be registered. A command that is registered runs normally.
      */
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)

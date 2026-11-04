@@ -14,7 +14,7 @@ import org.bukkit.plugin.Plugin
  * VaultUnlocked has several currencies; the one named is used, and the economy's default one without a name.
  */
 class Economy(private val plugin: Plugin) {
-    // Neither Vault nor VaultUnlocked is required: without them their classes aren't there, and naming one throws.
+    // Neither Vault nor VaultUnlocked is required: without them their classes are not there, and naming one throws.
     private val hasEconomyApi = present("net.milkbowl.vault2.economy.Economy")
     private val hasPermissionApi = present("net.milkbowl.vault.permission.Permission")
 

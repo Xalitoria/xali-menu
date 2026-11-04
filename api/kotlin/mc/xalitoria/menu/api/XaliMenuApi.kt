@@ -27,7 +27,7 @@ interface XaliMenuApi {
 
     /**
      * Adds an action type. [name] is what `type` says in menu files; it has the form `plugin:action` in lower case
-     * (letters, digits and `_ - .` on each side), with your plugin's name before the colon so it can't meet another
+     * (letters, digits and `_ - .` on each side), with your plugin's name before the colon so it cannot meet another
      * plugin's. [type] builds the action from the keys written next to `type`.
      */
     fun registerAction(owner: Plugin, name: String, type: ActionType)

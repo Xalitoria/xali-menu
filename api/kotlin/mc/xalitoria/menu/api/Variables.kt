@@ -19,7 +19,7 @@ data class Variable(val name: String, val value: String, val expiry: Instant?) {
     companion object {
         private val NUMBER = Regex("[+-]?\\d{1,40}(\\.\\d{1,40})?")
 
-        /** [text] as a plain decimal number (no exponent, no `NaN`), or null if it isn't one. */
+        /** [text] as a plain decimal number (no exponent, no `NaN`), or null if it is not one. */
         @JvmStatic
         fun parseNumber(text: String): BigDecimal? = text.trim().takeIf(NUMBER::matches)?.toBigDecimal()
 
@@ -45,7 +45,7 @@ sealed interface Scope {
  * SQLite file, or in the database every server shares. Names are case-insensitive. Reading is from memory and fine on any
  * thread; a change is in memory at once and written in the background. A variable that has expired reads as absent.
  *
- * A shared (`network`) variable can't be used until the server has connected to the database, which happens in the
+ * A shared (`network`) variable cannot be used until the server has connected to the database, which happens in the
  * background after startup: until then [isAvailable] is false, a read finds nothing and a change is refused. It is also
  * only as current as the last poll of the database (a second by default). A change made to one on two servers at once is
  * applied by the database in turn, so numbers add up; `replace = false` is decided by this server's copy first and
@@ -57,7 +57,7 @@ interface Variables {
 
     /**
      * Sets a variable. With [replace] false an existing one is left as it is.
-     * @return whether the value was written; false too if the variable isn't [available][isAvailable]
+     * @return whether the value was written; false too if the variable is not [available][isAvailable]
      */
     fun set(scope: Scope, name: String, value: String, expiry: Instant?, replace: Boolean): Boolean
 
@@ -70,7 +70,7 @@ interface Variables {
     /**
      * Replaces a numeric variable by what [change] makes of its value (a missing one counts as 0), keeping its expiry.
      * [change] may run more than once, so it must not have effects of its own. Nothing happens, and false comes back, if
-     * the value isn't a number or the variable isn't [available][isAvailable].
+     * the value is not a number or the variable is not [available][isAvailable].
      */
     fun change(scope: Scope, name: String, change: UnaryOperator<BigDecimal>): Boolean
 

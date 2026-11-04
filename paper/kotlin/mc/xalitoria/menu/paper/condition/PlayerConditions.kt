@@ -36,8 +36,8 @@ object PlayerConditions {
     }
 
     /**
-     * Whether [value] is at least [min] and at most [max], each a number or a placeholder; one that is left out doesn't
-     * limit. A limit that isn't a number never lets anything through.
+     * Whether [value] is at least [min] and at most [max], each a number or a placeholder; one that is left out does not
+     * limit. A limit that is not a number never lets anything through.
      */
     fun within(ctx: MenuContext, value: Double, min: String?, max: String?): Boolean {
         fun limit(text: String?): BigDecimal? = text?.let { ctx.parse(it).trim().toBigDecimalOrNull() }
@@ -194,7 +194,7 @@ object PlayerConditions {
     /**
      * Holds when the cooldown [key] of the viewer is not running (or, with [scope] `GLOBAL`, the one everybody shares).
      * The cooldown is started by the `cooldown` action, which keeps it as the variable `cooldown_<key>` with an expiry; a
-     * store that has not loaded yet counts as running, so waiting for it can't be used to get around one.
+     * store that has not loaded yet counts as running, so waiting for it cannot be used to get around one.
      */
     @Serializable @SerialName("cooldown")
     data class Cooldown(val key: String, val scope: VariableExists.Scope = VariableExists.Scope.PLAYER) : Condition {
