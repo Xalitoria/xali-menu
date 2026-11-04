@@ -51,16 +51,6 @@ export class PackPanel {
       const blob = await server.pack()
       if (blob) await this.setPack(blob, 'the server pack')
     } catch { /* the server has no pack */ }
-    await this.resolveItems()
-  }
-
-  /** Looks up the custom items of the open menu, so their pictures can be found in the pack. */
-  async resolveItems() {
-    const server = this.app.server
-    if (!server) return
-    const materials = [...new Set(Object.values(this.app.store.value.items ?? {}).map((i) => i.material).filter((m) => typeof m === 'string' && /^[a-z0-9_-]+:/i.test(m) && !m.startsWith('minecraft:')))]
-    if (materials.length === 0) return
-    try { for (const [material, data] of Object.entries(await server.resolve(materials))) settings.resolved.set(material, data) } catch { /* optional */ }
   }
 
   // ---- names of glyphs

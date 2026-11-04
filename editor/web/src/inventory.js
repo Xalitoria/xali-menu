@@ -3,7 +3,7 @@
 
 import { h, fill } from './dom.js'
 import { slotCount } from './check.js'
-import { icon } from './icons.js'
+import { icon, settings } from './icons.js'
 import { geometry, SCALE } from './window.js'
 import { decorations } from './decorations.js'
 import { tooltipLines, drawTooltip } from './tooltip.js'
@@ -77,7 +77,7 @@ export class Inventory {
         onmouseenter: (e) => this.showTip(item, shown, names, slot, e),
         onmousemove: (e) => this.moveTip(e),
         onmouseleave: () => this.hideTip(),
-      }, item && icon(item), item && decorations(item, services.text), h('span', { class: 'number' }, slot)))
+      }, item && icon(item), item && decorations(item, services.text, settings.resolved.get(item.material)?.maxDamage ?? 0), h('span', { class: 'number' }, slot)))
     }
     const background = services.window.draw(menu)
     fill(this.root, h('div', { class: 'window layered-window', style: `width:${g.width * SCALE}px;height:${g.height * SCALE}px` }, background, grid))

@@ -6,6 +6,8 @@
 export const settings = {
   base: 'https://raw.githubusercontent.com/InventivetalentDev/minecraft-assets',
   version: '26.2',
+  /** Fetches a skin by its address through the server, since Mojang's texture server does not let other sites read it. Set when the editor is connected. */
+  skinProxy: null,
 }
 
 /** The pixels of a texture: RGBA, row by row. */
@@ -64,6 +66,18 @@ export class Assets {
     })
   }
 
+  /** A texture from any address (the skin of a head), or null if the host does not let this page read it. */
+  fromUrl(url) {
+    return this.cached(`url:${url}`, async () => {
+      try {
+        const response = await fetch(url)
+        if (response.ok) return skin(await decode(await response.blob(), null))
+      } catch { /* not readable from here: try through the server */ }
+      const blob = settings.skinProxy ? await settings.skinProxy(url).catch(() => null) : null
+      return blob ? skin(await decode(blob, null)) : null
+    })
+  }
+
   /** The bytes of any file of the game or the pack (a font's unihex zip, for instance), or null. */
   bytes(ns, file) {
     return this.cached(`bytes:${ns}:${file}`, async () => {
@@ -87,6 +101,31 @@ export class Assets {
     if (!this.cache.has(key)) this.cache.set(key, make().catch(() => null))
     return this.cache.get(key)
   }
+}
+
+/**
+ * A skin the way the game prepares it: an old skin (64 by 32) is put on a 64 by 64 sheet, the base layer of the head is made opaque, and
+ * a hat layer that has no transparent pixel at all (old skins have a solid one) is made fully transparent.
+ * @param {Texture} texture
+ * @returns {Texture}
+ */
+export function skin(texture) {
+  let { width, height, data } = texture
+  if (height === 32 && width === 64) {
+    const grown = new Uint8ClampedArray(64 * 64 * 4)
+    grown.set(data)
+    data = grown
+    height = 64
+  }
+  const opaque = (x0, y0, x1, y1) => { for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) data[(y * width + x) * 4 + 3] = 255 }
+  if (texture.height === 32) {
+    // The solid hat of an old skin: if nothing in the area is transparent, none of it is shown.
+    let solid = true
+    for (let y = 0; y < 16 && solid; y++) for (let x = 32; x < 64; x++) if (data[(y * width + x) * 4 + 3] < 128) { solid = false; break }
+    if (solid) for (let y = 0; y < 16; y++) for (let x = 32; x < 64; x++) data[(y * width + x) * 4 + 3] = 0
+  }
+  opaque(0, 0, 32, 16)
+  return new Texture(width, height, data)
 }
 
 /** Decodes a png into pixels. An animated texture is a strip of frames; the first one is shown, as in the game for an item that is not animated by time. */

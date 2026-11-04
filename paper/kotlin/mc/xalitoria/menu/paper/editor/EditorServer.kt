@@ -21,7 +21,8 @@ import mc.xalitoria.menu.paper.XaliMenu
  * POST /v1/menus/<name>/check    {menu: {...}}  ->  {problems: [...]}  or 422 {error}
  * GET  /v1/pack                  the resource pack, as a zip
  * GET  /v1/glyphs                {glyphs: [{name, char, plugin}]}
- * POST /v1/items                 {materials: [...]}  ->  {items: {material: {material, itemModel, customModelData}}}
+ * POST /v1/items                 {materials: [...]}  ->  {items: {material: {material, itemModel, customModelData, maxDamage}}}
+ * GET  /v1/skin?url=<address>    the skin png at a textures.minecraft.net address (the editor's browser cannot read it from there)
  * ```
  */
 internal class EditorServer(private val plugin: XaliMenu, val sessions: EditorSessions) {
@@ -108,6 +109,16 @@ internal class EditorServer(private val plugin: XaliMenu, val sessions: EditorSe
                 Files.copy(file, exchange.responseBody)
             }
             path == listOf("glyphs") && method == "GET" -> reply(exchange, 200, Json.write(mapOf("glyphs" to packs.glyphs())))
+            path == listOf("skin") && method == "GET" -> {
+                val address = exchange.requestURI.rawQuery.orEmpty().split('&').firstOrNull { it.startsWith("url=") }
+                    ?.removePrefix("url=")?.let { java.net.URLDecoder.decode(it, Charsets.UTF_8) }
+                val url = address?.let(::skinAddress) ?: return reply(exchange, 400, error("Only skins on textures.minecraft.net can be fetched"))
+                val bytes = fetchSkin(url) ?: return reply(exchange, 404, error("The skin could not be fetched"))
+                exchange.responseHeaders.add("Content-Type", "image/png")
+                exchange.responseHeaders.add("Cache-Control", "max-age=86400")
+                exchange.sendResponseHeaders(200, bytes.size.toLong())
+                exchange.responseBody.write(bytes)
+            }
             path == listOf("items") && method == "POST" -> {
                 val request = Json.read(exchange.requestBody.readNBytes(MAX_BODY).decodeToString())
                 val materials = (request.unwrapped()["materials"] as? List<*>).orEmpty().filterIsInstance<String>().take(500)
@@ -115,6 +126,17 @@ internal class EditorServer(private val plugin: XaliMenu, val sessions: EditorSe
             }
             else -> reply(exchange, 404, error("Unknown request"))
         }
+    }
+
+    private val client = java.net.http.HttpClient.newBuilder().connectTimeout(java.time.Duration.ofSeconds(5)).build()
+
+    /** The skin at [url], or null if it cannot be had or is bigger than a skin can be. */
+    private fun fetchSkin(url: URI): ByteArray? = try {
+        val request = java.net.http.HttpRequest.newBuilder(url).timeout(java.time.Duration.ofSeconds(8)).GET().build()
+        val response = client.send(request, java.net.http.HttpResponse.BodyHandlers.ofByteArray())
+        response.body().takeIf { response.statusCode() == 200 && it.size <= MAX_SKIN }
+    } catch (e: Exception) {
+        null
     }
 
     private fun answer(exchange: HttpExchange, result: EditorMenus.Result) = when (result) {
@@ -154,7 +176,20 @@ internal class EditorServer(private val plugin: XaliMenu, val sessions: EditorSe
         return uri.scheme == "http" && uri.host in setOf("localhost", "127.0.0.1")
     }
 
-    private companion object {
-        const val MAX_BODY = 2 * 1024 * 1024
+    companion object {
+        private const val MAX_BODY = 2 * 1024 * 1024
+        private const val MAX_SKIN = 256 * 1024
+        private val SKIN_PATH = Regex("/texture/[0-9a-f]{16,128}")
+
+        /**
+         * The address to fetch for [text] if it is a skin on Mojang's texture server, as https, otherwise null. The endpoint fetches
+         * for the editor, so it may fetch nothing but skins.
+         */
+        fun skinAddress(text: String): URI? {
+            val uri = runCatching { URI(text.replaceFirst("http://", "https://")) }.getOrNull() ?: return null
+            if (uri.scheme != "https" || uri.host != "textures.minecraft.net" || uri.port != -1 || uri.userInfo != null) return null
+            if (uri.rawQuery != null || uri.rawFragment != null || !SKIN_PATH.matches(uri.rawPath)) return null
+            return uri
+        }
     }
 }

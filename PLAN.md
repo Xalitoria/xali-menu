@@ -190,3 +190,10 @@ Each step ends with tests, the README section, and a commit.
   pack and 8 glyph names loaded, a title with `<glyph:menu_items>` drawn, and a save that changed the file.
 - Not tested: ItemsAdder and Oraxen (only Nexo's data was at hand; ItemsAdder's glyphs are read through its API by reflection),
   custom item pictures through `/v1/items` with a real Nexo item, and the deploy workflow itself (it runs on GitHub).
+- Items drawn from their models (second pass of the editor): item definitions, parents, element baking after the game's FaceBakery,
+  the `gui` display transform and the item lights, rasterized in software (`raster.js`); checked against icons rendered by the game
+  (`curl` of the wiki's Invicon files, compared pixel by pixel in the browser: stone, furnace, stairs, sword within a few pixels,
+  creeper head and shulker box exact, chests about 85 %). Heads, chests and shulker boxes are built from boxes (`special.js`).
+  The window, title font, counts, durability bar and tooltip use the game's own textures and fonts; skins are fetched through
+  `/v1/skin`, which only fetches from textures.minecraft.net; `/v1/items` also says how much each item wears.
+- Not done: banners and shields with patterns, signs, trims, animated glint, potion colors by effect, Unifont, a GUI scale other than 3.

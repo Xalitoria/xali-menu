@@ -11,6 +11,7 @@ import kotlin.test.assertTrue
 import mc.xalitoria.menu.paper.editor.EditorLink
 import mc.xalitoria.menu.paper.editor.EditorMenus
 import mc.xalitoria.menu.paper.editor.EditorSessions
+import mc.xalitoria.menu.paper.editor.EditorServer
 import mc.xalitoria.menu.paper.editor.Json
 
 /** The parts of the editor endpoint that need no server: links, the tokens behind them, and the JSON. */
@@ -80,5 +81,17 @@ class Editor {
     fun menuNamesCannotLeaveTheFolder() {
         for (good in listOf("shop", "Shop_2", "a-b")) assertTrue(EditorMenus.NAME.matches(good), good)
         for (bad in listOf("", "../x", "a/b", "a.b", "a b", "x".repeat(65))) assertFalse(EditorMenus.NAME.matches(bad), bad)
+    }
+
+    @Test
+    fun onlySkinsOnMojangsServerAreFetched() {
+        val hash = "292009a4925b58f02c77dadc3ecef07ea4c7472f64e0fdc32ce5522489362680"
+        assertEquals("https://textures.minecraft.net/texture/$hash", EditorServer.skinAddress("http://textures.minecraft.net/texture/$hash").toString())
+        assertNotNull(EditorServer.skinAddress("https://textures.minecraft.net/texture/$hash"))
+        for (bad in listOf(
+            "https://evil.example/texture/$hash", "https://textures.minecraft.net.evil.example/texture/$hash", "https://textures.minecraft.net/other/$hash",
+            "https://textures.minecraft.net/texture/$hash?x=1", "https://user@textures.minecraft.net/texture/$hash", "https://textures.minecraft.net:8443/texture/$hash",
+            "https://textures.minecraft.net/texture/../x", "file:///etc/passwd", "not a url",
+        )) assertNull(EditorServer.skinAddress(bad), bad)
     }
 }

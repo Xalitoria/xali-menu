@@ -144,3 +144,35 @@ function fill(out, depth, size, [a, b, c], tex, tint, lit, mode) {
     }
   }
 }
+
+/**
+ * Adds the sheen of an enchanted item to [image], where the item is drawn: the glint texture, turned 10 degrees and repeated eight
+ * times over the item, is added to the item as the game blends it, each channel squared after the 0.75 of the glint option. The sheen
+ * moves in the game; this is one moment of it.
+ * @param {Image} image
+ * @param {{width: number, height: number, data: Uint8ClampedArray}} glint the glint texture
+ */
+export function addGlint(image, glint) {
+  const { width, height, data } = image
+  const angle = (10 * Math.PI) / 180
+  const cos = Math.cos(angle)
+  const sin = Math.sin(angle)
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const at = (y * width + x) * 4
+      if (data[at + 3] === 0) continue
+      const u = ((x + 0.5) / width) * 8
+      const v = ((y + 0.5) / height) * 8
+      const gu = u * cos - v * sin
+      const gv = u * sin + v * cos
+      const tx = ((Math.floor((gu - Math.floor(gu)) * glint.width) % glint.width) + glint.width) % glint.width
+      const ty = ((Math.floor((gv - Math.floor(gv)) * glint.height) % glint.height) + glint.height) % glint.height
+      const g = (ty * glint.width + tx) * 4
+      for (let c = 0; c < 3; c++) {
+        const s = (glint.data[g + c] / 255) * 0.75
+        data[at + c] = Math.min(255, data[at + c] + s * s * 255)
+      }
+    }
+  }
+  return image
+}

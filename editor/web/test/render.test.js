@@ -113,3 +113,15 @@ test('side light is the game numbers for a face turned by 30 and 225 degrees', (
   assert.ok(Math.abs(sideLight(turn([0, 0, -1])) - 0.4) < 0.01)
   assert.ok(Math.abs(sideLight(turn([1, 0, 0])) - 0.64) < 0.01)
 })
+
+import { addGlint } from '../src/raster.js'
+
+test('the glint brightens the pixels of the item and leaves empty ones alone', () => {
+  const data = new Uint8ClampedArray(4 * 4 * 4)
+  data.set([10, 10, 10, 255], 0)
+  const glint = { width: 2, height: 2, data: new Uint8ClampedArray([255, 0, 255, 255, 255, 0, 255, 255, 255, 0, 255, 255, 255, 0, 255, 255]) }
+  addGlint({ width: 4, height: 4, data }, glint)
+  assert.ok(data[0] > 10 && data[1] === 10 && data[2] > 10, 'purple is added')
+  assert.equal(data[7], 0)
+  assert.equal(data[4], 0, 'an empty pixel stays empty')
+})

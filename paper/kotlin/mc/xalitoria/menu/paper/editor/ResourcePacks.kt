@@ -71,21 +71,28 @@ internal class ResourcePacks(private val plugin: XaliMenu) {
     }
 
     /**
-     * What the custom items in [materials] (`nexo:ruby`) are made of: the item they are, their item model, and their custom model
-     * data, which is how the pack tells them apart. Built on the global region's thread, which owns no world, since the plugins
-     * that make the items were not written for any other.
+     * What the items in [materials] are: a custom item (`nexo:ruby`) is the item it is made of, its item model, and its custom model
+     * data, which is how the pack tells them apart; any item says how much it wears (`maxDamage`, 0 for none), which the durability
+     * bar needs. Built on the global region's thread, which owns no world, since the plugins that make the items were not written
+     * for any other.
      */
     fun items(materials: List<String>): Map<String, Map<String, Any?>> {
         val done = CompletableFuture<Map<String, Map<String, Any?>>>()
         plugin.server.globalRegionScheduler.run(plugin) {
             done.complete(materials.mapNotNull { material ->
                 val prefix = material.substringBefore(':', "")
-                val source = plugin.registry.sources[prefix.lowercase()] ?: return@mapNotNull null
-                val stack = runCatching { source.item(material.substringAfter(':')) }.getOrNull() ?: return@mapNotNull null
+                val source = plugin.registry.sources[prefix.lowercase()]
+                val stack = when {
+                    source != null -> runCatching { source.item(material.substringAfter(':')) }.getOrNull()
+                    // A vanilla item is only asked about for what the pack cannot say: how much it wears.
+                    ':' !in material || prefix == "minecraft" -> org.bukkit.Material.matchMaterial(material)?.takeIf { it.isItem && !it.isLegacy }?.let { org.bukkit.inventory.ItemStack(it) }
+                    else -> null
+                } ?: return@mapNotNull null
                 material to mapOf(
                     "material" to stack.type.key.key,
-                    "itemModel" to stack.getData(DataComponentTypes.ITEM_MODEL)?.asString(),
+                    "itemModel" to stack.getData(DataComponentTypes.ITEM_MODEL)?.asString().takeIf { source != null },
                     "customModelData" to stack.getData(DataComponentTypes.CUSTOM_MODEL_DATA)?.floats()?.map { it.toDouble() },
+                    "maxDamage" to (stack.getData(DataComponentTypes.MAX_DAMAGE) ?: 0),
                 )
             }.toMap())
         }

@@ -70,6 +70,11 @@ export class Server {
     return (await (await this.request('/items', { method: 'POST', body: JSON.stringify({ materials }) })).json()).items ?? {}
   }
 
+  /** A skin of Mojang's texture server, through the server of the plugin. */
+  async skin(url) {
+    return (await this.request(`/skin?url=${encodeURIComponent(url)}`, { headers: { Accept: 'image/png' } })).blob()
+  }
+
   async glyphs() { return (await (await this.request('/glyphs')).json()).glyphs ?? [] }
 }
 

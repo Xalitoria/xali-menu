@@ -11,6 +11,8 @@ import { parse } from './hocon.js'
 import { write } from './hoconWriter.js'
 import { render as renderText } from './mctext.js'
 import { services } from './services.js'
+import { settings as iconSettings } from './icons.js'
+import { settings as assetSettings } from './assets.js'
 import { PackPanel } from './panel.js'
 
 const TABS = ['Menu', 'Items', 'Raw', 'Pack']
@@ -34,7 +36,8 @@ export class App {
       select: (slot, names) => { this.picked = { slot, item: names[0] ?? null }; this.draw() },
     })
     this.pack = new PackPanel(this)
-    this.store.onChange((quiet) => { this.refreshHeader(); if (!quiet) this.draw() })
+    this.asked = new Set()
+    this.store.onChange((quiet) => { this.refreshHeader(); if (!quiet) { this.draw(); this.resolveItems() } })
     window.addEventListener('keydown', (e) => this.keys(e))
     window.addEventListener('beforeunload', (e) => { if (this.store.dirty) e.preventDefault() })
     this.build()
@@ -46,6 +49,7 @@ export class App {
     try {
       if (hash.server && hash.token) {
         this.server = new Server(hash.server, hash.token)
+        assetSettings.skinProxy = (url) => this.server.skin(url)
         const info = await this.server.info()
         this.menuNames = info.menus
         this.serverInfo = info
@@ -73,6 +77,19 @@ export class App {
     this.picked = { slot: null, item: null }
     this.setStatus(`Opened ${name}.`)
     this.draw()
+    this.resolveItems()
+  }
+
+  /** Asks the server what the items of the open menu are (custom items, and how much each wears), once for each material. */
+  async resolveItems() {
+    if (!this.server) return
+    const materials = [...new Set(Object.values(this.store.value.items ?? {}).map((i) => i.material).filter((m) => typeof m === 'string' && m && !m.includes('%') && !this.asked.has(m)))]
+    if (materials.length === 0) return
+    materials.forEach((m) => this.asked.add(m))
+    try {
+      for (const [material, data] of Object.entries(await this.server.resolve(materials))) iconSettings.resolved.set(material, data)
+      this.draw()
+    } catch { /* the server may not know; the items are then drawn from what the menu says */ }
   }
 
   setStatus(text, bad = false) {

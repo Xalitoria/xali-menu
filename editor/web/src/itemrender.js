@@ -4,7 +4,7 @@
 import { Assets, split } from './assets.js'
 import { Model, loadModel, bakeElements, bakeLayers } from './bake.js'
 import { chooseModels } from './itemdef.js'
-import { renderItem } from './raster.js'
+import { renderItem, addGlint } from './raster.js'
 import { specialQuads } from './special.js'
 
 /** The size of the pixel of the game on the page: items are drawn 16 of these wide. */
@@ -15,16 +15,32 @@ export const SCALE = 3
  * @param {object} item the item as the menu file writes it (`material`, `item-model`, `model`, `color`, `damage`, `amount`...)
  * @param {{material?: string, itemModel?: string, customModelData?: number[]}} [known] what a plugin says a custom item is
  */
+/** The address of the skin in a `texture:` value (base64 of the profile's JSON), or null. */
+export function skinUrl(material) {
+  const text = String(material ?? '')
+  if (!text.startsWith('texture:')) return null
+  try {
+    const json = JSON.parse(atob(text.slice(8)))
+    return json?.textures?.SKIN?.url?.replace(/^http:/, 'https:') ?? null
+  } catch {
+    return null
+  }
+}
+
 export function stateOf(item, known = {}) {
   const color = typeof item.color === 'string' && /^#[0-9a-f]{6}$/i.test(item.color) ? parseInt(item.color.slice(1), 16) : null
   const floats = typeof item.model === 'number' ? [item.model] : known.customModelData
+  const text = String(item.material ?? '')
+  const head = text.startsWith('head:') || text.startsWith('texture:')
   return {
-    material: known.material ?? String(item.material ?? '').replace(/^minecraft:/, ''),
+    material: head ? 'player_head' : (known.material ?? text.replace(/^minecraft:/, '')),
+    skin: skinUrl(text),
+    glint: item.glow === true || (item.glow !== false && (Object.keys(item.enchants ?? {}).length > 0 || Object.keys(item['stored-enchants'] ?? {}).length > 0)),
     itemModel: item['item-model'] ?? known.itemModel ?? null,
     state: {
       customModelData: floats ? { floats } : undefined,
       damage: item.damage ?? 0,
-      maxDamage: 0,
+      maxDamage: known.maxDamage ?? 0,
       count: item.amount ?? 1,
       dyedColor: color,
       components: [],
@@ -50,12 +66,12 @@ export class ItemRenderer {
     return this.cache.get(key)
   }
 
-  async draw({ material, itemModel, state }, scale) {
+  async draw({ material, itemModel, state, glint, skin }, scale) {
     const entries = await this.entries(material, itemModel, state)
     const layers = []
     const needed = new Set()
     for (const entry of entries) {
-      const layer = await this.layer(entry)
+      const layer = await this.layer(entry, skin)
       if (!layer) continue
       layers.push(layer)
       for (const quad of layer.quads) if (quad.texture) needed.add(quad.texture)
@@ -63,10 +79,21 @@ export class ItemRenderer {
     if (layers.length === 0) return null
     const textures = new Map()
     await Promise.all([...needed].map(async (key) => {
+      if (key.startsWith('url:')) { textures.set(key, await this.assets.fromUrl(key.slice(4))); return }
       const { ns, path } = split(key)
       textures.set(key, await this.assets.texture(ns, path))
     }))
-    return renderItem(layers, (key) => textures.get(key) ?? null, scale)
+    // A skin that cannot be read (the host does not allow other sites to) is drawn as the default one.
+    for (const layer of layers) for (const quad of layer.quads) if (quad.texture?.startsWith('url:') && !textures.get(quad.texture)) quad.texture = 'minecraft:entity/player/wide/steve'
+    if (layers.some((l) => l.quads.some((q) => q.texture === 'minecraft:entity/player/wide/steve')) && !textures.has('minecraft:entity/player/wide/steve')) {
+      textures.set('minecraft:entity/player/wide/steve', await this.assets.texture('minecraft', 'entity/player/wide/steve'))
+    }
+    const image = renderItem(layers, (key) => textures.get(key) ?? null, scale)
+    if (glint) {
+      const sheen = await this.assets.texture('minecraft', 'misc/enchanted_glint_item')
+      if (sheen) addGlint(image, sheen)
+    }
+    return image
   }
 
   /** The models the item definition picks; an item without a definition is drawn with the model of the same name. */
@@ -87,13 +114,13 @@ export class ItemRenderer {
   }
 
   /** The quads of one entry, placed by the display transform of its model. */
-  async layer(entry) {
+  async layer(entry, skin = null) {
     const key = entry.model ?? entry.base
     if (!key) return null
     const model = await loadModel(this.assets, key)
     if (!model) return null
     if (entry.special) {
-      const built = specialQuads(entry.special)
+      const built = specialQuads(entry.special, skin ? `url:${skin}` : null)
       if (!built) return model.elements ? this.plain(model, entry, key) : null
       return { quads: built.quads, display: model.display.gui, guiLight: model.guiLight ?? 'side', tints: [], alpha: undefined }
     }
