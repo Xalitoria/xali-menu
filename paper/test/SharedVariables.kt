@@ -18,6 +18,7 @@ import kotlin.test.assertTrue
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import mc.xalitoria.util.config.DatabaseConfig
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.runBlocking
 import mc.xalitoria.menu.api.Scope
@@ -187,7 +188,7 @@ class SharedVariables {
     fun theServerDoesNotWaitForADatabaseThatIsAway() {
         for (type in listOf("mysql", "mariadb")) {
             val config = MainConfig(
-                database = MainConfig.Database(type = type, mysql = MainConfig.Database.Mysql(host = "10.255.255.1")),
+                database = DatabaseConfig(type = type, mysql = DatabaseConfig.Mysql(host = "10.255.255.1")),
                 variables = MainConfig.Variables(default = StoreKind.NETWORK),
             )
             val started = System.nanoTime()

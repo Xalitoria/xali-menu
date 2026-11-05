@@ -14,6 +14,7 @@ import mc.xalitoria.menu.api.Variable
 import mc.xalitoria.menu.api.Variables
 import mc.xalitoria.menu.paper.config.MainConfig
 import mc.xalitoria.menu.paper.config.MainConfig.StoreKind
+import mc.xalitoria.util.config.databaseType
 
 /** Which store a variable lives in, by its name: the first rule that matches, or the default. */
 class StoreRules(private val default: StoreKind, rules: List<MainConfig.Variables.Rule>) {
@@ -117,7 +118,7 @@ class VariableStore internal constructor(
             }, onReady = ready)
             if (!local.openNow()) local.openInBackground(after = 2.seconds)
 
-            val network = if (database.type.lowercase() in setOf("mysql", "mariadb")) {
+            val network = if (database.databaseType.isRemote) {
                 val storage = Storage.mysql(database).also { storages += it }
                 Shard(
                     "network", scope, logger,

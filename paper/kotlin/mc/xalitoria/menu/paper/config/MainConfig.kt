@@ -3,6 +3,7 @@ package mc.xalitoria.menu.paper.config
 import com.charleskorn.kaml.YamlComment
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import mc.xalitoria.util.config.DatabaseConfig
 
 @Serializable
 data class MainConfig(
@@ -17,7 +18,11 @@ data class MainConfig(
         "The database. Variables of the local store are always kept in the SQLite file; with type mysql or mariadb the network",
         "store is that shared database too. A new table prefix means new, empty tables. Needs a restart.",
     )
-    val database: Database = Database(),
+    val database: DatabaseConfig = DatabaseConfig(
+        tablePrefix = "xalimenu_",
+        sqlite = DatabaseConfig.Sqlite("xalimenu.db"),
+        mysql = DatabaseConfig.Mysql(database = "xalimenu"),
+    ),
     @YamlComment("Where each variable lives, and how the servers keep their copies of the shared ones current.")
     val variables: Variables = Variables(),
     @YamlComment(
@@ -75,34 +80,5 @@ data class MainConfig(
     ) {
         @Serializable
         data class Rule(val match: String, val store: StoreKind)
-    }
-
-    @Serializable
-    data class Database(
-        @YamlComment("sqlite, mysql or mariadb. Use mariadb for MariaDB: it has its own driver.")
-        val type: String = "sqlite",
-        @YamlComment("Letters, digits and underscores. Needs a restart.")
-        @SerialName("table-prefix")
-        val tablePrefix: String = "xalimenu_",
-        val sqlite: Sqlite = Sqlite(),
-        val mysql: Mysql = Mysql(),
-    ) {
-        @Serializable
-        data class Sqlite(
-            val filename: String = "xalimenu.db",
-        )
-
-        @Serializable
-        data class Mysql(
-            val host: String = "localhost",
-            val port: Int = 3306,
-            val database: String = "xalimenu",
-            val username: String = "root",
-            val password: String = "",
-            @SerialName("use-ssl")
-            val useSsl: Boolean = false,
-            @SerialName("pool-size")
-            val poolSize: Int = 10,
-        )
     }
 }

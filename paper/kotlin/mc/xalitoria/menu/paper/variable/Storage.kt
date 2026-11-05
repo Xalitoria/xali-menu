@@ -4,7 +4,8 @@ import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
 import java.nio.file.Path
 import kotlin.io.path.createDirectories
-import mc.xalitoria.menu.paper.config.MainConfig
+import mc.xalitoria.util.config.DatabaseConfig
+import mc.xalitoria.util.config.databaseType
 import org.jetbrains.exposed.v1.core.Table
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.insertIgnore
@@ -76,14 +77,10 @@ class Storage private constructor(val source: HikariDataSource, prefix: String) 
 
     companion object {
         const val ROW = 1
-        private val PREFIX = Regex("[A-Za-z0-9_]*")
-
-        private fun checkPrefix(prefix: String) =
-            require(PREFIX.matches(prefix)) { "database.table-prefix may only contain letters, digits and underscores" }
 
         /** The SQLite file [config] names, under [folder]. */
-        fun sqlite(folder: Path, config: MainConfig.Database): Storage {
-            checkPrefix(config.tablePrefix)
+        fun sqlite(folder: Path, config: DatabaseConfig): Storage {
+            DatabaseConfig.checkPrefix(config.tablePrefix)
             folder.createDirectories()
             val hikari = HikariConfig()
             hikari.jdbcUrl = "jdbc:sqlite:${folder.resolve(config.sqlite.filename).toAbsolutePath()}"
@@ -99,17 +96,13 @@ class Storage private constructor(val source: HikariDataSource, prefix: String) 
          * driver, and MariaDB asked questions of MySQL's dialect does not know the answers to. The pool is made without a
          * connection: a host that is down is found out by [attach].
          */
-        fun mysql(config: MainConfig.Database): Storage {
-            checkPrefix(config.tablePrefix)
+        fun mysql(config: DatabaseConfig): Storage {
+            DatabaseConfig.checkPrefix(config.tablePrefix)
             val mysql = config.mysql
+            val type = config.databaseType
             val hikari = HikariConfig()
-            if (config.type.equals("mariadb", ignoreCase = true)) {
-                hikari.jdbcUrl = "jdbc:mariadb://${mysql.host}:${mysql.port}/${mysql.database}" + if (mysql.useSsl) "?sslMode=trust" else ""
-                hikari.driverClassName = "org.mariadb.jdbc.Driver"
-            } else {
-                hikari.jdbcUrl = "jdbc:mysql://${mysql.host}:${mysql.port}/${mysql.database}?useSSL=${mysql.useSsl}"
-                hikari.driverClassName = "com.mysql.cj.jdbc.Driver"
-            }
+            hikari.jdbcUrl = mysql.jdbcUrl(type)
+            hikari.driverClassName = mysql.driverClass(type)
             hikari.username = mysql.username
             hikari.password = mysql.password
             hikari.maximumPoolSize = mysql.poolSize.coerceAtLeast(1)
@@ -124,7 +117,7 @@ class Storage private constructor(val source: HikariDataSource, prefix: String) 
 
         /** Variables on a pool of the caller's making. */
         fun of(source: HikariDataSource, prefix: String): Storage {
-            checkPrefix(prefix)
+            DatabaseConfig.checkPrefix(prefix)
             return Storage(source, prefix)
         }
     }
