@@ -9,13 +9,13 @@ import io.papermc.paper.command.brigadier.CommandSourceStack
 import io.papermc.paper.command.brigadier.Commands
 import mc.xalitoria.menu.paper.XaliMenu
 import mc.xalitoria.menu.paper.runtime.MenuArgs
-import mc.xalitoria.util.message.*
+import com.xalitoria.util.message.*
 import org.bukkit.command.PluginIdentifiableCommand
 import org.bukkit.entity.Player
 
 /**
  * The commands that open menus: each one-word entry of a menu's `commands`, unless the menu sets `register = false`.
- * The rest are caught as the player types them (see [mc.xalitoria.menu.runtime.MenuListener]). The words after the
+ * The rest are caught as the player types them (see [mc.xalitoria.menu.paper.runtime.MenuListener]). The words after the
  * label are the menu's `args`.
  */
 object OpenCommands {

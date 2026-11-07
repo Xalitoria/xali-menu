@@ -1,4 +1,4 @@
-package mc.xalitoria.menu.editor
+package com.xalitoria.menu.editor
 
 import java.nio.file.Files
 import java.nio.file.Path

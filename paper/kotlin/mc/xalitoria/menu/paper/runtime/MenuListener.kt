@@ -1,8 +1,8 @@
 package mc.xalitoria.menu.paper.runtime
 
 import mc.xalitoria.menu.paper.XaliMenu
-import mc.xalitoria.menu.api.model.Handler
-import mc.xalitoria.menu.api.model.Item
+import net.xalitoria.menu.model.Handler
+import net.xalitoria.menu.model.Item
 import org.bukkit.entity.Player
 import org.bukkit.event.EventHandler
 import org.bukkit.event.EventPriority

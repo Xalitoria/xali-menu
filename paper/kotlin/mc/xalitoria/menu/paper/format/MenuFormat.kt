@@ -8,7 +8,7 @@ import kotlinx.serialization.hocon.Hocon
 import kotlinx.serialization.hocon.decodeFromConfig
 import kotlinx.serialization.hocon.encodeToConfig
 import kotlinx.serialization.modules.SerializersModule
-import mc.xalitoria.menu.api.model.Menu
+import net.xalitoria.menu.model.Menu
 
 /**
  * Reads and writes menus as HOCON, the format of every file in `menus/`. The actions and conditions in a file are

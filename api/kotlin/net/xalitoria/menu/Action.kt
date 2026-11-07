@@ -1,4 +1,4 @@
-package mc.xalitoria.menu.api
+package net.xalitoria.menu
 
 /**
  * One step of a click, open or close sequence. In a menu file it is an object whose `type` names it:

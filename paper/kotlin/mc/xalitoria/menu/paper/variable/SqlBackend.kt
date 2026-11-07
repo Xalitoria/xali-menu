@@ -5,7 +5,7 @@ import java.sql.SQLNonTransientConnectionException
 import java.sql.SQLRecoverableException
 import java.sql.SQLTransientException
 import java.time.Instant
-import mc.xalitoria.menu.api.Variable
+import net.xalitoria.menu.Variable
 import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq

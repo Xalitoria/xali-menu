@@ -1,4 +1,4 @@
-package mc.xalitoria.menu.api
+package net.xalitoria.menu
 
 /**
  * A test on the viewer. In a menu file it is an object whose `type` names it, such as

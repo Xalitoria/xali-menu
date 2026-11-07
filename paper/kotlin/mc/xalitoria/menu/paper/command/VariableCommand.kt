@@ -12,13 +12,13 @@ import java.math.BigDecimal
 import java.math.RoundingMode
 import java.time.Instant
 import kotlin.time.Duration
-import mc.xalitoria.menu.api.Scope
-import mc.xalitoria.menu.api.Variable
+import net.xalitoria.menu.Scope
+import net.xalitoria.menu.Variable
 import mc.xalitoria.menu.paper.XaliMenu
 import mc.xalitoria.menu.paper.XaliMenu.Companion.debug
 import mc.xalitoria.menu.paper.util.suggestMatching
 import mc.xalitoria.menu.paper.util.verbatim
-import mc.xalitoria.util.message.*
+import com.xalitoria.util.message.*
 import org.bukkit.command.CommandSender
 
 /**

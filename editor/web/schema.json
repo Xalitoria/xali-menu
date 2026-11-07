@@ -1,5 +1,5 @@
 {
-  "version": "0.0.2",
+  "version": "0.1.0",
   "root": "Menu",
   "types": {
     "Action:actionbar": {
@@ -1103,7 +1103,7 @@
       ]
     },
     "Activator:addon": {
-      "doc": "An activator another plugin added with `mc.xalitoria.menu.api.XaliMenuApi.registerActivator`, written in a menu file as `{ type = \"myplugin:name\", ... }`. The menu is read with `name` as the type and the keys other than the ones every activator has as one JSON text in `values`, which the plugin's type turns into what decides whether it matches. This is not written by hand: it is what the reading of the file makes of such an object.",
+      "doc": "An activator another plugin added with `net.xalitoria.menu.XaliMenuApi.registerActivator`, written in a menu file as `{ type = \"myplugin:name\", ... }`. The menu is read with `name` as the type and the keys other than the ones every activator has as one JSON text in `values`, which the plugin's type turns into what decides whether it matches. This is not written by hand: it is what the reading of the file makes of such an object.",
       "fields": [
         {
           "key": "name",

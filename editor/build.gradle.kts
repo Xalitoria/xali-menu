@@ -31,7 +31,7 @@ val schema by tasks.registering(JavaExec::class) {
     description = "Writes web/schema.json from the classes and comments of the plugin."
     classpath = sourceSets.main.get().runtimeClasspath
     dependsOn(pluginJar)
-    mainClass = "mc.xalitoria.menu.editor.DumpSchemaKt"
+    mainClass = "com.xalitoria.menu.editor.DumpSchemaKt"
     args(file("web/schema.json"), menuDirectory, project.version)
     inputs.files(fileTree(menuDirectory.resolve("api/kotlin")), fileTree(menuDirectory.resolve("paper/kotlin")))
     outputs.file("web/schema.json")

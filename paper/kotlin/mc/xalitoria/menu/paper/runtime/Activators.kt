@@ -1,10 +1,10 @@
 package mc.xalitoria.menu.paper.runtime
 
-import mc.xalitoria.menu.api.ActivatorFilter
-import mc.xalitoria.menu.api.model.Activator
-import mc.xalitoria.menu.api.model.BlockClick
-import mc.xalitoria.menu.api.model.Click
-import mc.xalitoria.menu.api.model.TextMatch
+import net.xalitoria.menu.ActivatorFilter
+import net.xalitoria.menu.model.Activator
+import net.xalitoria.menu.model.BlockClick
+import net.xalitoria.menu.model.Click
+import net.xalitoria.menu.model.TextMatch
 
 /** An activator of the menu called [menu]. */
 class Entry<A : Activator>(val menu: String, val activator: A)

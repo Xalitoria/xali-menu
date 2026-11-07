@@ -16,7 +16,7 @@ port=${XM_PORT:-25599}
 echo "== building the plugin and the libraries it loads at start"
 (cd "$ws" && ./gradlew --offline -q :menu:paper:shadowJar :util:jar :color:jar :util:generatePomFileForMavenJavaPublication :color:generatePomFileForMavenJavaPublication)
 plugin=$(ls "$ws"/build/libs/menu/xali-menu-*-paper.jar | head -1)
-util_version=$(unzip -p "$plugin" loader.json | grep -o 'mc.xalitoria:util:[0-9.]*' | cut -d: -f3)
+util_version=$(unzip -p "$plugin" loader.json | grep -o 'com.xalitoria:util:[0-9.]*' | cut -d: -f3)
 echo "plugin: $plugin (loads util $util_version)"
 
 echo "== the bot"
@@ -82,7 +82,7 @@ if [ -n "${XM_GLYPHS:-}" ]; then mkdir -p "$server/plugins/Nexo" && cp -r "$XM_G
 cp "$here"/menus/*.conf "$server/plugins/XaliMenu/menus/"
 
 # The plugin asks for util $util_version, which is only published once released; give the server the one just built.
-lib="$server/libraries/mc/xalitoria"
+lib="$server/libraries/com/xalitoria"
 for module in util color; do
   if [ "$module" = util ]; then
     version=$util_version

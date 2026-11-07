@@ -16,7 +16,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
-import mc.xalitoria.menu.api.Variable
+import net.xalitoria.menu.Variable
 
 /**
  * The variables of one store. Everything is read from memory. A change is made in memory at once and, if the store has a

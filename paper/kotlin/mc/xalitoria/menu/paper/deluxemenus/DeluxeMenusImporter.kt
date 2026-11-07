@@ -9,7 +9,7 @@ import kotlin.io.path.isRegularFile
 import kotlin.io.path.readText
 import kotlin.io.path.writeText
 import mc.xalitoria.menu.paper.format.MenuFormat
-import mc.xalitoria.menu.api.model.Menu
+import net.xalitoria.menu.model.Menu
 
 /** A menu read from DeluxeMenus: [name] as it is listed in `config.yml`, and the [warnings] met on the way. */
 class ImportedMenu(val name: String, val source: String, val menu: Menu, val warnings: List<String>) {

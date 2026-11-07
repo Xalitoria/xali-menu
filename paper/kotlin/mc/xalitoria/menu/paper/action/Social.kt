@@ -4,9 +4,9 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import mc.xalitoria.menu.api.Action
-import mc.xalitoria.menu.api.MenuContext
-import mc.xalitoria.menu.api.model.DurationAsString
+import net.xalitoria.menu.Action
+import net.xalitoria.menu.MenuContext
+import net.xalitoria.menu.model.DurationAsString
 import mc.xalitoria.menu.paper.XaliMenu
 import mc.xalitoria.menu.paper.XaliMenu.Companion.debug
 import mc.xalitoria.menu.paper.api.TypeRegistry
@@ -105,8 +105,8 @@ object Social {
         override fun run(ctx: MenuContext) {
             val variables = XaliMenu.INSTANCE.variables
             val name = PlayerConditions.variable(ctx.parse(key))
-            val owner = if (scope == PlayerConditions.VariableExists.Scope.GLOBAL) mc.xalitoria.menu.api.Scope.Global
-            else mc.xalitoria.menu.api.Scope.Player(ctx.player.uniqueId)
+            val owner = if (scope == PlayerConditions.VariableExists.Scope.GLOBAL) net.xalitoria.menu.Scope.Global
+            else net.xalitoria.menu.Scope.Player(ctx.player.uniqueId)
             val until = duration?.let { java.time.Instant.now().plusMillis(it.inWholeMilliseconds) }
             if (!variables.isAvailable(name) || !variables.set(owner, name, "1", until, true)) {
                 debug("Could not start the cooldown {0} for {1}", name, ctx.player.name)

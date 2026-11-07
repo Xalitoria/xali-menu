@@ -10,7 +10,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.runBlocking
-import mc.xalitoria.menu.api.XaliMenuApi
+import net.xalitoria.menu.XaliMenuApi
 import mc.xalitoria.menu.paper.action.Actions
 import mc.xalitoria.menu.paper.api.ApiImpl
 import mc.xalitoria.menu.paper.api.TypeRegistry
@@ -40,8 +40,8 @@ import mc.xalitoria.menu.paper.runtime.MenuManager
 import mc.xalitoria.menu.paper.runtime.PluginListener
 import mc.xalitoria.menu.paper.variable.VariableExpansion
 import mc.xalitoria.menu.paper.variable.VariableStore
-import mc.xalitoria.util.config.YamlFile
-import mc.xalitoria.util.message.*
+import com.xalitoria.util.config.YamlFile
+import com.xalitoria.util.message.*
 import org.bukkit.plugin.ServicePriority
 import org.bukkit.plugin.java.JavaPlugin
 

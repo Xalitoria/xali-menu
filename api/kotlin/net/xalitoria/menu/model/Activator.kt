@@ -1,4 +1,4 @@
-package mc.xalitoria.menu.api.model
+package net.xalitoria.menu.model
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -146,7 +146,7 @@ sealed interface Activator {
     ) : Activator
 
     /**
-     * An activator another plugin added with [mc.xalitoria.menu.api.XaliMenuApi.registerActivator], written in a menu file as
+     * An activator another plugin added with [net.xalitoria.menu.XaliMenuApi.registerActivator], written in a menu file as
      * `{ type = "myplugin:name", ... }`. The menu is read with [name] as the type and the keys other than the ones every
      * activator has as one JSON text in [values], which the plugin's type turns into what decides whether it matches. This is
      * not written by hand: it is what the reading of the file makes of such an object.

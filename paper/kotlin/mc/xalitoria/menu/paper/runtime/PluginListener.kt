@@ -1,7 +1,7 @@
 package mc.xalitoria.menu.paper.runtime
 
+import com.xalitoria.util.message.*
 import mc.xalitoria.menu.paper.XaliMenu
-import mc.xalitoria.util.message.*
 import org.bukkit.event.EventHandler
 import org.bukkit.event.Listener
 import org.bukkit.event.server.PluginDisableEvent

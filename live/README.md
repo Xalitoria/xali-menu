@@ -33,7 +33,7 @@ The server is offline-mode and meant to be thrown away. Do not pipe a bot into `
 
 - **mineflayer** knows protocol 775 (Minecraft 26.1) and the dev server's Folia speaks 776 (26.2), so `setup.sh` gives the 26.1
   data the number 776 and joins as `26.1`. Packet warnings are noise (`hideErrors`).
-- The **plugin** asks the server for `mc.xalitoria:util` at the version of the workspace, which may not be published yet. `setup.sh`
+- The **plugin** asks the server for `com.xalitoria:util` at the version of the workspace, which may not be published yet. `setup.sh`
   puts the jars the workspace just built into the server's library folder, where the loader finds them.
 - Item names from mineflayer are those of 26.1; the window title and custom names are right.
 - Kill the server with `server.sh stop`, never by pattern with `pkill -f`.

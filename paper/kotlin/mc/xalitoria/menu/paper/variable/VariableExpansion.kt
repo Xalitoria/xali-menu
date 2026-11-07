@@ -2,8 +2,8 @@ package mc.xalitoria.menu.paper.variable
 
 import kotlin.time.Duration.Companion.seconds
 import me.clip.placeholderapi.expansion.PlaceholderExpansion
-import mc.xalitoria.menu.api.Scope
-import mc.xalitoria.menu.api.Variable
+import net.xalitoria.menu.Scope
+import net.xalitoria.menu.Variable
 import mc.xalitoria.menu.paper.XaliMenu
 import org.bukkit.OfflinePlayer
 import org.bukkit.entity.Player

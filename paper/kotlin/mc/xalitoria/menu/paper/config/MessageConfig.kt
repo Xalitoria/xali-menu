@@ -1,9 +1,9 @@
 package mc.xalitoria.menu.paper.config
 
 import com.charleskorn.kaml.YamlComment
+import com.xalitoria.util.message.formatArgs
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import mc.xalitoria.util.message.formatArgs
 
 /**
  * Every message the plugin sends. Text is colored like in XaliChat: `&` codes, `&#RRGGBB`, CMI gradients such as

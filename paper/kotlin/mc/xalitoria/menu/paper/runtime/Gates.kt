@@ -1,7 +1,7 @@
 package mc.xalitoria.menu.paper.runtime
 
-import mc.xalitoria.menu.api.MenuContext
-import mc.xalitoria.menu.api.model.Gate
+import net.xalitoria.menu.MenuContext
+import net.xalitoria.menu.model.Gate
 
 /**
  * Whether this gate lets [ctx]'s player through; no gate always does. With [run], the actions of the checks and of the

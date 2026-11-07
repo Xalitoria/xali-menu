@@ -1,4 +1,4 @@
-package mc.xalitoria.menu.api
+package net.xalitoria.menu
 
 import java.math.BigDecimal
 import java.time.Instant

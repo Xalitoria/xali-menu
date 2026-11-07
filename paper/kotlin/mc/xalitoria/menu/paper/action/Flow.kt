@@ -2,13 +2,13 @@ package mc.xalitoria.menu.paper.action
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import mc.xalitoria.menu.api.Action
-import mc.xalitoria.menu.api.Catalog
-import mc.xalitoria.menu.api.MenuContext
 import mc.xalitoria.menu.paper.XaliMenu
 import mc.xalitoria.menu.paper.api.TypeRegistry
 import mc.xalitoria.menu.paper.runtime.Context
 import mc.xalitoria.menu.paper.runtime.numbered
+import net.xalitoria.menu.Action
+import net.xalitoria.menu.Catalog
+import net.xalitoria.menu.MenuContext
 
 /** The actions that run other actions: in a bunch, by chance, or once for each element of a catalog. */
 object Flow {

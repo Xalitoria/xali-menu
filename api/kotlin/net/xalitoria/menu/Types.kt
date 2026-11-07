@@ -1,4 +1,4 @@
-package mc.xalitoria.menu.api
+package net.xalitoria.menu
 
 /**
  * How a plugin's own action is built from a menu file, registered with [XaliMenuApi.registerAction]: `{ type = "myplugin:reward",

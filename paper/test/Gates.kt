@@ -4,10 +4,10 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
-import mc.xalitoria.menu.api.Action
-import mc.xalitoria.menu.api.Condition
-import mc.xalitoria.menu.api.model.Check
-import mc.xalitoria.menu.api.model.Gate
+import net.xalitoria.menu.Action
+import net.xalitoria.menu.Condition
+import net.xalitoria.menu.model.Check
+import net.xalitoria.menu.model.Gate
 import mc.xalitoria.menu.paper.action.Actions
 import mc.xalitoria.menu.paper.condition.Conditions
 import mc.xalitoria.menu.paper.runtime.Context

@@ -19,7 +19,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.runBlocking
-import mc.xalitoria.menu.api.Scope
+import net.xalitoria.menu.Scope
 import mc.xalitoria.menu.paper.config.MainConfig.StoreKind
 import mc.xalitoria.menu.paper.config.MainConfig.Variables.Rule
 import mc.xalitoria.menu.paper.variable.Shard

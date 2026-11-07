@@ -3,11 +3,11 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
-import mc.xalitoria.menu.api.Action
-import mc.xalitoria.menu.api.Catalog
-import mc.xalitoria.menu.api.CatalogType
-import mc.xalitoria.menu.api.MenuContext
-import mc.xalitoria.menu.api.model.Pages
+import net.xalitoria.menu.Action
+import net.xalitoria.menu.Catalog
+import net.xalitoria.menu.CatalogType
+import net.xalitoria.menu.MenuContext
+import net.xalitoria.menu.model.Pages
 import mc.xalitoria.menu.paper.action.Actions
 import mc.xalitoria.menu.paper.api.TypeRegistry
 import mc.xalitoria.menu.paper.catalog.Catalogs
@@ -269,12 +269,12 @@ class Paging {
 
     @Test
     fun aPagedMenuIsWrittenAndReadBack() {
-        val menu = mc.xalitoria.menu.api.model.Menu(
+        val menu = net.xalitoria.menu.model.Menu(
             title = "Numbers",
             pages = Pages(
                 catalog = Catalogs.Range("1", "100", step = 3),
                 slots = [0, 1, 2],
-                item = mc.xalitoria.menu.api.model.Item(material = "stone", name = "{value}"),
+                item = net.xalitoria.menu.model.Item(material = "stone", name = "{value}"),
                 sort = "value",
             ),
         )
@@ -283,7 +283,7 @@ class Paging {
 
     @Test
     fun aPagedMenuNeedsSlotsWithoutRepeats() {
-        val item = mc.xalitoria.menu.api.model.Item(material = "stone")
+        val item = net.xalitoria.menu.model.Item(material = "stone")
         assertFailsWith<IllegalArgumentException> { Pages(Catalogs.Worlds, [], item) }
         assertFailsWith<IllegalArgumentException> { Pages(Catalogs.Worlds, [1, 1], item) }
         assertFailsWith<Exception> {

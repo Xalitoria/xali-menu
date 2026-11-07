@@ -10,8 +10,14 @@ plugins {
 }
 
 subprojects {
-    group = "mc.xalitoria.menu"
-    version = "0.0.2"
+    // Named for the package of what the module holds, see the Packages section of the root README.
+    group = when (name) {
+        "api" -> "net.xalitoria.menu"
+        "paper" -> "mc.xalitoria.menu.paper"
+        "editor" -> "com.xalitoria.menu"
+        else -> error("No group for $path")
+    }
+    version = "0.1.0"
 }
 
 paper {

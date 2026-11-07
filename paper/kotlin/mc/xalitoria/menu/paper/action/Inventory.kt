@@ -1,17 +1,17 @@
 package mc.xalitoria.menu.paper.action
 
+import com.xalitoria.util.message.PLAIN
 import io.papermc.paper.datacomponent.DataComponentTypes
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import mc.xalitoria.menu.api.Action
-import mc.xalitoria.menu.api.MenuContext
-import mc.xalitoria.menu.api.model.Item
 import mc.xalitoria.menu.paper.XaliMenu
 import mc.xalitoria.menu.paper.XaliMenu.Companion.debug
 import mc.xalitoria.menu.paper.api.TypeRegistry
 import mc.xalitoria.menu.paper.runtime.Context
 import mc.xalitoria.menu.paper.runtime.ItemFactory
-import mc.xalitoria.util.message.PLAIN
+import net.xalitoria.menu.Action
+import net.xalitoria.menu.MenuContext
+import net.xalitoria.menu.model.Item
 import org.bukkit.Bukkit
 import org.bukkit.entity.Player
 import org.bukkit.inventory.ItemStack

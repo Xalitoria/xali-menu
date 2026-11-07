@@ -9,10 +9,10 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
-import mc.xalitoria.menu.editor.SchemaBuilder
-import mc.xalitoria.menu.editor.SourceDocs
-import mc.xalitoria.menu.editor.builtIn
-import mc.xalitoria.menu.editor.schema
+import com.xalitoria.menu.editor.SchemaBuilder
+import com.xalitoria.menu.editor.SourceDocs
+import com.xalitoria.menu.editor.builtIn
+import com.xalitoria.menu.editor.schema
 import mc.xalitoria.menu.paper.format.MenuFormat
 
 class SchemaTest {

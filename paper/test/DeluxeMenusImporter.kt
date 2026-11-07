@@ -8,7 +8,7 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.seconds
 import mc.xalitoria.menu.paper.deluxemenus.*
-import mc.xalitoria.menu.api.model.*
+import net.xalitoria.menu.model.*
 import mc.xalitoria.menu.paper.action.Actions
 import mc.xalitoria.menu.paper.condition.Conditions
 import mc.xalitoria.menu.paper.condition.Logic

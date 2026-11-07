@@ -1,7 +1,7 @@
 import java.util.Map;
-import mc.xalitoria.menu.api.ActivatorFilter;
-import mc.xalitoria.menu.api.ActivatorSource;
-import mc.xalitoria.menu.api.XaliMenuApi;
+import net.xalitoria.menu.ActivatorFilter;
+import net.xalitoria.menu.ActivatorSource;
+import net.xalitoria.menu.XaliMenuApi;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;

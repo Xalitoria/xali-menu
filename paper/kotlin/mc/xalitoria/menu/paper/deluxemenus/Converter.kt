@@ -2,7 +2,7 @@ package mc.xalitoria.menu.paper.deluxemenus
 
 import com.charleskorn.kaml.YamlMap
 import kotlin.time.Duration.Companion.seconds
-import mc.xalitoria.menu.api.model.*
+import net.xalitoria.menu.model.*
 import net.kyori.adventure.nbt.CompoundBinaryTag
 import net.kyori.adventure.nbt.TagStringIO
 

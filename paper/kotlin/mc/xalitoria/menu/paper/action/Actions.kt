@@ -8,14 +8,14 @@ import kotlin.random.Random
 import kotlin.time.Duration
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import mc.xalitoria.menu.api.Action
-import mc.xalitoria.menu.api.MenuContext
-import mc.xalitoria.menu.api.model.DurationAsString
+import net.xalitoria.menu.Action
+import net.xalitoria.menu.MenuContext
+import net.xalitoria.menu.model.DurationAsString
 import mc.xalitoria.menu.paper.XaliMenu
 import mc.xalitoria.menu.paper.XaliMenu.Companion.debug
 import mc.xalitoria.menu.paper.api.TypeRegistry
 import mc.xalitoria.menu.paper.util.verbatim
-import mc.xalitoria.util.message.fail
+import com.xalitoria.util.message.fail
 import net.kyori.adventure.key.Key
 import net.kyori.adventure.sound.Sound as AdventureSound
 import net.kyori.adventure.text.serializer.gson.GsonComponentSerializer
@@ -283,12 +283,12 @@ object Actions {
                 ctx.player fail plugin.messageConfig.data.commands.variable.unavailable(key.verbatim())
                 return
             }
-            val owner: mc.xalitoria.menu.api.Scope = if (scope == Scope.GLOBAL) mc.xalitoria.menu.api.Scope.Global else {
+            val owner: net.xalitoria.menu.Scope = if (scope == Scope.GLOBAL) net.xalitoria.menu.Scope.Global else {
                 val named = player?.let(ctx::parse)?.trim()?.ifEmpty { null }
                 val id = if (named == null) ctx.player.uniqueId
                 else ctx.player.server.getPlayerExact(named)?.uniqueId ?: ctx.player.server.getOfflinePlayerIfCached(named)?.uniqueId
                     ?: return debug("Variable {0}: no player named {1}", key, named)
-                mc.xalitoria.menu.api.Scope.Player(id)
+                net.xalitoria.menu.Scope.Player(id)
             }
             val text = ctx.parse(value)
             when (op) {
@@ -298,7 +298,7 @@ object Actions {
                 }
                 Op.REMOVE -> variables.remove(owner, key)
                 else -> {
-                    val amount = mc.xalitoria.menu.api.Variable.parseNumber(text) ?: return debug("Variable {0}: '{1}' isn't a number", key, text)
+                    val amount = net.xalitoria.menu.Variable.parseNumber(text) ?: return debug("Variable {0}: '{1}' isn't a number", key, text)
                     val change: (BigDecimal) -> BigDecimal = when (op) {
                         Op.INC -> { current -> current + amount }
                         Op.DEC -> { current -> current - amount }

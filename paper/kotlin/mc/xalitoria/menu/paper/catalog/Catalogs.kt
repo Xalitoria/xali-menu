@@ -2,10 +2,10 @@ package mc.xalitoria.menu.paper.catalog
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import mc.xalitoria.menu.api.Catalog
-import mc.xalitoria.menu.api.MenuContext
 import mc.xalitoria.menu.paper.XaliMenu.Companion.debug
 import mc.xalitoria.menu.paper.api.TypeRegistry
+import net.xalitoria.menu.Catalog
+import net.xalitoria.menu.MenuContext
 import org.bukkit.Bukkit
 
 /** The catalogs XaliMenu comes with. Text may hold placeholders: PlaceholderAPI's, and `{name}` for the menu's arguments. */

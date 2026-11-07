@@ -1,21 +1,21 @@
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
-import mc.xalitoria.menu.api.model.AttributeModifier
-import mc.xalitoria.menu.api.model.AttributeOperation
-import mc.xalitoria.menu.api.model.Book
-import mc.xalitoria.menu.api.model.Equippable
-import mc.xalitoria.menu.api.model.Fish
-import mc.xalitoria.menu.api.model.Firework
-import mc.xalitoria.menu.api.model.FireworkEffect
-import mc.xalitoria.menu.api.model.FireworkType
-import mc.xalitoria.menu.api.model.Food
-import mc.xalitoria.menu.api.model.Item
-import mc.xalitoria.menu.api.model.Menu
-import mc.xalitoria.menu.api.model.Rarity
-import mc.xalitoria.menu.api.model.Tool
-import mc.xalitoria.menu.api.model.ToolRule
-import mc.xalitoria.menu.api.model.Trim
+import net.xalitoria.menu.model.AttributeModifier
+import net.xalitoria.menu.model.AttributeOperation
+import net.xalitoria.menu.model.Book
+import net.xalitoria.menu.model.Equippable
+import net.xalitoria.menu.model.Fish
+import net.xalitoria.menu.model.Firework
+import net.xalitoria.menu.model.FireworkEffect
+import net.xalitoria.menu.model.FireworkType
+import net.xalitoria.menu.model.Food
+import net.xalitoria.menu.model.Item
+import net.xalitoria.menu.model.Menu
+import net.xalitoria.menu.model.Rarity
+import net.xalitoria.menu.model.Tool
+import net.xalitoria.menu.model.ToolRule
+import net.xalitoria.menu.model.Trim
 
 class ItemProperties {
     @Test

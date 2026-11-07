@@ -8,14 +8,14 @@ import kotlinx.serialization.KSerializer
 import kotlinx.serialization.modules.SerializersModule
 import kotlinx.serialization.modules.polymorphic
 import kotlinx.serialization.serializer
-import mc.xalitoria.menu.api.Action
-import mc.xalitoria.menu.api.ActivatorType
-import mc.xalitoria.menu.api.Catalog
-import mc.xalitoria.menu.api.CatalogType
-import mc.xalitoria.menu.api.ActionType
-import mc.xalitoria.menu.api.Condition
-import mc.xalitoria.menu.api.ConditionType
-import mc.xalitoria.menu.api.ItemSource
+import net.xalitoria.menu.Action
+import net.xalitoria.menu.ActivatorType
+import net.xalitoria.menu.Catalog
+import net.xalitoria.menu.CatalogType
+import net.xalitoria.menu.ActionType
+import net.xalitoria.menu.Condition
+import net.xalitoria.menu.ConditionType
+import net.xalitoria.menu.ItemSource
 import org.bukkit.plugin.Plugin
 
 /**

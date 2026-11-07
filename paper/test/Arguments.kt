@@ -4,12 +4,12 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
-import mc.xalitoria.menu.api.Action
+import net.xalitoria.menu.Action
 import mc.xalitoria.menu.paper.runtime.Context
 import mc.xalitoria.menu.paper.runtime.Host
 import mc.xalitoria.menu.paper.runtime.MenuArgs
 import mc.xalitoria.menu.paper.runtime.Placeholders
-import mc.xalitoria.util.message.PLAIN
+import com.xalitoria.util.message.PLAIN
 import org.bukkit.entity.Player
 
 /** What players type after a menu's command is theirs, not the menu's. */

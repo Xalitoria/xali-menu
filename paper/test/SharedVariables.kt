@@ -18,10 +18,10 @@ import kotlin.test.assertTrue
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
-import mc.xalitoria.util.config.DatabaseConfig
+import com.xalitoria.util.config.DatabaseConfig
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.runBlocking
-import mc.xalitoria.menu.api.Scope
+import net.xalitoria.menu.Scope
 import mc.xalitoria.menu.paper.config.MainConfig
 import mc.xalitoria.menu.paper.config.MainConfig.StoreKind
 import mc.xalitoria.menu.paper.variable.Shard

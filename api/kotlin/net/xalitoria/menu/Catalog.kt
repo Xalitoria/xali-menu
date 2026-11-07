@@ -1,4 +1,4 @@
-package mc.xalitoria.menu.api
+package net.xalitoria.menu
 
 /**
  * A list of things that a paged menu (`pages` in a menu file) shows, one page at a time: `{ type = "players" }`. Each

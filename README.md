@@ -25,7 +25,7 @@ sources through an [addon API](#extending).
 
 | Module | Description |
 |---|---|
-| `menu/api` | `mc.xalitoria.menu.api`: what other plugins compile against. The menu model, `Action`, `Condition`, `MenuContext`, `ItemSource`, `Variables` and `XaliMenuApi`. Shaded into the plugin's jar. |
+| `menu/api` | `net.xalitoria.menu`: what other plugins compile against. The menu model, `Action`, `Condition`, `MenuContext`, `ItemSource`, `Variables` and `XaliMenuApi`. Shaded into the plugin's jar. |
 | `menu/paper` | `mc.xalitoria.menu.paper`: the plugin. Its built-in actions and conditions are written against the same API. |
 
 ### Building and installing
@@ -58,7 +58,7 @@ Messages and menu text accept `&` codes, `&#RRGGBB`, CMI gradients (`{#a0a>}text
 
 ### Menu files
 
-The schema is the classes in `mc.xalitoria.menu.api.model`, with keys in kebab-case (`dynamic-amount`, `shift-left`,
+The schema is the classes in `net.xalitoria.menu.model`, with keys in kebab-case (`dynamic-amount`, `shift-left`,
 `on-open`). It is XaliMenu's own schema and is **not** compatible with AbstractMenus' HOCON.
 
 **File** `plugins/XaliMenu/menus/jobs.conf`
@@ -524,7 +524,7 @@ api.registerAction(this, "myplugin:reward", settings -> new Reward(settings.getI
 
 Names are lower case, `plugin:name`. `Settings` reads the keys by kind (`string`, `int`, `long`, `double`, `boolean`,
 `strings`, `section` and `sections`, each with a fallback overload). `requireString` throws when the key is missing, and
-the menu is then reported as broken with that message. Everything in `mc.xalitoria.menu.api` that an addon calls is made
+the menu is then reported as broken with that message. Everything in `net.xalitoria.menu` that an addon calls is made
 of JDK, Bukkit and Adventure types and the API's own: functions are `Runnable` and `UnaryOperator`, and there are
 overloads instead of default arguments. The test `menu/api/test/AddonSurface.kt` fails if a Kotlin type gets into a
 signature. Addon actions, conditions and catalogs can be read from menu files but not written back by `/xmenu import`.

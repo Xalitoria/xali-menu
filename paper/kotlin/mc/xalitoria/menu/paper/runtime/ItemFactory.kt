@@ -16,9 +16,9 @@ import io.papermc.paper.registry.RegistryAccess
 import io.papermc.paper.registry.RegistryKey
 import java.util.concurrent.ConcurrentHashMap
 import mc.xalitoria.menu.paper.XaliMenu
-import mc.xalitoria.menu.api.model.AttributeOperation
-import mc.xalitoria.menu.api.model.Item
-import mc.xalitoria.menu.api.model.Trim
+import net.xalitoria.menu.model.AttributeOperation
+import net.xalitoria.menu.model.Item
+import net.xalitoria.menu.model.Trim
 import net.kyori.adventure.key.Key
 import net.kyori.adventure.text.format.TextDecoration
 import org.bukkit.Bukkit
@@ -252,7 +252,7 @@ class ItemFactory(private val plugin: XaliMenu) {
         }
 
         /** The burst for [effect], or null if it has no color that can be read. */
-        private fun burst(effect: mc.xalitoria.menu.api.model.FireworkEffect): FireworkEffect? {
+        private fun burst(effect: net.xalitoria.menu.model.FireworkEffect): FireworkEffect? {
             val colors = effect.colors.mapNotNull(::parseColor)
             if (colors.isEmpty()) return null
             return FireworkEffect.builder()

@@ -1,7 +1,7 @@
 package mc.xalitoria.menu.paper.deluxemenus
 
-import mc.xalitoria.menu.api.Action
 import mc.xalitoria.menu.paper.action.Actions
+import net.xalitoria.menu.Action
 
 private val TAG = Regex("""^\s*\[([A-Za-z]+)]\s*(.*)$""")
 private val DELAY = Regex("""<delay=(\d+)>""", RegexOption.IGNORE_CASE)

@@ -3,7 +3,7 @@ package mc.xalitoria.menu.paper.hook
 import com.nexomc.nexo.api.NexoItems
 import dev.lone.itemsadder.api.CustomStack
 import me.arcaniax.hdb.api.HeadDatabaseAPI
-import mc.xalitoria.menu.api.ItemSource
+import net.xalitoria.menu.ItemSource
 import org.bukkit.inventory.ItemStack
 
 /** An item source that can list its items, which the editor offers in its search. */

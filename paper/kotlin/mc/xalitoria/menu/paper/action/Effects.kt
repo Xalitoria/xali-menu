@@ -7,9 +7,9 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import mc.xalitoria.menu.api.Action
-import mc.xalitoria.menu.api.MenuContext
-import mc.xalitoria.menu.api.model.DurationAsString
+import net.xalitoria.menu.Action
+import net.xalitoria.menu.MenuContext
+import net.xalitoria.menu.model.DurationAsString
 import mc.xalitoria.menu.paper.XaliMenu
 import mc.xalitoria.menu.paper.XaliMenu.Companion.debug
 import mc.xalitoria.menu.paper.api.TypeRegistry

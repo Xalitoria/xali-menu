@@ -26,8 +26,8 @@ import mc.xalitoria.menu.paper.format.MenuFormat
 import mc.xalitoria.menu.paper.runtime.MenuManager
 import mc.xalitoria.menu.paper.util.suggestMatching
 import mc.xalitoria.menu.paper.util.verbatim
-import mc.xalitoria.util.bukkit.getPlayer
-import mc.xalitoria.util.message.*
+import com.xalitoria.util.bukkit.getPlayer
+import com.xalitoria.util.message.*
 import org.bukkit.command.CommandSender
 import org.bukkit.entity.Player
 

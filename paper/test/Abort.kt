@@ -1,8 +1,8 @@
 import java.lang.reflect.Proxy
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import mc.xalitoria.menu.api.Action
-import mc.xalitoria.menu.api.MenuContext
+import net.xalitoria.menu.Action
+import net.xalitoria.menu.MenuContext
 import mc.xalitoria.menu.paper.action.Actions
 import mc.xalitoria.menu.paper.runtime.Context
 import mc.xalitoria.menu.paper.runtime.Host

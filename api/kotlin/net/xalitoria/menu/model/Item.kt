@@ -1,7 +1,7 @@
-package mc.xalitoria.menu.api.model
+package net.xalitoria.menu.model
 
 import kotlinx.serialization.Serializable
-import mc.xalitoria.menu.api.Action
+import net.xalitoria.menu.Action
 
 /**
  * An item of a menu.

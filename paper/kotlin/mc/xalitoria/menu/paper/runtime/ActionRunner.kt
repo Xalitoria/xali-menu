@@ -1,8 +1,8 @@
 package mc.xalitoria.menu.paper.runtime
 
-import mc.xalitoria.menu.api.Action
-import mc.xalitoria.menu.api.ActionsAborted
 import mc.xalitoria.menu.paper.XaliMenu
+import net.xalitoria.menu.Action
+import net.xalitoria.menu.ActionsAborted
 import org.bukkit.entity.Player
 
 /**

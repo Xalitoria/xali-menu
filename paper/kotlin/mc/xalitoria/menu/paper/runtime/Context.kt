@@ -3,11 +3,11 @@ package mc.xalitoria.menu.paper.runtime
 import java.util.concurrent.ConcurrentHashMap
 import java.util.function.UnaryOperator
 import me.clip.placeholderapi.PlaceholderAPI
-import mc.xalitoria.menu.api.Action
-import mc.xalitoria.menu.api.ActionsAborted
-import mc.xalitoria.menu.api.MenuContext
+import net.xalitoria.menu.Action
+import net.xalitoria.menu.ActionsAborted
+import net.xalitoria.menu.MenuContext
 import mc.xalitoria.menu.paper.util.verbatim
-import mc.xalitoria.util.message.toComponent
+import com.xalitoria.util.message.toComponent
 import net.kyori.adventure.text.Component
 import org.bukkit.entity.Player
 

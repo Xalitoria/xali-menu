@@ -1,4 +1,4 @@
-package mc.xalitoria.menu.api
+package net.xalitoria.menu
 
 /**
  * The keys of an action or condition as they are written in a menu file, next to its `type`, for the [ActionType] or

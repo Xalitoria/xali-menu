@@ -1,8 +1,8 @@
-package mc.xalitoria.menu.api.model
+package net.xalitoria.menu.model
 
 import kotlinx.serialization.Serializable
-import mc.xalitoria.menu.api.Condition
-import mc.xalitoria.menu.api.Action
+import net.xalitoria.menu.Condition
+import net.xalitoria.menu.Action
 
 /** A [Condition] with what to run when it fails or holds. A check marked [optional] may fail, as long as [Gate.minimum] checks hold. */
 @Serializable

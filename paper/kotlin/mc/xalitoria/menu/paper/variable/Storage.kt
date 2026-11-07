@@ -4,8 +4,8 @@ import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
 import java.nio.file.Path
 import kotlin.io.path.createDirectories
-import mc.xalitoria.util.config.DatabaseConfig
-import mc.xalitoria.util.config.databaseType
+import com.xalitoria.util.config.DatabaseConfig
+import com.xalitoria.util.config.databaseType
 import org.jetbrains.exposed.v1.core.Table
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.insertIgnore

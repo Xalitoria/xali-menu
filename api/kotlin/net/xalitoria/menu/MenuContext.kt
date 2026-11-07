@@ -1,4 +1,4 @@
-package mc.xalitoria.menu.api
+package net.xalitoria.menu
 
 import java.util.function.UnaryOperator
 import net.kyori.adventure.text.Component

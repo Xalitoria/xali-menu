@@ -3,7 +3,7 @@ import java.lang.reflect.Modifier
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
-import mc.xalitoria.menu.api.Action
+import net.xalitoria.menu.Action
 
 /**
  * A plugin that carries its own copy of the Kotlin runtime must be able to call this API. Every class it loads has the
@@ -15,7 +15,7 @@ class AddonSurface {
     private val root: File = File(Action::class.java.protectionDomain.codeSource.location.toURI())
 
     /** Every class of the API except the menu model, which is read from files and not called by addons. */
-    private val classes: List<Class<*>> = File(root, "mc/xalitoria/menu/api").walkTopDown()
+    private val classes: List<Class<*>> = File(root, "net/xalitoria/menu").walkTopDown()
         .filter { it.extension == "class" && "/model/" !in it.invariantSeparatorsPath }
         .map { Class.forName(it.relativeTo(root).invariantSeparatorsPath.removeSuffix(".class").replace('/', '.')) }
         .toList()

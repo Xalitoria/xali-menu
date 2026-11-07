@@ -9,12 +9,12 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.CoroutineScope
-import mc.xalitoria.menu.api.Scope
-import mc.xalitoria.menu.api.Variable
-import mc.xalitoria.menu.api.Variables
+import net.xalitoria.menu.Scope
+import net.xalitoria.menu.Variable
+import net.xalitoria.menu.Variables
 import mc.xalitoria.menu.paper.config.MainConfig
 import mc.xalitoria.menu.paper.config.MainConfig.StoreKind
-import mc.xalitoria.util.config.databaseType
+import com.xalitoria.util.config.databaseType
 
 /** Which store a variable lives in, by its name: the first rule that matches, or the default. */
 class StoreRules(private val default: StoreKind, rules: List<MainConfig.Variables.Rule>) {

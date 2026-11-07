@@ -4,9 +4,9 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
-import mc.xalitoria.menu.api.Action
-import mc.xalitoria.menu.api.Condition
-import mc.xalitoria.menu.api.MenuContext
+import net.xalitoria.menu.Action
+import net.xalitoria.menu.Condition
+import net.xalitoria.menu.MenuContext
 import mc.xalitoria.menu.paper.action.Social
 import mc.xalitoria.menu.paper.condition.Conditions
 import mc.xalitoria.menu.paper.condition.Logic
@@ -183,17 +183,17 @@ class MoreConditions {
 
     @Test
     fun aGateExplainsEachCheck() {
-        val gate = mc.xalitoria.menu.api.model.Gate(
+        val gate = net.xalitoria.menu.model.Gate(
             require = [
-                mc.xalitoria.menu.api.model.Check(yes),
-                mc.xalitoria.menu.api.model.Check(Logic.And([]), optional = true),
-                mc.xalitoria.menu.api.model.Check(Logic.Chance(0.0)),
+                net.xalitoria.menu.model.Check(yes),
+                net.xalitoria.menu.model.Check(Logic.And([]), optional = true),
+                net.xalitoria.menu.model.Check(Logic.Chance(0.0)),
             ],
         )
         val lines = gate.explain(ctx)
         assertEquals(3, lines.size)
         assertTrue(lines[0].startsWith("holds: "), lines[0])
         assertTrue(lines[2].startsWith("FAILS: ") && "Chance" in lines[2], lines[2])
-        assertEquals(emptyList(), (null as mc.xalitoria.menu.api.model.Gate?).explain(ctx))
+        assertEquals(emptyList(), (null as net.xalitoria.menu.model.Gate?).explain(ctx))
     }
 }

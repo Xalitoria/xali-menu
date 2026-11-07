@@ -1,10 +1,10 @@
 package mc.xalitoria.menu.paper.util
 
-import mc.xalitoria.color.stripCmiGradients
-import mc.xalitoria.color.stripColors
-import mc.xalitoria.menu.api.MenuContext
-import mc.xalitoria.util.message.MINI
+import com.xalitoria.color.stripCmiGradients
+import com.xalitoria.color.stripColors
+import com.xalitoria.util.message.MINI
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer
+import net.xalitoria.menu.MenuContext
 
 /**
  * This text as a message argument shows as it is written: the color codes, CMI gradients and MiniMessage tags it holds

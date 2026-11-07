@@ -2,11 +2,11 @@ package mc.xalitoria.menu.paper.runtime
 
 import io.papermc.paper.datacomponent.DataComponentTypes
 import io.papermc.paper.event.player.AsyncChatEvent
-import mc.xalitoria.menu.api.model.Activator
-import mc.xalitoria.menu.api.model.BlockClick
+import net.xalitoria.menu.model.Activator
+import net.xalitoria.menu.model.BlockClick
 import mc.xalitoria.menu.paper.XaliMenu
-import mc.xalitoria.util.message.PLAIN
-import mc.xalitoria.util.message.toComponent
+import com.xalitoria.util.message.PLAIN
+import com.xalitoria.util.message.toComponent
 import net.kyori.adventure.text.Component
 import org.bukkit.Bukkit
 import org.bukkit.Material

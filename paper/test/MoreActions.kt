@@ -5,9 +5,9 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
-import mc.xalitoria.menu.api.Action
-import mc.xalitoria.menu.api.Catalog
-import mc.xalitoria.menu.api.MenuContext
+import net.xalitoria.menu.Action
+import net.xalitoria.menu.Catalog
+import net.xalitoria.menu.MenuContext
 import mc.xalitoria.menu.paper.action.Actions
 import mc.xalitoria.menu.paper.action.Effects
 import mc.xalitoria.menu.paper.action.Flow
@@ -226,7 +226,7 @@ class MoreActions {
     @Test
     fun theNewActionsAreWrittenAndReadBack() {
         val actions = listOf(
-            Inventory.GiveItem(mc.xalitoria.menu.api.model.Item("diamond", amount = 3)),
+            Inventory.GiveItem(net.xalitoria.menu.model.Item("diamond", amount = 3)),
             Effects.Potion("speed", 20.seconds, 2, remove = false),
             Effects.Teleport(y = "70"),
             Effects.Health("5", Effects.Change.TAKE),
@@ -235,9 +235,9 @@ class MoreActions {
             Effects.Skin("{arg}"),
             Effects.SkinReset,
         )
-        val menu = mc.xalitoria.menu.api.model.Menu(
+        val menu = net.xalitoria.menu.model.Menu(
             title = "t",
-            items = mapOf("a" to mc.xalitoria.menu.api.model.Item("stone", slot = 0, click = mc.xalitoria.menu.api.model.Clicks(any = mc.xalitoria.menu.api.model.Handler(actions)))),
+            items = mapOf("a" to net.xalitoria.menu.model.Item("stone", slot = 0, click = net.xalitoria.menu.model.Clicks(any = net.xalitoria.menu.model.Handler(actions)))),
         )
         assertEquals(menu, Registry.format.decode(Registry.format.encode(menu, [])))
     }

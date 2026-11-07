@@ -1,7 +1,7 @@
-package mc.xalitoria.menu.api.model
+package net.xalitoria.menu.model
 
 import kotlinx.serialization.Serializable
-import mc.xalitoria.menu.api.Catalog
+import net.xalitoria.menu.Catalog
 
 /**
  * What makes a menu paged: the elements of [catalog] are drawn one page at a time into [slots], each as [item].

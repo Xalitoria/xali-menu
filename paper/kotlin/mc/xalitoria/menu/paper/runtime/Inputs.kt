@@ -3,9 +3,9 @@ package mc.xalitoria.menu.paper.runtime
 import io.papermc.paper.event.player.AsyncChatEvent
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
-import mc.xalitoria.menu.api.Action
+import net.xalitoria.menu.Action
 import mc.xalitoria.menu.paper.XaliMenu
-import mc.xalitoria.util.message.PLAIN
+import com.xalitoria.util.message.PLAIN
 import org.bukkit.entity.Player
 import org.bukkit.event.EventHandler
 import org.bukkit.event.EventPriority

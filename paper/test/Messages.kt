@@ -5,10 +5,10 @@ import kotlin.test.assertTrue
 import mc.xalitoria.menu.paper.config.MainConfig
 import mc.xalitoria.menu.paper.config.MessageConfig
 import mc.xalitoria.menu.paper.util.verbatim
-import mc.xalitoria.util.config.YamlFile
-import mc.xalitoria.util.message.MINI
-import mc.xalitoria.util.message.PLAIN
-import mc.xalitoria.util.message.toComponent
+import com.xalitoria.util.config.YamlFile
+import com.xalitoria.util.message.MINI
+import com.xalitoria.util.message.PLAIN
+import com.xalitoria.util.message.toComponent
 import net.kyori.adventure.text.Component
 
 class Messages {

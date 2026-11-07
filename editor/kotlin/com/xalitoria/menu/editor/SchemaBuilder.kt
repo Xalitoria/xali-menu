@@ -1,4 +1,4 @@
-package mc.xalitoria.menu.editor
+package com.xalitoria.menu.editor
 
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.PolymorphicSerializer
@@ -19,11 +19,11 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import kotlinx.serialization.modules.SerializersModule
 import kotlinx.serialization.serializer
-import mc.xalitoria.menu.api.Action
-import mc.xalitoria.menu.api.Catalog
-import mc.xalitoria.menu.api.Condition
-import mc.xalitoria.menu.api.model.Activator
-import mc.xalitoria.menu.api.model.Menu
+import net.xalitoria.menu.Action
+import net.xalitoria.menu.Catalog
+import net.xalitoria.menu.Condition
+import net.xalitoria.menu.model.Activator
+import net.xalitoria.menu.model.Menu
 
 /**
  * Describes the menu format as JSON for the editor: every class that a menu file can contain, with the keys it takes, the

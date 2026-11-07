@@ -1,14 +1,14 @@
 package mc.xalitoria.menu.paper.api
 
-import mc.xalitoria.menu.api.ActionType
-import mc.xalitoria.menu.api.ActivatorSource
-import mc.xalitoria.menu.api.ActivatorType
-import mc.xalitoria.menu.api.CatalogType
-import mc.xalitoria.menu.api.ConditionType
-import mc.xalitoria.menu.api.ItemSource
-import mc.xalitoria.menu.api.Variables
-import mc.xalitoria.menu.api.XaliMenuApi
 import mc.xalitoria.menu.paper.XaliMenu
+import net.xalitoria.menu.ActionType
+import net.xalitoria.menu.ActivatorSource
+import net.xalitoria.menu.ActivatorType
+import net.xalitoria.menu.CatalogType
+import net.xalitoria.menu.ConditionType
+import net.xalitoria.menu.ItemSource
+import net.xalitoria.menu.Variables
+import net.xalitoria.menu.XaliMenuApi
 import org.bukkit.entity.Player
 import org.bukkit.plugin.Plugin
 
