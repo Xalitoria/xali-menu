@@ -40,6 +40,9 @@ class TypeRegistry {
     private val externalCatalogs = CopyOnWriteArrayList<External<Catalog>>()
     private class ExternalActivator(val owner: Plugin, val type: ActivatorType)
 
+    private class Values(val owner: Plugin?, val values: Map<String, String>)
+
+    private val catalogValues = ConcurrentHashMap<String, Values>()
     private val activators = ConcurrentHashMap<String, ExternalActivator>()
     private val itemSources = ConcurrentHashMap<String, Source>()
 
@@ -49,6 +52,9 @@ class TypeRegistry {
 
     /** The names (`plugin:name`) of the actions, conditions and catalogs other plugins added: the `type`s that need [packExternals][mc.xalitoria.menu.paper.format.packExternals]. */
     val externalNames: Set<String> get() = (externalActions + externalConditions + externalCatalogs).mapTo(HashSet()) { it.name }
+
+    /** What the elements of each catalog hold, as the name of each value with an example: for the editor. Built-in and other plugins' catalogs, by `type`. */
+    val catalogInfo: Map<String, Map<String, String>> get() = catalogValues.mapValues { it.value.values }
 
     /** The names of the activators other plugins added, which a menu file writes as `type` and which [packExternals][mc.xalitoria.menu.paper.format.packExternals] turns into `addon` activators. */
     val activatorNames: Set<String> get() = activators.keys.toSet()
@@ -67,8 +73,10 @@ class TypeRegistry {
         add(conditions, Type(owner, type, serializer))
     }
 
-    fun <T : Catalog> addCatalog(owner: Plugin?, type: KClass<T>, serializer: KSerializer<T>) {
-        add(catalogs, Type(owner, type, serializer))
+    fun <T : Catalog> addCatalog(owner: Plugin?, type: KClass<T>, serializer: KSerializer<T>, values: Map<String, String> = emptyMap()) {
+        val added = Type(owner, type, serializer)
+        add(catalogs, added)
+        catalogValues[added.name] = Values(owner, values)
     }
 
     /** Adds the action [name] of the plugin [owner]; [type] builds it from the keys written in the menu file. */
@@ -80,8 +88,9 @@ class TypeRegistry {
         addExternal(externalConditions, owner, name, ExternalSerializer(name, type::create))
     }
 
-    fun addCatalog(owner: Plugin, name: String, type: CatalogType) {
+    fun addCatalog(owner: Plugin, name: String, type: CatalogType, values: Map<String, String> = emptyMap()) {
         addExternal(externalCatalogs, owner, name, ExternalSerializer(name, type::create))
+        catalogValues[name] = Values(owner, values)
     }
 
     fun addActivator(owner: Plugin, name: String, type: ActivatorType) {
@@ -101,7 +110,7 @@ class TypeRegistry {
 
     inline fun <reified T : Condition> condition() = addCondition(null, T::class, serializer<T>())
 
-    inline fun <reified T : Catalog> catalog() = addCatalog(null, T::class, serializer<T>())
+    inline fun <reified T : Catalog> catalog(values: Map<String, String> = emptyMap()) = addCatalog(null, T::class, serializer<T>(), values)
 
     fun addSource(owner: Plugin?, source: ItemSource) {
         val prefix = source.prefix.lowercase()
@@ -113,7 +122,8 @@ class TypeRegistry {
         val removed = actions.removeIf { it.owner == owner } or conditions.removeIf { it.owner == owner } or
             catalogs.removeIf { it.owner == owner } or externalActions.removeIf { it.owner == owner } or
             externalConditions.removeIf { it.owner == owner } or externalCatalogs.removeIf { it.owner == owner } or
-            activators.values.removeIf { it.owner == owner } or itemSources.values.removeIf { it.owner == owner }
+            activators.values.removeIf { it.owner == owner } or itemSources.values.removeIf { it.owner == owner } or
+            catalogValues.values.removeIf { it.owner == owner }
         if (removed) module = build()
         return removed
     }

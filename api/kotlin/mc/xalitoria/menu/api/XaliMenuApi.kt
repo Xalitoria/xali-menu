@@ -35,8 +35,15 @@ interface XaliMenuApi {
     /** Adds a condition type, named and built the same way as an action's. */
     fun registerCondition(owner: Plugin, name: String, type: ConditionType)
 
-    /** Adds a catalog type for paged menus, named and built the same way as an action's. */
+    /** Adds a catalog type for paged menus, named and built the same way as an action's. Editors cannot tell what its elements hold; see the other overload. */
     fun registerCatalog(owner: Plugin, name: String, type: CatalogType)
+
+    /**
+     * Adds a catalog type and says what each of its elements holds: [values] maps the name of each value (`name`, as in `{name}`) to
+     * an example of it (`Notch`). The editor offers these names for the item template and draws the template with the examples, so
+     * a menu can be built without knowing the catalog. Nothing else reads them.
+     */
+    fun registerCatalog(owner: Plugin, name: String, values: Map<String, String>, type: CatalogType)
 
     /**
      * Adds an activator type, named like an action's. [type] builds the activator from the keys written next to `type`; the

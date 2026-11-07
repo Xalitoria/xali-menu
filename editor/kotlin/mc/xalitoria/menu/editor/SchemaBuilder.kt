@@ -35,7 +35,8 @@ import mc.xalitoria.menu.api.model.Menu
  * ```json
  * { "root": "Menu",
  *   "types": { "Menu": { "doc": "...", "fields": [ { "key": "title", "type": { "kind": "string" }, "required": true, "doc": "..." } ] } },
- *   "poly": { "Action": { "close": "Action:close" } } }
+ *   "poly": { "Action": { "close": "Action:close" } },
+ *   "catalogs": { "players": { "name": "Notch" } } }
  * ```
  *
  * A type is a `kind` (`string`, `int`, `number`, `boolean`, `duration`, `enum` with `values`, `list` and `map` with `of`,
@@ -43,7 +44,13 @@ import mc.xalitoria.menu.api.model.Menu
  * written with a `type` key whose value is a name of `poly`.
  */
 @OptIn(ExperimentalSerializationApi::class)
-class SchemaBuilder(private val module: SerializersModule, private val docs: SourceDocs, private val version: String) {
+class SchemaBuilder(
+    private val module: SerializersModule,
+    private val docs: SourceDocs,
+    private val version: String,
+    /** What the elements of each built-in catalog hold: name of each value to an example. */
+    private val catalogs: Map<String, Map<String, String>> = emptyMap(),
+) {
     private val types = sortedMapOf<String, JsonElement>()
     private val bases = linkedMapOf<String, Map<String, String>>()
 
@@ -61,6 +68,7 @@ class SchemaBuilder(private val module: SerializersModule, private val docs: Sou
             put("version", version)
             put("root", root)
             put("types", JsonObject(types))
+            put("catalogs", JsonObject(catalogs.toSortedMap().mapValues { entry -> JsonObject(entry.value.mapValues { JsonPrimitive(it.value) }) }))
             put("poly", JsonObject(bases.toSortedMap().mapValues { entry -> JsonObject(entry.value.toSortedMap().mapValues { JsonPrimitive(it.value) }) }))
         }
     }

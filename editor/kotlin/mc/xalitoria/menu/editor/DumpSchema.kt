@@ -19,7 +19,8 @@ fun builtIn(): TypeRegistry = TypeRegistry().also {
 fun schema(menu: Path, version: String): String {
     val docs = SourceDocs.scan(menu.resolve("api/kotlin"), menu.resolve("paper/kotlin"))
     val json = Json { prettyPrint = true; prettyPrintIndent = "  " }
-    return json.encodeToString(kotlinx.serialization.json.JsonObject.serializer(), SchemaBuilder(builtIn().module, docs, version).build()) + "\n"
+    val registry = builtIn()
+    return json.encodeToString(kotlinx.serialization.json.JsonObject.serializer(), SchemaBuilder(registry.module, docs, version, registry.catalogInfo).build()) + "\n"
 }
 
 /** Writes the schema to the file given as the first argument, from the project directory given as the second. */

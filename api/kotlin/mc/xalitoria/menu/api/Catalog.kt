@@ -15,7 +15,9 @@ package mc.xalitoria.menu.api
  * XaliMenuApi.get().registerCatalog(plugin, "myplugin:homes") { Homes() }
  * ```
  *
- * The menu adds `index` (the element's place in the list, from 1) to every element.
+ * The menu adds `index` (the element's place in the list, from 1) to every element. Say which values the elements have, with an
+ * example of each, when registering: `registerCatalog(plugin, "myplugin:homes", mapOf("name" to "home1", "world" to "world")) { Homes() }`,
+ * so that the editor can offer them.
  */
 interface Catalog {
     /**

@@ -133,4 +133,12 @@ class SchemaTest {
         assertTrue("close" in poly["Action"]!!.jsonObject && "permission" in poly["Condition"]!!.jsonObject)
         assertTrue(JsonArray::class.isInstance(schema["types"]!!.jsonObject["Item"]!!.jsonObject["fields"]))
     }
+
+    @Test
+    fun theSchemaSaysWhatTheElementsOfEachCatalogHold() {
+        val catalogs = schema["catalogs"]!!.jsonObject
+        val poly = schema["poly"]!!.jsonObject["Catalog"]!!.jsonObject
+        assertEquals(poly.keys, catalogs.keys, "every catalog of the schema has its values listed")
+        assertEquals(setOf("name", "uuid"), catalogs["players"]!!.jsonObject.keys)
+    }
 }

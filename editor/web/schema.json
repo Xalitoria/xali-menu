@@ -3688,6 +3688,22 @@
       ]
     }
   },
+  "catalogs": {
+    "players": {
+      "name": "Notch",
+      "uuid": "069a79f4-44e9-4726-a5be-fca90e38aaf5"
+    },
+    "range": {
+      "value": "1"
+    },
+    "values": {
+      "value": "red"
+    },
+    "worlds": {
+      "name": "world",
+      "environment": "normal"
+    }
+  },
   "poly": {
     "Action": {
       "actionbar": "Action:actionbar",

@@ -326,6 +326,22 @@ class Paging {
     }
 
     @Test
+    fun catalogsSayWhatTheirElementsHold() {
+        val registry = TypeRegistry().also { Catalogs.register(it) }
+        assertEquals(setOf("name", "uuid"), registry.catalogInfo.getValue("players").keys)
+        assertEquals(setOf("name", "environment"), registry.catalogInfo.getValue("worlds").keys)
+        assertEquals(setOf("value"), registry.catalogInfo.getValue("range").keys)
+
+        registry.addCatalog(owner, "test:homes", CatalogType { Homes(1) }, mapOf("name" to "home1", "world" to "world"))
+        assertEquals(mapOf("name" to "home1", "world" to "world"), registry.catalogInfo["test:homes"])
+        registry.addCatalog(owner, "test:other", CatalogType { Homes(1) })
+        assertEquals(emptyMap(), registry.catalogInfo["test:other"], "a catalog that says nothing is still listed")
+
+        registry.removeAll(owner)
+        assertEquals(setOf("players", "worlds", "values", "range"), registry.catalogInfo.keys, "what a plugin said goes with it")
+    }
+
+    @Test
     fun aCatalogNameCanBeTakenOnlyOnce() {
         val registry = TypeRegistry().also { Catalogs.register(it) }
         registry.addCatalog(owner, "test:homes", CatalogType { Homes(1) })

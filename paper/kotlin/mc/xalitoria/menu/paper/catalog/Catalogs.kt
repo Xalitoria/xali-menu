@@ -14,10 +14,10 @@ object Catalogs {
     const val LIMIT = 10_000
 
     fun register(registry: TypeRegistry) {
-        registry.catalog<Players>()
-        registry.catalog<Worlds>()
-        registry.catalog<Values>()
-        registry.catalog<Range>()
+        registry.catalog<Players>(mapOf("name" to "Notch", "uuid" to "069a79f4-44e9-4726-a5be-fca90e38aaf5"))
+        registry.catalog<Worlds>(mapOf("name" to "world", "environment" to "normal"))
+        registry.catalog<Values>(mapOf("value" to "red"))
+        registry.catalog<Range>(mapOf("value" to "1"))
     }
 
     /** The players who are online, by name: `name` and `uuid`. */
