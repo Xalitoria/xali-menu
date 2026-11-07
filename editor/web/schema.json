@@ -1811,6 +1811,27 @@
         }
       ]
     },
+    "Catalog:inventory": {
+      "doc": "The items in the viewer's inventory, by slot: `slot` (0 to 35, the hotbar first, then `armor` and `offhand` if `armor` is on), `material` (`diamond_sword`), `amount` and `name` (the custom name as plain text, or nothing). An element is drawn like any other, so `material = \"{material}\"` and `amount = \"{amount}\"` show the item; what else it holds (enchantments, lore) stays on the item.",
+      "fields": [
+        {
+          "key": "armor",
+          "type": {
+            "kind": "boolean"
+          },
+          "required": false,
+          "default": false
+        },
+        {
+          "key": "empty",
+          "type": {
+            "kind": "boolean"
+          },
+          "required": false,
+          "default": false
+        }
+      ]
+    },
     "Catalog:menus": {
       "doc": "The menus that are loaded, by name: `name` (what `/xmenu open` and the `open` action take) and `title` (as written in the file, placeholders and all). The menu that lists them is left out unless `includeSelf`. A menu of menus: `open { menu = \"{name}\" }`.",
       "fields": [
@@ -3702,6 +3723,12 @@
     }
   },
   "catalogs": {
+    "inventory": {
+      "slot": "0",
+      "material": "diamond_sword",
+      "amount": "1",
+      "name": "Excalibur"
+    },
     "menus": {
       "name": "shop",
       "title": "Shop"
@@ -3780,6 +3807,7 @@
       "swap-hands": "Activator:swap-hands"
     },
     "Catalog": {
+      "inventory": "Catalog:inventory",
       "menus": "Catalog:menus",
       "players": "Catalog:players",
       "range": "Catalog:range",

@@ -7,6 +7,7 @@ import mc.xalitoria.menu.paper.XaliMenu.Companion.debug
 import mc.xalitoria.menu.paper.api.TypeRegistry
 import net.xalitoria.menu.Catalog
 import net.xalitoria.menu.MenuContext
+import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer
 import org.bukkit.Bukkit
 
 /** The catalogs XaliMenu comes with. Text may hold placeholders: PlaceholderAPI's, and `{name}` for the menu's arguments. */
@@ -14,12 +15,15 @@ object Catalogs {
     /** The most elements a catalog gives, so a placeholder that comes out huge cannot make a menu build a list of millions. */
     const val LIMIT = 10_000
 
+    private val PLAIN = PlainTextComponentSerializer.plainText()
+
     fun register(registry: TypeRegistry) {
         registry.catalog<Players>(mapOf("name" to "Notch", "uuid" to "069a79f4-44e9-4726-a5be-fca90e38aaf5"))
         registry.catalog<Worlds>(mapOf("name" to "world", "environment" to "normal"))
         registry.catalog<Values>(mapOf("value" to "red"))
         registry.catalog<Range>(mapOf("value" to "1"))
         registry.catalog<Menus>(mapOf("name" to "shop", "title" to "Shop"))
+        registry.catalog<Inventory>(mapOf("slot" to "0", "material" to "diamond_sword", "amount" to "1", "name" to "Excalibur"))
     }
 
     /** The players who are online, by name: `name` and `uuid`. */
@@ -48,6 +52,28 @@ object Catalogs {
             .filter { includeSelf || !it.name.equals(ctx.menu, ignoreCase = true) }
             .sortedBy { it.name.lowercase() }
             .map { mapOf("name" to it.name, "title" to it.menu.title) }
+    }
+
+    /**
+     * The items in the viewer's inventory, by slot: `slot` (0 to 35, the hotbar first, then `armor` and `offhand` if [armor] is on),
+     * `material` (`diamond_sword`), `amount` and `name` (the custom name as plain text, or nothing). An element is drawn like any
+     * other, so `material = "{material}"` and `amount = "{amount}"` show the item; what else it holds (enchantments, lore) stays on the item.
+     */
+    @Serializable @SerialName("inventory")
+    data class Inventory(val armor: Boolean = false, val empty: Boolean = false) : Catalog {
+        override fun elements(ctx: MenuContext): List<Map<String, String>> {
+            val inventory = ctx.player.inventory
+            val named = (0 until 36).map { it.toString() to inventory.getItem(it) } +
+                (if (armor) listOf("helmet" to inventory.helmet, "chestplate" to inventory.chestplate, "leggings" to inventory.leggings, "boots" to inventory.boots, "offhand" to inventory.itemInOffHand) else emptyList())
+            return named.mapNotNull { [slot, item] ->
+                if (item == null || item.type.isAir) {
+                    if (empty) mapOf("slot" to slot, "material" to "air", "amount" to "0", "name" to "") else null
+                } else {
+                    val name = item.itemMeta?.takeIf { it.hasCustomName() }?.customName()?.let { PLAIN.serialize(it) } ?: ""
+                    mapOf("slot" to slot, "material" to item.type.key.key, "amount" to item.amount.toString(), "name" to name)
+                }
+            }
+        }
     }
 
     /**

@@ -341,8 +341,15 @@ class Paging {
         assertEquals(setOf("test:warps"), registry.catalogSettings.keys, "only a catalog that described its settings is listed")
 
         registry.removeAll(owner)
-        assertEquals(setOf("players", "worlds", "values", "range", "menus"), registry.catalogInfo.keys, "what a plugin said goes with it")
+        assertEquals(setOf("players", "worlds", "values", "range", "menus", "inventory"), registry.catalogInfo.keys, "what a plugin said goes with it")
         assertEquals(emptyMap(), registry.catalogSettings)
+    }
+
+    @Test
+    fun inventoryIsReadWithItsSettings() {
+        val catalog = Registry.format.decode("title = x\npages { catalog { type = inventory, armor = true }, slots = [0], item { material = \"{material}\" } }").pages!!.catalog
+        assertEquals(Catalogs.Inventory(armor = true), catalog)
+        assertEquals(setOf("slot", "material", "amount", "name"), Registry.registry.catalogInfo.getValue("inventory").keys)
     }
 
     @Test

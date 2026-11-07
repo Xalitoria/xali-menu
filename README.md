@@ -274,6 +274,7 @@ text, which is all Paper can change on an open menu, so a font or a click event 
 | `worlds` | The worlds of the server. | `name`, `environment` |
 | `values` | The entries of `list`, and the pieces of `text` cut at `separator` (read as written, not as a pattern; placeholders are filled in first). | `value` |
 | `range` | The whole numbers `from` to `to` (numbers or placeholders), `step` apart, backwards with `descending`. | `value` |
+| `inventory` | The items in the viewer's inventory, by slot; `armor = true` adds the armor and the off hand, `empty = true` lists empty slots too (as `air`). | `slot`, `material`, `amount`, `name` |
 | `menus` | The menus that are loaded, by name, without the one that lists them unless `include-self = true`. A menu of menus: `open { menu = "{name}" }` in the template. | `name`, `title` |
 
 Every element also has `index`, its place in the list from 1. A catalog gives at most 10 000 elements. Other plugins add
