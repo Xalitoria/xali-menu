@@ -1,13 +1,10 @@
-// The "Pack" tab and everything that needs the resource pack: titles drawn with the pack's glyphs, the window with the glyph
-// behind the slots, and the aligner that moves a glyph by rewriting the space characters at the start of the title.
+// The resource pack: loading it (from the server, a file or an address), what its fonts have, and the "Pack" tab. Titles are drawn with the
+// pack's glyphs through `services`; the glyph bar of the editor screen picks and moves them.
 
 import { h, fill } from './dom.js'
 import { Pack } from './pack.js'
-import { DEFAULT_FONT, key as fontKey, spaces as spaceMap } from './fonts.js'
-import { parseHead, realign, insert } from './glyphs.js'
+import { DEFAULT_FONT } from './fonts.js'
 import { services, configure } from './services.js'
-import { settings } from './icons.js'
-import { viewOf } from './scale.js'
 
 export class PackPanel {
   /** @param {import('./app.js').App} app */
@@ -18,7 +15,9 @@ export class PackPanel {
     /** Glyphs the server's plugins define: `{name, char, font, plugin}`. */
     this.catalog = []
     this.fontKey = DEFAULT_FONT
+    /** The glyph picked in the glyph bar, the font it is in. */
     this.glyph = null
+    this.glyphFont = null
     this.message = ''
   }
 
@@ -55,6 +54,16 @@ export class PackPanel {
   }
 
   // ---- names of glyphs
+
+  /** Every font of the pack, loaded once: key to font. @returns {Promise<Map<string, any>>} */
+  fontMap() {
+    if (!this.pack) return Promise.resolve(new Map())
+    if (this.fontsOf?.pack !== this.pack) {
+      const pack = this.pack
+      this.fontsOf = { pack, map: Promise.all(pack.fontKeys().map(async (k) => [k, await pack.font(k)])).then((loaded) => new Map(loaded)) }
+    }
+    return this.fontsOf.map
+  }
 
   /** Which font has each picture character, found once per pack: plugin glyphs are usually in a font of their own. @returns {Promise<Map<string, string>>} */
   glyphFonts() {
@@ -93,7 +102,8 @@ export class PackPanel {
   view() {
     return h('div', { class: 'page pack-tab' },
       this.loader(),
-      this.pack ? [this.aligner(), this.glyphBrowser()] : h('p', { class: 'muted' }, 'Load the resource pack of the server to see its glyphs in titles, move them into place, and see custom items.'),
+      this.pack ? h('p', { class: 'muted' }, 'The glyphs of the pack are in the bar under the window of the Editor tab: pick one there and move it into place.')
+        : h('p', { class: 'muted' }, 'Load the resource pack of the server to see its glyphs in titles, move them into place, and see custom items.'),
       this.catalog.length > 0 && this.names())
   }
 
@@ -110,62 +120,6 @@ export class PackPanel {
           try { await this.setPack(await (await fetch(url.value)).blob(), url.value) } catch (e) { this.message = `Could not download it: ${e.message}`; this.app.draw() }
         } }, 'Download'))),
       this.message && h('p', null, this.message))
-  }
-
-  glyphBrowser() {
-    const fonts = this.pack.fontKeys()
-    const select = h('select', { onchange: () => { this.fontKey = select.value; this.glyph = null; this.app.draw() } },
-      fonts.map((k) => h('option', { value: k, selected: k === this.fontKey }, k)))
-    const grid = h('div', { class: 'glyph-grid' })
-    this.pack.font(this.fontKey).then((font) => {
-      for (const [character, glyph] of font.glyphs) {
-        const canvas = h('canvas', { width: 48, height: 48 })
-        const ctx = canvas.getContext('2d')
-        ctx.imageSmoothingEnabled = false
-        const fit = Math.min(48 / glyph.sw, 48 / glyph.sh)
-        ctx.drawImage(glyph.image, glyph.sx, glyph.sy, glyph.sw, glyph.sh, 0, 0, glyph.sw * fit, glyph.sh * fit)
-        const code = character.codePointAt(0).toString(16).toUpperCase().padStart(4, '0')
-        grid.append(h('button', { class: `glyph ${this.glyph === character ? 'active' : ''}`, title: `U+${code}, ${glyph.advance} wide`,
-          onclick: () => { this.glyph = character; this.app.draw() } }, canvas, h('small', null, code)))
-      }
-      if (font.glyphs.size === 0) grid.append(h('p', { class: 'muted' }, 'This font has no picture glyphs.'))
-    })
-    return h('section', null, h('h2', null, 'Glyphs'), select, grid)
-  }
-
-  /** Moves the glyph at the start of the title, or puts the picked one there. */
-  aligner() {
-    const menu = this.app.store.value
-    const title = menu.title ?? ''
-    const preview = h('div', { class: 'preview-window' })
-    Promise.all(this.pack.fontKeys().map(async (k) => [k, await this.pack.font(k)])).then((loaded) => {
-      const fonts = new Map(loaded)
-      // The space characters are in the default font; the glyph may be in another one.
-      const spaces = (fonts.get(DEFAULT_FONT) ?? { spaces: new Map() }).spaces
-      const widthOf = (c, k) => fonts.get(k ?? DEFAULT_FONT)?.glyphs.get(c)?.advance ?? null
-      const head = parseHead(title, spaces, widthOf)
-      const offset = h('input', { type: 'number', value: head ? head.offset : 0, step: 1 })
-      const apply = (value) => {
-        const next = head
-          ? realign(head, value, spaces)
-          : (this.glyph ? insert(this.glyph, this.fontKey, widthOf(this.glyph, this.fontKey), value, title, spaces) : null)
-        if (!next) return
-        this.app.store.set(['title'], next.text)
-        if (next.rest !== 0) this.app.setStatus(`The space characters of the default font cannot move it exactly: ${next.rest}px are left.`, true)
-      }
-      const nudge = (delta) => () => apply((head ? head.offset : Number(offset.value)) + delta)
-      fill(preview,
-        h('div', { class: 'row-buttons' },
-          head ? h('span', null, `Glyph at ${head.offset}px`) : h('span', { class: 'muted' }, this.glyph ? 'The picked glyph is not in the title yet.' : 'Pick a glyph below, or put one at the start of the title.'),
-          offset,
-          h('button', { onclick: () => apply(Number(offset.value)) }, head ? 'Move' : 'Put in title'),
-          [-8, -1, 1, 8].map((d) => h('button', { onclick: nudge(d), disabled: !head && !this.glyph }, d > 0 ? `+${d}` : `${d}`)),
-          head && h('button', { class: 'danger', onclick: () => this.app.store.set(['title'], head.rest) }, 'Remove')),
-        services.window.draw(menu, { scale: viewOf(2).device, ratio: viewOf(2).ratio, margin: 128, slots: true }))
-    })
-    return h('section', null, h('h2', null, 'Align a glyph'),
-      h('p', { class: 'muted' }, 'A glyph is moved by the space characters in front of it. The text after it stays where it was. Moving it up or down is set by "ascent" in the pack\'s font file.'),
-      preview)
   }
 
   /** The glyph names the server's plugins define. */

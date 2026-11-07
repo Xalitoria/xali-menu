@@ -36,16 +36,16 @@ export class WindowView {
 
   /**
    * The window as a canvas, filled in as the textures and fonts arrive. [scale] screen pixels make a pixel of the game, and [ratio] is the pixel ratio of the page. [margin] pixels of the
-   * game are left around it, for a glyph that is bigger than the window; [slots] draws the outline of each slot.
+   * game are left around it (a number, or `{x, y}` for different widths), for a glyph that is bigger than the window; [slots] draws the outline of each slot.
    */
   draw(menu, { scale = 3, ratio = 1, margin = 0, slots = false } = {}) {
     const g = geometry(menu)
     const SCALE = scale
-    const m = margin * SCALE
+    const m = { x: (typeof margin === 'number' ? margin : margin.x) * SCALE, y: (typeof margin === 'number' ? margin : margin.y) * SCALE }
     const canvas = document.createElement('canvas')
     canvas.className = 'window-canvas'
-    canvas.width = g.width * SCALE + 2 * m
-    canvas.height = g.height * SCALE + 2 * m
+    canvas.width = g.width * SCALE + 2 * m.x
+    canvas.height = g.height * SCALE + 2 * m.y
     // [scale] is in screen pixels; on the page the canvas is that many screen pixels, whatever the zoom.
     canvas.style.width = `${canvas.width / ratio}px`
     canvas.style.height = `${canvas.height / ratio}px`
@@ -55,26 +55,26 @@ export class WindowView {
 
   async fill(canvas, menu, g, m, slots, SCALE) {
     const ctx = canvas.getContext('2d')
-    if (m) { ctx.fillStyle = '#26292f'; ctx.fillRect(0, 0, canvas.width, canvas.height) }
+    if (m.x || m.y) { ctx.fillStyle = '#26292f'; ctx.fillRect(0, 0, canvas.width, canvas.height) }
     const texture = await this.assets.texture('minecraft', g.texture)
     if (texture && g.chest) {
       // The top of the texture has the rows, the bottom of it the player's inventory.
       const top = g.rows * 18 + 17
-      blit(ctx, texture, m, m, 0, 0, g.width, top, SCALE)
-      blit(ctx, texture, m, m + top * SCALE, 0, 126, g.width, 96, SCALE)
+      blit(ctx, texture, m.x, m.y, 0, 0, g.width, top, SCALE)
+      blit(ctx, texture, m.x, m.y + top * SCALE, 0, 126, g.width, 96, SCALE)
     } else if (texture) {
-      blit(ctx, texture, m, m, 0, 0, g.width, g.height, SCALE)
+      blit(ctx, texture, m.x, m.y, 0, 0, g.width, g.height, SCALE)
     } else {
       ctx.fillStyle = '#c6c6c6'
-      ctx.fillRect(m, m, g.width * SCALE, g.height * SCALE)
+      ctx.fillRect(m.x, m.y, g.width * SCALE, g.height * SCALE)
     }
-    await this.text.draw(ctx, menu.title ?? '', m + 8 * SCALE, m + 6 * SCALE, { scale: SCALE, color: '#404040', shadow: false })
-    await this.text.draw(ctx, 'Inventory', m + 8 * SCALE, m + g.inventoryLabel * SCALE, { scale: SCALE, color: '#404040', shadow: false })
+    await this.text.draw(ctx, menu.title ?? '', m.x + 8 * SCALE, m.y + 6 * SCALE, { scale: SCALE, color: '#404040', shadow: false })
+    await this.text.draw(ctx, 'Inventory', m.x + 8 * SCALE, m.y + g.inventoryLabel * SCALE, { scale: SCALE, color: '#404040', shadow: false })
     if (slots) {
       ctx.strokeStyle = 'rgba(0,0,0,0.35)'
       ctx.lineWidth = 1
       for (let slot = 0; slot < g.rows * g.columns; slot++) {
-        ctx.strokeRect(m + (g.x - 1 + (slot % g.columns) * 18) * SCALE + 0.5, m + (g.y - 1 + Math.floor(slot / g.columns) * 18) * SCALE + 0.5, 18 * SCALE - 1, 18 * SCALE - 1)
+        ctx.strokeRect(m.x + (g.x - 1 + (slot % g.columns) * 18) * SCALE + 0.5, m.y + (g.y - 1 + Math.floor(slot / g.columns) * 18) * SCALE + 0.5, 18 * SCALE - 1, 18 * SCALE - 1)
       }
     }
   }

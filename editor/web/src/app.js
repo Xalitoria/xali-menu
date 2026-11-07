@@ -4,21 +4,19 @@ import { h, fill } from './dom.js'
 import { Schema } from './schema.js'
 import { Store } from './store.js'
 import { Form } from './form.js'
-import { Inventory, bySlot } from './inventory.js'
+import { Inventory, placements } from './inventory.js'
 import { check } from './check.js'
 import { fromHash, decodeData, Server, readFile, toFile, download } from './source.js'
-import { parse } from './hocon.js'
-import { write } from './hoconWriter.js'
-import { render as renderText } from './mctext.js'
-import { services, forgetCatalog } from './services.js'
+import { services, forgetCatalog, catalog } from './services.js'
 import { materialPicker } from './picker.js'
-import { SCALES } from './scale.js'
+import { isCustomMaterial } from './items.js'
 import { settings as iconSettings, potionSpec, potionKey } from './icons.js'
 import { settings as assetSettings } from './assets.js'
 import { PackPanel } from './panel.js'
+import { EditorTab, TYPES, SIZES } from './editorTab.js'
+import { RawTab } from './rawTab.js'
 
-const TABS = ['Menu', 'Items', 'Raw', 'Pack']
-const ITEM_FIRST = ['material', 'name', 'lore', 'amount', 'slot', 'slots', 'view', 'click']
+const TABS = ['Editor', 'Raw', 'Pack']
 
 export class App {
   constructor(root, schema) {
@@ -31,8 +29,10 @@ export class App {
         // Typing changes the menu without drawing the form again (the box would lose the cursor); a pick or leaving the box does.
         commit: (text, final) => (final ? this.store.set(path, text) : this.store.set(path, text, true)),
       }),
+      // The keys of the menu that have a fixed set of values are dropdowns.
+      choices: (path) => (path.length === 1 && path[0] === 'type' ? TYPES : path.length === 1 && path[0] === 'size' ? SIZES : null),
     })
-    this.tab = 'Menu'
+    this.tab = 'Editor'
     /** @type {Server|null} */
     this.server = null
     this.name = 'menu'
@@ -40,16 +40,30 @@ export class App {
     this.serverProblems = []
     this.picked = { slot: null, item: null }
     this.status = ''
-    this.inventory = new Inventory(this.store, {
-      select: (slot, names) => { this.picked = { slot, item: names[0] ?? null }; this.draw() },
-    })
+    /** Whether the menu or the server has items of a plugin, which come with a resource pack: the glyph bar is shown then. */
+    this.customItems = false
+    this.showProblems = false
+    this.inventory = new Inventory(this.store, { select: (slot, names) => this.pickSlot(slot, names) })
     this.pack = new PackPanel(this)
+    this.editor = new EditorTab(this)
+    this.raw = new RawTab(this)
     this.asked = new Set()
-    this.store.onChange((quiet) => { this.refreshHeader(); if (!quiet) { this.draw(); this.resolveItems() } })
+    this.store.onChange((quiet) => {
+      this.refreshHeader()
+      if (quiet) { if (this.tab === 'Editor') this.editor.refresh(); return }
+      // The menu was changed by something other than the text, so a draft of the text is out of date (applying it is what sets the menu, and clears it).
+      if (!this.raw.applying) this.raw.discard()
+      this.draw()
+      this.resolveItems()
+      this.findCustomItems()
+    })
     window.addEventListener('keydown', (e) => this.keys(e))
-    // Zooming the browser changes the pixel ratio and fires a resize; the window is drawn again at a whole number of screen pixels per pixel of the game.
-    let timer = 0
-    window.addEventListener('resize', () => { clearTimeout(timer); timer = setTimeout(() => { if (this.tab === 'Items' || this.tab === 'Pack') this.draw() }, 150) })
+    // A click outside the panel of a group of properties, or of the problems, closes it.
+    document.addEventListener('click', (e) => {
+      const inside = (selector) => e.target.closest?.(selector)
+      if (this.editor.popover && !inside('.pop-wrap')) { this.editor.popover = null; this.draw() }
+      else if (this.showProblems && !inside('.problems-wrap')) { this.showProblems = false; this.drawProblems() }
+    })
     window.addEventListener('beforeunload', (e) => { if (this.store.dirty) e.preventDefault() })
     this.build()
   }
@@ -86,12 +100,39 @@ export class App {
     if (this.store.dirty && !confirm('Discard the changes to the menu that is open?')) return
     this.name = name
     this.centerStage = true
+    this.raw.discard()
     this.store.load(await this.server.menu(name))
     this.serverProblems = []
     this.picked = { slot: null, item: null }
     this.setStatus(`Opened ${name}.`)
     this.draw()
     this.resolveItems()
+    this.findCustomItems()
+  }
+
+  /** Looks for items of plugins in the menu, and on the server: they come with a resource pack, so the glyph bar is shown for them. */
+  async findCustomItems() {
+    let found = Object.values(this.store.value.items ?? {}).some((item) => isCustomMaterial(item.material))
+    if (!found && this.server) {
+      try { found = (await catalog()).some((entry) => entry.kind === 'custom') } catch { /* the server cannot list them */ }
+    }
+    if (found === this.customItems) return
+    this.customItems = found
+    if (this.tab === 'Editor') this.draw()
+  }
+
+  /** Picks the slot of the window that was clicked, and the item that is drawn in it. */
+  pickSlot(slot, names) {
+    this.picked = { slot, item: names[0] ?? null }
+    this.draw()
+  }
+
+  /** Picks an item of the list, and its first slot in the window. */
+  pickItem(id) {
+    const slots = [...(placements(this.store.value).get(id) ?? [])].sort((a, b) => a - b)
+    this.picked = { slot: slots[0] ?? null, item: id }
+    this.inventory.slot = this.picked.slot
+    this.draw()
   }
 
   /** Asks the server what the items of the open menu are (custom items, and how much each wears), once for each material. */
@@ -128,15 +169,35 @@ export class App {
       download: h('button', { onclick: () => this.download() }, 'Download .conf'),
       save: h('button', { class: 'primary', onclick: () => this.save() }, 'Save to server'),
     }
-    this.tabs = h('nav', { class: 'tabs' }, TABS.map((t) => h('button', { 'data-tab': t, onclick: () => { this.tab = t; this.draw() } }, t)))
+    this.tabs = h('nav', { class: 'tabs' }, TABS.map((t) => h('button', { 'data-tab': t, onclick: () => this.goTo(t) }, t)))
+    this.problemsButton = h('button', { class: 'problems-button', onclick: () => { this.showProblems = !this.showProblems; this.drawProblems() } })
+    this.problemsPanel = h('div', { class: 'problems-pop', hidden: true })
+    this.tabs.append(h('span', { class: 'spacer' }), h('div', { class: 'problems-wrap' }, this.problemsButton, this.problemsPanel))
     this.view = h('section', { class: 'view' })
-    this.problemsPanel = h('aside', { class: 'problems' })
     fill(this.root,
       h('header', null, h('span', { class: 'brand' }, 'XaliMenu editor'), this.menuSelect, this.statusLine,
         h('span', { class: 'spacer' }), this.buttons.undo, this.buttons.redo, this.buttons.open, this.buttons.download, this.buttons.save),
       this.tabs,
-      h('main', null, this.view, this.problemsPanel))
+      h('main', null, this.view))
     this.refreshHeader()
+  }
+
+  /** Switches tab. Leaving the text with changes that were not applied asks what to do with them. */
+  goTo(tab) {
+    if (tab === this.tab) return
+    if (this.tab === 'Raw' && this.raw.pending) {
+      if (confirm('The text has changes that were not applied. OK applies them to the editor, Cancel throws them away.')) { if (!this.applyRaw()) return }
+      else this.raw.discard()
+    }
+    this.raw.note = null
+    this.tab = tab
+    this.draw()
+  }
+
+  /** Reads the text of the Raw tab into the editor. Returns false when it cannot be read. */
+  applyRaw() {
+    this.raw.applying = true
+    try { return this.raw.apply() } finally { this.raw.applying = false; this.draw() }
   }
 
   refreshHeader() {
@@ -150,29 +211,20 @@ export class App {
   }
 
   draw() {
-    // The window is wider than the space when it has room around it: keep where the person scrolled to, or start in the middle of it.
-    const before = this.view.querySelector('.stage')
-    if (before) this.stageScroll = [before.scrollLeft, before.scrollTop]
-    for (const button of this.tabs.children) button.classList.toggle('active', button.dataset.tab === this.tab)
-    const content = { Menu: () => this.menuTab(), Items: () => this.itemsTab(), Raw: () => this.rawTab(), Pack: () => this.pack.view() }[this.tab]()
+    for (const button of this.tabs.querySelectorAll('button[data-tab]')) button.classList.toggle('active', button.dataset.tab === this.tab)
+    const content = { Editor: () => this.editorTab(), Raw: () => this.raw.view(), Pack: () => this.pack.view() }[this.tab]()
+    // The editor fills the view and keeps its own scroll; the other tabs are pages that scroll.
+    this.view.classList.toggle('fixed', this.tab === 'Editor' && Object.keys(this.store.value).length > 0)
     fill(this.view, content)
-    const stage = this.view.querySelector('.stage')
-    if (stage) {
-      const at = this.stageScroll
-      if (at && !this.centerStage) { stage.scrollLeft = at[0]; stage.scrollTop = at[1] }
-      else { stage.scrollLeft = (stage.scrollWidth - stage.clientWidth) / 2; stage.scrollTop = (stage.scrollHeight - stage.clientHeight) / 2 }
-      this.centerStage = false
-    }
+    if (this.tab === 'Editor') this.editor.attached()
     this.drawProblems()
     this.refreshHeader()
   }
 
   // ---- tabs
 
-  menuTab() {
-    if (Object.keys(this.store.value).length === 0) return this.welcome()
-    return h('div', { class: 'page' },
-      this.form.object(this.schema.root, [], { hide: ['items'], first: ['title', 'size', 'type', 'commands', 'args'] }))
+  editorTab() {
+    return Object.keys(this.store.value).length === 0 ? this.welcome() : this.editor.view()
   }
 
   welcome() {
@@ -185,81 +237,35 @@ export class App {
       h('p', { class: 'muted' }, 'The file stays in your browser; nothing is uploaded unless you save to a server.'))
   }
 
-  itemsTab() {
-    const menu = this.store.value
-    if (Object.keys(menu).length === 0) return this.welcome()
-    // The space for the window: what the page gives the view, less the column of the item.
-    this.inventory.draw(Math.max(300, (this.view.clientWidth || 900) - 380))
-    const names = Object.keys(menu.items ?? {})
-    const claimed = this.picked.slot !== null ? (bySlot(menu).get(this.picked.slot) ?? []) : []
-    const item = this.picked.item && menu.items?.[this.picked.item] ? this.picked.item : null
-    return h('div', { class: 'items-tab' },
-      h('div', { class: 'left' },
-        h('div', { class: 'toolbar' },
-          h('label', null, 'GUI scale ', this.choice([['0', 'Fit'], ...SCALES.map((n) => [String(n), String(n)])], String(services.scale), (v) => { services.scale = Number(v); this.centerStage = true; this.draw() })),
-          h('label', null, 'Room around ', this.choice([['0', 'None'], ['32', 'Small'], ['64', 'Medium'], ['128', 'Large'], ['256', 'Huge']], String(services.room), (v) => { services.room = Number(v); this.centerStage = true; this.draw() }))),
-        h('div', { class: 'stage' }, this.inventory.root),
-        h('div', { class: 'picker' },
-          this.picked.slot !== null && h('span', null, `Slot ${this.picked.slot}: `),
-          claimed.map((n) => h('button', { class: n === item ? 'active' : '', onclick: () => { this.picked.item = n; this.draw() } }, n)),
-          this.picked.slot !== null && h('button', { onclick: () => this.addItem() }, '+ Item here')),
-        names.length > 0 && h('div', { class: 'picker' }, h('span', null, 'All items: '),
-          names.map((n) => h('button', { class: n === item ? 'active' : '', onclick: () => { this.picked.item = n; this.draw() } }, n)))),
-      h('div', { class: 'right' }, item
-        ? [h('h2', null, item, h('button', { class: 'danger', onclick: () => this.removeItem(item) }, 'Delete item')),
-           this.form.object('Item', ['items', item], { first: ITEM_FIRST })]
-        : h('p', { class: 'muted' }, 'Pick a slot to see what it holds, or add an item to it.')))
-  }
-
-  /** A small select with [options] as `[value, label]`; [change] gets the value picked. */
-  choice(options, current, change) {
-    const select = h('select', { onchange: () => change(select.value) }, options.map(([value, label]) => h('option', { value, selected: value === current }, label)))
-    return select
-  }
-
-  addItem() {
-    const items = this.store.value.items ?? {}
-    let n = 1
-    while (`item${n}` in items) n++
-    const name = `item${n}`
-    this.store.set(['items', name], { material: 'stone', slot: this.picked.slot })
-    this.picked.item = name
-    this.draw()
-  }
-
-  removeItem(name) {
-    this.store.remove(['items', name])
-    this.picked.item = null
-  }
-
-  rawTab() {
-    const text = write(this.store.value)
-    const area = h('textarea', { class: 'raw', spellcheck: false, value: text })
-    const message = h('span', { class: 'muted' }, 'Edit the text and press Apply.')
-    return h('div', { class: 'page' },
-      h('div', { class: 'row-buttons' },
-        h('button', { class: 'primary', onclick: () => {
-          try { this.store.set([], parse(area.value)); message.textContent = 'Applied.' } catch (e) { message.textContent = e.message; message.className = 'bad' }
-        } }, 'Apply'), message),
-      area)
-  }
-
   // ---- problems
 
   allProblems() {
-    const own = check(this.schema, this.store.value).map((p) => ({ where: p.path.join('.'), message: p.message }))
-    const server = this.serverProblems.map((m) => ({ where: 'server', message: m }))
+    const own = check(this.schema, this.store.value).map((p) => ({ path: p.path, where: p.path.join('.'), message: p.message }))
+    const server = this.serverProblems.map((m) => ({ path: null, where: 'server', message: m }))
     return [...own, ...server]
+  }
+
+  /** Goes to what a problem is about: the item, or the group of properties of the menu that holds the key. */
+  showProblem(problem) {
+    const [first, second] = problem.path ?? []
+    this.showProblems = false
+    this.tab = 'Editor'
+    if (first === 'items' && second && this.store.value.items?.[second]) this.pickItem(second)
+    else {
+      this.editor.popover = this.editor.groupOf(first)
+      this.draw()
+    }
   }
 
   drawProblems() {
     const problems = Object.keys(this.store.value).length ? this.allProblems() : []
+    this.problemsButton.textContent = problems.length ? `⚠ ${problems.length} problem${problems.length === 1 ? '' : 's'}` : '✓ No problems'
+    this.problemsButton.className = `problems-button ${problems.length ? 'has' : ''}`
+    this.problemsPanel.hidden = !this.showProblems || problems.length === 0
     fill(this.problemsPanel,
-      h('h3', null, problems.length ? `${problems.length} problem${problems.length === 1 ? '' : 's'}` : 'No problems'),
-      h('ul', null, problems.slice(0, 200).map((p) => h('li', null, h('code', null, p.where), ' ', p.message))))
+      h('ul', null, problems.slice(0, 200).map((p) => h('li', null,
+        h('button', { class: 'problem', onclick: () => this.showProblem(p) }, h('code', null, p.where), ' ', p.message)))))
   }
-
-  // ---- title
 
   // ---- files and the server
 
@@ -295,11 +301,24 @@ export class App {
   }
 
   keys(event) {
-    if (!(event.ctrlKey || event.metaKey) || event.target.matches?.('textarea.raw')) return
+    if (event.key === 'Escape' && (this.editor.popover || this.showProblems)) {
+      this.editor.popover = null
+      this.showProblems = false
+      this.draw()
+      return
+    }
+    if (!(event.ctrlKey || event.metaKey)) return
     const key = event.key.toLowerCase()
-    if (key === 'z' && !event.shiftKey) { event.preventDefault(); this.store.undo() }
+    // In the text, undo and redo are the text's own; only the save is the editor's.
+    const inText = event.target.matches?.('textarea.raw')
+    if (key === 's') {
+      event.preventDefault()
+      // The text is read into the editor first, then the menu is saved: what is on the screen is what is saved.
+      if (this.tab === 'Raw' && !this.applyRaw()) return
+      this.server ? this.save() : this.download()
+    } else if (inText) return
+    else if (key === 'z' && !event.shiftKey) { event.preventDefault(); this.store.undo() }
     else if (key === 'y' || (key === 'z' && event.shiftKey)) { event.preventDefault(); this.store.redo() }
-    else if (key === 's') { event.preventDefault(); this.server ? this.save() : this.download() }
   }
 }
 

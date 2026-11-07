@@ -12,8 +12,6 @@ export const services = {
   assets: null, text: null, window: null, renderer: null, pack: null,
   /** Screen pixels to a pixel of the game (the GUI scale), or 0 to fit the window to the space there is. */
   scale: 0,
-  /** Pixels of the game left around the window, for glyphs that reach past it. */
-  room: 64,
   /** The server the editor is connected to, if any. */
   server: null,
   catalogPromise: null,

@@ -32,7 +32,7 @@ The editor draws what a player sees, from the same files the game reads, with no
   pack first and in the game's own files after it. The `gui` display transform, the model's parents, element rotation, texture
   rotation, tints (dyed leather, grass, potions), `custom_model_data` and `item-model` choices are followed, and the result is drawn
   in software with the game's two item lights and nearest-neighbour textures, at four times the size and shrunk, so edges are smooth (the
-  game itself draws without that, and the code can too). The size is the GUI scale of the Items tab, 1 to 4 or fit to the space. Compared
+  game itself draws without that, and the code can too). The size is the GUI scale of the toolbar, 1 to 6 or fit to the space. Compared
   with icons the game rendered itself (the wiki's), stone, a furnace, stairs and a sword differ in at most a few of about six hundred
   pixels, and a creeper head and a shulker box in none.
 - **Drawn from code in the game**, and so built here from boxes with the game's texture layout: banners (the base color and each pattern in its dye), player and mob heads (a `texture:`
@@ -44,10 +44,10 @@ The editor draws what a player sees, from the same files the game reads, with no
   grows with the zoom; the rest of the page scales as the browser makes it. `src/scale.js` has the arithmetic and its tests.
 - **The player's inventory** is part of the window, since a menu's glyph can reach into it. The menu does not use it, so its slots are
   grayed out; an item placed in one (a slot past the menu's size) is shown there, marked in red, and reported as a problem.
-- **The window** sits in the middle of a stage with room around it (none to huge), for glyphs that are used as overlays and reach past the
-  window; scroll the stage to see all of it. It is the game's container texture for the inventory type (chest, hopper, dispenser, dropper), the title is in the
-  game's font with the glyphs of the resource pack, and the player's inventory is below it. Counts and the durability bar are drawn as
-  the game draws them, and the tooltip uses the game's own sprites, with the name, enchantments and lore.
+- **The window** fills the space between the toolbars and is always on the screen. It takes the biggest GUI scale at which it fits (or the scale you chose) and
+  the rest of the space is room around it, for glyphs that are used as overlays and reach past the window. It is the game's container texture for the inventory
+  type (chest, hopper, dispenser, dropper), the title is in the game's font with the glyphs of the resource pack, and the player's inventory is below it. Counts
+  and the durability bar are drawn as the game draws them, and the tooltip uses the game's own sprites, with the name, enchantments and lore.
 - **The game's files** are read from a public copy of Mojang's assets (`editor/web/src/assets.js` names it and the version) and are not
   part of this repository. Everything is fetched the first time it is needed, so the first draw of a menu takes a moment.
 - Not exact: the shimmer of an enchanted item (it moves in the game; one moment of it is shown), `head:<name>` heads (they use the default skin; only `texture:` skins are fetched), and text outside the Latin range (the game's
@@ -58,18 +58,24 @@ The editor draws what a player sees, from the same files the game reads, with no
 Run `/xmenu edit` in the game or the console, and open the link. `/xmenu edit <menu>` opens one menu first. Without the endpoint,
 `/xmenu edit <menu>` is needed, since the link carries that menu.
 
-| Tab | Does |
+The Editor tab is one screen and the window of the menu never leaves it:
+
+| Where | What |
 |---|---|
-| Menu | The keys of the menu, except the items. |
-| Items | The window with its slots: click a slot, drag an item to another slot, edit it on the right. |
-| Raw | The menu as text; Apply reads it back. |
-| Pack | Load a resource pack; see its glyphs; align a glyph in the title. |
+| Toolbar above the window | The title, the inventory type (a dropdown) and the size, then a button for each group of the menu's properties (Opening, Events, Layout, Pages, Animation, and More for the rest) that opens a panel of its fields, and the GUI scale. A group with properties set shows how many. |
+| List on the left | Every item of the menu with its cell id, its picture, its slots and its material. Click one to edit it, **+ Add** puts a new one in the first free slot. |
+| The window | Click a slot to pick the item in it (or add one there), drag an item to another slot to move it. |
+| Panel on the right | The id of the item (rename it here: the legend follows), **Copy**, **Delete**, and every property of the item. |
+| Bar under the window | Shown when a resource pack is loaded, the server has glyphs, or the menu has custom items (`nexo:ruby`). Pick a glyph from the strip (search by name or code, a font at a time), see it large, and put it in the title at an offset; the window shows it at once. |
+
+Other tabs: **Raw** is the menu as text. What is typed there is a draft: **Apply to the editor** or `Ctrl+S` reads it into the editor (`Ctrl+S` then saves, too), and what is changed in the editor is
+in the text when the tab is opened. Text that cannot be read is reported as you type and is not applied. **Pack** loads a resource pack. The problems of the menu are under the button at the right of the tabs; click one to go to it.
 
 The `material` of an item (and of the actions and conditions that name an item) is a search box: type part of a name (`iron sword`, `ruby`)
 and pick from the game's items and, from a server, the items of Nexo and ItemsAdder, each with its picture. Anything typed is kept as it is,
 so heads (`head:Notch`), textures and items of plugins that cannot list theirs still work.
 
-`Ctrl+Z`, `Ctrl+Y` undo and redo; `Ctrl+S` saves to the server, or downloads the file when there is none.
+`Ctrl+Z`, `Ctrl+Y` undo and redo (in the text of the Raw tab they are the text's own); `Ctrl+S` saves to the server, or downloads the file when there is none.
 
 ## Setting it up
 

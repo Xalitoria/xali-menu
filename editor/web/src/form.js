@@ -15,7 +15,8 @@ export class Form {
   /**
    * @param {import('./schema.js').Schema} schema
    * @param {import('./store.js').Store} store
-   * @param {{icon?: (material: string) => HTMLElement|null}} [hooks] extras the page can provide
+   * @param {{material?: Function, choices?: (path: Array, field: object) => Array<[string, string]>|null}} [hooks] extras the page can provide:
+   *   `material` makes the control of an item's material, `choices` gives a text key a fixed set of `[value, label]` to choose from
    */
   constructor(schema, store, hooks = {}) {
     this.schema = schema
@@ -30,9 +31,11 @@ export class Form {
     const value = this.store.get(path) ?? {}
     const known = this.schema.fields(typeName)
     const hidden = new Set(options.hide ?? [])
-    const present = known.filter((f) => !hidden.has(f.key) && (f.required || f.key in value))
-    const absent = known.filter((f) => !hidden.has(f.key) && !f.required && !(f.key in value))
-    const extra = Object.keys(value).filter((k) => !known.some((f) => f.key === k) && !(k === 'type' && options.variant))
+    // `only` limits the form to some keys, for a form that is split over several places.
+    const shown = (f) => !hidden.has(f.key) && (!options.only || options.only.includes(f.key))
+    const present = known.filter((f) => shown(f) && (f.required || f.key in value))
+    const absent = known.filter((f) => shown(f) && !f.required && !(f.key in value))
+    const extra = options.only ? [] : Object.keys(value).filter((k) => !known.some((f) => f.key === k) && !(k === 'type' && options.variant))
 
     const root = h('div', { class: 'object' })
     for (const field of this.ordered(present, options.first)) root.append(this.field(field, [...path, field.key], value[field.key]))
@@ -82,6 +85,8 @@ export class Form {
 
   /** The control for a value of [type]. */
   control(type, path, value, field = {}) {
+    const choices = type.kind === 'int' || type.kind === 'string' ? this.hooks.choices?.(path, field) : null
+    if (choices) return this.choice(path, value, choices, type.kind === 'int')
     switch (type.kind) {
       case 'string': return this.text(path, value, field)
       case 'duration': return this.text(path, value, { ...field, placeholder: '5s, 500ms, 2m' })
@@ -100,11 +105,22 @@ export class Form {
     // The material of an item is picked from a search of every item.
     if (field.key === 'material' && this.hooks.material) return this.hooks.material(path, value, field)
     const key = field.key
+    let preview = null
     const input = h('input', { type: 'text', value: value ?? '', placeholder: field.placeholder ?? (field.default !== undefined ? String(field.default) : ''),
-      oninput: () => { this.store.set(path, input.value, true); this.preview(preview, key, input.value) } })
-    const preview = h('div', { class: 'preview' })
+      oninput: () => { this.store.set(path, input.value, true); if (preview) this.preview(preview, key, input.value) } })
+    if (field.compact) return input
+    preview = h('div', { class: 'preview' })
     this.preview(preview, key, value ?? '')
     return h('div', { class: 'text' }, input, preview)
+  }
+
+  /** A text value that is one of a few [choices] (`[value, label]`); a value that is not among them stays as an extra choice so it is not lost. */
+  choice(path, value, choices, numeric = false) {
+    const known = choices.some(([v]) => v === String(value))
+    const select = h('select', { onchange: () => this.store.set(path, numeric ? Number(select.value) : select.value) },
+      value !== undefined && !known && h('option', { value, selected: true }, `${value} (not in the list)`),
+      choices.map(([v, label]) => h('option', { value: v, selected: v === String(value) }, label)))
+    return select
   }
 
   preview(element, key, text) {
