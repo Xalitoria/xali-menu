@@ -71,7 +71,10 @@ The Editor tab is one screen and the window of the menu never leaves it:
 **Paged menus.** The **Pages** button makes the menu paged and opens its panel: the catalog (a dropdown of the plugin's and of the server's plugins' catalogs, with
 its settings), the slots of the elements, the order, and buttons for the two items of a paged menu. The item drawn for each element is an entry of the item list ("Element") that is edited like any
 item; the values of the catalog are offered above its fields as `{name}` chips (click one to copy it). The window shows the first page: the template is drawn in every slot of the elements, with example values
-of the catalog (`Notch`, `Notch2`...), and those slots are outlined. **Pick the slots in the window** lets you click slots to put elements in them and take them out (it changes `slots`, or the cells of `layout` if the pages use one).
+of the catalog (`Notch`, `Notch2`...), and those slots are outlined. The editor pretends there are a page and a half of elements: the bar under the window turns to the second
+page, which is half full, so the items under the elements can be seen. While the item for a catalog with nothing to list is picked, the window shows that page instead. **Pick the slots in the window**
+lets you click slots to put elements in them and take them out (it changes `slots`, or the cells of `layout` if the pages use one). A catalog of another plugin gets a field for each
+setting the plugin described (`registerCatalog` with a settings map), and the rest of its keys as JSON.
 
 Other tabs: **Raw** is the menu as text. What is typed there is a draft: **Apply to the editor** or `Ctrl+S` reads it into the editor (`Ctrl+S` then saves, too), and what is changed in the editor is
 in the text when the tab is opened. Text that cannot be read is reported as you type and is not applied. **Pack** loads a resource pack. The problems of the menu are under the button at the right of the tabs; click one to go to it.

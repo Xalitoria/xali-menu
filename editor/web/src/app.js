@@ -10,7 +10,7 @@ import { fromHash, decodeData, Server, readFile, toFile, download } from './sour
 import { services, forgetCatalog, catalog } from './services.js'
 import { materialPicker } from './picker.js'
 import { isCustomMaterial } from './items.js'
-import { isPaged, listedSlots, toggleSlot, previewMenu, TEMPLATE } from './pages.js'
+import { isPaged, listedSlots, toggleSlot, previewMenu, PREVIEW_PAGES, TEMPLATE, EMPTY } from './pages.js'
 import { geometry } from './window.js'
 import { slotCount } from './check.js'
 import { settings as iconSettings, potionSpec, potionKey } from './icons.js'
@@ -51,6 +51,8 @@ export class App {
     this.menuNames = []
     this.serverProblems = []
     this.picked = { slot: null, item: null }
+    /** The page of the example elements the window shows, from 1. */
+    this.page = 1
     this.status = ''
     /** Whether the menu or the server has items of a plugin, which come with a resource pack: the glyph bar is shown then. */
     this.customItems = false
@@ -144,13 +146,18 @@ export class App {
       return
     }
     // The elements the preview draws are all the one template.
-    this.picked = { slot, item: isPaged(names[0]) ? TEMPLATE : (names[0] ?? null) }
+    this.picked = { slot, item: names[0] === EMPTY ? EMPTY : isPaged(names[0]) ? TEMPLATE : (names[0] ?? null) }
     this.draw()
   }
 
   /** The values that the elements of the catalog of a paged menu hold (name to an example), from the schema and from the server's plugins. */
   catalogFields(type = this.store.value.pages?.catalog?.type) {
-    return { ...(this.schema.data.catalogs?.[type] ?? {}), ...(this.serverInfo?.catalogs?.[type] ?? {}) }
+    return { ...(this.schema.data.catalogs?.[type] ?? {}), ...(this.serverInfo?.catalogs?.[type]?.values ?? {}) }
+  }
+
+  /** The keys the settings of the catalog take (key to an example), where the plugin that added it said; empty for the plugin's own, which the schema describes. */
+  catalogSettings(type = this.store.value.pages?.catalog?.type) {
+    return this.serverInfo?.catalogs?.[type]?.settings ?? {}
   }
 
   catalogValues() { return [...Object.keys(this.catalogFields()), 'index'] }
@@ -160,8 +167,14 @@ export class App {
     return [...new Set([...this.schema.variants('Catalog'), ...Object.keys(this.serverInfo?.catalogs ?? {})])].sort()
   }
 
-  /** The menu as the window draws it. */
-  shownMenu() { return previewMenu(this.store.value, this.catalogFields()) }
+  /** The menu as the window draws it: for a paged menu, the page that was turned to, or the page of no elements while the item for that is picked. */
+  shownMenu() { return previewMenu(this.store.value, this.catalogFields(), { page: this.page, empty: this.picked.item === EMPTY }) }
+
+  /** Turns the preview of a paged menu to the page [delta] away, within the example pages. */
+  turnPage(delta) {
+    this.page = Math.min(Math.max(1, this.page + delta), PREVIEW_PAGES)
+    this.editor.drawStage()
+  }
 
   /** Starts or ends picking the slots of the elements in the window. */
   paint(on) {

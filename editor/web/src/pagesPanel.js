@@ -23,6 +23,26 @@ export function valuesBar(app) {
     h('div', { class: 'chips weak' }, ['page', 'pages', 'total', 'page_next', 'page_prev'].map((name) => chip(name, undefined, 'weak'))))
 }
 
+/**
+ * The settings of a catalog of another plugin: a text field for each key the plugin described (its example as the placeholder), and the keys
+ * it did not describe as JSON, so nothing is lost. A field left blank takes the key out.
+ */
+function settingsFields(app, catalog) {
+  const described = app.catalogSettings(catalog.type)
+  const keys = Object.keys(described)
+  const others = Object.keys(catalog).filter((k) => k !== 'type' && !keys.includes(k))
+  if (keys.length === 0) return app.form.json(['pages', 'catalog'], catalog, ['type'])
+  return h('div', { class: 'catalog-settings' },
+    keys.map((key) => {
+      const value = catalog[key]
+      const input = h('input', { type: 'text', value: value === undefined ? '' : typeof value === 'string' ? value : JSON.stringify(value), placeholder: described[key],
+        oninput: () => { if (input.value === '') app.store.remove(['pages', 'catalog', key]); else app.store.set(['pages', 'catalog', key], input.value, true) } })
+      return h('div', { class: 'field', 'data-key': key }, h('label', { title: `For example ${described[key]}` }, key), h('div', { class: 'control' }, input))
+    }),
+    others.length > 0 && h('div', { class: 'field unknown' }, h('label', { title: 'Keys the plugin did not describe' }, 'other keys'),
+      h('div', { class: 'control' }, app.form.json(['pages', 'catalog'], catalog, ['type', ...keys]))))
+}
+
 /** The content of the panel. */
 export function pagesView(app) {
   const menu = app.store.value
@@ -55,7 +75,7 @@ export function pagesView(app) {
       select,
       help && h('div', { class: 'hint' }, doc(help)),
       typeName && form.object(typeName, ['pages', 'catalog'], { variant: true }),
-      !typeName && type !== undefined && form.json(['pages', 'catalog'], pages.catalog, ['type'])),
+      !typeName && type !== undefined && settingsFields(app, pages.catalog)),
     h('section', null,
       h('h4', null, 'Slots'),
       h('p', { class: 'muted' }, usesLayout

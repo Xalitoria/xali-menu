@@ -200,3 +200,17 @@ Each step ends with tests, the README section, and a commit.
 - Third pass: item definitions' `transformation` (the foot of a bed is a model moved one block, which was the offset seen on beds; now 4 %),
   banners with patterns (mask 5 %, color 1 % against the game's icon), potion colors (`/v1/colors`: the average of the effects' colors as the
   game works it out), and a searchable item list for `material`. Not done: shields, signs, trims, animated glint, Unifont.
+
+### 9. Easier configuration: one screen, and catalogs the editor understands (done)
+
+- The Editor tab is one screen: the window always shown and filling the space between the toolbars, the menu's properties in a toolbar above
+  it (type and size as dropdowns, a popover per group), the items as a list with the cell id editable, a glyph bar under the window when a
+  pack, glyphs or custom items are around. The Raw tab is a draft applied by `Ctrl+S` or a button, and follows the editor the other way.
+- Catalogs tell the editor what their elements hold and, for other plugins' catalogs, what their settings are:
+  `registerCatalog(owner, name, values, settings, type)`, in `schema.json` for the built-in ones and `/v1/info` for all. The editor's Pages
+  panel picks the catalog from a dropdown, the slots by clicking the window, and draws the template with the examples; the template is an
+  entry of the item list with the values as chips. The preview turns pages (a page and a half of example elements) and shows the page of an
+  empty catalog while its item is picked.
+- A `menus` catalog (`name`, `title`), for a menu of menus.
+- Tested by unit tests (JS and Kotlin) and by driving the editor in a browser; not against a live server. Not done: real elements from the
+  server in the preview, a catalog of items, an `entities` catalog.

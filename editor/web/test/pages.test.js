@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { listedSlots, toggleSlot, interiorSlots, defaultPages, sampleValue, sampleElements, fillText, previewMenu, isPaged, ELEMENT } from '../src/pages.js'
+import { listedSlots, toggleSlot, interiorSlots, defaultPages, sampleValue, sampleElements, fillText, previewMenu, previewTotal, isPaged, ELEMENT, EMPTY } from '../src/pages.js'
 
 test('the slots of the elements are the slots, or the cells of the layout', () => {
   assert.deepEqual(listedSlots({ slots: [3, 1] }), [3, 1])
@@ -54,7 +54,7 @@ test('the preview of a paged menu draws the template in each slot of the first p
   assert.equal(shown.title, 'Players 1/2')
   assert.deepEqual(Object.keys(shown.items), ['info', `${ELEMENT}1`, `${ELEMENT}2`])
   const [a, b] = [shown.items[`${ELEMENT}1`], shown.items[`${ELEMENT}2`]]
-  assert.deepEqual([a.material, a.name, a.lore, a.slot], ['head:Notch', '&eNotch', ['#1 of 4'], 10])
+  assert.deepEqual([a.material, a.name, a.lore, a.slot], ['head:Notch', '&eNotch', ['#1 of 3'], 10])
   assert.deepEqual([b.material, b.slot], ['head:Notch2', 11])
   assert.equal(a.view, undefined, 'the gate is left out')
   assert.ok(a.priority < (shown.items.info.priority ?? 0), 'the template is drawn in front')
@@ -62,6 +62,41 @@ test('the preview of a paged menu draws the template in each slot of the first p
   assert.equal(menu.items.info.name, 'Page {page}', 'the menu itself is not changed')
   assert.equal(isPaged(`${ELEMENT}1`), true)
   assert.equal(isPaged('info'), false)
+})
+
+test('the preview pretends there are a page and a half of elements', () => {
+  assert.equal(previewTotal(2), 3)
+  assert.equal(previewTotal(7), 11)
+  assert.equal(previewTotal(1), 2)
+})
+
+test('the preview turns to the second page, which is half full, and clamps the page asked for', () => {
+  const menu = {
+    title: '{page}/{pages} {page_prev}<>{page_next}',
+    pages: { catalog: { type: 'players' }, slots: [10, 11, 12, 13], item: { material: 'paper', name: '{name} #{index}' } },
+    items: { under: { material: 'stone', slot: 13 } },
+  }
+  const second = previewMenu(menu, { name: 'Notch' }, { page: 2 })
+  assert.equal(second.title, '2/2 1<>2')
+  assert.deepEqual(Object.keys(second.items), ['under', `${ELEMENT}1`, `${ELEMENT}2`], 'two of six elements are on the second page')
+  assert.deepEqual([second.items[`${ELEMENT}1`].name, second.items[`${ELEMENT}1`].slot], ['Notch5 #5', 10])
+  assert.deepEqual([second.items[`${ELEMENT}2`].name, second.items[`${ELEMENT}2`].slot], ['Notch6 #6', 11])
+  assert.equal(previewMenu(menu, { name: 'Notch' }, { page: 9 }).title, '2/2 1<>2', 'beyond the last page is the last')
+  assert.equal(previewMenu(menu, { name: 'Notch' }, { page: 0 }).title, '1/2 1<>2')
+})
+
+test('the page of no elements has only the empty item, in the first slot', () => {
+  const menu = {
+    title: '{page}/{pages} of {total}',
+    pages: { catalog: { type: 'players' }, slots: [11, 10], item: { material: 'paper' }, empty: { material: 'barrier', name: 'Nobody', view: { require: [] } } },
+    items: {},
+  }
+  const shown = previewMenu(menu, { name: 'Notch' }, { empty: true })
+  assert.equal(shown.title, '1/1 of 0')
+  assert.deepEqual(Object.keys(shown.items), [EMPTY])
+  assert.deepEqual([shown.items[EMPTY].material, shown.items[EMPTY].name, shown.items[EMPTY].slot, shown.items[EMPTY].view], ['barrier', 'Nobody', 11, undefined])
+  const without = previewMenu({ ...menu, pages: { ...menu.pages, empty: undefined } }, {}, { empty: true })
+  assert.deepEqual(Object.keys(without.items), [], 'no empty item, nothing drawn')
 })
 
 test('a menu that is not paged, or has no slot for elements, is shown as it is', () => {

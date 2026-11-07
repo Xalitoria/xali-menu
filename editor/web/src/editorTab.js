@@ -9,7 +9,7 @@ import { placements } from './inventory.js'
 import { firstFreeSlot, freeId, idProblem, renameItem, removeItem, duplicateItem } from './items.js'
 import { services } from './services.js'
 import { GlyphBar } from './glyphbar.js'
-import { TEMPLATE, EMPTY, isPaged, listedSlots } from './pages.js'
+import { TEMPLATE, EMPTY, PREVIEW_PAGES, isPaged, listedSlots } from './pages.js'
 import { pagesView, valuesBar } from './pagesPanel.js'
 
 /** The first fields of an item's form. */
@@ -53,7 +53,7 @@ export class EditorTab {
     return h('div', { class: 'editor' },
       this.topBar(),
       this.list,
-      h('div', { class: 'stage-wrap' }, this.stage, this.app.painting && this.paintBanner()),
+      h('div', { class: 'stage-wrap' }, this.stage, this.app.painting && this.paintBanner(), this.pager = this.pagerView()),
       this.itemPanel(),
       this.glyphs.view())
   }
@@ -71,6 +71,7 @@ export class EditorTab {
     const { app } = this
     app.inventory.draw({ width, height }, { menu: app.shownMenu(), listed: new Set(listedSlots(this.menu.pages)), painting: app.painting })
     fill(this.stage, this.app.inventory.root)
+    this.pager?.replaceWith(this.pager = this.pagerView())
     // A window that is bigger than the stage opens in the middle of it.
     if (this.app.centerStage) {
       this.stage.scrollLeft = (this.stage.scrollWidth - width) / 2
@@ -198,6 +199,21 @@ export class EditorTab {
     return h('button', { class: `item-row paged ${id === this.app.picked.item ? 'active' : ''} ${bad ? 'bad' : ''}`, 'data-id': id, title: detail, onclick: () => this.app.pickItem(id) },
       h('span', { class: 'item-icon' }, icon(item, view.device, view.ratio)),
       h('span', { class: 'item-text' }, h('b', null, label), h('small', null, detail)))
+  }
+
+  /** The small bar under the window of a paged menu that turns the example pages, or says that the page of no elements is shown. */
+  pagerView() {
+    const { app } = this
+    const listed = listedSlots(this.menu.pages).length
+    if (!this.menu.pages?.item || listed === 0 || app.painting) return h('div', { class: 'pager', hidden: true })
+    if (app.picked.item === EMPTY) {
+      return h('div', { class: 'pager' }, h('span', { class: 'muted' }, 'The page of a catalog with nothing to list'),
+        h('button', { class: 'small', title: 'Show the elements again', onclick: () => app.pickItem(TEMPLATE) }, 'Show elements'))
+    }
+    return h('div', { class: 'pager' },
+      h('button', { class: 'small', title: 'The page before', disabled: app.page <= 1, onclick: () => app.turnPage(-1) }, '‹'),
+      h('span', null, `Page ${app.page} of ${PREVIEW_PAGES}`, h('small', { class: 'muted' }, ' · example elements')),
+      h('button', { class: 'small', title: 'The page after', disabled: app.page >= PREVIEW_PAGES, onclick: () => app.turnPage(1) }, '›'))
   }
 
   /** The strip over the window while its slots are being picked for the elements of a paged menu. */

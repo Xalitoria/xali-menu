@@ -140,6 +140,9 @@ textarea.raw { height: 100%; resize: none; padding: 12px 14px; line-height: 1.5;
 .item-row.paged .item-icon { background: #1f3350; } .item-row.paged .item-text b { color: var(--accent); }
 .paint-banner { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); z-index: 10; display: flex; gap: 14px; align-items: center; padding: 8px 8px 8px 16px;
   background: var(--panel); border: 1px solid var(--accent); border-radius: 10px; box-shadow: 0 8px 24px #0009; max-width: calc(100% - 24px); }
+.pager { position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%); z-index: 10; display: flex; gap: 10px; align-items: center; padding: 4px 6px;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 8px 24px #0009; white-space: nowrap; font-size: 13px; }
+.pager[hidden] { display: none; } .pager > span { padding: 0 4px; } .pager button { min-width: 32px; }
 .slots.layered .slot.listed { box-shadow: inset 0 0 0 2px #5b9dff88; }
 .inventory.painting .slots.layered .slot:not(.unhandled) { cursor: cell; }
 .inventory.painting .slots.layered .slot.listed { box-shadow: inset 0 0 0 3px var(--accent); background: rgba(91, 157, 255, 0.2); }
