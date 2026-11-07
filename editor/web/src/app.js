@@ -10,6 +10,9 @@ import { fromHash, decodeData, Server, readFile, toFile, download } from './sour
 import { services, forgetCatalog, catalog } from './services.js'
 import { materialPicker } from './picker.js'
 import { isCustomMaterial } from './items.js'
+import { isPaged, listedSlots, toggleSlot, previewMenu, TEMPLATE } from './pages.js'
+import { geometry } from './window.js'
+import { slotCount } from './check.js'
 import { settings as iconSettings, potionSpec, potionKey } from './icons.js'
 import { settings as assetSettings } from './assets.js'
 import { PackPanel } from './panel.js'
@@ -30,7 +33,16 @@ export class App {
         commit: (text, final) => (final ? this.store.set(path, text) : this.store.set(path, text, true)),
       }),
       // The keys of the menu that have a fixed set of values are dropdowns.
-      choices: (path) => (path.length === 1 && path[0] === 'type' ? TYPES : path.length === 1 && path[0] === 'size' ? SIZES : null),
+      choices: (path) => {
+        if (path.length === 1 && path[0] === 'type') return TYPES
+        if (path.length === 1 && path[0] === 'size') return SIZES
+        // The legend says which item each character of the layout stands for: pick it from the ids of the items.
+        if (path.length === 2 && path[0] === 'legend') return Object.keys(this.store.value.items ?? {}).map((id) => [id, id])
+        // A paged menu is ordered by one of the values of its catalog.
+        if (path.length === 2 && path[0] === 'pages' && path[1] === 'sort') return this.catalogValues().map((name) => [name, name])
+        return null
+      },
+      extraVariants: (base) => (base === 'Catalog' ? Object.keys(this.serverInfo?.catalogs ?? {}) : []),
     })
     this.tab = 'Editor'
     /** @type {Server|null} */
@@ -43,6 +55,8 @@ export class App {
     /** Whether the menu or the server has items of a plugin, which come with a resource pack: the glyph bar is shown then. */
     this.customItems = false
     this.showProblems = false
+    /** Whether a click on the window puts the slot among those of the elements of a paged menu (or takes it out), and does not pick the item in it. */
+    this.painting = false
     this.inventory = new Inventory(this.store, { select: (slot, names) => this.pickSlot(slot, names) })
     this.pack = new PackPanel(this)
     this.editor = new EditorTab(this)
@@ -123,13 +137,43 @@ export class App {
 
   /** Picks the slot of the window that was clicked, and the item that is drawn in it. */
   pickSlot(slot, names) {
-    this.picked = { slot, item: names[0] ?? null }
+    const menu = this.store.value
+    if (this.painting) {
+      // The player's inventory, past the slots of the menu, cannot hold an element.
+      if (menu.pages && slot < slotCount(menu)) this.store.set(['pages'], toggleSlot(menu.pages, slot, geometry(menu).columns))
+      return
+    }
+    // The elements the preview draws are all the one template.
+    this.picked = { slot, item: isPaged(names[0]) ? TEMPLATE : (names[0] ?? null) }
+    this.draw()
+  }
+
+  /** The values that the elements of the catalog of a paged menu hold (name to an example), from the schema and from the server's plugins. */
+  catalogFields(type = this.store.value.pages?.catalog?.type) {
+    return { ...(this.schema.data.catalogs?.[type] ?? {}), ...(this.serverInfo?.catalogs?.[type] ?? {}) }
+  }
+
+  catalogValues() { return [...Object.keys(this.catalogFields()), 'index'] }
+
+  /** The names of the catalogs there are: those of the plugin, and those of the plugins of the server. */
+  catalogTypes() {
+    return [...new Set([...this.schema.variants('Catalog'), ...Object.keys(this.serverInfo?.catalogs ?? {})])].sort()
+  }
+
+  /** The menu as the window draws it. */
+  shownMenu() { return previewMenu(this.store.value, this.catalogFields()) }
+
+  /** Starts or ends picking the slots of the elements in the window. */
+  paint(on) {
+    this.painting = on
+    this.editor.popover = null
     this.draw()
   }
 
   /** Picks an item of the list, and its first slot in the window. */
   pickItem(id) {
-    const slots = [...(placements(this.store.value).get(id) ?? [])].sort((a, b) => a - b)
+    const menu = this.store.value
+    const slots = isPaged(id) ? listedSlots(menu.pages).slice(0, 1) : [...(placements(menu).get(id) ?? [])].sort((a, b) => a - b)
     this.picked = { slot: slots[0] ?? null, item: id }
     this.inventory.slot = this.picked.slot
     this.draw()
@@ -211,6 +255,7 @@ export class App {
   }
 
   draw() {
+    if (!this.store.value.pages) this.painting = false
     for (const button of this.tabs.querySelectorAll('button[data-tab]')) button.classList.toggle('active', button.dataset.tab === this.tab)
     const content = { Editor: () => this.editorTab(), Raw: () => this.raw.view(), Pack: () => this.pack.view() }[this.tab]()
     // The editor fills the view and keeps its own scroll; the other tabs are pages that scroll.
@@ -251,6 +296,7 @@ export class App {
     this.showProblems = false
     this.tab = 'Editor'
     if (first === 'items' && second && this.store.value.items?.[second]) this.pickItem(second)
+    else if (first === 'pages' && second === 'item') this.pickItem(TEMPLATE)
     else {
       this.editor.popover = this.editor.groupOf(first)
       this.draw()
@@ -301,9 +347,10 @@ export class App {
   }
 
   keys(event) {
-    if (event.key === 'Escape' && (this.editor.popover || this.showProblems)) {
+    if (event.key === 'Escape' && (this.editor.popover || this.showProblems || this.painting)) {
       this.editor.popover = null
       this.showProblems = false
+      this.painting = false
       this.draw()
       return
     }

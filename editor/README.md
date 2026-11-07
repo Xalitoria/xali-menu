@@ -68,6 +68,11 @@ The Editor tab is one screen and the window of the menu never leaves it:
 | Panel on the right | The id of the item (rename it here: the legend follows), **Copy**, **Delete**, and every property of the item. |
 | Bar under the window | Shown when a resource pack is loaded, the server has glyphs, or the menu has custom items (`nexo:ruby`). Pick a glyph from the strip (search by name or code, a font at a time), see it large, and put it in the title at an offset; the window shows it at once. |
 
+**Paged menus.** The **Pages** button makes the menu paged and opens its panel: the catalog (a dropdown of the plugin's and of the server's plugins' catalogs, with
+its settings), the slots of the elements, the order, and buttons for the two items of a paged menu. The item drawn for each element is an entry of the item list ("Element") that is edited like any
+item; the values of the catalog are offered above its fields as `{name}` chips (click one to copy it). The window shows the first page: the template is drawn in every slot of the elements, with example values
+of the catalog (`Notch`, `Notch2`...), and those slots are outlined. **Pick the slots in the window** lets you click slots to put elements in them and take them out (it changes `slots`, or the cells of `layout` if the pages use one).
+
 Other tabs: **Raw** is the menu as text. What is typed there is a draft: **Apply to the editor** or `Ctrl+S` reads it into the editor (`Ctrl+S` then saves, too), and what is changed in the editor is
 in the text when the tab is opened. Text that cannot be read is reported as you type and is not applied. **Pack** loads a resource pack. The problems of the menu are under the button at the right of the tabs; click one to go to it.
 

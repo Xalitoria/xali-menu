@@ -9,6 +9,8 @@ import { placements } from './inventory.js'
 import { firstFreeSlot, freeId, idProblem, renameItem, removeItem, duplicateItem } from './items.js'
 import { services } from './services.js'
 import { GlyphBar } from './glyphbar.js'
+import { TEMPLATE, EMPTY, isPaged, listedSlots } from './pages.js'
+import { pagesView, valuesBar } from './pagesPanel.js'
 
 /** The first fields of an item's form. */
 const ITEM_FIRST = ['material', 'name', 'lore', 'amount', 'slot', 'slots', 'view', 'click']
@@ -51,7 +53,7 @@ export class EditorTab {
     return h('div', { class: 'editor' },
       this.topBar(),
       this.list,
-      this.stage,
+      h('div', { class: 'stage-wrap' }, this.stage, this.app.painting && this.paintBanner()),
       this.itemPanel(),
       this.glyphs.view())
   }
@@ -66,7 +68,8 @@ export class EditorTab {
     const { clientWidth: width, clientHeight: height } = this.stage
     if (!width || !height) return
     this.lastBox = this.boxKey()
-    this.app.inventory.draw({ width, height })
+    const { app } = this
+    app.inventory.draw({ width, height }, { menu: app.shownMenu(), listed: new Set(listedSlots(this.menu.pages)), painting: app.painting })
     fill(this.stage, this.app.inventory.root)
     // A window that is bigger than the stage opens in the middle of it.
     if (this.app.centerStage) {
@@ -139,7 +142,7 @@ export class EditorTab {
     const panel = open && h('div', { class: 'popover', role: 'dialog' },
       h('h3', null, group.label),
       h('p', { class: 'muted' }, group.hint),
-      this.app.form.object(this.app.schema.root, [], group.keys
+      group.id === 'pages' ? pagesView(this.app) : this.app.form.object(this.app.schema.root, [], group.keys
         ? { only: group.keys }
         : { hide: [...known] }))
     return h('div', { class: 'pop-wrap' },
@@ -169,12 +172,17 @@ export class EditorTab {
     const ids = Object.keys(menu.items ?? {})
     const claimed = placements(menu)
     const view = viewOf(2)
-    const bad = new Set(app.allProblems().filter((p) => p.path?.[0] === 'items').map((p) => p.path[1]))
+    const problems = app.allProblems()
+    const bad = new Set(problems.filter((p) => p.path?.[0] === 'items').map((p) => p.path[1]))
+    if (problems.some((p) => p.path?.[0] === 'pages' && p.path[1] === 'item')) bad.add(TEMPLATE)
+    const sample = app.shownMenu().items?.['@element1']
     return h('aside', { class: 'sidebar items' },
       h('div', { class: 'side-head' }, h('h2', null, 'Items', h('span', { class: 'count' }, ids.length)),
         h('button', { class: 'primary small', title: 'Add an item to the first free slot', onclick: () => this.add() }, '+ Add')),
       h('div', { class: 'item-rows' },
-        ids.length === 0 && h('p', { class: 'muted pad' }, 'The menu has no items. Add one, or click a slot of the window.'),
+        menu.pages && this.pagedRow(TEMPLATE, sample ?? menu.pages.item ?? {}, 'Element', `each of ${listedSlots(menu.pages).length} slots · ${menu.pages.catalog?.type ?? 'no catalog'}`, bad.has(TEMPLATE), view),
+        menu.pages?.empty && this.pagedRow(EMPTY, menu.pages.empty, 'When there are none', 'drawn when the catalog is empty', false, view),
+        ids.length === 0 && !menu.pages && h('p', { class: 'muted pad' }, 'The menu has no items. Add one, or click a slot of the window.'),
         ids.map((id) => {
           const item = menu.items[id]
           const slots = [...(claimed.get(id) ?? [])].sort((a, b) => a - b)
@@ -183,6 +191,21 @@ export class EditorTab {
           h('span', { class: 'item-icon' }, icon(item, view.device, view.ratio)),
           h('span', { class: 'item-text' }, h('b', null, id), h('small', null, `${slotText(slots)} · ${item.material ?? ''}`)))
         })))
+  }
+
+  /** The entry of the list for the template of a paged menu, or for its item for no elements: they are items of `pages`, not of `items`. */
+  pagedRow(id, item, label, detail, bad, view) {
+    return h('button', { class: `item-row paged ${id === this.app.picked.item ? 'active' : ''} ${bad ? 'bad' : ''}`, 'data-id': id, title: detail, onclick: () => this.app.pickItem(id) },
+      h('span', { class: 'item-icon' }, icon(item, view.device, view.ratio)),
+      h('span', { class: 'item-text' }, h('b', null, label), h('small', null, detail)))
+  }
+
+  /** The strip over the window while its slots are being picked for the elements of a paged menu. */
+  paintBanner() {
+    const count = listedSlots(this.menu.pages).length
+    return h('div', { class: 'paint-banner' },
+      h('span', null, h('b', null, 'Pick the slots of the elements.'), ` Click a slot to put an element in it or take it out. ${count} ${count === 1 ? 'slot' : 'slots'} now.`),
+      h('button', { class: 'primary small', onclick: () => this.app.paint(false) }, 'Done'))
   }
 
   /** Adds an item to the picked slot if it is free, otherwise to the first free one. */
@@ -205,6 +228,7 @@ export class EditorTab {
   itemPanel() {
     const { app } = this
     const menu = this.menu
+    if (isPaged(app.picked.item) && menu.pages) return this.pagedPanel(app.picked.item)
     const id = app.picked.item && menu.items?.[app.picked.item] ? app.picked.item : null
     if (!id) {
       const slot = app.picked.slot
@@ -226,6 +250,23 @@ export class EditorTab {
         h('button', { class: 'danger small', title: 'Remove the item', onclick: () => this.remove(id) }, 'Delete')),
       own.length > 0 && h('ul', { class: 'item-problems' }, own.slice(0, 6).map((p) => h('li', null, h('code', null, p.path.slice(2).join('.') || 'item'), ' ', p.message))),
       h('div', { class: 'props-body' }, app.form.object('Item', ['items', id], { first: ITEM_FIRST })))
+  }
+
+  /** The properties of the template of a paged menu, or of its item for no elements. */
+  pagedPanel(id) {
+    const { app } = this
+    const empty = id === EMPTY
+    const key = empty ? 'empty' : 'item'
+    const own = app.allProblems().filter((p) => p.path?.[0] === 'pages' && p.path[1] === key)
+    return h('aside', { class: 'sidebar props' },
+      h('div', { class: 'side-head' },
+        h('div', { class: 'head-text' }, h('h2', null, empty ? 'Item for no elements' : 'Item of each element'),
+          h('small', { class: 'muted' }, empty ? 'Drawn in the first slot when the catalog has nothing to list.' : 'One item, drawn for every element of the page.')),
+        empty && h('button', { class: 'danger small', title: 'Remove the item', onclick: () => { app.store.remove(['pages', 'empty']); app.picked.item = null } }, 'Delete')),
+      own.length > 0 && h('ul', { class: 'item-problems' }, own.slice(0, 6).map((p) => h('li', null, h('code', null, p.path.slice(2).join('.') || 'item'), ' ', p.message))),
+      !empty && valuesBar(app),
+      // The slot of the item is the slot of the element: the item's own `slot` and `slots` are not used.
+      h('div', { class: 'props-body' }, app.form.object('Item', ['pages', key], { first: ITEM_FIRST, hide: ['slot', 'slots', 'priority'] })))
   }
 
   rename(from, to, input) {

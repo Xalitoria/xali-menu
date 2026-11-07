@@ -9,6 +9,7 @@ import { viewOf, fitBox } from './scale.js'
 import { decorations } from './decorations.js'
 import { tooltipLines, drawTooltip } from './tooltip.js'
 import { services } from './services.js'
+import { isPaged } from './pages.js'
 
 /** The slots each item claims: its `slot` and `slots`, and the cells of the layout that its legend character stands for. */
 export function placements(menu) {
@@ -68,9 +69,10 @@ export class Inventory {
    * pixels, as wide and as high as the stage it is shown in); the items are drawn in as their models arrive. The player's inventory is below
    * the menu in the game and the menu does not use it, so it is grayed out; a slot of it that an item claims is shown with its item and
    * marked, since the menu does not draw there.
+   * [menu] is what is drawn (the menu of the store unless the page shows it differently, as a paged menu with its first page); [listed] is the set of
+   * slots the elements of a paged menu go into, which are marked; [painting] says that a click picks slots for them and does not pick an item.
    */
-  draw(box = { width: 1000, height: 700 }) {
-    const menu = this.store.value
+  draw(box = { width: 1000, height: 700 }, { menu = this.store.value, listed = new Set(), painting = false } = {}) {
     const count = slotCount(menu)
     const g = geometry(menu)
     const view = this.viewFor(g, box)
@@ -84,15 +86,15 @@ export class Inventory {
       const shown = names[0]
       const item = shown ? menu.items[shown] : null
       return h('div', {
-        class: `slot ${this.slot === slot ? 'picked' : ''} ${names.length > 1 ? 'shared' : ''} ${extra.class ?? ''}`, 'data-slot': slot, style: place,
-        draggable: Boolean(item && typeof item.slot === 'number' && !item.slots?.length),
+        class: `slot ${this.slot === slot ? 'picked' : ''} ${names.length > 1 ? 'shared' : ''} ${listed.has(slot) ? 'listed' : ''} ${extra.class ?? ''}`, 'data-slot': slot, style: place,
+        draggable: Boolean(item && !isPaged(shown) && typeof item.slot === 'number' && !item.slots?.length),
         onclick: () => { this.slot = slot; this.events.select(slot, names) },
         ondragstart: (e) => e.dataTransfer.setData('text/plain', shown),
         ondragover: (e) => e.preventDefault(),
         ondrop: (e) => {
           e.preventDefault()
           const name = e.dataTransfer.getData('text/plain')
-          if (name && menu.items[name]) { this.store.set(['items', name, 'slot'], slot); this.slot = slot }
+          if (name && !isPaged(name) && menu.items[name]) { this.store.set(['items', name, 'slot'], slot); this.slot = slot }
         },
         onmouseenter: (e) => this.showTip(item, shown, names, slot, e, view, extra.note),
         onmousemove: (e) => this.moveTip(e),
@@ -118,6 +120,7 @@ export class Inventory {
     const background = services.window.draw(menu, { scale: view.device, ratio: view.ratio, margin: room })
     const width = view.css(g.width + 2 * room.x)
     const height = view.css(g.height + 2 * room.y)
+    this.root.className = `inventory ${painting ? 'painting' : ''}`
     fill(this.root, h('div', { class: 'window layered-window', style: `width:${width}px;height:${height}px` }, background, grid))
   }
 

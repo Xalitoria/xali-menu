@@ -106,7 +106,8 @@ section { margin-bottom: 22px; } .names td { padding: 2px 10px 2px 0; } .mc-char
 .item-problems { margin: 0; padding: 10px 14px; list-style: none; background: #2a1d1f; border-bottom: 1px solid var(--line); font-size: 12px; color: var(--danger); } .item-problems li + li { margin-top: 4px; }
 .empty-state { padding: 28px 20px; display: grid; gap: 12px; justify-items: start; } .empty-state h2 { margin: 0; font-size: 15px; }
 
-.stage { grid-area: stage; display: flex; overflow: auto; min-width: 0; min-height: 0; background: #26292f; }
+.stage-wrap { grid-area: stage; position: relative; display: flex; min-width: 0; min-height: 0; background: #26292f; }
+.stage { flex: 1; display: flex; overflow: auto; min-width: 0; min-height: 0; }
 .stage > .inventory { margin: auto; flex: none; }
 
 .glyphbar { grid-area: glyphs; display: flex; gap: 18px; align-items: stretch; padding: 12px 16px; background: var(--panel); border-top: 1px solid var(--line); min-width: 0; }
@@ -134,3 +135,27 @@ textarea.raw { height: 100%; resize: none; padding: 12px 14px; line-height: 1.5;
 .problems-pop { position: absolute; right: 0; top: calc(100% + 4px); z-index: 40; width: 440px; max-width: calc(100vw - 32px); max-height: 60vh; overflow: auto;
   background: var(--panel); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 12px 32px #000a; }
 .problems-pop ul { list-style: none; margin: 0; padding: 6px; } .problem { display: block; width: 100%; text-align: left; border-color: transparent; background: none; font-size: 12px; padding: 7px 10px; } .problem:hover { background: var(--raised); }
+
+/* paged menus: the template and the empty item in the list, picking the slots of the elements, the values of an element */
+.item-row.paged .item-icon { background: #1f3350; } .item-row.paged .item-text b { color: var(--accent); }
+.paint-banner { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); z-index: 10; display: flex; gap: 14px; align-items: center; padding: 8px 8px 8px 16px;
+  background: var(--panel); border: 1px solid var(--accent); border-radius: 10px; box-shadow: 0 8px 24px #0009; max-width: calc(100% - 24px); }
+.slots.layered .slot.listed { box-shadow: inset 0 0 0 2px #5b9dff88; }
+.inventory.painting .slots.layered .slot:not(.unhandled) { cursor: cell; }
+.inventory.painting .slots.layered .slot.listed { box-shadow: inset 0 0 0 3px var(--accent); background: rgba(91, 157, 255, 0.2); }
+.pages-panel { display: grid; gap: 4px; } .pages-panel h4 { margin: 0 0 4px; font-size: 13px; } .pages-panel section { margin: 0; padding: 12px 0; border-top: 1px solid var(--line); } .pages-panel section:first-child { border-top: 0; padding-top: 0; }
+.pages-panel p { margin: 0 0 10px; } .pages-panel select { min-width: 220px; } .pages-panel .hint { margin: 8px 0; font-size: 12px; color: var(--muted); } .pages-panel .row-buttons { margin: 4px 0 0; }
+.head-text { display: grid; gap: 2px; min-width: 0; } .head-text h2 { margin: 0; }
+.values-bar { padding: 12px 14px; border-bottom: 1px solid var(--line); display: grid; gap: 8px; } .values-head { display: grid; gap: 2px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; } .chip { display: flex; gap: 6px; align-items: baseline; min-height: 26px; padding: 2px 8px; font-family: ui-monospace, monospace; font-size: 12px; color: var(--accent); }
+.chip small { color: var(--muted); font-family: system-ui, sans-serif; } .chip.weak { color: var(--muted); }
+
+/* narrower windows: slimmer sidebars, and below that everything in one column that scrolls */
+@media (max-width: 1100px) { .editor { grid-template-columns: 210px minmax(0, 1fr) 320px; } .props .field { grid-template-columns: 80px minmax(0, 1fr) auto; } }
+@media (max-width: 860px) {
+  .view.fixed { overflow: auto; }
+  .editor { height: auto; min-height: 100%; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto minmax(380px, 65vh) auto auto; grid-template-areas: "top" "list" "stage" "props" "glyphs"; }
+  .sidebar.items { max-height: 220px; border-right: 0; border-bottom: 1px solid var(--line); } .sidebar.props { border-left: 0; border-top: 1px solid var(--line); overflow: visible; }
+  .glyphbar { flex-wrap: wrap; } .glyph-card { border-right: 0; padding-right: 0; }
+  .popover { position: fixed; top: 140px; left: 16px; right: 16px; width: auto; max-width: none; }
+}

@@ -15,8 +15,9 @@ export class Form {
   /**
    * @param {import('./schema.js').Schema} schema
    * @param {import('./store.js').Store} store
-   * @param {{material?: Function, choices?: (path: Array, field: object) => Array<[string, string]>|null}} [hooks] extras the page can provide:
-   *   `material` makes the control of an item's material, `choices` gives a text key a fixed set of `[value, label]` to choose from
+   * @param {{material?: Function, choices?: (path: Array, field: object) => Array<[string, string]>|null, extraVariants?: (base: string) => string[]}} [hooks] extras the page can provide:
+   *   `material` makes the control of an item's material, `choices` gives a text key a fixed set of `[value, label]` to choose from,
+   *   `extraVariants` names the types of a base that the schema lacks (a catalog of another plugin)
    */
   constructor(schema, store, hooks = {}) {
     this.schema = schema
@@ -158,7 +159,7 @@ export class Form {
 
   /** An object of an open base such as Action: pick the type, then fill in its keys. */
   poly(base, path, value, field) {
-    const names = this.schema.variants(base)
+    const names = [...new Set([...this.schema.variants(base), ...(this.hooks.extraVariants?.(base) ?? [])])].sort()
     const current = value?.type
     const typeName = this.schema.variantType(base, current)
     const select = h('select', { class: 'variant', onchange: () => this.store.set(path, this.schema.blankVariant(base, select.value)) },
