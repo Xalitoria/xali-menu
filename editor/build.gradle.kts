@@ -13,8 +13,14 @@ dependencies {
     implementation(libs.kotlinx.serialization.hocon)
 }
 
+// The plugin's jar is on the classpath (its `jar` task is off; shadowJar writes that file), so build it before it is read.
+val pluginJar = "${sibling("paper").path}:shadowJar"
+
 tasks.test {
     useJUnitPlatform()
+}
+tasks.configureEach {
+    if (name in setOf("compileKotlin", "compileTestKotlin", "test")) dependsOn(pluginJar)
 }
 
 val menuDirectory = projectDir.parentFile
@@ -24,6 +30,7 @@ val schema by tasks.registering(JavaExec::class) {
     group = "editor"
     description = "Writes web/schema.json from the classes and comments of the plugin."
     classpath = sourceSets.main.get().runtimeClasspath
+    dependsOn(pluginJar)
     mainClass = "mc.xalitoria.menu.editor.DumpSchemaKt"
     args(file("web/schema.json"), menuDirectory, project.version)
     inputs.files(fileTree(menuDirectory.resolve("api/kotlin")), fileTree(menuDirectory.resolve("paper/kotlin")))
