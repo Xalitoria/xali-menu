@@ -27,6 +27,18 @@ export function fitScale(width, available, ratio = 1) {
   return 1
 }
 
+/**
+ * The biggest GUI scale at which a box of [width] by [height] pixels of the game fits in [availableWidth] by [availableHeight] page pixels; 1 if
+ * even that does not.
+ */
+export function fitBox(width, height, availableWidth, availableHeight, ratio = 1) {
+  for (const gui of [...SCALES].reverse()) {
+    const device = deviceScale(gui, ratio)
+    if ((width * device) / ratio <= availableWidth && (height * device) / ratio <= availableHeight) return gui
+  }
+  return 1
+}
+
 /** What the drawing code needs to know about one scale, made once for a draw. */
 export function viewOf(gui, ratio = (typeof window === 'undefined' ? 1 : window.devicePixelRatio || 1)) {
   const device = deviceScale(gui, ratio)
