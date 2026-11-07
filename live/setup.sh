@@ -15,7 +15,8 @@ port=${XM_PORT:-25599}
 
 echo "== building the plugin and the libraries it loads at start"
 (cd "$ws" && ./gradlew --offline -q :menu:paper:shadowJar :util:jar :color:jar :util:generatePomFileForMavenJavaPublication :color:generatePomFileForMavenJavaPublication)
-plugin=$(ls "$ws"/build/libs/menu/xali-menu-*-paper.jar | head -1)
+# The newest jar: older versions may still be there from earlier builds.
+plugin=$(ls -t "$ws"/build/libs/menu/xali-menu-*-paper.jar | head -1)
 util_version=$(unzip -p "$plugin" loader.json | grep -o 'com.xalitoria:util:[0-9.]*' | cut -d: -f3)
 echo "plugin: $plugin (loads util $util_version)"
 
