@@ -24,11 +24,13 @@ import mc.xalitoria.menu.paper.XaliMenu
  * GET  /v1/glyphs                {glyphs: [{name, char, plugin}]}
  * POST /v1/items                 {materials: [...]}  ->  {items: {material: {material, itemModel, customModelData, maxDamage}}}
  * POST /v1/colors               {potions: [{type, effects: [{type, amplifier}]}]}  ->  {colors: [rgb or null]}
+ * POST /v1/elements              {catalog: {type, ...}, sort, descending}  ->  {elements: [{name, ..., index}], total}  what the catalog lists now, for the link's player
  * GET  /v1/skin?url=<address>    the skin png at a textures.minecraft.net address (the editor's browser cannot read it from there)
  * ```
  */
 internal class EditorServer(private val plugin: XaliMenu, val sessions: EditorSessions) {
     val menus = EditorMenus(plugin)
+    private val elements = EditorElements(plugin)
     private val packs = ResourcePacks(plugin)
     private var server: HttpServer? = null
 
@@ -127,6 +129,15 @@ internal class EditorServer(private val plugin: XaliMenu, val sessions: EditorSe
                     (map?.get("type") as? String) to effects
                 }
                 reply(exchange, 200, Json.write(mapOf("colors" to packs.potionColors(specs))))
+            }
+            path == listOf("elements") && method == "POST" -> {
+                val request = Json.read(exchange.requestBody.readNBytes(MAX_BODY).decodeToString())
+                val catalog = request["catalog"] as? com.typesafe.config.ConfigObject ?: return reply(exchange, 400, error("The request has no 'catalog' object"))
+                val plain = request.unwrapped()
+                when (val result = elements.list(owner, catalog, plain["sort"] as? String, plain["descending"] == true)) {
+                    is EditorElements.Result.Ok -> reply(exchange, 200, Json.write(mapOf("elements" to result.elements, "total" to result.total)))
+                    is EditorElements.Result.Refused -> reply(exchange, 422, error(result.reason))
+                }
             }
             path == listOf("catalog") && method == "GET" -> reply(exchange, 200, Json.write(packs.catalog()))
             path == listOf("glyphs") && method == "GET" -> reply(exchange, 200, Json.write(mapOf("glyphs" to packs.glyphs())))
