@@ -39,6 +39,11 @@ The editor draws what a player sees, from the same files the game reads, with no
   material shows its skin, fetched through the server because Mojang's texture host does not allow other sites), chests and shulker
   boxes. Shields, signs, armor trims and the animation of compasses and clocks are not drawn that way yet: they show a tile. Beds and
   other items the game draws as several models (`transformation` in the item definition) are drawn from their models.
+- **The scale** is the game's GUI scale (1 to 6, or fit): each pixel of the game is a whole number of screen pixels. When the browser is
+  zoomed (or the display has a pixel ratio above 1) the preview takes the nearest whole number of screen pixels, so it stays sharp and still
+  grows with the zoom; the rest of the page scales as the browser makes it. `src/scale.js` has the arithmetic and its tests.
+- **The player's inventory** is part of the window, since a menu's glyph can reach into it. The menu does not use it, so its slots are
+  grayed out; an item placed in one (a slot past the menu's size) is shown there, marked in red, and reported as a problem.
 - **The window** sits in the middle of a stage with room around it (none to huge), for glyphs that are used as overlays and reach past the
   window; scroll the stage to see all of it. It is the game's container texture for the inventory type (chest, hopper, dispenser, dropper), the title is in the
   game's font with the glyphs of the resource pack, and the player's inventory is below it. Counts and the durability bar are drawn as

@@ -47,18 +47,17 @@ export const potionKey = (spec) => JSON.stringify(spec)
  * @param {object} item the item as the menu writes it
  * @returns {HTMLElement}
  */
-export function icon(item, scale = 3) {
+export function icon(item, scale = 3, ratio = 1) {
   const material = String(item.material ?? '')
   const { prefix, id } = parts(material)
   const label = (prefix ? prefix : id).replace(/_/g, ' ').split(' ').map((w) => w[0] ?? '').join('').slice(0, 3).toUpperCase()
-  const wrapper = h('span', { class: 'icon-wrap', style: `width:${16 * scale}px;height:${16 * scale}px` }, tile(label || '?', material || '?'))
+  const wrapper = h('span', { class: 'icon-wrap', style: `width:${(16 * scale) / ratio}px;height:${(16 * scale) / ratio}px` }, tile(label || '?', material || '?'))
   const spec = potionSpec(item)
   const known = { ...(settings.resolved.get(material) ?? {}), ...(spec && settings.potionColors.has(potionKey(spec)) ? { potionColor: settings.potionColors.get(potionKey(spec)) } : {}) }
   if (!material.includes('%') && settings.renderer) {
-    // The picture has a pixel for each pixel of the screen, so it is sharp on a screen that has more than one to the point.
-    const density = Math.max(1, Math.ceil(window.devicePixelRatio || 1))
-    settings.renderer.render(item, known, scale * density).then((image) => {
-      if (image) wrapper.replaceChildren(toCanvas(image, 16 * scale))
+    // [scale] is in screen pixels per pixel of the game, so the picture has a pixel for each pixel of the screen.
+    settings.renderer.render(item, known, scale).then((image) => {
+      if (image) wrapper.replaceChildren(toCanvas(image, (16 * scale) / ratio))
       else fallback(wrapper, material, prefix, id, item, known)
     })
   } else fallback(wrapper, material, prefix, id, item, known)

@@ -4,7 +4,8 @@
 import { h, fill } from './dom.js'
 import { slotCount } from './check.js'
 import { icon, settings } from './icons.js'
-import { geometry } from './window.js'
+import { geometry, playerSlot } from './window.js'
+import { viewOf, fitScale } from './scale.js'
 import { decorations } from './decorations.js'
 import { tooltipLines, drawTooltip } from './tooltip.js'
 import { services } from './services.js'
@@ -49,30 +50,32 @@ export class Inventory {
     this.tip = null
   }
 
-  /** The GUI scale to draw at: the one chosen, or the biggest (up to 4) at which the window itself fits [available] pixels across (the room around it scrolls). */
-  scaleFor(g, available) {
-    if (services.scale) return services.scale
-    const fit = Math.floor((available || 1000) / (g.width + 16))
-    return Math.max(1, Math.min(4, fit))
+  /** The view to draw at: the GUI scale chosen, or the biggest that fits [available] page pixels across (the room around the window scrolls). */
+  viewFor(g, available) {
+    const ratio = window.devicePixelRatio || 1
+    return viewOf(services.scale || fitScale(g.width + 16, available || 1000, ratio), ratio)
   }
 
-  /** The window as the game draws it with the slots of the menu over it, in the middle of the room around it; the items are drawn in as their models arrive. */
+  /**
+   * The window as the game draws it, with the slots of the menu and the player's inventory over it, in the middle of the room around it; the items
+   * are drawn in as their models arrive. The player's inventory is below the menu in the game and the menu does not use it, so it is grayed out;
+   * a slot of it that an item claims is shown with its item and marked, since the menu does not draw there.
+   */
   draw(available = 0) {
     const menu = this.store.value
     const count = slotCount(menu)
     const g = geometry(menu)
-    const S = this.scaleFor(g, available)
+    const view = this.viewFor(g, available)
     const room = services.room
-    const cell = 18 * S
+    const cell = view.css(18)
     const slots = bySlot(menu)
     // The coordinates of the game are those of the item, which lies one pixel inside the slot's border: the square of the slot starts one pixel up and to the left.
-    const grid = h('div', { class: 'slots layered', style: `left:${(room + g.x - 1) * S}px;top:${(room + g.y - 1) * S}px;grid-template-columns:repeat(${g.columns}, ${cell}px)` })
-    for (let slot = 0; slot < count; slot++) {
-      const names = slots.get(slot) ?? []
+    const at = (x, y) => `left:${view.css(room + x - 1)}px;top:${view.css(room + y - 1)}px;width:${cell}px;height:${cell}px`
+    const cellFor = (slot, names, place, extra = {}) => {
       const shown = names[0]
       const item = shown ? menu.items[shown] : null
-      grid.append(h('div', {
-        class: `slot ${this.slot === slot ? 'picked' : ''} ${names.length > 1 ? 'shared' : ''}`, 'data-slot': slot, style: `width:${cell}px;height:${cell}px`,
+      return h('div', {
+        class: `slot ${this.slot === slot ? 'picked' : ''} ${names.length > 1 ? 'shared' : ''} ${extra.class ?? ''}`, 'data-slot': slot, style: place,
         draggable: Boolean(item && typeof item.slot === 'number' && !item.slots?.length),
         onclick: () => { this.slot = slot; this.events.select(slot, names); this.draw(available) },
         ondragstart: (e) => e.dataTransfer.setData('text/plain', shown),
@@ -82,19 +85,35 @@ export class Inventory {
           const name = e.dataTransfer.getData('text/plain')
           if (name && menu.items[name]) { this.store.set(['items', name, 'slot'], slot); this.slot = slot }
         },
-        onmouseenter: (e) => this.showTip(item, shown, names, slot, e, S),
+        onmouseenter: (e) => this.showTip(item, shown, names, slot, e, view, extra.note),
         onmousemove: (e) => this.moveTip(e),
         onmouseleave: () => this.hideTip(),
-      }, item && icon(item, S), item && decorations(item, services.text, settings.resolved.get(item.material)?.maxDamage ?? 0, S), h('span', { class: 'number' }, slot)))
+      }, item && icon(item, view.device, view.ratio), item && decorations(item, services.text, settings.resolved.get(item.material)?.maxDamage ?? 0, view.device, view.ratio), h('span', { class: 'number' }, slot))
     }
-    const background = services.window.draw(menu, { scale: S, margin: room })
-    const width = (g.width + 2 * room) * S
-    const height = (g.height + 2 * room) * S
+    const grid = h('div', { class: 'slots layered' })
+    for (let slot = 0; slot < count; slot++) {
+      grid.append(cellFor(slot, slots.get(slot) ?? [], at(g.x + (slot % g.columns) * 18, g.y + Math.floor(slot / g.columns) * 18)))
+    }
+    // The player's inventory: slots count to count + 26 for the three rows and count + 27 to count + 35 for the hotbar.
+    for (let index = 0; index < 36; index++) {
+      const slot = count + index
+      const names = slots.get(slot) ?? []
+      const place = playerSlot(g, index)
+      grid.append(cellFor(slot, names, at(place.x, place.y), {
+        class: names.length ? 'outside' : 'unhandled',
+        note: names.length
+          ? "This slot is in the player's inventory. The menu does not draw items there, so this item is never shown."
+          : "The player's inventory. The menu does not use it: nothing is drawn here and a click does nothing.",
+      }))
+    }
+    const background = services.window.draw(menu, { scale: view.device, ratio: view.ratio, margin: room })
+    const width = view.css((g.width + 2 * room))
+    const height = view.css((g.height + 2 * room))
     fill(this.root, h('div', { class: 'window layered-window', style: `width:${width}px;height:${height}px` }, background, grid))
   }
 
-  /** The tooltip of the item the pointer is over, next to the pointer; an empty slot says which slot it is. */
-  async showTip(item, name, names, slot, event, scale = 3) {
+  /** The tooltip of the item the pointer is over, next to the pointer; an empty slot says which slot it is, and [note] adds a line. */
+  async showTip(item, name, names, slot, event, view, note) {
     this.hideTip()
     const tip = h('div', { class: 'tooltip' })
     this.tip = tip
@@ -104,7 +123,8 @@ export class Inventory {
       const lang = (await services.assets.json('minecraft', 'lang', 'en_us')) ?? {}
       const lines = item ? tooltipLines(item, lang, services.renderer.knownName?.(item)) : [{ text: `Slot ${slot}`, color: '#aaaaaa' }]
       if (item && names.length > 1) lines.push({ text: `Also claimed by ${names.filter((n) => n !== name).join(', ')}`, color: '#ffaa00' })
-      const canvas = await drawTooltip(lines, services.text, services.assets, scale)
+      if (note) lines.push({ text: note, color: item ? '#ff5555' : '#777777' })
+      const canvas = await drawTooltip(lines, services.text, services.assets, view.device, view.ratio)
       if (this.tip === tip) tip.append(canvas)
     } catch { /* the tooltip is a convenience */ }
   }

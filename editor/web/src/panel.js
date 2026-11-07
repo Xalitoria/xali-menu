@@ -7,6 +7,7 @@ import { DEFAULT_FONT, key as fontKey, spaces as spaceMap } from './fonts.js'
 import { parseHead, realign, insert } from './glyphs.js'
 import { services, configure } from './services.js'
 import { settings } from './icons.js'
+import { viewOf } from './scale.js'
 
 export class PackPanel {
   /** @param {import('./app.js').App} app */
@@ -160,7 +161,7 @@ export class PackPanel {
           h('button', { onclick: () => apply(Number(offset.value)) }, head ? 'Move' : 'Put in title'),
           [-8, -1, 1, 8].map((d) => h('button', { onclick: nudge(d), disabled: !head && !this.glyph }, d > 0 ? `+${d}` : `${d}`)),
           head && h('button', { class: 'danger', onclick: () => this.app.store.set(['title'], head.rest) }, 'Remove')),
-        services.window.draw(menu, { scale: 2, margin: 128, slots: true }))
+        services.window.draw(menu, { scale: viewOf(2).device, ratio: viewOf(2).ratio, margin: 128, slots: true }))
     })
     return h('section', null, h('h2', null, 'Align a glyph'),
       h('p', { class: 'muted' }, 'A glyph is moved by the space characters in front of it. The text after it stays where it was. Moving it up or down is set by "ascent" in the pack\'s font file.'),

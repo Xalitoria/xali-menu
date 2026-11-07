@@ -29,11 +29,13 @@ export function barWidth(damage, maxDamage) {
  * @param {import('./text.js').Text} text
  * @param {number} [maxDamage]
  */
-export function decorations(item, text, maxDamage = 0, SCALE = 3) {
+export function decorations(item, text, maxDamage = 0, SCALE = 3, ratio = 1) {
   const canvas = document.createElement('canvas')
   canvas.className = 'decorations'
   canvas.width = 18 * SCALE
   canvas.height = 18 * SCALE
+  canvas.style.width = `${canvas.width / ratio}px`
+  canvas.style.height = `${canvas.height / ratio}px`
   const ctx = canvas.getContext('2d')
   const origin = 1 * SCALE // the item is drawn one pixel in from the corner of its slot
   const count = item.amount ?? 1

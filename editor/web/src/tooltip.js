@@ -45,7 +45,7 @@ export function tooltipLines(item, lang, known = {}) {
  * @param {import('./text.js').Text} text
  * @param {import('./assets.js').Assets} assets
  */
-export async function drawTooltip(lines, text, assets, SCALE = 3) {
+export async function drawTooltip(lines, text, assets, SCALE = 3, ratio = 1) {
   const widths = await Promise.all(lines.map((l) => text.measure(l.text)))
   const textWidth = Math.max(...widths)
   // Ten pixels a line, and two more after the name when there is more than the name.
@@ -54,6 +54,8 @@ export async function drawTooltip(lines, text, assets, SCALE = 3) {
   const canvas = document.createElement('canvas')
   canvas.width = (textWidth + 2 * pad) * SCALE
   canvas.height = (textHeight + 2 * pad) * SCALE
+  canvas.style.width = `${canvas.width / ratio}px`
+  canvas.style.height = `${canvas.height / ratio}px`
   const ctx = canvas.getContext('2d')
   const [background, frame] = await Promise.all([
     assets.texture('minecraft', 'gui/sprites/tooltip/background'),

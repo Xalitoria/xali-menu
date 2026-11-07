@@ -12,6 +12,7 @@ import { write } from './hoconWriter.js'
 import { render as renderText } from './mctext.js'
 import { services, forgetCatalog } from './services.js'
 import { materialPicker } from './picker.js'
+import { SCALES } from './scale.js'
 import { settings as iconSettings, potionSpec, potionKey } from './icons.js'
 import { settings as assetSettings } from './assets.js'
 import { PackPanel } from './panel.js'
@@ -46,6 +47,9 @@ export class App {
     this.asked = new Set()
     this.store.onChange((quiet) => { this.refreshHeader(); if (!quiet) { this.draw(); this.resolveItems() } })
     window.addEventListener('keydown', (e) => this.keys(e))
+    // Zooming the browser changes the pixel ratio and fires a resize; the window is drawn again at a whole number of screen pixels per pixel of the game.
+    let timer = 0
+    window.addEventListener('resize', () => { clearTimeout(timer); timer = setTimeout(() => { if (this.tab === 'Items' || this.tab === 'Pack') this.draw() }, 150) })
     window.addEventListener('beforeunload', (e) => { if (this.store.dirty) e.preventDefault() })
     this.build()
   }
@@ -192,7 +196,7 @@ export class App {
     return h('div', { class: 'items-tab' },
       h('div', { class: 'left' },
         h('div', { class: 'toolbar' },
-          h('label', null, 'GUI scale ', this.choice([['0', 'Fit'], ['1', '1'], ['2', '2'], ['3', '3'], ['4', '4']], String(services.scale), (v) => { services.scale = Number(v); this.centerStage = true; this.draw() })),
+          h('label', null, 'GUI scale ', this.choice([['0', 'Fit'], ...SCALES.map((n) => [String(n), String(n)])], String(services.scale), (v) => { services.scale = Number(v); this.centerStage = true; this.draw() })),
           h('label', null, 'Room around ', this.choice([['0', 'None'], ['32', 'Small'], ['64', 'Medium'], ['128', 'Large'], ['256', 'Huge']], String(services.room), (v) => { services.room = Number(v); this.centerStage = true; this.draw() }))),
         h('div', { class: 'stage' }, this.inventory.root),
         h('div', { class: 'picker' },
