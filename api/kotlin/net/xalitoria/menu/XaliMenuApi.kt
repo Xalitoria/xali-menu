@@ -46,6 +46,13 @@ interface XaliMenuApi {
     fun registerCatalog(owner: Plugin, name: String, values: Map<String, String>, type: CatalogType)
 
     /**
+     * Adds a catalog type, says what its elements hold ([values], as above) and what its settings are: [settings] maps each key that
+     * can be written next to `type` in the menu file (`world`) to an example of its value (`world_nether`). The editor shows a field
+     * for each instead of a block of JSON. Nothing else reads them, and a key that is not listed can still be written.
+     */
+    fun registerCatalog(owner: Plugin, name: String, values: Map<String, String>, settings: Map<String, String>, type: CatalogType)
+
+    /**
      * Adds an activator type, named like an action's. [type] builds the activator from the keys written next to `type`; the
      * returned source is how you tell the menus that a player did what it stands for.
      */

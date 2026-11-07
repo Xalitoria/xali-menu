@@ -15,7 +15,7 @@ import mc.xalitoria.menu.paper.XaliMenu
  * itself, for development); the browser's cross-origin rules do the rest.
  *
  * ```
- * GET  /v1/info                  {plugin, version, owner, menus: [...], pack, catalogs: {type: {value: example}}}
+ * GET  /v1/info                  {plugin, version, owner, menus: [...], pack, catalogs: {type: {values: {name: example}, settings: {key: example}}}}
  * GET  /v1/menus/<name>          {name, menu: {...}}
  * PUT  /v1/menus/<name>          {menu: {...}}  ->  {problems: [...]}  or 422 {error}
  * POST /v1/menus/<name>/check    {menu: {...}}  ->  {problems: [...]}  or 422 {error}
@@ -83,13 +83,19 @@ internal class EditorServer(private val plugin: XaliMenu, val sessions: EditorSe
         }
     }
 
+    /** The catalogs for `/v1/info`: what their elements hold and, for those of other plugins that said, the keys of their settings. */
+    private fun catalogs(): Map<String, Map<String, Map<String, String>>> {
+        val settings = plugin.registry.catalogSettings
+        return plugin.registry.catalogInfo.mapValues { [name, values] -> mapOf("values" to values, "settings" to settings[name].orEmpty()) }
+    }
+
     private fun route(exchange: HttpExchange, owner: String) {
         val path = exchange.requestURI.path.removePrefix("/v1").trim('/').split('/')
         val method = exchange.requestMethod
         when {
             path == listOf("info") && method == "GET" -> reply(exchange, 200, Json.write(mapOf(
                 "plugin" to "XaliMenu", "version" to plugin.pluginMeta.version, "owner" to owner,
-                "menus" to menus.names(), "pack" to (packs.pack() != null), "catalogs" to plugin.registry.catalogInfo,
+                "menus" to menus.names(), "pack" to (packs.pack() != null), "catalogs" to catalogs(),
             )))
             path.size == 2 && path[0] == "menus" && method == "GET" -> {
                 val menu = menus.read(path[1]) ?: return reply(exchange, 404, error("There is no menu '${path[1]}'"))

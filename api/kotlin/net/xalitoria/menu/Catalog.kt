@@ -17,7 +17,8 @@ package net.xalitoria.menu
  *
  * The menu adds `index` (the element's place in the list, from 1) to every element. Say which values the elements have, with an
  * example of each, when registering: `registerCatalog(plugin, "myplugin:homes", mapOf("name" to "home1", "world" to "world")) { Homes() }`,
- * so that the editor can offer them.
+ * so that the editor can offer them. The keys of the catalog's own settings can be described the same way, with a second map, so
+ * that the editor shows a field for each: `registerCatalog(plugin, "myplugin:homes", values, mapOf("world" to "world_nether")) { Homes() }`.
  */
 interface Catalog {
     /**

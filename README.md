@@ -274,6 +274,7 @@ text, which is all Paper can change on an open menu, so a font or a click event 
 | `worlds` | The worlds of the server. | `name`, `environment` |
 | `values` | The entries of `list`, and the pieces of `text` cut at `separator` (read as written, not as a pattern; placeholders are filled in first). | `value` |
 | `range` | The whole numbers `from` to `to` (numbers or placeholders), `step` apart, backwards with `descending`. | `value` |
+| `menus` | The menus that are loaded, by name, without the one that lists them unless `include-self = true`. A menu of menus: `open { menu = "{name}" }` in the template. | `name`, `title` |
 
 Every element also has `index`, its place in the list from 1. A catalog gives at most 10 000 elements. Other plugins add
 catalogs, see [Extending](#extending).
@@ -536,7 +537,9 @@ of the menu, so it must be cheap.
 Say what the elements hold when registering, so that the editor can offer the values and draw the template with examples:
 `api.registerCatalog(this, "myplugin:homes", mapOf("name" to "home1", "world" to "world")) { Homes() }`. The map is the name of each
 value and an example of it. The editor reads it from `/v1/info`; without it a catalog still works, the editor just cannot
-list its values. The keys of the catalog are not described (there is no schema for a plugin's class), so the editor shows them as JSON.
+list its values. Say what its settings are too, with a second map of each key to an example, and the editor shows a field for each
+instead of a block of JSON: `api.registerCatalog(this, "myplugin:homes", values, mapOf("world" to "world_nether")) { Homes() }`. A key that is
+not listed can still be written; the editor keeps it as JSON.
 
 An activator is event-driven, so the addon gets a source back and calls it when something happens:
 `if (emotes.fire(player, mapOf("emote" to "wave"))) event.isCancelled = true`. The values are what the activators of the menus

@@ -40,9 +40,10 @@ class TypeRegistry {
     private val externalCatalogs = CopyOnWriteArrayList<External<Catalog>>()
     private class ExternalActivator(val owner: Plugin, val type: ActivatorType)
 
-    private class Values(val owner: Plugin?, val values: Map<String, String>)
+    /** What the editor is told about a catalog: what its elements hold, and (for another plugin's) which keys its settings take, each with an example. */
+    class CatalogInfo(val owner: Plugin?, val values: Map<String, String>, val settings: Map<String, String>)
 
-    private val catalogValues = ConcurrentHashMap<String, Values>()
+    private val catalogValues = ConcurrentHashMap<String, CatalogInfo>()
     private val activators = ConcurrentHashMap<String, ExternalActivator>()
     private val itemSources = ConcurrentHashMap<String, Source>()
 
@@ -55,6 +56,9 @@ class TypeRegistry {
 
     /** What the elements of each catalog hold, as the name of each value with an example: for the editor. Built-in and other plugins' catalogs, by `type`. */
     val catalogInfo: Map<String, Map<String, String>> get() = catalogValues.mapValues { it.value.values }
+
+    /** The keys the settings of each catalog take, with an example of each, where the plugin that added it said: for the editor, by `type`. */
+    val catalogSettings: Map<String, Map<String, String>> get() = catalogValues.filterValues { it.settings.isNotEmpty() }.mapValues { it.value.settings }
 
     /** The names of the activators other plugins added, which a menu file writes as `type` and which [packExternals][mc.xalitoria.menu.paper.format.packExternals] turns into `addon` activators. */
     val activatorNames: Set<String> get() = activators.keys.toSet()
@@ -76,7 +80,7 @@ class TypeRegistry {
     fun <T : Catalog> addCatalog(owner: Plugin?, type: KClass<T>, serializer: KSerializer<T>, values: Map<String, String> = emptyMap()) {
         val added = Type(owner, type, serializer)
         add(catalogs, added)
-        catalogValues[added.name] = Values(owner, values)
+        catalogValues[added.name] = CatalogInfo(owner, values, emptyMap())
     }
 
     /** Adds the action [name] of the plugin [owner]; [type] builds it from the keys written in the menu file. */
@@ -88,9 +92,10 @@ class TypeRegistry {
         addExternal(externalConditions, owner, name, ExternalSerializer(name, type::create))
     }
 
-    fun addCatalog(owner: Plugin, name: String, type: CatalogType, values: Map<String, String> = emptyMap()) {
+    /** Adds the catalog [name] of the plugin [owner]; [values] and [settings] are what the editor is told about it, see [net.xalitoria.menu.XaliMenuApi.registerCatalog]. */
+    fun addCatalog(owner: Plugin, name: String, type: CatalogType, values: Map<String, String> = emptyMap(), settings: Map<String, String> = emptyMap()) {
         addExternal(externalCatalogs, owner, name, ExternalSerializer(name, type::create))
-        catalogValues[name] = Values(owner, values)
+        catalogValues[name] = CatalogInfo(owner, values, settings)
     }
 
     fun addActivator(owner: Plugin, name: String, type: ActivatorType) {

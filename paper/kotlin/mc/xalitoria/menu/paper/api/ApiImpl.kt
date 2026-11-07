@@ -31,6 +31,9 @@ class ApiImpl(private val plugin: XaliMenu) : XaliMenuApi {
     override fun registerCatalog(owner: Plugin, name: String, values: Map<String, String>, type: CatalogType) =
         plugin.registry.addCatalog(owner, name, type, values)
 
+    override fun registerCatalog(owner: Plugin, name: String, values: Map<String, String>, settings: Map<String, String>, type: CatalogType) =
+        plugin.registry.addCatalog(owner, name, type, values, settings)
+
     override fun registerActivator(owner: Plugin, name: String, type: ActivatorType): ActivatorSource {
         plugin.registry.addActivator(owner, name, type)
         return ActivatorSource { player, values -> plugin.activators.onAdded(name, player, values) }

@@ -1811,6 +1811,19 @@
         }
       ]
     },
+    "Catalog:menus": {
+      "doc": "The menus that are loaded, by name: `name` (what `/xmenu open` and the `open` action take) and `title` (as written in the file, placeholders and all). The menu that lists them is left out unless `includeSelf`. A menu of menus: `open { menu = \"{name}\" }`.",
+      "fields": [
+        {
+          "key": "include-self",
+          "type": {
+            "kind": "boolean"
+          },
+          "required": false,
+          "default": false
+        }
+      ]
+    },
     "Catalog:players": {
       "doc": "The players who are online, by name: `name` and `uuid`.",
       "fields": [
@@ -3689,6 +3702,10 @@
     }
   },
   "catalogs": {
+    "menus": {
+      "name": "shop",
+      "title": "Shop"
+    },
     "players": {
       "name": "Notch",
       "uuid": "069a79f4-44e9-4726-a5be-fca90e38aaf5"
@@ -3763,6 +3780,7 @@
       "swap-hands": "Activator:swap-hands"
     },
     "Catalog": {
+      "menus": "Catalog:menus",
       "players": "Catalog:players",
       "range": "Catalog:range",
       "values": "Catalog:values",

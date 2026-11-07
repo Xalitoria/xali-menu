@@ -2,6 +2,7 @@ package mc.xalitoria.menu.paper.catalog
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import mc.xalitoria.menu.paper.XaliMenu
 import mc.xalitoria.menu.paper.XaliMenu.Companion.debug
 import mc.xalitoria.menu.paper.api.TypeRegistry
 import net.xalitoria.menu.Catalog
@@ -18,6 +19,7 @@ object Catalogs {
         registry.catalog<Worlds>(mapOf("name" to "world", "environment" to "normal"))
         registry.catalog<Values>(mapOf("value" to "red"))
         registry.catalog<Range>(mapOf("value" to "1"))
+        registry.catalog<Menus>(mapOf("name" to "shop", "title" to "Shop"))
     }
 
     /** The players who are online, by name: `name` and `uuid`. */
@@ -34,6 +36,18 @@ object Catalogs {
     data object Worlds : Catalog {
         override fun elements(ctx: MenuContext): List<Map<String, String>> = Bukkit.getWorlds()
             .map { mapOf("name" to it.name, "environment" to it.environment.name.lowercase()) }
+    }
+
+    /**
+     * The menus that are loaded, by name: `name` (what `/xmenu open` and the `open` action take) and `title` (as written in the file,
+     * placeholders and all). The menu that lists them is left out unless [includeSelf]. A menu of menus: `open { menu = "{name}" }`.
+     */
+    @Serializable @SerialName("menus")
+    data class Menus(val includeSelf: Boolean = false) : Catalog {
+        override fun elements(ctx: MenuContext): List<Map<String, String>> = XaliMenu.loadedMenus()
+            .filter { includeSelf || !it.name.equals(ctx.menu, ignoreCase = true) }
+            .sortedBy { it.name.lowercase() }
+            .map { mapOf("name" to it.name, "title" to it.menu.title) }
     }
 
     /**

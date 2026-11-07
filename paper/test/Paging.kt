@@ -336,9 +336,20 @@ class Paging {
         assertEquals(mapOf("name" to "home1", "world" to "world"), registry.catalogInfo["test:homes"])
         registry.addCatalog(owner, "test:other", CatalogType { Homes(1) })
         assertEquals(emptyMap(), registry.catalogInfo["test:other"], "a catalog that says nothing is still listed")
+        registry.addCatalog(owner, "test:warps", CatalogType { Homes(1) }, mapOf("name" to "spawn"), mapOf("world" to "world_nether", "limit" to "10"))
+        assertEquals(mapOf("world" to "world_nether", "limit" to "10"), registry.catalogSettings["test:warps"])
+        assertEquals(setOf("test:warps"), registry.catalogSettings.keys, "only a catalog that described its settings is listed")
 
         registry.removeAll(owner)
-        assertEquals(setOf("players", "worlds", "values", "range"), registry.catalogInfo.keys, "what a plugin said goes with it")
+        assertEquals(setOf("players", "worlds", "values", "range", "menus"), registry.catalogInfo.keys, "what a plugin said goes with it")
+        assertEquals(emptyMap(), registry.catalogSettings)
+    }
+
+    @Test
+    fun menusListsTheLoadedMenusAndIsEmptyWithoutThePlugin() {
+        val catalog = Registry.format.decode("title = x\npages { catalog { type = menus, include-self = true }, slots = [0], item { material = stone } }").pages!!.catalog
+        assertEquals(Catalogs.Menus(includeSelf = true), catalog)
+        assertEquals(emptyList(), Catalogs.Menus().elements(ctx()), "no plugin is running in a test, so there is nothing to list")
     }
 
     @Test

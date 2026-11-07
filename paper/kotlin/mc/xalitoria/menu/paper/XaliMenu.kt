@@ -36,6 +36,7 @@ import mc.xalitoria.menu.paper.runtime.ActivatorListener
 import mc.xalitoria.menu.paper.runtime.Inputs
 import mc.xalitoria.menu.paper.runtime.ItemFactory
 import mc.xalitoria.menu.paper.runtime.MenuListener
+import mc.xalitoria.menu.paper.runtime.LoadedMenu
 import mc.xalitoria.menu.paper.runtime.MenuManager
 import mc.xalitoria.menu.paper.runtime.PluginListener
 import mc.xalitoria.menu.paper.variable.VariableExpansion
@@ -233,5 +234,8 @@ class XaliMenu : JavaPlugin() {
 
         /** The economy hook of the running plugin; null where there is no plugin, as in a unit test. */
         val economy: Economy? get() = if (::INSTANCE.isInitialized) INSTANCE.economyHook else null
+
+        /** The menus the running plugin has loaded; none where there is no plugin, as in a unit test. */
+        fun loadedMenus(): Collection<LoadedMenu> = if (::INSTANCE.isInitialized && INSTANCE::menus.isInitialized) INSTANCE.menus.menus else emptyList()
     }
 }
