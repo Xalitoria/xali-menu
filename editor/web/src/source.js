@@ -83,6 +83,11 @@ export class Server {
   /** Every item a menu can use: `{vanilla: [...], custom: {prefix: [...]}}`. */
   async catalog() { return (await this.request('/catalog')).json() }
 
+  /** What a catalog lists now for the player of the link: `{elements, total}`, sorted as a paged menu would. Throws with the server's reason when it cannot. */
+  async elements(catalog, sort, descending) {
+    return (await this.request('/elements', { method: 'POST', body: JSON.stringify({ catalog, sort, descending }) })).json()
+  }
+
   async glyphs() { return (await (await this.request('/glyphs')).json()).glyphs ?? [] }
 }
 

@@ -9,7 +9,7 @@ import { placements } from './inventory.js'
 import { firstFreeSlot, freeId, idProblem, renameItem, removeItem, duplicateItem } from './items.js'
 import { services } from './services.js'
 import { GlyphBar } from './glyphbar.js'
-import { TEMPLATE, EMPTY, PREVIEW_PAGES, isPaged, listedSlots } from './pages.js'
+import { TEMPLATE, EMPTY, isPaged, listedSlots } from './pages.js'
 import { pagesView, valuesBar } from './pagesPanel.js'
 
 /** The first fields of an item's form. */
@@ -210,10 +210,14 @@ export class EditorTab {
       return h('div', { class: 'pager' }, h('span', { class: 'muted' }, 'The page of a catalog with nothing to list'),
         h('button', { class: 'small', title: 'Show the elements again', onclick: () => app.pickItem(TEMPLATE) }, 'Show elements'))
     }
+    const pages = app.previewPages()
+    const live = app.live?.key === app.liveKey() ? app.live : null
+    const source = app.liveElements() ? `${live.total} from the server${live.total > live.elements.length ? `, the first ${live.elements.length} shown` : ''}`
+      : live?.pending ? 'example elements · asking the server' : live?.error ? `example elements · ${live.error}` : live ? 'example elements · the server lists none now' : 'example elements'
     return h('div', { class: 'pager' },
       h('button', { class: 'small', title: 'The page before', disabled: app.page <= 1, onclick: () => app.turnPage(-1) }, '‹'),
-      h('span', null, `Page ${app.page} of ${PREVIEW_PAGES}`, h('small', { class: 'muted' }, ' · example elements')),
-      h('button', { class: 'small', title: 'The page after', disabled: app.page >= PREVIEW_PAGES, onclick: () => app.turnPage(1) }, '›'))
+      h('span', null, `Page ${app.page} of ${pages}`, h('small', { class: 'muted', title: live?.error ?? '' }, ` · ${source}`)),
+      h('button', { class: 'small', title: 'The page after', disabled: app.page >= pages, onclick: () => app.turnPage(1) }, '›'))
   }
 
   /** The strip over the window while its slots are being picked for the elements of a paged menu. */

@@ -10,7 +10,7 @@ import { fromHash, decodeData, Server, readFile, toFile, download } from './sour
 import { services, forgetCatalog, catalog } from './services.js'
 import { materialPicker } from './picker.js'
 import { isCustomMaterial } from './items.js'
-import { isPaged, listedSlots, toggleSlot, previewMenu, PREVIEW_PAGES, TEMPLATE, EMPTY } from './pages.js'
+import { isPaged, listedSlots, toggleSlot, previewMenu, previewPages, TEMPLATE, EMPTY } from './pages.js'
 import { geometry } from './window.js'
 import { slotCount } from './check.js'
 import { settings as iconSettings, potionSpec, potionKey } from './icons.js'
@@ -51,8 +51,10 @@ export class App {
     this.menuNames = []
     this.serverProblems = []
     this.picked = { slot: null, item: null }
-    /** The page of the example elements the window shows, from 1. */
+    /** The page of the elements the window shows, from 1. */
     this.page = 1
+    /** What the server listed for the catalog of the open menu: `{key, elements, total}` once answered, `{key, pending}` while asked, `{key, error}` when refused; null without a server or a paged menu. */
+    this.live = null
     this.status = ''
     /** Whether the menu or the server has items of a plugin, which come with a resource pack: the glyph bar is shown then. */
     this.customItems = false
@@ -66,12 +68,13 @@ export class App {
     this.asked = new Set()
     this.store.onChange((quiet) => {
       this.refreshHeader()
-      if (quiet) { if (this.tab === 'Editor') this.editor.refresh(); return }
+      if (quiet) { if (this.tab === 'Editor') this.editor.refresh(); this.fetchElements(); return }
       // The menu was changed by something other than the text, so a draft of the text is out of date (applying it is what sets the menu, and clears it).
       if (!this.raw.applying) this.raw.discard()
       this.draw()
       this.resolveItems()
       this.findCustomItems()
+      this.fetchElements()
     })
     window.addEventListener('keydown', (e) => this.keys(e))
     // A click outside the panel of a group of properties, or of the problems, closes it.
@@ -124,6 +127,7 @@ export class App {
     this.draw()
     this.resolveItems()
     this.findCustomItems()
+    this.fetchElements()
   }
 
   /** Looks for items of plugins in the menu, and on the server: they come with a resource pack, so the glyph bar is shown for them. */
@@ -168,12 +172,49 @@ export class App {
   }
 
   /** The menu as the window draws it: for a paged menu, the page that was turned to, or the page of no elements while the item for that is picked. */
-  shownMenu() { return previewMenu(this.store.value, this.catalogFields(), { page: this.page, empty: this.picked.item === EMPTY }) }
+  shownMenu() { return previewMenu(this.store.value, this.catalogFields(), { page: this.page, empty: this.picked.item === EMPTY, elements: this.liveElements() }) }
 
-  /** Turns the preview of a paged menu to the page [delta] away, within the example pages. */
+  /** The elements the server listed for the catalog of the menu as it is now, or null when there are none to show (no server, not answered yet, none listed). */
+  liveElements() {
+    const live = this.live
+    return live && live.key === this.liveKey() && live.elements?.length ? live.elements : null
+  }
+
+  /** What the listing depends on: the catalog and the order. A change of either asks the server again. */
+  liveKey() {
+    const pages = this.store.value.pages
+    return pages?.catalog?.type ? JSON.stringify([pages.catalog, pages.sort ?? null, Boolean(pages.descending)]) : null
+  }
+
+  /** The pages the preview can turn through: those of the server's elements when there are some, otherwise the example pages. */
+  previewPages() { return previewPages(Math.max(1, listedSlots(this.store.value.pages).length), this.liveElements()) }
+
+  /** Turns the preview of a paged menu to the page [delta] away. */
   turnPage(delta) {
-    this.page = Math.min(Math.max(1, this.page + delta), PREVIEW_PAGES)
+    this.page = Math.min(Math.max(1, this.page + delta), this.previewPages())
     this.editor.drawStage()
+  }
+
+  /** Asks the server what the catalog lists now, a little after the last change to it, and draws the window again when the answer comes. */
+  fetchElements() {
+    clearTimeout(this.fetching)
+    const key = this.liveKey()
+    if (!this.server || key === null) { if (this.live) { this.live = null; this.editor.drawStage() } return }
+    if (this.live?.key === key) return
+    this.fetching = setTimeout(async () => {
+      this.live = { key, pending: true }
+      this.page = 1
+      try {
+        const { elements, total } = await this.server.elements(this.store.value.pages.catalog, this.store.value.pages.sort, Boolean(this.store.value.pages.descending))
+        if (this.live?.key !== key) return
+        this.live = { key, elements, total }
+      } catch (error) {
+        if (this.live?.key !== key) return
+        this.live = { key, error: error.message }
+      }
+      this.page = Math.min(this.page, this.previewPages())
+      if (this.tab === 'Editor') this.editor.drawStage()
+    }, 300)
   }
 
   /** Starts or ends picking the slots of the elements in the window. */

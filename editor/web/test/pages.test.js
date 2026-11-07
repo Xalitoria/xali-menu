@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { listedSlots, toggleSlot, interiorSlots, defaultPages, sampleValue, sampleElements, fillText, previewMenu, previewTotal, isPaged, ELEMENT, EMPTY } from '../src/pages.js'
+import { listedSlots, toggleSlot, interiorSlots, defaultPages, sampleValue, sampleElements, fillText, previewMenu, previewTotal, previewPages, isPaged, ELEMENT, EMPTY } from '../src/pages.js'
 
 test('the slots of the elements are the slots, or the cells of the layout', () => {
   assert.deepEqual(listedSlots({ slots: [3, 1] }), [3, 1])
@@ -83,6 +83,23 @@ test('the preview turns to the second page, which is half full, and clamps the p
   assert.deepEqual([second.items[`${ELEMENT}2`].name, second.items[`${ELEMENT}2`].slot], ['Notch6 #6', 11])
   assert.equal(previewMenu(menu, { name: 'Notch' }, { page: 9 }).title, '2/2 1<>2', 'beyond the last page is the last')
   assert.equal(previewMenu(menu, { name: 'Notch' }, { page: 0 }).title, '1/2 1<>2')
+})
+
+test('real elements from the server take the place of the examples, and decide the pages', () => {
+  const menu = { title: '{page}/{pages} of {total}', pages: { catalog: { type: 'players' }, slots: [0, 1], item: { material: 'paper', name: '{name} {index}' } }, items: {} }
+  const elements = [{ name: 'Alex', index: '1' }, { name: 'Steve', index: '2' }, { name: 'Zed', index: '3' }]
+  const first = previewMenu(menu, { name: 'Notch' }, { elements })
+  assert.equal(first.title, '1/2 of 3')
+  assert.deepEqual([first.items[`${ELEMENT}1`].name, first.items[`${ELEMENT}2`].name], ['Alex 1', 'Steve 2'])
+  const second = previewMenu(menu, { name: 'Notch' }, { elements, page: 2 })
+  assert.deepEqual(Object.keys(second.items), [`${ELEMENT}1`])
+  assert.equal(second.items[`${ELEMENT}1`].name, 'Zed 3')
+  assert.equal(previewMenu(menu, { name: 'Notch' }, { elements: [] }).title, '1/2 of 3', 'no elements from the server: the examples again')
+  assert.equal(previewPages(2, elements), 2)
+  assert.equal(previewPages(2, [{ index: '1' }]), 1)
+  assert.equal(previewPages(2, []), 2)
+  assert.equal(previewPages(2, null), 2)
+  assert.deepEqual(Object.keys(previewMenu(menu, {}, { elements, empty: true }).items), [], 'the empty page is empty even with elements from the server')
 })
 
 test('the page of no elements has only the empty item, in the first slot', () => {

@@ -211,6 +211,11 @@ Each step ends with tests, the README section, and a commit.
   panel picks the catalog from a dropdown, the slots by clicking the window, and draws the template with the examples; the template is an
   entry of the item list with the values as chips. The preview turns pages (a page and a half of example elements) and shows the page of an
   empty catalog while its item is picked.
-- A `menus` catalog (`name`, `title`), for a menu of menus.
-- Tested by unit tests (JS and Kotlin) and by driving the editor in a browser; not against a live server. Not done: real elements from the
-  server in the preview, a catalog of items, an `entities` catalog.
+- A `menus` catalog (`name`, `title`), for a menu of menus, and an `inventory` catalog (`slot`, `material`, `amount`, `name`) of what
+  the viewer carries.
+- Connected to a server, the preview shows what the catalog lists now for the admin instead of the examples: `POST /v1/elements` reads
+  the catalog as a menu file would (so a catalog of another plugin works) and calls it on the player's region thread, as a menu does.
+- Tested by unit tests (JS and Kotlin), by driving the editor in a browser with a faked server, and live (`live/bot/editor.js`, Folia
+  26.2): `/v1/info` with the values and settings of every catalog, and `/v1/elements` for players, worlds, menus, inventory (named
+  items, armor and empty slots), range (the first 500 of 1198), values sorted backwards, a catalog that does not exist, one missing a
+  key, a request without a catalog, and a bad token. Not done: an `entities` catalog (needs an entity scope that is safe on Folia).

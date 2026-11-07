@@ -84,25 +84,30 @@ export const PREVIEW_PAGES = 2
 /** How many example elements the preview pretends there are for [perPage] slots: a full page and half of one. */
 export const previewTotal = (perPage) => perPage + Math.ceil(perPage / 2)
 
+/** How many pages the preview has for [perPage] slots: those of the real [elements] when there are some, otherwise the example pages. */
+export const previewPages = (perPage, elements = null) => (elements?.length ? Math.ceil(elements.length / perPage) : PREVIEW_PAGES)
+
 /**
  * The menu as the window shows it: for a paged menu, one [page] (from 1) of example elements, with the template drawn in each slot that has
  * one. The template is put in front of the items that claim the same slots; its `view` gate is left out, since the editor does not know what
  * the gate decides. With [empty], the page is the one of a catalog with nothing to list: no element, and `pages.empty` (if there is one) in
  * the first slot, as the plugin draws it. A menu that is not paged is returned as it is. [fields] is what the catalog's elements hold (name
- * to example). `{page}`, `{pages}` and `{total}` are filled as the plugin would for [previewTotal] elements.
+ * to example), and [elements] are the real ones from the server when there are some, each with its `index`; without them `{page}`,
+ * `{pages}` and `{total}` are filled as the plugin would for [previewTotal] example elements.
  */
-export function previewMenu(menu, fields, { page = 1, empty = false } = {}) {
+export function previewMenu(menu, fields, { page = 1, empty = false, elements = null } = {}) {
   const pages = menu.pages
   const listed = listedSlots(pages)
   if (!pages?.item || listed.length === 0) return menu
   const perPage = listed.length
-  const total = empty ? 0 : previewTotal(perPage)
+  const all = empty ? [] : elements?.length ? elements : sampleElements(fields, previewTotal(perPage))
+  const total = all.length
   const count = Math.max(1, Math.ceil(total / perPage))
   const shown = Math.min(Math.max(1, page), count)
   const tokens = { page: String(shown), pages: String(count), total: String(total), page_next: String(Math.min(shown + 1, count)), page_prev: String(Math.max(shown - 1, 1)) }
-  const elements = sampleElements(fields, total).slice((shown - 1) * perPage, shown * perPage)
+  const onPage = all.slice((shown - 1) * perPage, shown * perPage)
   const items = Object.fromEntries(Object.entries(menu.items ?? {}).map(([id, item]) => [id, fillAll(item, tokens)]))
-  elements.forEach((element, i) => {
+  onPage.forEach((element, i) => {
     const { view, slots, ...template } = fillAll(pages.item, { ...tokens, ...element })
     items[`${ELEMENT}${i + 1}`] = { ...template, slot: listed[i], priority: -1_000_000 }
   })
