@@ -3,9 +3,11 @@
 // and the common MiniMessage tags (`<red>`, `<#rrggbb>`, `<color:...>`, `<gradient:...>`, `<rainbow>`, the decorations, `<font:...>`, `<reset>`).
 // Anything else is shown as typed.
 //
-// Gradients are mixed in plain RGB here. The plugin mixes with Mixbox (pigments), so the colors in between differ a little; the ends are the same.
+// The gradients of the color module (`{#a>}`) are mixed with Mixbox (pigments) as the plugin does, with the library in vendor/ (CC BY-NC 4.0, like
+// the library the plugin uses). The MiniMessage ones are mixed in RGB, as Adventure does.
 
 import { NAMED_COLORS } from './colors.js'
+import mixbox from './vendor/mixbox.js'
 
 const COLORS = {
   0: '#000000', 1: '#0000aa', 2: '#00aa00', 3: '#00aaaa', 4: '#aa0000', 5: '#aa00aa', 6: '#ffaa00', 7: '#aaaaaa',
@@ -94,7 +96,7 @@ function legacyGradients(text) {
     if (!a || !b) return whole
     if (inner === '') return `&${b}`
     if (a === b) return `&${a}${inner}`
-    return colorize(inner, (t) => mix([a, b], t))
+    return colorize(inner, (t) => toHex(mixbox.lerp(a, b, t)))
   })
 }
 

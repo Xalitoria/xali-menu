@@ -40,7 +40,7 @@ test('the gradient of the color module: one color for each character, the ends a
   assert.deepEqual(got.map(([t]) => t), ['r', 'a', 'n', 'k'])
   assert.equal(got[0][1], '#000000')
   assert.equal(got[3][1], '#ffffff')
-  assert.equal(got[1][1], '#555555')
+  assert.equal(got[1][1], '#555255', 'mixed with Mixbox, as the plugin does')
   assert.deepEqual(colors('{#000>}x{#fff<}'), [['x', '#000000']], 'a single character takes the start color')
 })
 
