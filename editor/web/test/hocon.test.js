@@ -46,6 +46,18 @@ test('writes short objects on one line and long ones spread out', () => {
   assert.match(long, /^items \{\n    a \{\n        material = "stone"\n        note = /)
 })
 
+test('a long list of numbers is filled in lines, and reads back', () => {
+  const slots = Array.from({ length: 28 }, (_, i) => 10 + i)
+  const text = write({ pages: { slots } })
+  const lines = text.split('\n')
+  assert.equal(lines[0], 'pages {')
+  assert.ok(lines.length < 10, 'not a line for each number')
+  assert.ok(lines.every((line) => line.length <= 100))
+  assert.ok(lines[2].endsWith(','))
+  assert.deepEqual(parse(text), { pages: { slots } })
+  assert.equal(write({ slots: [1, 2, 3] }), 'slots = [1, 2, 3]\n', 'a short one stays on a line')
+})
+
 test('what is written reads back the same', () => {
   const original = {
     title: '&6Shop', size: 54, 'weird key': { x: [1, 2.5, true, null] },

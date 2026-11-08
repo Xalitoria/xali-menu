@@ -37,6 +37,16 @@ class MenuFormat {
     }
 
     @Test
+    fun aLongListOfNumbersIsFilledInLines() {
+        val slots = (10..37).toList()
+        val menu = Menu("T", items = mapOf("a" to Item("stone", slots = slots)))
+        val text = Registry.format.encode(menu)
+        assertTrue(text.lines().none { it.length > 100 })
+        assertTrue(text.lines().size < 16, "not a line for each number:\n$text")
+        assertEquals(menu, Registry.format.decode(text))
+    }
+
+    @Test
     fun readsWhatPeopleWrite() {
         val read = Registry.format.decode(
             """

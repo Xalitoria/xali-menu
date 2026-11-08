@@ -42,6 +42,17 @@ function body(object, indent) {
 function render(value, indent) {
   const flat = inline(value)
   if (flat !== null) return flat
+  if (Array.isArray(value) && value.length > 0 && value.every((item) => typeof item === 'number')) {
+    // A long list of numbers (the slots of a menu) is filled in lines, not one number to a line.
+    const lines = []
+    let line = ''
+    for (const item of value) {
+      const piece = String(item)
+      if (line !== '' && (indent + INDENT + line + ', ' + piece + ',').length > WIDTH) { lines.push(`${line},`); line = piece } else line = line === '' ? piece : `${line}, ${piece}`
+    }
+    lines.push(line)
+    return `[\n${lines.map((l) => `${indent + INDENT}${l}\n`).join('')}${indent}]`
+  }
   if (Array.isArray(value)) {
     return `[\n${value.map((item) => `${indent + INDENT}${render(item, indent + INDENT)}\n`).join('')}${indent}]`
   }

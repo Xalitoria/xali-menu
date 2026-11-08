@@ -5,6 +5,7 @@ import com.typesafe.config.ConfigUtil
 import com.typesafe.config.ConfigValue
 import com.typesafe.config.ConfigValueType.LIST
 import com.typesafe.config.ConfigValueType.NULL
+import com.typesafe.config.ConfigValueType.NUMBER
 import com.typesafe.config.ConfigValueType.OBJECT
 import com.typesafe.config.ConfigValueType.STRING
 
@@ -32,10 +33,23 @@ internal object HoconWriter {
     }
 
     private fun value(value: ConfigValue, indent: String): String = inline(value) ?: when (value.valueType()) {
-        LIST -> (value as Iterable<*>).joinToString("", "[\n", "$indent]") {
+        LIST -> if ((value as List<*>).all { (it as ConfigValue).valueType() == NUMBER }) numbers(value.map { (it as ConfigValue).unwrapped().toString() }, indent)
+        else value.joinToString("", "[\n", "$indent]") {
             "${indent + INDENT}${value(it as ConfigValue, indent + INDENT)}\n"
         }
         else -> "{\n${body(value as ConfigObject, indent + INDENT)}$indent}"
+    }
+
+    /** A long list of numbers (the slots of a menu) filled in lines, not one number to a line. */
+    private fun numbers(items: List<String>, indent: String): String {
+        val lines = mutableListOf<String>()
+        var line = ""
+        for (item in items) {
+            if (line.isNotEmpty() && (indent + INDENT + line + ", " + item + ",").length > WIDTH) { lines += "$line,"; line = item }
+            else line = if (line.isEmpty()) item else "$line, $item"
+        }
+        lines += line
+        return lines.joinToString("", "[\n", "$indent]") { "${indent + INDENT}$it\n" }
     }
 
     /** [value] on one line, or null if it has to span several. */
