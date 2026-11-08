@@ -28,7 +28,7 @@ export class App {
     this.store = new Store({})
     this.form = new Form(schema, this.store, {
       material: (path, value) => materialPicker({
-        value: value ?? '', placeholder: 'stone, diamond_sword, nexo:ruby, head:Notch',
+        value: value ?? '', placeholder: 'stone, diamond_sword, nexo:ruby, head:Steve',
         // Typing changes the menu without drawing the form again (the box would lose the cursor); a pick or leaving the box does.
         commit: (text, final) => (final ? this.store.set(path, text) : this.store.set(path, text, true)),
       }),

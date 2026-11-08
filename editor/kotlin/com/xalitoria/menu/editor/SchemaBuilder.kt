@@ -36,7 +36,7 @@ import net.xalitoria.menu.model.Menu
  * { "root": "Menu",
  *   "types": { "Menu": { "doc": "...", "fields": [ { "key": "title", "type": { "kind": "string" }, "required": true, "doc": "..." } ] } },
  *   "poly": { "Action": { "close": "Action:close" } },
- *   "catalogs": { "players": { "name": "Notch" } } }
+ *   "catalogs": { "players": { "name": "Steve" } } }
  * ```
  *
  * A type is a `kind` (`string`, `int`, `number`, `boolean`, `duration`, `enum` with `values`, `list` and `map` with `of`,
