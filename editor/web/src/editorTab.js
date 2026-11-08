@@ -47,7 +47,8 @@ export class EditorTab {
   // ---- the screen
 
   view() {
-    this.stage = h('div', { class: 'stage' })
+    this.stage = h('div', { class: 'stage', title: 'Drag the empty space to move the window, double click it to center' })
+    this.grabbing()
     this.list = this.itemList()
     this.observe()
     return h('div', { class: 'editor' },
@@ -61,7 +62,24 @@ export class EditorTab {
   /** Called once the screen is in the page, so the stage has its size: draws the window in it. */
   attached() {
     if (!this.stage?.isConnected) return
+    this.placePopover()
     this.drawStage()
+  }
+
+  /** Puts the open panel of a group under its button, moved left or up as far as it takes to stay inside the window. */
+  placePopover() {
+    const panel = document.querySelector('.popover')
+    const button = document.querySelector('.pop-button.active')
+    if (!panel || !button) return
+    const margin = 12
+    const anchor = button.getBoundingClientRect()
+    const width = Math.min(panel.offsetWidth, window.innerWidth - 2 * margin)
+    const left = Math.max(margin, Math.min(anchor.left, window.innerWidth - width - margin))
+    const top = anchor.bottom + 8
+    panel.style.left = `${left}px`
+    panel.style.top = `${top}px`
+    panel.style.maxHeight = `${Math.max(160, window.innerHeight - top - margin)}px`
+    if (!this.placing) { this.placing = true; window.addEventListener('resize', () => this.placePopover()) }
   }
 
   drawStage() {
@@ -72,11 +90,60 @@ export class EditorTab {
     app.inventory.draw({ width, height }, { menu: app.shownMenu(), listed: new Set(listedSlots(this.menu.pages)), painting: app.painting })
     fill(this.stage, this.app.inventory.root)
     this.pager?.replaceWith(this.pager = this.pagerView())
-    // A window that is bigger than the stage opens in the middle of it.
-    if (this.app.centerStage) {
-      this.stage.scrollLeft = (this.stage.scrollWidth - width) / 2
-      this.stage.scrollTop = (this.stage.scrollHeight - height) / 2
-      this.app.centerStage = false
+    // The window opens in the middle of the stage, and stays where it was dragged to.
+    if (this.app.centerStage) { this.pan = { x: 0, y: 0 }; this.app.centerStage = false }
+    this.place()
+  }
+
+  /** Puts the window in the middle of the stage, moved by what was dragged; whole pixels, so its pixels stay sharp. */
+  place() {
+    const root = this.app.inventory.root
+    const { clientWidth: width, clientHeight: height } = this.stage
+    const pan = this.pan ?? (this.pan = { x: 0, y: 0 })
+    // At least a corner of the window stays on the stage.
+    const keep = 80
+    pan.x = Math.max(-(width + root.offsetWidth) / 2 + keep, Math.min((width + root.offsetWidth) / 2 - keep, pan.x))
+    pan.y = Math.max(-(height + root.offsetHeight) / 2 + keep, Math.min((height + root.offsetHeight) / 2 - keep, pan.y))
+    root.style.left = `${Math.round((width - root.offsetWidth) / 2 + pan.x)}px`
+    root.style.top = `${Math.round((height - root.offsetHeight) / 2 + pan.y)}px`
+    this.stage.classList.toggle('moved', pan.x !== 0 || pan.y !== 0)
+  }
+
+  /**
+   * Dragging the empty stage, or anywhere with the middle button or with Space held, moves the window; the wheel moves it too; a double click on the
+   * empty stage puts it back in the middle. Dragging an item from slot to slot is the window's own and is left alone.
+   */
+  grabbing() {
+    const stage = this.stage
+    stage.addEventListener('pointerdown', (e) => {
+      const empty = e.target === stage
+      if (!(empty && e.button === 0) && e.button !== 1 && !(this.spaceDown && e.button === 0)) return
+      e.preventDefault()
+      const start = { x: e.clientX, y: e.clientY, pan: { ...this.pan } }
+      stage.setPointerCapture(e.pointerId)
+      stage.classList.add('grabbing')
+      const move = (m) => { this.pan = { x: start.pan.x + m.clientX - start.x, y: start.pan.y + m.clientY - start.y }; this.place() }
+      const up = () => { stage.classList.remove('grabbing'); stage.removeEventListener('pointermove', move); stage.removeEventListener('pointerup', up); stage.removeEventListener('pointercancel', up) }
+      stage.addEventListener('pointermove', move)
+      stage.addEventListener('pointerup', up)
+      stage.addEventListener('pointercancel', up)
+    })
+    stage.addEventListener('dblclick', (e) => { if (e.target === stage) { this.pan = { x: 0, y: 0 }; this.place() } })
+    stage.addEventListener('wheel', (e) => {
+      e.preventDefault()
+      this.pan = { x: this.pan.x - (e.shiftKey ? e.deltaY : e.deltaX), y: this.pan.y - (e.shiftKey ? 0 : e.deltaY) }
+      this.place()
+    }, { passive: false })
+    if (!this.spaceListening) {
+      this.spaceListening = true
+      const space = (down) => (e) => {
+        if (e.code !== 'Space' || /^(INPUT|TEXTAREA|SELECT|BUTTON)$/.test(e.target.tagName)) return
+        this.spaceDown = down
+        if (down) e.preventDefault()
+        this.stage?.classList.toggle('grab', down)
+      }
+      window.addEventListener('keydown', space(true))
+      window.addEventListener('keyup', space(false))
     }
   }
 
@@ -127,8 +194,10 @@ export class EditorTab {
       h('span', { class: 'divider' }),
       h('div', { class: 'tool-group' }, groups.map((group) => this.groupButton(group, known))),
       h('span', { class: 'divider' }),
-      h('label', { class: 'tool' }, h('span', null, 'GUI scale'),
-        this.select([['0', 'Fit'], ...SCALES.map((n) => [String(n), `${n}×`])], String(services.scale), (v) => { services.scale = Number(v); app.centerStage = true; this.drawStage() })))
+      h('div', { class: 'tool' }, h('span', null, 'GUI scale'),
+        h('div', { class: 'tool-row' },
+          this.select([['0', 'Fit'], ...SCALES.map((n) => [String(n), `${n}×`])], String(services.scale), (v) => { services.scale = Number(v); app.centerStage = true; this.drawStage() }),
+          h('button', { title: 'Put the window back in the middle', onclick: () => { this.pan = { x: 0, y: 0 }; this.place() } }, 'Center'))))
   }
 
   /** The number of the keys of the group that the menu sets. */

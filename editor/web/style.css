@@ -36,8 +36,18 @@ h1, h2 { margin: 0 0 8px; } h2 { font-size: 16px; display: flex; gap: 12px; alig
 .control > input[type=checkbox] { margin-top: 7px; }
 .field.add { grid-template-columns: 1fr; } select.adder { color: var(--muted); max-width: 220px; }
 .preview { min-height: 0; padding: 2px 0 0; font-family: ui-monospace, monospace; font-size: 13px; background: #000; margin-top: 3px; border-radius: 3px; padding: 0 6px; } .preview:empty { display: none; }
+.field.block, .props .field.block { grid-template-columns: minmax(0, 1fr) auto; }
+.field.block > label { grid-column: 1; padding-top: 2px; } .field.block > .control { grid-column: 1 / 3; grid-row: 2; } .field.block > button.icon { grid-column: 2; grid-row: 1; }
+.field.block .hint { grid-column: 1 / 3; grid-row: 3; }
 .group, .card { border: 1px solid var(--line); border-radius: 5px; background: var(--panel); }
-.group > summary, .card > summary { padding: 7px 12px; cursor: pointer; color: var(--muted); } .group[open] > summary, .card[open] > summary { border-bottom: 1px solid var(--line); }
+.group.nested, .group.nested .group.nested { border-width: 0 0 0 2px; border-color: #3a4256; border-radius: 0; background: transparent; margin-left: 2px; padding: 2px 0 2px 12px; }
+/* what is nested inside something is marked by a line at its left, and each level takes little room */
+.group .group, .group .card, .card .group, .card .card { border-width: 0 0 0 2px; border-radius: 0; background: transparent; border-color: #3a4256; margin-left: 2px; }
+.group .group > .object, .card .card > .object, .group .card > .object, .card .group > .object, .card .card > .poly, .card .card > .map { padding: 6px 0 6px 10px; }
+.card .card > summary, .group .group > summary, .card .group > summary, .group .card > summary { padding: 4px 8px; border-bottom: 0 !important; }
+.card.entry > .entry-name { display: flex; gap: 6px; padding: 8px 12px 0; } .card.entry > .entry-name input { flex: 1; min-width: 0; }
+.card .card.entry > .entry-name { padding: 4px 0 0 10px; }
+.group > summary, .card > summary { padding: 7px 12px; cursor: pointer; color: var(--muted); } .card > summary b { color: var(--text); font-weight: 600; } .group[open] > summary, .card[open] > summary { border-bottom: 1px solid var(--line); }
 .group > .object, .card > .object, .card > .field, .card > .poly, .card > .map { padding: 10px 12px; }
 .card > button.danger { margin: 0 10px 10px; } .card .sub { color: var(--muted); font-size: 12px; }
 .list { display: grid; gap: 8px; } .row { display: grid; grid-template-columns: 1fr auto; gap: 6px; align-items: start; } .row .buttons { display: flex; gap: 2px; }
@@ -79,13 +89,15 @@ section { margin-bottom: 22px; } .names td { padding: 2px 10px 2px 0; } .mc-char
 .tool { display: grid; gap: 4px; } .tool > span { font-size: 11px; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
 .tool.grow { flex: 1 1 220px; min-width: 200px; } .tool select, .tool input[type=text] { width: 100%; }
 .toolbar .divider { align-self: stretch; width: 1px; margin: 2px 2px; background: var(--line); }
+.tool-row { display: flex; gap: 8px; align-items: center; }
 .tool-group { display: flex; gap: 8px; flex-wrap: wrap; }
 .pop-wrap { position: relative; }
 .pop-button { display: flex; gap: 8px; align-items: center; }
 .pop-button.active { border-color: var(--accent); color: var(--accent); } .pop-button.set { border-color: #4a5266; }
 .count { font-size: 11px; line-height: 18px; min-width: 18px; text-align: center; padding: 0 5px; border-radius: 9px; background: var(--line); color: var(--text); }
 .pop-button.active .count { background: var(--accent); color: #07101f; }
-.popover { position: absolute; top: calc(100% + 8px); left: 0; z-index: 30; width: 560px; max-width: calc(100vw - 32px); max-height: calc(100vh - 220px); overflow: auto;
+/* Placed by EditorTab.placePopover under its button, kept inside the window. */
+.popover { position: fixed; top: 140px; left: 16px; z-index: 30; width: 560px; max-width: calc(100vw - 32px); max-height: calc(100vh - 160px); overflow: auto;
   background: var(--panel); border: 1px solid var(--accent); border-radius: 10px; padding: 16px 18px; box-shadow: 0 12px 32px #000a; }
 .popover > p { margin: 0 0 14px; }
 
@@ -107,8 +119,10 @@ section { margin-bottom: 22px; } .names td { padding: 2px 10px 2px 0; } .mc-char
 .empty-state { padding: 28px 20px; display: grid; gap: 12px; justify-items: start; } .empty-state h2 { margin: 0; font-size: 15px; }
 
 .stage-wrap { grid-area: stage; position: relative; display: flex; min-width: 0; min-height: 0; background: #26292f; }
-.stage { flex: 1; display: flex; overflow: auto; min-width: 0; min-height: 0; }
-.stage > .inventory { margin: auto; flex: none; }
+.stage { flex: 1; position: relative; overflow: hidden; min-width: 0; min-height: 0; cursor: grab; touch-action: none; }
+.stage.grabbing, .stage.grab, .stage.grabbing * { cursor: grabbing; }
+.stage > .inventory { position: absolute; }
+.stage .inventory * { cursor: default; } .stage .inventory .slot { cursor: pointer; }
 
 .glyphbar { grid-area: glyphs; display: flex; gap: 18px; align-items: stretch; padding: 12px 16px; background: var(--panel); border-top: 1px solid var(--line); min-width: 0; }
 .glyph-note { display: flex; gap: 12px; align-items: center; }
@@ -154,11 +168,10 @@ textarea.raw { height: 100%; resize: none; padding: 12px 14px; line-height: 1.5;
 .chip small { color: var(--muted); font-family: system-ui, sans-serif; } .chip.weak { color: var(--muted); }
 
 /* narrower windows: slimmer sidebars, and below that everything in one column that scrolls */
-@media (max-width: 1100px) { .editor { grid-template-columns: 210px minmax(0, 1fr) 320px; } .props .field { grid-template-columns: 80px minmax(0, 1fr) auto; } }
+@media (max-width: 1100px) { .editor { grid-template-columns: 210px minmax(0, 1fr) 320px; } .props .field { grid-template-columns: 80px minmax(0, 1fr) auto; } .props .field.block { grid-template-columns: minmax(0, 1fr) auto; } }
 @media (max-width: 860px) {
   .view.fixed { overflow: auto; }
   .editor { height: auto; min-height: 100%; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto minmax(380px, 65vh) auto auto; grid-template-areas: "top" "list" "stage" "props" "glyphs"; }
   .sidebar.items { max-height: 220px; border-right: 0; border-bottom: 1px solid var(--line); } .sidebar.props { border-left: 0; border-top: 1px solid var(--line); overflow: visible; }
   .glyphbar { flex-wrap: wrap; } .glyph-card { border-right: 0; padding-right: 0; }
-  .popover { position: fixed; top: 140px; left: 16px; right: 16px; width: auto; max-width: none; }
 }

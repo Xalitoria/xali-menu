@@ -67,7 +67,7 @@ export class Schema {
 export function summary(value) {
   if (value === null || value === undefined) return ''
   if (typeof value !== 'object') return String(value)
-  if (Array.isArray(value)) return `${value.length} entries`
+  if (Array.isArray(value)) return `${value.length} ${value.length === 1 ? 'entry' : 'entries'}`
   const pick = ['type', 'material', 'text', 'name', 'node', 'menu', 'sound', 'command', 'title'].find((k) => typeof value[k] === 'string')
-  return pick ? (pick === 'type' ? value.type : `${value.type ? value.type + ': ' : ''}${value[pick]}`) : `${Object.keys(value).length} keys`
+  return pick ? (pick === 'type' ? value.type : `${value.type ? value.type + ': ' : ''}${value[pick]}`) : `${Object.keys(value).length} ${Object.keys(value).length === 1 ? 'key' : 'keys'}`
 }

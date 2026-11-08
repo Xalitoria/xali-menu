@@ -25,6 +25,8 @@ export class Form {
     this.hooks = hooks
     /** The rows that are open, by path, so a redraw keeps them open. */
     this.open = new Set()
+    /** The nested objects the user folded: they start open, since what is inside is what is being edited. */
+    this.shut = new Set()
   }
 
   /** The form for an object of the named type at [path]. */
@@ -54,7 +56,9 @@ export class Form {
   field(field, path, value) {
     const control = this.control(field.type, path, value, field)
     const missing = field.required && value === undefined
-    return h('div', { class: `field ${missing ? 'missing' : ''}`, 'data-key': field.key },
+    // A control that holds other controls (an object, a map, a list of objects) gets the whole width, with its label above it.
+    const block = ['object', 'map', 'poly'].includes(field.type.kind) || (field.type.kind === 'list' && ['object', 'poly', 'map', 'list'].includes(field.type.of?.kind))
+    return h('div', { class: `field ${missing ? 'missing' : ''} ${block ? 'block' : ''}`, 'data-key': field.key },
       h('label', { title: field.doc ?? '' },
         field.key, field.required && h('span', { class: 'req', title: 'required' }, '*')),
       h('div', { class: 'control' }, control),
@@ -150,11 +154,9 @@ export class Form {
   }
 
   nested(typeName, path) {
-    const id = path.join('/')
-    const value = this.store.get(path)
     const body = this.object(typeName, path)
-    return h('details', { class: 'group', open: this.open.has(id) || value === undefined, ontoggle: (e) => (e.target.open ? this.open.add(id) : this.open.delete(id)) },
-      h('summary', null, summary(value) || 'empty'), body)
+    // Not folded: it is what is being edited, and a line at its left shows how deep it is.
+    return h('div', { class: 'group nested' }, body)
   }
 
   /** An object of an open base such as Action: pick the type, then fill in its keys. */
@@ -210,11 +212,10 @@ export class Form {
       const entryPath = [...path, key]
       const id = entryPath.join('/')
       const name = h('input', { type: 'text', class: 'key', value: key, title: 'Name', onchange: () => this.store.rename(path, key, name.value.trim() || key) })
-      root.append(h('details', { class: 'card', open: this.open.has(id), ontoggle: (e) => (e.target.open ? this.open.add(id) : this.open.delete(id)) },
-        h('summary', null, key, h('span', { class: 'sub' }, ` ${summary(entries[key])}`)),
-        h('div', { class: 'field' }, h('label', null, 'name'), h('div', { class: 'control' }, name)),
-        this.control(of, entryPath, entries[key]),
-        h('button', { class: 'danger', onclick: () => this.store.remove(entryPath) }, 'Remove')))
+      root.append(h('details', { class: 'card entry', open: !this.shut.has(id), ontoggle: (e) => (e.target.open ? this.shut.delete(id) : this.shut.add(id)) },
+        h('summary', null, h('b', null, key), h('span', { class: 'sub' }, ` ${summary(entries[key])}`)),
+        h('div', { class: 'entry-name' }, name, h('button', { class: 'icon', title: `Remove ${key}`, onclick: () => this.store.remove(entryPath) }, '×')),
+        this.control(of, entryPath, entries[key])))
     }
     root.append(h('button', { class: 'add', onclick: () => {
       let n = 1

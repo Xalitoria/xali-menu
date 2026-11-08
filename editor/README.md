@@ -64,7 +64,7 @@ The Editor tab is one screen and the window of the menu never leaves it:
 |---|---|
 | Toolbar above the window | The title, the inventory type (a dropdown) and the size, then a button for each group of the menu's properties (Opening, Events, Layout, Pages, Animation, and More for the rest) that opens a panel of its fields, and the GUI scale. A group with properties set shows how many. |
 | List on the left | Every item of the menu with its cell id, its picture, its slots and its material. Click one to edit it, **+ Add** puts a new one in the first free slot. |
-| The window | Click a slot to pick the item in it (or add one there), drag an item to another slot to move it. |
+| The window | Click a slot to pick the item in it (or add one there), drag an item to another slot to move it. Drag the empty space around it (or use the middle button, or Space and the left button, or the wheel) to move the window, and double click the space or press **Center** to put it back. |
 | Panel on the right | The id of the item (rename it here: the legend follows), **Copy**, **Delete**, and every property of the item. |
 | Bar under the window | Shown when a resource pack is loaded, the server has glyphs, or the menu has custom items (`nexo:ruby`). Pick a glyph from the strip (search by name or code, a font at a time), see it large, and put it in the title at an offset; the window shows it at once. |
 
