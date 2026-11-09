@@ -161,3 +161,24 @@ test('a banner is a cloth on a pole and a bar, with a layer of the cloth for eac
   const ys = layers[0].quads.flatMap((q) => q.positions.map((p) => p[1]))
   assert.ok(Math.abs(Math.max(...ys) - Math.min(...ys) - 40 * (2 / 3)) < 1e-9, 'the cloth is two thirds of 40 pixels tall')
 })
+
+import { shieldLayers } from '../src/special.js'
+
+test('a shield is a plate and a handle in the dye of its base, with the plate again for each pattern', () => {
+  const { layers, textures } = shieldLayers('blue', [{ color: 'red', pattern: 'minecraft:cross' }])
+  assert.equal(layers.length, 2)
+  assert.deepEqual(layers[0].tints, [DYES.blue])
+  assert.deepEqual(layers[1].tints, [DYES.red])
+  assert.deepEqual(textures, ['minecraft:entity/shield/shield_base', 'minecraft:entity/shield/cross'])
+  const ys = layers[1].quads.flatMap((q) => q.positions.map((p) => p[1]))
+  assert.ok(Math.abs(Math.max(...ys) - Math.min(...ys) - 22) < 1e-9, 'the plate is 22 pixels tall')
+  const handleZ = layers[0].quads.flatMap((q) => q.positions.map((p) => p[2]))
+  assert.ok(Math.min(...handleZ) < 8 - 1, 'the handle sticks out behind the plate')
+})
+
+test('a shield with nothing on it has a plain texture and no tint', () => {
+  const { layers, textures } = shieldLayers(null, [])
+  assert.equal(layers.length, 1)
+  assert.deepEqual(layers[0].tints, [])
+  assert.deepEqual(textures, ['minecraft:entity/shield/shield_base_nopattern'])
+})

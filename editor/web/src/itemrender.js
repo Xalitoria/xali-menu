@@ -5,7 +5,7 @@ import { Assets, split } from './assets.js'
 import { Model, loadModel, bakeElements, bakeLayers, transformQuads } from './bake.js'
 import { chooseModels } from './itemdef.js'
 import { renderItem, addGlint, downsample } from './raster.js'
-import { specialQuads, bannerLayers } from './special.js'
+import { specialQuads, bannerLayers, shieldLayers } from './special.js'
 
 /** The size of the pixel of the game on the page: items are drawn 16 of these wide. */
 export const SCALE = 3
@@ -36,6 +36,7 @@ export function stateOf(item, known = {}) {
     material: head ? 'player_head' : (known.material ?? text.replace(/^minecraft:/, '')),
     skin: skinUrl(text),
     banner: Array.isArray(item.banner) ? item.banner : [],
+    baseColor: typeof item['base-color'] === 'string' ? item['base-color'] : null,
     glint: item.glow === true || (item.glow !== false && (Object.keys(item.enchants ?? {}).length > 0 || Object.keys(item['stored-enchants'] ?? {}).length > 0)),
     itemModel: item['item-model'] ?? known.itemModel ?? null,
     state: {
@@ -72,13 +73,13 @@ export class ItemRenderer {
    * [smooth] draws four times as large and shrinks the result, so the edges are not stairs; the game itself draws without it, which is what
    * `smooth = false` gives.
    */
-  async draw({ material, itemModel, state, glint, skin, banner }, scale, smooth) {
+  async draw({ material, itemModel, state, glint, skin, banner, baseColor }, scale, smooth) {
     const oversample = smooth ? 4 : 1
     const entries = await this.entries(material, itemModel, state)
     const layers = []
     const needed = new Set()
     for (const entry of entries) {
-      const made = await this.layer(entry, skin, banner)
+      const made = await this.layer(entry, skin, banner, baseColor)
       for (const layer of [made].flat()) {
         if (!layer) continue
         layers.push(layer)
@@ -123,7 +124,7 @@ export class ItemRenderer {
   }
 
   /** The quads of one entry, placed by the display transform of its model. */
-  async layer(entry, skin = null, banner = []) {
+  async layer(entry, skin = null, banner = [], baseColor = null) {
     const key = entry.model ?? entry.base
     if (!key) return null
     const model = await loadModel(this.assets, key)
@@ -132,6 +133,13 @@ export class ItemRenderer {
       const built = bannerLayers(entry.special.color, banner)
       // The game lights the cloth of a banner at about three quarters, measured from icons it rendered; no light of the item matches it.
       return built.layers.map((l) => ({ quads: l.quads, display: model.display.gui, guiLight: model.guiLight ?? 'side', tints: l.tints, brightness: 0.766 }))
+    }
+    if (entry.special && String(entry.special.type).replace(/^minecraft:/, '') === 'shield') {
+      const built = shieldLayers(baseColor, banner)
+      // The game's icon of a shield, measured against one it rendered (the wiki's Invicon: 95 % of its pixels), sits where the base model's
+      // translation of (2, 3, 0) would not put it: one pixel left of the middle and no higher. The shield model is not centred in the game.
+      const display = { ...model.display.gui, translation: [-1, 0, 0] }
+      return built.layers.map((l) => ({ quads: l.quads, display, guiLight: model.guiLight ?? 'side', tints: l.tints }))
     }
     if (entry.special) {
       const built = specialQuads(entry.special, skin ? `url:${skin}` : null)

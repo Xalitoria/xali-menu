@@ -159,3 +159,36 @@ export function bannerLayers(color, patterns = []) {
   }
   return { layers, textures }
 }
+
+/**
+ * The layers of a shield: the plate with its handle in the color of the base, then the plate again for each pattern in its own color. The
+ * model is the game's (a 12 by 22 plate, one pixel thick, and a handle behind it) turned upside down and round the way an entity model is, put on the
+ * block so that the display transform of the base model applies. A shield with no pattern and no base color has a plain texture of its own.
+ * @param {string|null} baseColor the dye of the base, if it has one
+ * @param {{color: string, pattern: string}[]} [patterns]
+ * @returns {{layers: {quads: import('./bake.js').Quad[], tints: number[]}[], textures: string[]}}
+ */
+export function shieldLayers(baseColor, patterns = []) {
+  const at = (x, y, z) => [x + 8, -y + 8, -z + 8]
+  const sheet = [64, 64]
+  const plate = (texture, tintindex) => new Model({ textures: { t: texture }, elements: [
+    box(at(-6, 11, -1), [12, 22, 1], [0, 0], sheet, '#t', { tintindex }),
+  ] })
+  const handle = (texture, tintindex) => new Model({ textures: { t: texture }, elements: [
+    box(at(-1, 3, 5), [2, 6, 6], [26, 0], sheet, '#t', { tintindex }),
+  ] })
+  const plain = !baseColor && patterns.length === 0
+  const base = plain ? 'minecraft:entity/shield/shield_base_nopattern' : 'minecraft:entity/shield/shield_base'
+  const tint = plain ? [] : [DYES[String(baseColor ?? 'white').toLowerCase()] ?? DYES.white]
+  const index = plain ? undefined : 0
+  const layers = [
+    { quads: [...bakeElements(plate(base, index)), ...bakeElements(handle(base, index))], tints: tint },
+  ]
+  const textures = [base]
+  for (const { color, pattern } of patterns) {
+    const key = `minecraft:entity/shield/${String(pattern ?? '').replace(/^minecraft:/, '')}`
+    layers.push({ quads: bakeElements(plate(key, 0)), tints: [DYES[String(color).toLowerCase()] ?? DYES.white] })
+    textures.push(key)
+  }
+  return { layers, textures }
+}
