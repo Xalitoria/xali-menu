@@ -11,7 +11,7 @@ import mc.xalitoria.menu.paper.XaliMenu
  * are listed at [EditorServer].
  *
  * A [Caller] that is [Caller.shared] came through a shared link, which anyone with the link can use. It reads what the editor reads, but
- * a save is not written: it is held in [PendingEdits] for an admin to look at and apply in game.
+ * a save is not written: it is held in [PendingEdits] for an admin to look at and apply in game, or refused when the link is [Caller.readOnly].
  */
 internal class EditorApi(private val plugin: XaliMenu, val menus: EditorMenus, val pending: PendingEdits) {
     /** Told when an edit of a shared link has been put on hold, so that admins can be told. */
@@ -21,7 +21,7 @@ internal class EditorApi(private val plugin: XaliMenu, val menus: EditorMenus, v
     private val packs = ResourcePacks(plugin)
 
     /** Who asks: the owner of the link, and for a shared link the name the person gave. */
-    data class Caller(val owner: String, val shared: Boolean = false, val from: String = owner)
+    data class Caller(val owner: String, val shared: Boolean = false, val from: String = owner, val readOnly: Boolean = false)
 
     /** A question: [path] is the part after `/v1`, with no query. */
     class Call(val method: String, val path: String, val query: String?, val body: ByteArray, val range: String? = null)
@@ -48,7 +48,7 @@ internal class EditorApi(private val plugin: XaliMenu, val menus: EditorMenus, v
         val method = call.method
         return when {
             path == listOf("info") && method == "GET" -> json(200, mapOf(
-                "plugin" to "XaliMenu", "version" to plugin.pluginMeta.version, "owner" to who.owner, "shared" to who.shared,
+                "plugin" to "XaliMenu", "version" to plugin.pluginMeta.version, "owner" to who.owner, "shared" to who.shared, "readOnly" to who.readOnly,
                 "menus" to menus.names(), "pack" to (packs.pack() != null || packs.packUrl() != null), "catalogs" to catalogs(),
                 "packSize" to packs.pack()?.let { Files.size(it) }, "packUrl" to packs.packUrl(),
             ))
@@ -58,6 +58,7 @@ internal class EditorApi(private val plugin: XaliMenu, val menus: EditorMenus, v
             }
             path.size == 2 && path[0] == "menus" && method == "PUT" -> {
                 val menu = menuOf(call) ?: return error(400, "The request has no 'menu' object")
+                if (who.readOnly) return error(403, "This link is read-only")
                 if (who.shared) return hold(path[1], menu, who)
                 log(who.owner, "saves menu '${path[1]}'")
                 answer(menus.save(path[1], menu))

@@ -23,7 +23,7 @@ import mc.xalitoria.menu.paper.XaliMenu
  */
 internal class EditorRelay(private val plugin: XaliMenu, private val api: EditorApi, private val now: () -> Long = System::currentTimeMillis) {
     /** One shared link. */
-    class Share(val owner: String, val id: String, val secret: String, val key: SecretKeySpec, val expires: Long) {
+    class Share(val owner: String, val id: String, val secret: String, val key: SecretKeySpec, val expires: Long, val readOnly: Boolean = false) {
         @Volatile var running = true
         /** The requests answered lately, so that a copy sent again is not run twice. */
         val seen: MutableSet<String> = java.util.Collections.synchronizedSet(LinkedHashSet())
@@ -42,7 +42,7 @@ internal class EditorRelay(private val plugin: XaliMenu, private val api: Editor
     fun active(): List<Share> = shares.values.filter { it.running }
 
     /** Opens a session for [owner] at the relay of the config, and starts answering through it. */
-    fun start(owner: String, menu: String?): Started {
+    fun start(owner: String, menu: String?, readOnly: Boolean = false): Started {
         val settings = plugin.config.data.editor
         val relay = settings.relay.url.trim().trimEnd('/')
         if (relay.isEmpty()) return Started.Failed("editor.relay.url is not set in config.yml")
@@ -56,7 +56,7 @@ internal class EditorRelay(private val plugin: XaliMenu, private val api: Editor
             val response = http.send(request, HttpResponse.BodyHandlers.ofString())
             if (response.statusCode() != 201) return Started.Failed("the relay answered ${response.statusCode()}: ${response.body().take(120)}")
             val made = Json.read(response.body()).unwrapped()
-            Share(owner, made["id"] as String, made["secret"] as String, RelayCrypto.keyOf(keyText), now() + minutes * 60_000L)
+            Share(owner, made["id"] as String, made["secret"] as String, RelayCrypto.keyOf(keyText), now() + minutes * 60_000L, readOnly)
         } catch (e: Exception) {
             return Started.Failed(e.message ?: e::class.simpleName.orEmpty())
         }
@@ -148,7 +148,7 @@ internal class EditorRelay(private val plugin: XaliMenu, private val api: Editor
         val query = path.substringAfter('?', "").ifEmpty { null }
         val call = EditorApi.Call(method!!, path.substringBefore('?'), query, bodyText.toByteArray(), request["range"] as? String)
         val reply = try {
-            api.handle(call, EditorApi.Caller(share.owner, shared = true, from = from))
+            api.handle(call, EditorApi.Caller(share.owner, shared = true, from = from, readOnly = share.readOnly))
         } catch (e: Exception) {
             plugin.logger.warning("The editor failed on a shared request for $path: $e")
             return mapOf("rid" to rid, "status" to 500, "type" to JSON, "body" to b64(Json.write(mapOf("error" to "The server could not answer"))))

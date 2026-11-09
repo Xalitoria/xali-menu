@@ -234,7 +234,8 @@ Each step ends with tests, the README section, and a commit.
   page's JavaScript is read by the Kotlin code, the held edits). Live (`live/bot/relay.js`, Folia 26.2): the link, `info`/`menu`/`save` through
   a real relay, the save held and announced, a menu that cannot load refused, `/xmenu edits`, `apply` (the file changed, the old kept),
   a second `apply` unknown, and `share stop` ending the session at the relay.
-- Not done: a read-only link (any holder can send edits, which the admin sees as held), live seeing of each other's changes while editing
+- Read-only links (after): `/xmenu share readonly [menu]`; the plugin refuses saves from it and `/v1/info` says `readOnly` (live-tested through a relay).
+- Not done: live seeing of each other's changes while editing
   (each person works on their own copy), a hosted relay.
 - **Big packs** (after the relay): `GET /v1/pack` answers `Range` (4 MB at most), the page reads the zip through `RangeFile` (1 MB blocks, directory first),
   and `/v1/info` says `packSize` and `packUrl`: `editor.pack-url`, else Nexo's `NexoPlugin.instance().packServer().packUrl()` (S3, LobFile, Polymath, self-hosted).

@@ -314,7 +314,7 @@ export class App {
     this.menuSelect.hidden = this.menuNames.length === 0
     this.statusLine.textContent = `${this.store.dirty ? '● ' : ''}${this.status}`
     this.statusLine.className = `status ${this.statusBad ? 'bad' : ''}`
-    this.buttons.save.hidden = !this.server
+    this.buttons.save.hidden = !this.server || this.serverInfo?.readOnly === true
     this.buttons.undo.disabled = this.store.undoStack.length === 0
     this.buttons.redo.disabled = this.store.redoStack.length === 0
   }
@@ -403,6 +403,7 @@ export class App {
   }
 
   async save() {
+    if (this.serverInfo?.readOnly) { this.setStatus('This link is read-only: download the menu instead.', true); return }
     try {
       this.serverProblems = await this.server.save(this.name, this.store.value)
       this.store.markSaved()

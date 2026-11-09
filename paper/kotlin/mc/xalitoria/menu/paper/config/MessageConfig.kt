@@ -160,6 +160,8 @@ data class MessageConfig(
             private val notListening: String = "&cThe editor could not listen on {0}: {1}",
             @SerialName("share-link")
             val shareLink: String = "&aShared editor: {link} &7(works for {minutes} minutes). Anyone with it can read the menus and send edits; nothing is written until you apply an edit with /xmenu edits.",
+            @SerialName("share-link-readonly")
+            val shareLinkReadOnly: String = "&aRead-only editor: {link} &7(works for {minutes} minutes). Anyone with it can read the menus; nothing can be sent back.",
             @SerialName("share-off")
             val shareOff: String = "&cSharing is off: set `editor.relay.url` in config.yml to the address of a relay.",
             @SerialName("share-failed")

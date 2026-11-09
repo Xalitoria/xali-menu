@@ -168,6 +168,7 @@ How it is kept safe:
   by the same name replaces the earlier one, and an edit applied over a menu that changed meanwhile replaces it as it is (last write wins).
 - A menu can run console commands, so a shared link must be treated as a way to ask for that: never apply an edit you have not looked at.
   `/xmenu share stop` ends your links.
+- `/xmenu share readonly [menu]` makes a link that can only read: the plugin refuses a save from it (403) and the page hides its save button.
 - What the link can read: the menus, the catalogs the server lists (the preview of a catalog is made for the admin who made the link, so
   an `inventory` catalog shows the admin's items), and the resource pack, which is read in parts (see below).
 

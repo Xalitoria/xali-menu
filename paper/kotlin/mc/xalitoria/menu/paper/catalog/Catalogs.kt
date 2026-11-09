@@ -18,12 +18,12 @@ object Catalogs {
     private val PLAIN = PlainTextComponentSerializer.plainText()
 
     fun register(registry: TypeRegistry) {
-        registry.catalog<Players>(mapOf("name" to "Steve", "uuid" to "8667ba71-b85a-4004-af54-457a9734eed7"))
-        registry.catalog<Worlds>(mapOf("name" to "world", "environment" to "normal"))
-        registry.catalog<Values>(mapOf("value" to "red"))
-        registry.catalog<Range>(mapOf("value" to "1"))
-        registry.catalog<Menus>(mapOf("name" to "shop", "title" to "Shop"))
-        registry.catalog<Inventory>(mapOf("slot" to "0", "material" to "diamond_sword", "amount" to "1", "name" to "Excalibur"))
+        registry.catalog<Players>("name" to "Steve", "uuid" to "8667ba71-b85a-4004-af54-457a9734eed7")
+        registry.catalog<Worlds>("name" to "world", "environment" to "normal")
+        registry.catalog<Values>("value" to "red")
+        registry.catalog<Range>("value" to "1")
+        registry.catalog<Menus>("name" to "shop", "title" to "Shop")
+        registry.catalog<Inventory>("slot" to "0", "material" to "diamond_sword", "amount" to "1", "name" to "Excalibur")
     }
 
     /** The players who are online, by name: `name` and `uuid`. */

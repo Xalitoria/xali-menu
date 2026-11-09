@@ -112,9 +112,13 @@ object MenuCommand {
         )
         .then(Commands
             .literal("share")
-            .executes { ctx -> share(ctx, null) }
+            .executes { ctx -> share(ctx, null, false) }
             .then(Commands.literal("stop").executes { ctx -> stopSharing(ctx) })
-            .then(menuArgument().executes { ctx -> share(ctx, StringArgumentType.getString(ctx, "menu")) })
+            .then(Commands.literal("readonly")
+                .executes { ctx -> share(ctx, null, true) }
+                .then(menuArgument().executes { ctx -> share(ctx, StringArgumentType.getString(ctx, "menu"), true) })
+            )
+            .then(menuArgument().executes { ctx -> share(ctx, StringArgumentType.getString(ctx, "menu"), false) })
         )
         .then(Commands
             .literal("edits")
@@ -279,7 +283,7 @@ object MenuCommand {
     }
 
     /** Prints a link to the editor through the relay, which works from anywhere and for anyone who is given it. */
-    private fun share(ctx: CommandContext<CommandSourceStack>, menu: String?): Int {
+    private fun share(ctx: CommandContext<CommandSourceStack>, menu: String?, readOnly: Boolean): Int {
         val sender = ctx.source.sender
         if (!sender.allowed()) return Command.SINGLE_SUCCESS
         val messages = cmdMsg.edit
@@ -287,9 +291,9 @@ object MenuCommand {
         if (settings.relay.url.isBlank()) { sender fail messages.shareOff; return Command.SINGLE_SUCCESS }
         // Opening a session is a request to the relay, which waits for an answer, so it is not made on the server's thread.
         plugin.server.asyncScheduler.runNow(plugin) {
-            when (val started = plugin.relay.start(sender.name, menu)) {
+            when (val started = plugin.relay.start(sender.name, menu, readOnly)) {
                 is EditorRelay.Started.Failed -> sender fail messages.shareFailed(started.reason)
-                is EditorRelay.Started.Ok -> sender.sendMessage(linkMessage(messages.shareLink.replace("{minutes}", settings.sessionMinutes.toString()), started.link))
+                is EditorRelay.Started.Ok -> sender.sendMessage(linkMessage((if (readOnly) messages.shareLinkReadOnly else messages.shareLink).replace("{minutes}", settings.sessionMinutes.toString()), started.link))
             }
         }
         return Command.SINGLE_SUCCESS

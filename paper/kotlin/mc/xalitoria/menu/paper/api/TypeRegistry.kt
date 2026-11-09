@@ -116,6 +116,7 @@ class TypeRegistry {
     inline fun <reified T : Condition> condition() = addCondition(null, T::class, serializer<T>())
 
     inline fun <reified T : Catalog> catalog(values: Map<String, String> = emptyMap()) = addCatalog(null, T::class, serializer<T>(), values)
+    inline fun <reified T : Catalog> catalog(vararg values: Pair<String, String>) = addCatalog(null, T::class, serializer<T>(), values.toMap())
 
     fun addSource(owner: Plugin?, source: ItemSource) {
         val prefix = source.prefix.lowercase()
@@ -124,10 +125,15 @@ class TypeRegistry {
 
     /** Takes away everything [owner] added. @return whether there was anything */
     fun removeAll(owner: Plugin): Boolean {
-        val removed = actions.removeIf { it.owner == owner } or conditions.removeIf { it.owner == owner } or
-            catalogs.removeIf { it.owner == owner } or externalActions.removeIf { it.owner == owner } or
-            externalConditions.removeIf { it.owner == owner } or externalCatalogs.removeIf { it.owner == owner } or
-            activators.values.removeIf { it.owner == owner } or itemSources.values.removeIf { it.owner == owner } or
+        val removed =
+            actions.removeIf { it.owner == owner } or
+            conditions.removeIf { it.owner == owner } or
+            catalogs.removeIf { it.owner == owner } or
+            externalActions.removeIf { it.owner == owner } or
+            externalConditions.removeIf { it.owner == owner } or
+            externalCatalogs.removeIf { it.owner == owner } or
+            activators.values.removeIf { it.owner == owner } or
+            itemSources.values.removeIf { it.owner == owner } or
             catalogValues.values.removeIf { it.owner == owner }
         if (removed) module = build()
         return removed
