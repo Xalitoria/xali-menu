@@ -88,3 +88,11 @@ export function playerSlot(g, index) {
   if (index >= 27) return { x: 8 + (index - 27) * 18, y: g.player.hotbar }
   return { x: 8 + (index % 9) * 18, y: g.player.main + Math.floor(index / 9) * 18 }
 }
+
+/** The slots of the player's inventory that a menu can draw in: 0 to 8 the hotbar, 9 to 35 the rows above it. */
+export const INVENTORY_SLOTS = 36
+
+/** The index [playerSlot] takes for [slot] of the player's inventory as the game numbers it: the rows come first on the screen, the hotbar last. */
+export function inventoryIndex(slot) {
+  return slot >= 9 ? slot - 9 : 27 + slot
+}

@@ -61,7 +61,7 @@ export class App {
     this.name = 'menu'
     this.menuNames = []
     this.serverProblems = []
-    this.picked = { slot: null, item: null }
+    this.picked = { slot: null, item: null, section: 'items' }
     /** The page of the elements the window shows, from 1. */
     this.page = 1
     /** What the server listed for the catalog of the open menu: `{key, elements, total}` once answered, `{key, pending}` while asked, `{key, error}` when refused; null without a server or a paged menu. */
@@ -72,7 +72,7 @@ export class App {
     this.showProblems = false
     /** Whether a click on the window puts the slot among those of the elements of a paged menu (or takes it out), and does not pick the item in it. */
     this.painting = false
-    this.inventory = new Inventory(this.store, { select: (slot, names) => this.pickSlot(slot, names) })
+    this.inventory = new Inventory(this.store, { select: (slot, names, section) => this.pickSlot(slot, names, section) })
     this.pack = new PackPanel(this)
     this.editor = new EditorTab(this)
     this.raw = new RawTab(this)
@@ -134,7 +134,7 @@ export class App {
     this.raw.discard()
     this.store.load(await this.server.menu(name))
     this.serverProblems = []
-    this.picked = { slot: null, item: null }
+    this.picked = { slot: null, item: null, section: 'items' }
     this.setStatus(`Opened ${name}.`)
     this.draw()
     this.resolveItems()
@@ -144,7 +144,7 @@ export class App {
 
   /** Looks for items of plugins in the menu, and on the server: they come with a resource pack, so the glyph bar is shown for them. */
   async findCustomItems() {
-    let found = Object.values(this.store.value.items ?? {}).some((item) => isCustomMaterial(item.material))
+    let found = this.allItems().some((item) => isCustomMaterial(item.material))
     if (!found && this.server) {
       try { found = (await catalog()).some((entry) => entry.kind === 'custom') } catch { /* the server cannot list them */ }
     }
@@ -153,16 +153,27 @@ export class App {
     if (this.tab === 'Editor') this.draw()
   }
 
-  /** Picks the slot of the window that was clicked, and the item that is drawn in it. */
-  pickSlot(slot, names) {
+  /** The items of the menu, in the window and in the player's inventory. */
+  allItems() {
+    const menu = this.store.value
+    return [...Object.values(menu.items ?? {}), ...Object.values(menu.inventory ?? {})]
+  }
+
+  /** Picks the slot of the window (or of the player's inventory, [section] `inventory`) that was clicked, and the item that is drawn in it. */
+  pickSlot(slot, names, section = 'items') {
     const menu = this.store.value
     if (this.painting) {
       // The player's inventory, past the slots of the menu, cannot hold an element.
-      if (menu.pages && slot < slotCount(menu)) this.store.set(['pages'], toggleSlot(menu.pages, slot, geometry(menu).columns))
+      if (section === 'items' && menu.pages && slot < slotCount(menu)) this.store.set(['pages'], toggleSlot(menu.pages, slot, geometry(menu).columns))
+      return
+    }
+    if (section === 'inventory') {
+      this.picked = { slot, item: names[0] ?? null, section }
+      this.draw()
       return
     }
     // The elements the preview draws are all the one template.
-    this.picked = { slot, item: names[0] === EMPTY ? EMPTY : isPaged(names[0]) ? TEMPLATE : (names[0] ?? null) }
+    this.picked = { slot, item: names[0] === EMPTY ? EMPTY : isPaged(names[0]) ? TEMPLATE : (names[0] ?? null), section }
     this.draw()
   }
 
@@ -236,19 +247,20 @@ export class App {
     this.draw()
   }
 
-  /** Picks an item of the list, and its first slot in the window. */
-  pickItem(id) {
+  /** Picks an item of the list ([section] says which: the window's or the player's inventory's), and its first slot in the window. */
+  pickItem(id, section = 'items') {
     const menu = this.store.value
-    const slots = isPaged(id) ? listedSlots(menu.pages).slice(0, 1) : [...(placements(menu).get(id) ?? [])].sort((a, b) => a - b)
-    this.picked = { slot: slots[0] ?? null, item: id }
+    const slots = isPaged(id) && section === 'items' ? listedSlots(menu.pages).slice(0, 1) : [...(placements(menu, section).get(id) ?? [])].sort((a, b) => a - b)
+    this.picked = { slot: slots[0] ?? null, item: id, section }
     this.inventory.slot = this.picked.slot
+    this.inventory.section = section
     this.draw()
   }
 
   /** Asks the server what the items of the open menu are (custom items, and how much each wears), once for each material. */
   async resolveItems() {
     if (!this.server) return
-    const items = Object.values(this.store.value.items ?? {})
+    const items = this.allItems()
     const materials = [...new Set(items.map((i) => i.material).filter((m) => typeof m === 'string' && m && !m.includes('%') && !this.asked.has(m)))]
     const potions = [...new Map(items.map(potionSpec).filter((s) => s && !this.asked.has(potionKey(s))).map((s) => [potionKey(s), s])).values()]
     if (materials.length === 0 && potions.length === 0) return
@@ -344,7 +356,7 @@ export class App {
 
   /** Puts them back, unless the view is now about something else (another item, group or tab), which starts at the top again. */
   restoreScrolls(tops) {
-    const place = `${this.tab}|${this.picked.item}|${this.editor.popover}`
+    const place = `${this.tab}|${this.picked.section}|${this.picked.item}|${this.editor.popover}`
     if (place === this.drawnPlace) App.SCROLLERS.forEach((selector, i) => { const element = this.view.querySelector(selector); if (element && tops[i]) element.scrollTop = tops[i] })
     this.drawnPlace = place
   }
@@ -378,7 +390,7 @@ export class App {
     const [first, second] = problem.path ?? []
     this.showProblems = false
     this.tab = 'Editor'
-    if (first === 'items' && second && this.store.value.items?.[second]) this.pickItem(second)
+    if ((first === 'items' || first === 'inventory') && second && this.store.value[first]?.[second]) this.pickItem(second, first)
     else if (first === 'pages' && second === 'item') this.pickItem(TEMPLATE)
     else {
       this.editor.popover = this.editor.groupOf(first)

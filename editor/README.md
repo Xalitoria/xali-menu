@@ -44,8 +44,10 @@ The editor draws what a player sees, from the same files the game reads, with no
 - **The scale** is the game's GUI scale (1 to 6, or fit): each pixel of the game is a whole number of screen pixels. When the browser is
   zoomed (or the display has a pixel ratio above 1) the preview takes the nearest whole number of screen pixels, so it stays sharp and still
   grows with the zoom; the rest of the page scales as the browser makes it. `src/scale.js` has the arithmetic and its tests.
-- **The player's inventory** is part of the window, since a menu's glyph can reach into it. The menu does not use it, so its slots are
-  grayed out; an item placed in one (a slot past the menu's size) is shown there, marked in red, and reported as a problem.
+- **The player's inventory** is part of the window, under the menu, and a menu can draw in it: click one of its slots (or `+ Add` under
+  "Player inventory" in the list) and the item is saved in the menu's `inventory`, with the slot numbers of the game (0 to 8 the hotbar, 9 to 35
+  the rows above it). Items there are edited like the others and move by dragging, but only within the inventory. An item of the menu itself with a
+  slot past the menu's size is shown in the inventory marked in red, and reported as a problem: it is never drawn.
 - **The window** fills the space between the toolbars and is always on the screen. It takes the biggest GUI scale at which it fits (or the scale you chose) and
   the rest of the space is room around it, for glyphs that are used as overlays and reach past the window. It is the game's container texture for the inventory
   type (chest, hopper, dispenser, dropper), the title is in the game's font with the glyphs of the resource pack, and the player's inventory is below it. Counts

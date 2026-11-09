@@ -4,36 +4,40 @@
 import { h, fill } from './dom.js'
 import { slotCount } from './check.js'
 import { icon, settings } from './icons.js'
-import { geometry, playerSlot } from './window.js'
+import { geometry, playerSlot, inventoryIndex, INVENTORY_SLOTS } from './window.js'
 import { viewOf, fitBox } from './scale.js'
 import { decorations } from './decorations.js'
 import { tooltipLines, drawTooltip } from './tooltip.js'
 import { services } from './services.js'
 import { isPaged } from './pages.js'
 
-/** The slots each item claims: its `slot` and `slots`, and the cells of the layout that its legend character stands for. */
-export function placements(menu) {
+/**
+ * The slots each item of [section] claims: its `slot` and `slots`, and for `items` the cells of the layout that its legend character stands for.
+ * The slots of `inventory` are those of the player's inventory, as the game numbers them.
+ */
+export function placements(menu, section = 'items') {
   const result = new Map()
   const claim = (name, slot) => { if (!result.has(name)) result.set(name, new Set()); result.get(name).add(slot) }
-  for (const [name, item] of Object.entries(menu.items ?? {})) {
+  for (const [name, item] of Object.entries(menu[section] ?? {})) {
     if (typeof item.slot === 'number') claim(name, item.slot)
     for (const slot of item.slots ?? []) if (typeof slot === 'number') claim(name, slot)
   }
+  if (section !== 'items') return result
   const legend = menu.legend ?? {}
   ;(menu.layout ?? []).forEach((row, r) => [...String(row)].forEach((c, column) => { if (legend[c] && menu.items?.[legend[c]]) claim(legend[c], r * 9 + column) }))
   return result
 }
 
 /** For each slot, the names of the items that claim it, the one that is drawn first. */
-export function bySlot(menu) {
+export function bySlot(menu, section = 'items') {
   const slots = new Map()
-  for (const [name, claimed] of placements(menu)) {
+  for (const [name, claimed] of placements(menu, section)) {
     for (const slot of claimed) {
       if (!slots.has(slot)) slots.set(slot, [])
       slots.get(slot).push(name)
     }
   }
-  const priority = (name) => menu.items[name].priority ?? 0
+  const priority = (name) => menu[section][name].priority ?? 0
   for (const names of slots.values()) names.sort((a, b) => priority(a) - priority(b))
   return slots
 }
@@ -51,6 +55,8 @@ export class Inventory {
     this.store = store
     this.events = events
     this.slot = null
+    /** The list the picked slot belongs to: `items` for the window, `inventory` for the player's inventory under it. */
+    this.section = 'items'
     this.root = h('div', { class: 'inventory' })
     this.tip = null
   }
@@ -67,8 +73,8 @@ export class Inventory {
   /**
    * The window as the game draws it, with the slots of the menu and the player's inventory over it, in the middle of the space [box] (page
    * pixels, as wide and as high as the stage it is shown in); the items are drawn in as their models arrive. The player's inventory is below
-   * the menu in the game and the menu does not use it, so it is grayed out; a slot of it that an item claims is shown with its item and
-   * marked, since the menu does not draw there.
+   * the menu in the game: the items of `inventory` are in its slots, and the others are plain. An item of the window that claims a slot past the
+   * menu's own is shown there marked, since the menu does not draw there.
    * [menu] is what is drawn (the menu of the store unless the page shows it differently, as a paged menu with its first page); [listed] is the set of
    * slots the elements of a paged menu go into, which are marked; [painting] says that a click picks slots for them and does not pick an item.
    */
@@ -80,21 +86,27 @@ export class Inventory {
     const room = { x: spare(box.width, g.width), y: spare(box.height, g.height) }
     const cell = view.css(18)
     const slots = bySlot(menu)
+    const inventorySlots = bySlot(menu, 'inventory')
     // The coordinates of the game are those of the item, which lies one pixel inside the slot's border: the square of the slot starts one pixel up and to the left.
     const at = (x, y) => `left:${view.css(room.x + x - 1)}px;top:${view.css(room.y + y - 1)}px;width:${cell}px;height:${cell}px`
-    const cellFor = (slot, names, place, extra = {}) => {
+    const cellFor = (slot, names, place, extra = {}, section = 'items') => {
+      const pool = menu[section] ?? {}
       const shown = names[0]
-      const item = shown ? menu.items[shown] : null
+      const item = shown ? pool[shown] : null
       return h('div', {
-        class: `slot ${this.slot === slot ? 'picked' : ''} ${names.length > 1 ? 'shared' : ''} ${listed.has(slot) ? 'listed' : ''} ${extra.class ?? ''}`, 'data-slot': slot, style: place,
-        draggable: Boolean(item && !isPaged(shown) && typeof item.slot === 'number' && !item.slots?.length),
-        onclick: () => { this.slot = slot; this.events.select(slot, names) },
-        ondragstart: (e) => e.dataTransfer.setData('text/plain', shown),
+        class: `slot ${this.slot === slot && this.section === section ? 'picked' : ''} ${names.length > 1 ? 'shared' : ''} ${section === 'items' && listed.has(slot) ? 'listed' : ''} ${extra.class ?? ''}`,
+        'data-slot': slot, 'data-section': section, style: place,
+        draggable: Boolean(item && !(section === 'items' && isPaged(shown)) && typeof item.slot === 'number' && !item.slots?.length),
+        onclick: () => { this.slot = slot; this.section = section; this.events.select(slot, names, section) },
+        ondragstart: (e) => e.dataTransfer.setData('text/plain', `${section}\n${shown}`),
         ondragover: (e) => e.preventDefault(),
         ondrop: (e) => {
           e.preventDefault()
-          const name = e.dataTransfer.getData('text/plain')
-          if (name && !isPaged(name) && menu.items[name]) { this.store.set(['items', name, 'slot'], slot); this.slot = slot }
+          // An item moves within its own list: the window's to another slot of the window, the inventory's to another slot of the inventory.
+          const [from, name] = e.dataTransfer.getData('text/plain').split('\n')
+          if (from !== section || !name || (section === 'items' && isPaged(name)) || !pool[name]) return
+          this.store.set([section, name, 'slot'], slot)
+          this.slot = slot
         },
         onmouseenter: (e) => this.showTip(item, shown, names, slot, e, view, extra.note),
         onmousemove: (e) => this.moveTip(e),
@@ -105,17 +117,22 @@ export class Inventory {
     for (let slot = 0; slot < count; slot++) {
       grid.append(cellFor(slot, slots.get(slot) ?? [], at(g.x + (slot % g.columns) * 18, g.y + Math.floor(slot / g.columns) * 18)))
     }
-    // The player's inventory: slots count to count + 26 for the three rows and count + 27 to count + 35 for the hotbar.
-    for (let index = 0; index < 36; index++) {
-      const slot = count + index
-      const names = slots.get(slot) ?? []
+    // The player's inventory, slot 0 to 8 the hotbar and 9 to 35 the rows above it. An item of the window that has a slot past the menu's own (count to
+    // count + 35, the rows first) is shown here too, marked as one that is never drawn.
+    for (let slot = 0; slot < INVENTORY_SLOTS; slot++) {
+      const index = inventoryIndex(slot)
+      const names = inventorySlots.get(slot) ?? []
       const place = playerSlot(g, index)
-      grid.append(cellFor(slot, names, at(place.x, place.y), {
-        class: names.length ? 'outside' : 'unhandled',
-        note: names.length
-          ? "This slot is in the player's inventory. The menu does not draw items there, so this item is never shown."
-          : "The player's inventory. The menu does not use it: nothing is drawn here and a click does nothing.",
-      }))
+      const outside = slots.get(count + index) ?? []
+      if (names.length === 0 && outside.length) {
+        grid.append(cellFor(count + index, outside, at(place.x, place.y), {
+          class: 'outside', note: "This slot is in the player's inventory. The items of the menu are not drawn there (those of `inventory` are), so this item is never shown.",
+        }))
+      } else {
+        grid.append(cellFor(slot, names, at(place.x, place.y), {
+          class: names.length ? '' : 'plain', note: names.length ? "This item is drawn in the player's own inventory, over what the player has there." : "The player's own inventory: an item of `inventory` here is drawn over what the player has in this slot.",
+        }, 'inventory'))
+      }
     }
     const background = services.window.draw(menu, { scale: view.device, ratio: view.ratio, margin: room })
     const width = view.css(g.width + 2 * room.x)

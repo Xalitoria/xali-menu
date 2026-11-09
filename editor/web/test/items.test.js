@@ -56,3 +56,36 @@ test('a material with a prefix of a plugin is a custom item; heads, skins and th
   for (const material of ['nexo:ruby', 'itemsadder:ruby_sword', 'oraxen:thing']) assert.equal(isCustomMaterial(material), true, material)
   for (const material of ['stone', 'minecraft:stone', 'head:Notch', 'texture:abc', 'basehead:abc', '', undefined, '%var%:x']) assert.equal(isCustomMaterial(material), false, String(material))
 })
+
+const withInventory = () => ({ ...menu(), inventory: { a: { material: 'compass', slot: 4 }, home: { material: 'arrow', slot: 8 } } })
+
+test('the player inventory has ids of its own, apart from the window items', () => {
+  const m = withInventory()
+  // `b` is an item of the window, not of the inventory, so it is free there; `a` is taken in both
+  assert.equal(idProblem(m, 'b', null, 'inventory'), null)
+  assert.match(idProblem(m, 'home', null, 'inventory'), /another item/i)
+  assert.equal(idProblem(m, 'home'), null)
+})
+
+test('renaming an inventory item leaves the window items and the legend alone', () => {
+  const m = renameItem(withInventory(), 'a', 'compass', 'inventory')
+  assert.deepEqual(Object.keys(m.inventory), ['compass', 'home'])
+  assert.deepEqual(Object.keys(m.items), ['a', 'b', 'c'])
+  assert.deepEqual(m.legend, { '#': 'b', x: 'c' })
+})
+
+test('removing an inventory item keeps the legend, and the last one takes the list away', () => {
+  const m = removeItem(withInventory(), 'a', 'inventory')
+  assert.deepEqual(Object.keys(m.inventory), ['home'])
+  assert.equal(m.items.a.slot, 0)
+  removeItem(m, 'home', 'inventory')
+  assert.equal('inventory' in m, false)
+  assert.equal(removeItem(m, 'home', 'inventory'), null)
+})
+
+test('copying an inventory item puts the copy after it, in the slot given', () => {
+  const m = duplicateItem(withInventory(), 'a', 'a-2', 5, 'inventory')
+  assert.deepEqual(Object.keys(m.inventory), ['a', 'a-2', 'home'])
+  assert.equal(m.inventory['a-2'].slot, 5)
+  assert.equal(m.inventory.a.slot, 4)
+})

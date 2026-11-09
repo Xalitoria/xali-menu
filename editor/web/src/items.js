@@ -12,37 +12,44 @@ export function freeId(items, base = 'item') {
   return `${base}${n}`
 }
 
-/** Why [id] cannot be the id of an item of [menu] other than [own], or null if it can. */
-export function idProblem(menu, id, own = null) {
+/**
+ * The two lists of items a menu has: `items` in the window, and `inventory` in the player's own inventory, which the menu draws under it. Their
+ * ids are separate (the legend only names the first), and each function below takes the list it works on, `items` unless told otherwise.
+ */
+export const SECTIONS = ['items', 'inventory']
+
+/** Why [id] cannot be the id of an item of [section] of [menu] other than [own], or null if it can. */
+export function idProblem(menu, id, own = null, section = 'items') {
   if (!id) return 'The id cannot be empty.'
   if (!ID_PATTERN.test(id)) return 'The id cannot have spaces, braces or %.'
-  if (id !== own && id in (menu.items ?? {})) return `Another item is called ${id}.`
+  if (id !== own && id in (menu[section] ?? {})) return `Another item is called ${id}.`
   return null
 }
 
 /** Gives the item [from] the id [to], keeping its place in the list and the legend characters that stand for it. Null when nothing changes. */
-export function renameItem(menu, from, to) {
-  if (from === to || idProblem(menu, to, from) || !(from in (menu.items ?? {}))) return null
-  menu.items = Object.fromEntries(Object.entries(menu.items).map(([id, item]) => [id === from ? to : id, item]))
-  if (menu.legend) for (const [character, id] of Object.entries(menu.legend)) if (id === from) menu.legend[character] = to
+export function renameItem(menu, from, to, section = 'items') {
+  if (from === to || idProblem(menu, to, from, section) || !(from in (menu[section] ?? {}))) return null
+  menu[section] = Object.fromEntries(Object.entries(menu[section]).map(([id, item]) => [id === from ? to : id, item]))
+  if (section === 'items' && menu.legend) for (const [character, id] of Object.entries(menu.legend)) if (id === from) menu.legend[character] = to
   return menu
 }
 
 /** Removes the item [id] and the legend characters that stood for it. Null when there is no such item. */
-export function removeItem(menu, id) {
-  if (!(id in (menu.items ?? {}))) return null
-  delete menu.items[id]
-  if (menu.legend) for (const [character, name] of Object.entries(menu.legend)) if (name === id) delete menu.legend[character]
+export function removeItem(menu, id, section = 'items') {
+  if (!(id in (menu[section] ?? {}))) return null
+  delete menu[section][id]
+  if (section === 'inventory' && Object.keys(menu.inventory).length === 0) delete menu.inventory
+  if (section === 'items' && menu.legend) for (const [character, name] of Object.entries(menu.legend)) if (name === id) delete menu.legend[character]
   return menu
 }
 
 /** Puts a copy of the item [id] under the id [made] right after it. It takes [slot] if it had a slot of its own (none when [slot] is null), and no `slots`. */
-export function duplicateItem(menu, id, made, slot = null) {
-  if (!(id in (menu.items ?? {})) || made in menu.items) return null
-  const copy = structuredClone(menu.items[id])
+export function duplicateItem(menu, id, made, slot = null, section = 'items') {
+  if (!(id in (menu[section] ?? {})) || made in menu[section]) return null
+  const copy = structuredClone(menu[section][id])
   delete copy.slots
   if (typeof copy.slot === 'number') { if (slot === null) delete copy.slot; else copy.slot = slot }
-  menu.items = Object.fromEntries(Object.entries(menu.items).flatMap(([name, item]) => (name === id ? [[name, item], [made, copy]] : [[name, item]])))
+  menu[section] = Object.fromEntries(Object.entries(menu[section]).flatMap(([name, item]) => (name === id ? [[name, item], [made, copy]] : [[name, item]])))
   return menu
 }
 

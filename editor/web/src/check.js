@@ -83,8 +83,13 @@ function slots(menu, problems) {
   const count = slotCount(menu)
   for (const [name, item] of Object.entries(menu.items ?? {})) {
     const claimed = [item.slot, ...(item.slots ?? [])].filter((n) => typeof n === 'number')
-    for (const slot of claimed) if (slot < 0 || slot >= count) problems.push({ path: ['items', name, 'slot'], message: `slot ${slot} is outside the menu (0 to ${count - 1}); the slots after it are the player's inventory, which the menu does not draw` })
+    for (const slot of claimed) if (slot < 0 || slot >= count) problems.push({ path: ['items', name, 'slot'], message: `slot ${slot} is outside the menu (0 to ${count - 1}); the slots after it are the player's inventory, which the items of the menu do not draw (put the item in 'inventory' for that)` })
     if (claimed.length === 0 && !Object.values(menu.legend ?? {}).includes(name)) problems.push({ path: ['items', name], message: 'has no slot, so it is never shown' })
+  }
+  for (const [name, item] of Object.entries(menu.inventory ?? {})) {
+    const claimed = [item.slot, ...(item.slots ?? [])].filter((n) => typeof n === 'number')
+    for (const slot of claimed) if (slot < 0 || slot > 35) problems.push({ path: ['inventory', name, 'slot'], message: `slot ${slot} is outside the player's inventory (0 to 35: the hotbar, then the three rows above it)` })
+    if (claimed.length === 0) problems.push({ path: ['inventory', name], message: 'has no slot, so it is never shown' })
   }
   for (const [character, name] of Object.entries(menu.legend ?? {})) {
     if (!(name in (menu.items ?? {}))) problems.push({ path: ['legend', character], message: `the item '${name}' is not in items` })
