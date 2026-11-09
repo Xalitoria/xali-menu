@@ -18,6 +18,17 @@ import { settings as assetSettings } from './assets.js'
 import { PackPanel } from './panel.js'
 import { EditorTab, TYPES, SIZES } from './editorTab.js'
 import { RawTab } from './rawTab.js'
+import { RelayServer } from './relay.js'
+
+/** The name that the admin sees on the edits sent through a shared link; asked once for the tab. */
+function askName() {
+  let name = sessionStorage.getItem('xm-name')
+  if (!name) {
+    name = (prompt('Your name, for the admin who approves your edits:') ?? '').trim().slice(0, 32) || 'guest'
+    sessionStorage.setItem('xm-name', name)
+  }
+  return name
+}
 
 const TABS = ['Editor', 'Raw', 'Pack']
 
@@ -91,8 +102,8 @@ export class App {
   async start() {
     const hash = fromHash(location.hash)
     try {
-      if (hash.server && hash.token) {
-        this.server = new Server(hash.server, hash.token)
+      if ((hash.server && hash.token) || (hash.relay && hash.session && hash.key)) {
+        this.server = hash.relay ? new RelayServer(hash.relay, hash.session, hash.key, askName()) : new Server(hash.server, hash.token)
         assetSettings.skinProxy = (url) => this.server.skin(url)
         services.server = this.server
         forgetCatalog()
@@ -265,7 +276,7 @@ export class App {
       redo: h('button', { onclick: () => this.store.redo(), title: 'Redo (Ctrl+Y)' }, '↷'),
       open: h('button', { onclick: () => this.pickFile() }, 'Open file'),
       download: h('button', { onclick: () => this.download() }, 'Download .conf'),
-      save: h('button', { class: 'primary', onclick: () => this.save() }, 'Save to server'),
+      save: h('button', { class: 'primary', onclick: () => this.save() }, fromHash(location.hash).relay ? 'Send for approval' : 'Save to server'),
     }
     this.tabs = h('nav', { class: 'tabs' }, TABS.map((t) => h('button', { 'data-tab': t, onclick: () => this.goTo(t) }, t)))
     this.problemsButton = h('button', { class: 'problems-button', onclick: () => { this.showProblems = !this.showProblems; this.drawProblems() } })
@@ -395,7 +406,8 @@ export class App {
     try {
       this.serverProblems = await this.server.save(this.name, this.store.value)
       this.store.markSaved()
-      this.setStatus(this.serverProblems.length ? `Saved ${this.name}, with problems.` : `Saved ${this.name}.`)
+      const note = this.server.held ? `Sent ${this.name} to the admin of the server, who has to approve it in game (/xmenu edits).` : `Saved ${this.name}.`
+      this.setStatus(this.serverProblems.length ? note.replace(/\.$/, ', with problems.') : note)
     } catch (error) { this.setStatus(error.message, true) }
     this.draw()
   }
