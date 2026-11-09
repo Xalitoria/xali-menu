@@ -94,4 +94,15 @@ class Editor {
             "https://textures.minecraft.net/texture/../x", "file:///etc/passwd", "not a url",
         )) assertNull(EditorApi.skinAddress(bad), bad)
     }
+
+    @Test
+    fun aRangeIsReadAsHttpWritesItAndCutToWhatCanBeSent() {
+        val limit = EditorApi.MAX_PART.toLong()
+        assertEquals(0L..99L, EditorApi.byteRange("bytes=0-99", 1000))
+        assertEquals(900L..999L, EditorApi.byteRange("bytes=900-", 1000))
+        assertEquals(900L..999L, EditorApi.byteRange("bytes=900-5000", 1000), "cut to the file")
+        assertEquals(0L..limit - 1, EditorApi.byteRange("bytes=0-", 100 * limit), "cut to a part that can be sent")
+        assertEquals(5L..5L, EditorApi.byteRange(" bytes=5-5 ", 10))
+        for (bad in listOf("bytes=1000-1001", "bytes=50-10", "bytes=-5", "items=0-1", "bytes=0-1,5-6", "", "bytes=a-b")) assertNull(EditorApi.byteRange(bad, 1000), bad)
+    }
 }

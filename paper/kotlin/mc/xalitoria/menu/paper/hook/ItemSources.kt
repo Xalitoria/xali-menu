@@ -32,3 +32,13 @@ class HeadDatabaseSource : ItemSource {
     private val api = HeadDatabaseAPI()
     override fun item(id: String): ItemStack? = api.getItemHead(id)
 }
+
+/** The address Nexo sends its resource pack from (an S3 or LobFile address, a Polymath or self-hosted one), as the players get it. */
+object NexoPackHost {
+    /** The address, or null if Nexo has none yet or its API is not the one this was written for. */
+    fun url(): String? = try {
+        com.nexomc.nexo.NexoPlugin.instance().packServer().packUrl().takeIf { it.isNotBlank() }
+    } catch (e: Throwable) {
+        null
+    }
+}

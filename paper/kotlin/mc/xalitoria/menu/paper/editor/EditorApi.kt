@@ -2,6 +2,7 @@ package mc.xalitoria.menu.paper.editor
 
 import com.typesafe.config.ConfigObject
 import java.net.URI
+import java.nio.file.Files
 import java.nio.file.Path
 import mc.xalitoria.menu.paper.XaliMenu
 
@@ -23,10 +24,14 @@ internal class EditorApi(private val plugin: XaliMenu, val menus: EditorMenus, v
     data class Caller(val owner: String, val shared: Boolean = false, val from: String = owner)
 
     /** A question: [path] is the part after `/v1`, with no query. */
-    class Call(val method: String, val path: String, val query: String?, val body: ByteArray)
+    class Call(val method: String, val path: String, val query: String?, val body: ByteArray, val range: String? = null)
 
     /** The answer. A [file] is sent as it is instead of a [body]. */
-    class Reply(val status: Int, val type: String, val body: ByteArray = ByteArray(0), val file: Path? = null, val cache: String? = null)
+    class Reply(
+        val status: Int, val type: String, val body: ByteArray = ByteArray(0), val file: Path? = null, val cache: String? = null,
+        /** Extra headers, such as `Content-Range` of a part of a file. */
+        val headers: Map<String, String> = emptyMap(),
+    )
 
     private fun json(status: Int, value: Any?) = Reply(status, "application/json; charset=utf-8", Json.write(value).toByteArray(), cache = "no-store")
 
@@ -44,7 +49,8 @@ internal class EditorApi(private val plugin: XaliMenu, val menus: EditorMenus, v
         return when {
             path == listOf("info") && method == "GET" -> json(200, mapOf(
                 "plugin" to "XaliMenu", "version" to plugin.pluginMeta.version, "owner" to who.owner, "shared" to who.shared,
-                "menus" to menus.names(), "pack" to (packs.pack() != null), "catalogs" to catalogs(),
+                "menus" to menus.names(), "pack" to (packs.pack() != null || packs.packUrl() != null), "catalogs" to catalogs(),
+                "packSize" to packs.pack()?.let { Files.size(it) }, "packUrl" to packs.packUrl(),
             ))
             path.size == 2 && path[0] == "menus" && method == "GET" -> {
                 val menu = menus.read(path[1]) ?: return error(404, "There is no menu '${path[1]}'")
@@ -62,7 +68,16 @@ internal class EditorApi(private val plugin: XaliMenu, val menus: EditorMenus, v
             }
             path == listOf("pack") && method == "GET" -> {
                 val file = packs.pack() ?: return error(404, "There is no resource pack")
-                Reply(200, "application/zip", file = file)
+                val size = Files.size(file)
+                // A part of the pack, for a pack too big to send at once: the editor reads the directory of the zip and then only what it draws.
+                val part = call.range?.let { byteRange(it, size) }
+                if (call.range != null && part == null) return Reply(416, "application/json; charset=utf-8", Json.write(mapOf("error" to "That part is not in the pack")).toByteArray(), headers = mapOf("Content-Range" to "bytes */$size"))
+                if (part == null) return Reply(200, "application/zip", file = file)
+                val bytes = Files.newByteChannel(file).use { channel ->
+                    channel.position(part.first)
+                    java.nio.ByteBuffer.allocate((part.last - part.first + 1).toInt()).also { while (it.hasRemaining() && channel.read(it) >= 0) { /* until full */ } }.array()
+                }
+                Reply(206, "application/zip", bytes, headers = mapOf("Content-Range" to "bytes ${part.first}-${part.last}/$size"))
             }
             path == listOf("colors") && method == "POST" -> {
                 val request = Json.read(call.body.decodeToString()).unwrapped()
@@ -141,6 +156,21 @@ internal class EditorApi(private val plugin: XaliMenu, val menus: EditorMenus, v
         /** The largest menu or request the editor may send. */
         const val MAX_BODY = 2 * 1024 * 1024
         private const val MAX_SKIN = 256 * 1024
+
+        /** The most of a pack that one request returns; the editor asks again for the rest. */
+        const val MAX_PART = 4 * 1024 * 1024
+
+        /**
+         * The bytes `bytes=<first>-<last>` asks for in a file of [size], with the end cut to the file and to [MAX_PART], or null when the header
+         * is not one of that form or starts outside the file. `bytes=<first>-` goes to the end.
+         */
+        fun byteRange(header: String, size: Long): LongRange? {
+            val match = Regex("bytes=(\\d+)-(\\d*)").matchEntire(header.trim()) ?: return null
+            val first = match.groupValues[1].toLongOrNull() ?: return null
+            val last = match.groupValues[2].toLongOrNull() ?: (size - 1)
+            if (first >= size || last < first) return null
+            return first..minOf(last, size - 1, first + MAX_PART - 1)
+        }
         private val SKIN_PATH = Regex("/texture/[0-9a-f]{16,128}")
 
         /**

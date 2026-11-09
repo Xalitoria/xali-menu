@@ -61,6 +61,7 @@ internal class EditorServer(private val plugin: XaliMenu, val sessions: EditorSe
     private fun handle(exchange: HttpExchange) {
         try {
             val origin = exchange.requestHeaders.getFirst("Origin")
+            exchange.responseHeaders.add("Access-Control-Expose-Headers", "Content-Range")
             if (origin != null && !allowed(origin)) return reply(exchange, 403, error("This site may not use the editor endpoint"))
             if (origin != null) {
                 exchange.responseHeaders.add("Access-Control-Allow-Origin", origin)
@@ -68,7 +69,7 @@ internal class EditorServer(private val plugin: XaliMenu, val sessions: EditorSe
             }
             if (exchange.requestMethod == "OPTIONS") {
                 exchange.responseHeaders.add("Access-Control-Allow-Methods", "GET, PUT, POST, OPTIONS")
-                exchange.responseHeaders.add("Access-Control-Allow-Headers", "Authorization, Content-Type")
+                exchange.responseHeaders.add("Access-Control-Allow-Headers", "Authorization, Content-Type, Range")
                 exchange.responseHeaders.add("Access-Control-Allow-Private-Network", "true")
                 exchange.responseHeaders.add("Access-Control-Max-Age", "600")
                 return reply(exchange, 204, null)
@@ -78,7 +79,7 @@ internal class EditorServer(private val plugin: XaliMenu, val sessions: EditorSe
             val bytes = exchange.requestBody.readNBytes(EditorApi.MAX_BODY + 1)
             if (bytes.size > EditorApi.MAX_BODY) return reply(exchange, 413, error("The request is too big"))
             val path = exchange.requestURI.path.removePrefix("/v1")
-            send(exchange, api.handle(EditorApi.Call(exchange.requestMethod, path, exchange.requestURI.rawQuery, bytes), EditorApi.Caller(owner)))
+            send(exchange, api.handle(EditorApi.Call(exchange.requestMethod, path, exchange.requestURI.rawQuery, bytes, exchange.requestHeaders.getFirst("Range")), EditorApi.Caller(owner)))
         } catch (e: Exception) {
             plugin.logger.warning("The editor endpoint failed on ${exchange.requestURI}: $e")
             runCatching { reply(exchange, 500, error("The server could not answer: ${e.message}")) }
@@ -90,6 +91,7 @@ internal class EditorServer(private val plugin: XaliMenu, val sessions: EditorSe
     private fun send(exchange: HttpExchange, reply: EditorApi.Reply) {
         exchange.responseHeaders.add("Content-Type", reply.type)
         reply.cache?.let { exchange.responseHeaders.add("Cache-Control", it) }
+        for (header in reply.headers) exchange.responseHeaders.add(header.key, header.value)
         if (reply.file != null) {
             exchange.sendResponseHeaders(reply.status, reply.file.fileSize())
             Files.copy(reply.file, exchange.responseBody)

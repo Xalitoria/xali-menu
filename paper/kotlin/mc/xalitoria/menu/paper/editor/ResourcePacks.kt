@@ -66,6 +66,19 @@ internal class ResourcePacks(private val plugin: XaliMenu) {
         return candidates().firstOrNull { it.exists() }
     }
 
+    /**
+     * Where the pack is hosted for the players, if it is: `editor.pack-url`, else what Nexo says it sends them (an S3 or LobFile address, its
+     * own host or yours). The editor downloads from there, so a big pack does not have to go through this server.
+     */
+    fun packUrl(): String? {
+        val configured = plugin.config.data.editor.packUrl.trim()
+        if (configured.isNotEmpty()) return configured.takeIf { it.startsWith("http://") || it.startsWith("https://") }
+        if (plugin.server.pluginManager.isPluginEnabled("Nexo")) {
+            return mc.xalitoria.menu.paper.hook.NexoPackHost.url()?.takeIf { it.startsWith("http://") || it.startsWith("https://") }
+        }
+        return null
+    }
+
     private fun candidates(): List<Path> {
         val plugins = plugin.server.pluginsFolder.toPath()
         return listOf(
