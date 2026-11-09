@@ -26,6 +26,7 @@ import mc.xalitoria.menu.paper.XaliMenu
  * POST /v1/colors               {potions: [{type, effects: [{type, amplifier}]}]}  ->  {colors: [rgb or null]}
  * POST /v1/elements              {catalog: {type, ...}, sort, descending}  ->  {elements: [{name, ..., index}], total}  what the catalog lists now, for the link's player
  * GET  /v1/skin?url=<address>    the skin png at a textures.minecraft.net address (the editor's browser cannot read it from there)
+ * GET  /v1/game-file?name=font/unifont.zip   a zip of the game's font folder (the fallback font), fetched from Mojang once and kept
  * ```
  */
 internal class EditorServer(private val plugin: XaliMenu, val sessions: EditorSessions, val pending: PendingEdits = PendingEdits()) {

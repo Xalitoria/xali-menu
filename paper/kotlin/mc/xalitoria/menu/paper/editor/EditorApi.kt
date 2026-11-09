@@ -19,6 +19,7 @@ internal class EditorApi(private val plugin: XaliMenu, val menus: EditorMenus, v
 
     private val elements = EditorElements(plugin)
     private val packs = ResourcePacks(plugin)
+    private val gameFiles = GameFiles(plugin)
 
     /** Who asks: the owner of the link, and for a shared link the name the person gave. */
     data class Caller(val owner: String, val shared: Boolean = false, val from: String = owner, val readOnly: Boolean = false)
@@ -109,6 +110,13 @@ internal class EditorApi(private val plugin: XaliMenu, val menus: EditorMenus, v
                 val url = address?.let(::skinAddress) ?: return error(400, "Only skins on textures.minecraft.net can be fetched")
                 val bytes = fetchSkin(url) ?: return error(404, "The skin could not be fetched")
                 Reply(200, "image/png", bytes, cache = "max-age=86400")
+            }
+            path == listOf("game-file") && method == "GET" -> {
+                val name = call.query.orEmpty().split('&').firstOrNull { it.startsWith("name=") }
+                    ?.removePrefix("name=")?.let { java.net.URLDecoder.decode(it, Charsets.UTF_8) }
+                if (name == null || !GameFiles.allowed(name)) return error(400, "Only the zip files of the game's font folder can be fetched")
+                val file = gameFiles.file(name) ?: return error(404, "The file could not be fetched from Mojang")
+                Reply(200, "application/zip", file = file, cache = "max-age=86400")
             }
             path == listOf("items") && method == "POST" -> {
                 val request = Json.read(call.body.decodeToString())

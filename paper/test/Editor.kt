@@ -13,11 +13,30 @@ import mc.xalitoria.menu.paper.editor.EditorMenus
 import mc.xalitoria.menu.paper.editor.EditorSessions
 import mc.xalitoria.menu.paper.editor.EditorApi
 import mc.xalitoria.menu.paper.editor.Json
+import mc.xalitoria.menu.paper.editor.GameFiles
 import mc.xalitoria.menu.paper.editor.fontImageIds
 import org.bukkit.configuration.file.YamlConfiguration
 
 /** The parts of the editor endpoint that need no server: links, the tokens behind them, and the JSON. */
 class Editor {
+    @Test
+    fun onlyTheFontZipsOfTheGameCanBeFetched() {
+        assertTrue(GameFiles.allowed("font/unifont.zip"))
+        assertTrue(GameFiles.allowed("font/unifont_jp.zip"))
+        for (bad in listOf("font/../server.jar", "font/a/b.zip", "textures/x.zip", "font/unifont.hex", "unifont.zip", "font/.zip", "http://evil/font/a.zip", "font/A.zip"))
+            assertFalse(GameFiles.allowed(bad), bad)
+    }
+
+    @Test
+    fun theHashOfAFileComesFromTheAssetIndexAndIsCheckedForShape() {
+        val index = """{"objects": {"minecraft/font/unifont.zip": {"hash": "56ec5d3f1e8601c544132c02a99840d52d0aa3f3", "size": 1}, "minecraft/font/bad.zip": {"hash": "../x"}}}"""
+        assertEquals("56ec5d3f1e8601c544132c02a99840d52d0aa3f3", GameFiles.hashIn(index, "font/unifont.zip"))
+        assertNull(GameFiles.hashIn(index, "font/bad.zip"), "a hash that is not 40 hex digits is not used as a file name")
+        assertNull(GameFiles.hashIn(index, "font/none.zip"))
+        assertEquals("https://resources.download.minecraft.net/56/56ec5d3f1e8601c544132c02a99840d52d0aa3f3", GameFiles.objectAddress("56ec5d3f1e8601c544132c02a99840d52d0aa3f3").toString())
+        assertEquals("a9993e364706816aba3e25717850c26c9cd0d89d", GameFiles.sha1("abc".toByteArray()))
+    }
+
     @Test
     fun anItemsAdderFileNamesItsFontImagesByNamespace() {
         val yaml = YamlConfiguration()
