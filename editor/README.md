@@ -85,6 +85,8 @@ setting the plugin described (`registerCatalog` with a settings map), and the re
 Other tabs: **Raw** is the menu as text. What is typed there is a draft: **Apply to the editor** or `Ctrl+S` reads it into the editor (`Ctrl+S` then saves, too), and what is changed in the editor is
 in the text when the tab is opened. Text that cannot be read is reported as you type and is not applied. **Pack** loads a resource pack. The problems of the menu are under the button at the right of the tabs; click one to go to it.
 
+The entries of a list (lore, actions, conditions) are put in order by dragging the grip (⠿) at their left: the row is inserted where the line shows, and `Alt` + `Up` / `Down` on the grip does the same from the keyboard. A change keeps the scroll of the properties, and a new entry that is an object opens.
+
 The `material` of an item (and of the actions and conditions that name an item) is a search box: type part of a name (`iron sword`, `ruby`)
 and pick from the game's items and, from a server, the items of Nexo and ItemsAdder, each with its picture. Anything typed is kept as it is,
 so heads (`head:Steve`), textures and items of plugins that cannot list theirs still work.

@@ -4,6 +4,7 @@
 import { h, doc } from './dom.js'
 import { summary } from './schema.js'
 import { render as renderText } from './mctext.js'
+import { reorderable } from './reorder.js'
 
 /** Keys whose text is shown in the game with colors, so the form previews it. */
 const FORMATTED = new Set(['title', 'name', 'item-name', 'lore', 'text', 'subtitle', 'prompt', 'pages', 'invalid', 'message'])
@@ -184,11 +185,18 @@ export class Form {
       return input
     }
     items.forEach((item, index) => rows.append(this.row(of, path, index, item, items.length, field)))
-    rows.append(h('button', { class: 'add', onclick: () => this.store.set(path, [...items, this.schema.blank(of)]) }, '+ Add'))
+    reorderable(rows, (from, to) => this.store.move(path, from, to - from))
+    rows.append(h('button', { class: 'add', onclick: () => this.add(of, path, items) }, '+ Add'))
     return rows
   }
 
-  /** One entry of a list: the control, and buttons to move or remove it. */
+  /** Adds a blank entry to the list at [path]; an entry that is an object opens, since it is to be filled in. */
+  add(of, path, items) {
+    if (['object', 'poly', 'map', 'list'].includes(of.kind)) this.open.add([...path, items.length].join('/'))
+    this.store.set(path, [...items, this.schema.blank(of)])
+  }
+
+  /** One entry of a list: a grip to drag it by, the control, and a button to remove it. */
   row(of, path, index, item, length, field) {
     const rowPath = [...path, index]
     const complex = of.kind === 'object' || of.kind === 'poly' || of.kind === 'map' || of.kind === 'list'
@@ -198,10 +206,10 @@ export class Form {
           h('summary', null, summary(item) || 'empty'),
           this.control(of, rowPath, item, field))
       : this.control(of, rowPath, item, { ...field, key: field.key })
-    return h('div', { class: 'row' }, control,
+    return h('div', { class: 'row' },
+      length > 1 && h('button', { class: 'grip', title: 'Drag to move (Alt + Up or Down on the keyboard)', 'aria-label': 'Move' }, '⠿'),
+      control,
       h('div', { class: 'buttons' },
-        h('button', { class: 'icon', title: 'Move up', disabled: index === 0, onclick: () => this.store.move(path, index, -1) }, '↑'),
-        h('button', { class: 'icon', title: 'Move down', disabled: index === length - 1, onclick: () => this.store.move(path, index, 1) }, '↓'),
         h('button', { class: 'icon', title: 'Remove', onclick: () => this.store.remove(rowPath) }, '×')))
   }
 

@@ -323,13 +323,30 @@ export class App {
   draw() {
     if (!this.store.value.pages) this.painting = false
     for (const button of this.tabs.querySelectorAll('button[data-tab]')) button.classList.toggle('active', button.dataset.tab === this.tab)
+    const kept = this.scrolls()
     const content = { Editor: () => this.editorTab(), Raw: () => this.raw.view(), Pack: () => this.pack.view() }[this.tab]()
     // The editor fills the view and keeps its own scroll; the other tabs are pages that scroll.
     this.view.classList.toggle('fixed', this.tab === 'Editor' && Object.keys(this.store.value).length > 0)
     fill(this.view, content)
+    this.restoreScrolls(kept)
     if (this.tab === 'Editor') this.editor.attached()
     this.drawProblems()
     this.refreshHeader()
+  }
+
+  /** The places that scroll and are rebuilt by a redraw: a change must not throw the reader back to the top of them. */
+  static SCROLLERS = ['.sidebar.props', '.sidebar.items .item-rows', '.popover']
+
+  /** Where each of them is scrolled to now. */
+  scrolls() {
+    return App.SCROLLERS.map((selector) => this.view.querySelector(selector)?.scrollTop ?? 0)
+  }
+
+  /** Puts them back, unless the view is now about something else (another item, group or tab), which starts at the top again. */
+  restoreScrolls(tops) {
+    const place = `${this.tab}|${this.picked.item}|${this.editor.popover}`
+    if (place === this.drawnPlace) App.SCROLLERS.forEach((selector, i) => { const element = this.view.querySelector(selector); if (element && tops[i]) element.scrollTop = tops[i] })
+    this.drawnPlace = place
   }
 
   // ---- tabs

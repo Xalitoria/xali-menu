@@ -50,7 +50,10 @@ h1, h2 { margin: 0 0 8px; } h2 { font-size: 16px; display: flex; gap: 12px; alig
 .group > summary, .card > summary { padding: 7px 12px; cursor: pointer; color: var(--muted); } .card > summary b { color: var(--text); font-weight: 600; } .group[open] > summary, .card[open] > summary { border-bottom: 1px solid var(--line); }
 .group > .object, .card > .object, .card > .field, .card > .poly, .card > .map { padding: 10px 12px; }
 .card > button.danger { margin: 0 10px 10px; } .card .sub { color: var(--muted); font-size: 12px; }
-.list { display: grid; gap: 8px; } .row { display: grid; grid-template-columns: 1fr auto; gap: 6px; align-items: start; } .row .buttons { display: flex; gap: 2px; }
+.list { display: grid; gap: 8px; position: relative; } .row { display: grid; grid-template-columns: 1fr auto; gap: 6px; align-items: start; } .row:has(> .grip) { grid-template-columns: auto 1fr auto; }
+.grip { padding: 0 2px; min-width: 18px; line-height: 28px; color: var(--muted); background: none; border: 0; cursor: grab; touch-action: none; user-select: none; } .grip:hover, .grip:focus-visible { color: var(--text); }
+.row.dragging { position: relative; z-index: 5; opacity: .85; box-shadow: 0 6px 18px #0008; background: var(--panel, #1c1f26); border-radius: 6px; } .row.dragging .grip { cursor: grabbing; } .reordering { user-select: none; }
+.drop-line { position: absolute; left: 0; right: 0; height: 2px; background: var(--accent); border-radius: 1px; pointer-events: none; z-index: 6; } .row .buttons { display: flex; gap: 2px; }
 .row > .card, .row > .text { min-width: 0; } button.add { justify-self: start; color: var(--accent); }
 .map { display: grid; gap: 6px; } .poly { display: grid; gap: 6px; } select.variant { justify-self: start; }
 textarea.json, textarea.raw { font-family: ui-monospace, monospace; font-size: 12px; width: 100%; } textarea.raw { height: 70vh; } textarea.bad { border-color: var(--danger); }
