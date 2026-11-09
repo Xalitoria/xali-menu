@@ -30,6 +30,8 @@ import mc.xalitoria.menu.paper.hook.NexoSource
 import mc.xalitoria.menu.paper.hook.Regions
 import mc.xalitoria.menu.paper.hook.Skins
 import mc.xalitoria.menu.paper.runtime.ActionRunner
+import mc.xalitoria.menu.paper.command.Permissions
+import mc.xalitoria.menu.paper.editor.EditorRelay
 import mc.xalitoria.menu.paper.editor.EditorServer
 import mc.xalitoria.menu.paper.editor.EditorSessions
 import mc.xalitoria.menu.paper.runtime.ActivatorListener
@@ -87,6 +89,9 @@ class XaliMenu : JavaPlugin() {
 
     /** The endpoint of the web editor; listening only when `editor.enabled` is on. */
     internal lateinit var editor: EditorServer
+
+    /** The shared links of the editor, through a relay. */
+    internal lateinit var relay: EditorRelay
         private set
 
     /** Hears what the players do that opens menus, and what other plugins tell it about. */
@@ -152,6 +157,12 @@ class XaliMenu : JavaPlugin() {
         inputs = Inputs(this)
         pm.registerEvents(inputs, this)
         editor = EditorServer(this, EditorSessions({ config.data.editor.sessionMinutes }))
+        relay = EditorRelay(this, editor.api)
+        editor.api.onHeld = { edit ->
+            val message = messageConfig.data.commands.edit.heldNotice(edit.from, edit.name, edit.id)
+            server.onlinePlayers.filter { it.hasPermission(Permissions.ADMIN) }.forEach { it info message }
+            logger.info("${edit.from} sent an edit of '${edit.name}' (#${edit.id}); /xmenu edits lists it")
+        }
         startEditor()
         server.globalRegionScheduler.runDelayed(this, { if (!menus.isLoaded) listener.loadMenus() }, 40)
 
@@ -165,6 +176,7 @@ class XaliMenu : JavaPlugin() {
 
     override fun onDisable() {
         if (::menus.isInitialized) menus.closeAll()
+        if (::relay.isInitialized) relay.stop()
         if (::editor.isInitialized) editor.stop()
         expansion?.unregister()
         server.servicesManager.unregisterAll(this)

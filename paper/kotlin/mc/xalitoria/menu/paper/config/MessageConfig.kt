@@ -158,7 +158,40 @@ data class MessageConfig(
             val clickToOpen: String = "Click to open the editor",
             @SerialName("not-listening")
             private val notListening: String = "&cThe editor could not listen on {0}: {1}",
+            @SerialName("share-link")
+            val shareLink: String = "&aShared editor: {link} &7(works for {minutes} minutes). Anyone with it can read the menus and send edits; nothing is written until you apply an edit with /xmenu edits.",
+            @SerialName("share-off")
+            val shareOff: String = "&cSharing is off: set `editor.relay.url` in config.yml to the address of a relay.",
+            @SerialName("share-failed")
+            private val shareFailed: String = "&cThe relay could not be reached: {0}",
+            @SerialName("share-stopped")
+            private val shareStopped: String = "&7Ended {0} shared link(s).",
+            @SerialName("edits-none")
+            val editsNone: String = "&7No edits are waiting.",
+            @SerialName("edits-header")
+            private val editsHeader: String = "&eEdits waiting: {0}. &7/xmenu edits apply <id> or drop <id>",
+            @SerialName("edits-line")
+            private val editsLine: String = "&7#{0} &f{1} &7sent &f{2} &7({3} problem(s), {4} min ago)",
+            @SerialName("edits-applied")
+            private val editsApplied: String = "&aApplied #{0}: '{1}' is saved and loaded.{2}",
+            @SerialName("edits-dropped")
+            private val editsDropped: String = "&7Dropped #{0}.",
+            @SerialName("edits-unknown")
+            private val editsUnknown: String = "&cThere is no edit #{0}.",
+            @SerialName("edits-refused")
+            private val editsRefused: String = "&c#{0} could not be applied: {1}",
+            @SerialName("held-notice")
+            private val heldNotice: String = "&e{0} sent an edit of '{1}' (#{2}) through a shared link. /xmenu edits lists it.",
         ) {
+            fun shareFailed(reason: String): String = shareFailed.formatArgs(reason)
+            fun shareStopped(count: Int): String = shareStopped.formatArgs(count)
+            fun editsHeader(count: Int): String = editsHeader.formatArgs(count)
+            fun editsLine(id: Int, from: String, menu: String, problems: Int, minutes: Long): String = editsLine.formatArgs(id, from, menu, problems, minutes)
+            fun editsApplied(id: Int, menu: String, problems: String): String = editsApplied.formatArgs(id, menu, problems)
+            fun editsDropped(id: Int): String = editsDropped.formatArgs(id)
+            fun editsUnknown(id: Int): String = editsUnknown.formatArgs(id)
+            fun editsRefused(id: Int, reason: String): String = editsRefused.formatArgs(id, reason)
+            fun heldNotice(from: String, menu: String, id: Int): String = heldNotice.formatArgs(from, menu, id)
             fun tooBig(menu: String): String = tooBig.formatArgs(menu)
             fun notListening(address: String, reason: String): String = notListening.formatArgs(address, reason)
         }

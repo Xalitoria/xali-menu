@@ -51,7 +51,27 @@ data class MainConfig(
             "is installed. The pack is sent to the editor, which never stores it.",
         )
         val pack: String = "",
-    )
+        @YamlComment(
+            "Where the resource pack is hosted for the players, such as an S3 or CDN address. The editor downloads from there when it can, which",
+            "is much better for a big pack. Empty: what Nexo says it sends to players, if Nexo is installed; otherwise the pack goes through this server.",
+        )
+        @SerialName("pack-url")
+        val packUrl: String = "",
+        @YamlComment(
+            "A relay lets people open the editor on this server when it cannot be reached from outside: /xmenu share opens a session",
+            "there, and the plugin only connects out. What goes through is encrypted with a key that is only in the link.",
+            "See menu/relay in the repository to run one yourself.",
+        )
+        val relay: Relay = Relay(),
+    ) {
+        @Serializable
+        data class Relay(
+            @YamlComment("The address of the relay, for example https://relay.example.com. Empty: sharing is off.")
+            val url: String = "",
+            @YamlComment("The token the relay asks for when it opens sessions, if it does.")
+            val token: String = "",
+        )
+    }
 
     /** Where a variable is kept. */
     @Serializable

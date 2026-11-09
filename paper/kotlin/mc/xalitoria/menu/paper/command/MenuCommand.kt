@@ -1,6 +1,7 @@
 package mc.xalitoria.menu.paper.command
 
 import com.mojang.brigadier.Command
+import com.mojang.brigadier.arguments.IntegerArgumentType
 import com.mojang.brigadier.arguments.StringArgumentType
 import com.mojang.brigadier.builder.LiteralArgumentBuilder
 import com.mojang.brigadier.context.CommandContext
@@ -15,6 +16,8 @@ import kotlinx.coroutines.withContext
 import com.typesafe.config.ConfigRenderOptions
 import mc.xalitoria.menu.paper.XaliMenu
 import mc.xalitoria.menu.paper.editor.EditorLink
+import mc.xalitoria.menu.paper.editor.EditorMenus
+import mc.xalitoria.menu.paper.editor.EditorRelay
 import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.event.ClickEvent
 import net.kyori.adventure.text.format.NamedTextColor
@@ -106,6 +109,18 @@ object MenuCommand {
             .literal("edit")
             .executes { ctx -> edit(ctx, null) }
             .then(menuArgument().executes { ctx -> edit(ctx, StringArgumentType.getString(ctx, "menu")) })
+        )
+        .then(Commands
+            .literal("share")
+            .executes { ctx -> share(ctx, null) }
+            .then(Commands.literal("stop").executes { ctx -> stopSharing(ctx) })
+            .then(menuArgument().executes { ctx -> share(ctx, StringArgumentType.getString(ctx, "menu")) })
+        )
+        .then(Commands
+            .literal("edits")
+            .executes { ctx -> edits(ctx) }
+            .then(Commands.literal("apply").then(Commands.argument("id", IntegerArgumentType.integer(1)).executes { ctx -> applyEdit(ctx, IntegerArgumentType.getInteger(ctx, "id")) }))
+            .then(Commands.literal("drop").then(Commands.argument("id", IntegerArgumentType.integer(1)).executes { ctx -> dropEdit(ctx, IntegerArgumentType.getInteger(ctx, "id")) }))
         )
         .then(Commands
             .literal("import")
@@ -260,6 +275,70 @@ object MenuCommand {
         }
         sender.sendMessage(linkMessage(messages.linkData.replace("{menu}", menu.verbatim()), link))
         sender info messages.dataHint
+        return Command.SINGLE_SUCCESS
+    }
+
+    /** Prints a link to the editor through the relay, which works from anywhere and for anyone who is given it. */
+    private fun share(ctx: CommandContext<CommandSourceStack>, menu: String?): Int {
+        val sender = ctx.source.sender
+        if (!sender.allowed()) return Command.SINGLE_SUCCESS
+        val messages = cmdMsg.edit
+        val settings = plugin.config.data.editor
+        if (settings.relay.url.isBlank()) { sender fail messages.shareOff; return Command.SINGLE_SUCCESS }
+        // Opening a session is a request to the relay, which waits for an answer, so it is not made on the server's thread.
+        plugin.server.asyncScheduler.runNow(plugin) {
+            when (val started = plugin.relay.start(sender.name, menu)) {
+                is EditorRelay.Started.Failed -> sender fail messages.shareFailed(started.reason)
+                is EditorRelay.Started.Ok -> sender.sendMessage(linkMessage(messages.shareLink.replace("{minutes}", settings.sessionMinutes.toString()), started.link))
+            }
+        }
+        return Command.SINGLE_SUCCESS
+    }
+
+    private fun stopSharing(ctx: CommandContext<CommandSourceStack>): Int {
+        val sender = ctx.source.sender
+        if (!sender.allowed()) return Command.SINGLE_SUCCESS
+        val owner = sender.name.takeIf { sender is Player }
+        plugin.server.asyncScheduler.runNow(plugin) { sender info cmdMsg.edit.shareStopped(plugin.relay.stop(owner)) }
+        return Command.SINGLE_SUCCESS
+    }
+
+    /** Lists the edits that came through shared links. */
+    private fun edits(ctx: CommandContext<CommandSourceStack>): Int {
+        val sender = ctx.source.sender
+        if (!sender.allowed()) return Command.SINGLE_SUCCESS
+        val messages = cmdMsg.edit
+        val waiting = plugin.editor.pending.list()
+        if (waiting.isEmpty()) { sender info messages.editsNone; return Command.SINGLE_SUCCESS }
+        sender info messages.editsHeader(waiting.size)
+        val now = System.currentTimeMillis()
+        for (edit in waiting) sender info messages.editsLine(edit.id, edit.from.verbatim(), edit.name.verbatim(), edit.problems.size, (now - edit.at) / 60_000)
+        return Command.SINGLE_SUCCESS
+    }
+
+    /** Writes edit [id] over its menu, as a save of the editor does. */
+    private fun applyEdit(ctx: CommandContext<CommandSourceStack>, id: Int): Int {
+        val sender = ctx.source.sender
+        if (!sender.allowed()) return Command.SINGLE_SUCCESS
+        val messages = cmdMsg.edit
+        val edit = plugin.editor.pending.take(id)
+        if (edit == null) { sender fail messages.editsUnknown(id); return Command.SINGLE_SUCCESS }
+        when (val result = plugin.editor.menus.save(edit.name, edit.menu)) {
+            is EditorMenus.Result.Refused -> { sender fail messages.editsRefused(id, result.reason.verbatim()); return Command.SINGLE_SUCCESS }
+            is EditorMenus.Result.Ok -> {
+                plugin.logger.info("${sender.name} applied edit #$id of '${edit.name}' by ${edit.from}")
+                sender pass messages.editsApplied(id, edit.name.verbatim(), "")
+                if (result.problems.isNotEmpty()) sender.problems(edit.name, result.problems)
+            }
+        }
+        return Command.SINGLE_SUCCESS
+    }
+
+    private fun dropEdit(ctx: CommandContext<CommandSourceStack>, id: Int): Int {
+        val sender = ctx.source.sender
+        if (!sender.allowed()) return Command.SINGLE_SUCCESS
+        val edit = plugin.editor.pending.take(id)
+        sender info (if (edit == null) cmdMsg.edit.editsUnknown(id) else cmdMsg.edit.editsDropped(id))
         return Command.SINGLE_SUCCESS
     }
 
