@@ -2,6 +2,7 @@ package mc.xalitoria.menu.paper.runtime
 
 import io.papermc.paper.datacomponent.DataComponentType
 import io.papermc.paper.datacomponent.DataComponentTypes
+import io.papermc.paper.datacomponent.item.BannerPatternLayers
 import io.papermc.paper.datacomponent.item.CustomModelData
 import io.papermc.paper.datacomponent.item.DyedItemColor
 import io.papermc.paper.datacomponent.item.Equippable
@@ -61,6 +62,13 @@ class ItemFactory(private val plugin: XaliMenu) {
         ItemStack(Material.BARRIER)
     }
 
+    /** The patterns of the item's `banner` that are known: a dye color and a pattern of the game. */
+    private fun bannerPatterns(item: Item): List<Pattern> = item.banner.mapNotNull { layer ->
+        val color = runCatching { DyeColor.valueOf(layer.color.uppercase()) }.getOrNull()
+        val type = RegistryAccess.registryAccess().getRegistry(RegistryKey.BANNER_PATTERN).get(Key.key(layer.pattern))
+        if (color != null && type != null) Pattern(color, type) else null
+    }
+
     private val failed = ConcurrentHashMap.newKeySet<String>()
 
     private fun construct(item: Item, ctx: Context, loaded: () -> Unit): ItemStack {
@@ -77,11 +85,7 @@ class ItemFactory(private val plugin: XaliMenu) {
             })
             if (item.unbreakable) meta.isUnbreakable = true
             for ((key, value) in item.enchants) enchantment(key)?.let { meta.addEnchant(it, value, true) }
-            if (meta is BannerMeta) for (layer in item.banner) {
-                val color = runCatching { DyeColor.valueOf(layer.color.uppercase()) }.getOrNull()
-                val type = RegistryAccess.registryAccess().getRegistry(RegistryKey.BANNER_PATTERN).get(Key.key(layer.pattern))
-                if (color != null && type != null) meta.addPattern(Pattern(color, type))
-            }
+            if (meta is BannerMeta) for (pattern in bannerPatterns(item)) meta.addPattern(pattern)
             item.itemName?.let { meta.itemName(ctx.component(it)) }
             item.damage?.let { if (meta is Damageable) meta.damage = it.coerceAtLeast(0) }
             item.rarity?.let { meta.setRarity(ItemRarity.valueOf(it.name)) }
@@ -123,6 +127,12 @@ class ItemFactory(private val plugin: XaliMenu) {
 
         item.model?.let {
             stack.setData(DataComponentTypes.CUSTOM_MODEL_DATA, CustomModelData.customModelData().addFloat(it.toFloat()).build())
+        }
+        // A shield keeps its patterns and the color of its base in components, not in the meta a banner has.
+        if (stack.type == Material.SHIELD) {
+            val patterns = bannerPatterns(item)
+            if (patterns.isNotEmpty()) stack.setData(DataComponentTypes.BANNER_PATTERNS, BannerPatternLayers.bannerPatternLayers(patterns))
+            item.baseColor?.let { name -> runCatching { DyeColor.valueOf(name.uppercase()) }.getOrNull()?.let { stack.setData(DataComponentTypes.BASE_COLOR, it) } }
         }
         item.color?.let { hex -> parseColor(hex)?.let { stack.setData(DataComponentTypes.DYED_COLOR, DyedItemColor.dyedItemColor(it)) } }
         if (item.hide.isNotEmpty() || item.hideTooltip) {

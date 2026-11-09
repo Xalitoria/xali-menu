@@ -41,6 +41,8 @@ data class Item(
     val color: String? = null,
     /** The patterns of a banner, from the bottom layer to the top. */
     val banner: List<BannerLayer> = [],
+    /** The dye color of a shield's base, such as `red`; the patterns of a shield are the `banner` ones. */
+    val baseColor: String? = null,
     /** Custom effects of a potion, splash potion, lingering potion or tipped arrow. */
     val potion: List<PotionEffect> = [],
     /** The base potion of a potion, tipped arrow or the like, such as `strong_healing`. */

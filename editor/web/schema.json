@@ -3106,6 +3106,14 @@
           "doc": "The patterns of a banner, from the bottom layer to the top."
         },
         {
+          "key": "base-color",
+          "type": {
+            "kind": "string"
+          },
+          "required": false,
+          "doc": "The dye color of a shield's base, such as `red`; the patterns of a shield are the `banner` ones."
+        },
+        {
           "key": "potion",
           "type": {
             "kind": "list",

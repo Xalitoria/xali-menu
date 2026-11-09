@@ -114,7 +114,7 @@ use whatever provides Vault's `Permission`.
 ### Item properties
 
 Besides `material`, `slot`, `slots`, `priority`, `amount`, `dynamic-amount`, `name`, `lore`, `enchants`, `hide`, `unbreakable`,
-`model` (custom model data), `color` (leather and the like), `banner`, `potion` (custom effects), `nbt`, `update`, `view`
+`model` (custom model data), `color` (leather and the like), `banner` (the patterns of a banner or a shield) and `base-color` (a shield's base), `potion` (custom effects), `nbt`, `update`, `view`
 and `click`, an item takes the properties below. They work the same for the items of `give-item`. A property that does not
 fit the item (a `trim` on a stick) is left out, a value that cannot be used is reported when the menu is read, and an item that
 cannot be built at all is shown as a barrier and noted once in the log rather than breaking the menu.
