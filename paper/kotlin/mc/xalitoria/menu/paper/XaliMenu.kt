@@ -138,6 +138,7 @@ class XaliMenu : JavaPlugin() {
         items = ItemFactory(this)
         actions = ActionRunner(this)
         menus = MenuManager(this)
+        menus.watchVariables(variables.changes, scope)
         server.messenger.registerOutgoingPluginChannel(this, "BungeeCord")
         server.servicesManager.register(XaliMenuApi::class.java, ApiImpl(this), this, ServicePriority.Normal)
 

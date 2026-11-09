@@ -17,6 +17,7 @@ The server is offline-mode and meant to be thrown away. Do not pipe a bot into `
 |---|---|---|
 | `bot/act.js` | `t` (`/xt`) | The actions: items given, taken by name and cleared, potion, teleport, game mode, health and food, levels, title, boss bar, book, particle, `run-for`, `random` and the `input` prompt with its timeout and cancel word. |
 | `bot/cond.js` | `c` (`/xc`) | The conditions, by which items `view` leaves in the menu after each change of state: free slots, held item, game mode, cooldowns and variables. |
+| `bot/livevars.js` | `v` (`/xv`) | An open menu with no `refresh` that names variables follows them: set, increase and remove from the console (global and personal) and a burst; an `update` item shows each at once, one that is not marked does not. Needs PlaceholderAPI and `op Tester`. |
 | `bot/props.js` | `i` (`/xi`) | The item properties: it gives one item of every kind; then read the saved player data with `python3 bot/nbt.py <server>/world/players/data/<uuid>.dat` (Folia has no `/data` for entities). |
 | `bot/complete.js` | `a` (`/xa`) | Tab completion of a menu's `args` from its `complete` map: players, fixed words, the rest of the line. |
 | `bot/addon.js` | `e` (`/xe`) | An activator added by another plugin, `addon/XmDemo.java` (built with `XM_ADDON=1` at setup): `/xmwave` fires it with values; matching, a gate, `cancel`, and the keys it refuses. |

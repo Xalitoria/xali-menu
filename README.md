@@ -101,7 +101,7 @@ items {
 
 Opening checks the menu's `open` gate, then draws the items. Of the items claiming a slot, the one with the lowest
 `priority` (ties by name) whose `view` gate passes is drawn. `refresh` draws again, rebuilding only items marked
-`update`. A click runs the item's handler for that kind of click (or `any`) if its `require` gate passes. Nothing can be
+`update`; a menu whose file names a variable placeholder (`%xalimenu_var_<name>%` and the like) is also drawn again, with no `refresh` needed, a moment after a variable changes (see Variables). A click runs the item's handler for that kind of click (or `any`) if its `require` gate passes. Nothing can be
 moved in or out of a menu. Everything runs on the player's region thread; console commands go to the global region
 (Folia).
 
@@ -392,6 +392,11 @@ memory at once and is written in the background.
   `%xalimenu_vart_<name>%` and `%xalimenu_varpt_<name>%` for the time left (`1h 2m 3s`). A `:<default>` after the name is
   shown when the variable does not exist: `%xalimenu_var_coins:0%`. Use them in `compare` and `text` conditions to gate
   on a variable.
+
+An open menu follows its variables: when a variable changes (set, changed, removed, expired, or written by another server of a shared store),
+the menus that name a variable placeholder in their file are drawn again about a tenth of a second later, for a personal variable only the
+owner's, and a burst of changes is one redraw. Only what a draw rebuilds changes: items marked `update`, the `view` gates and a title with
+placeholders. It is driven by a Kotlin `Flow` of the changes (`VariableStore.changes`), so it costs nothing while nothing changes.
 
 #### Where a variable lives
 

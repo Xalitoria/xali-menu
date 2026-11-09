@@ -212,6 +212,11 @@ class MenuView(
         draw()
     }
 
+    /** A variable this menu shows has changed: draws again, from the player's thread. */
+    fun variablesChanged() {
+        player.scheduler.run(plugin, { if (plugin.menus.view(player) === this) draw() }, null)
+    }
+
     /** Has [slot] built again at the next [draw], from the player's thread. */
     private fun invalidate(slot: Int) {
         player.scheduler.run(plugin, {

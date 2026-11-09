@@ -18,6 +18,9 @@ import mc.xalitoria.menu.paper.action.Actions
 import mc.xalitoria.menu.paper.format.MenuFormat
 import mc.xalitoria.menu.paper.util.verbatim
 import com.xalitoria.util.message.*
+import kotlin.time.Duration.Companion.milliseconds
+import kotlinx.coroutines.launch
+import mc.xalitoria.menu.paper.util.batched
 import org.bukkit.Bukkit
 import org.bukkit.Material
 import org.bukkit.NamespacedKey
@@ -25,7 +28,7 @@ import org.bukkit.entity.Player
 import org.bukkit.event.inventory.InventoryType
 
 /** A menu that has been read from its file, with its items sorted into the slots they claim. */
-class LoadedMenu(val name: String, val menu: Menu) {
+class LoadedMenu(val name: String, val menu: Menu, val usesVariables: Boolean = false) {
     /** Per slot, the items claiming it with the lowest priority number first, equal ones by name (a file has no order). */
     val bySlot: Map<Int, List<Pair<String, Item>>> = slotted(menu.placed())
 }
@@ -37,6 +40,19 @@ fun slotted(items: Map<String, Item>): Map<Int, List<Pair<String, Item>>> = item
     .flatMap { entry -> entry.value.allSlots().map { it to (entry.key to entry.value) } }
     .groupBy({ it.first }, { it.second })
     .mapValues { entry -> entry.value.sortedWith(compareBy({ it.second.priority }, { it.first })) }
+
+/** Whether the file of a menu names a variable placeholder (`%xalimenu_var_coins%`), so that the menu has something to show when one changes. */
+internal fun showsVariables(file: java.nio.file.Path): Boolean = try {
+    showsVariables(java.nio.file.Files.readString(file))
+} catch (e: java.io.IOException) {
+    false
+}
+
+internal fun showsVariables(text: String): Boolean = VARIABLE_PLACEHOLDER.containsMatchIn(text)
+
+private val VARIABLE_WINDOW = 100.milliseconds
+
+private val VARIABLE_PLACEHOLDER = Regex("%xalimenu_var(p|t|pt)?_", RegexOption.IGNORE_CASE)
 
 /** The menus of `menus/`, and the players who have one open. */
 class MenuManager(private val plugin: XaliMenu) {
@@ -73,6 +89,23 @@ class MenuManager(private val plugin: XaliMenu) {
 
     fun view(player: Player): MenuView? = views[player.uniqueId]
 
+    /**
+     * Redraws the open menus that show variables when one of them changes, so an item marked `update` shows the new value at once and not at
+     * the next `refresh` (or never, for a menu with none). The changes are gathered for a moment, so a burst is one redraw; a personal
+     * variable redraws that player's menu only. Each redraw runs on the player's own thread.
+     */
+    internal fun watchVariables(changes: kotlinx.coroutines.flow.Flow<mc.xalitoria.menu.paper.variable.Key>, scope: kotlinx.coroutines.CoroutineScope): kotlinx.coroutines.Job =
+        scope.launch {
+            changes.batched(VARIABLE_WINDOW).collect { keys ->
+                val global = keys.any { it.owner == mc.xalitoria.menu.paper.variable.VariableStore.GLOBAL }
+                val owners = keys.mapTo(HashSet()) { it.owner }
+                for (entry in views) {
+                    if (loaded[entry.value.name]?.usesVariables != true) continue
+                    if (global || entry.key.toString() in owners) entry.value.variablesChanged()
+                }
+            }
+        }
+
     private fun files() = plugin.dataPath.resolve("menus").takeIf { it.isDirectory() }?.toFile()
         ?.listFiles { f -> f.extension == "conf" }?.sortedBy { it.name }.orEmpty()
 
@@ -105,7 +138,7 @@ class MenuManager(private val plugin: XaliMenu) {
         for (file in files()) {
             val name = file.toPath().nameWithoutExtension
             try {
-                found[name] = LoadedMenu(name, format.read(file.toPath()))
+                found[name] = LoadedMenu(name, format.read(file.toPath()), showsVariables(file.toPath()))
             } catch (e: Exception) {
                 failed[name] = e.message ?: e::class.simpleName.orEmpty()
                 plugin.logger fail "Menu '$name' could not be read: ${e.message}".verbatim()
@@ -139,7 +172,7 @@ class MenuManager(private val plugin: XaliMenu) {
         val file = files().firstOrNull { it.nameWithoutExtension.equals(name, ignoreCase = true) } ?: return Reread.NoFile
         val key = file.nameWithoutExtension
         val entry = try {
-            LoadedMenu(key, MenuFormat(plugin.registry.module, plugin.registry.externalNames, plugin.registry.activatorNames).read(file.toPath()))
+            LoadedMenu(key, MenuFormat(plugin.registry.module, plugin.registry.externalNames, plugin.registry.activatorNames).read(file.toPath()), showsVariables(file.toPath()))
         } catch (e: Exception) {
             failures += key to (e.message ?: e::class.simpleName.orEmpty())
             return Reread.Failed(e.message ?: e::class.simpleName.orEmpty())

@@ -11,7 +11,11 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -46,6 +50,15 @@ internal class Shard(
     /** Per variable, the changes queued or running; while there are any, what other servers wrote is not taken over it. */
     private val pending = ConcurrentHashMap<Key, Int>()
     private val writes = Channel<Write>(Channel.UNLIMITED)
+
+    private val changed = MutableSharedFlow<Key>(extraBufferCapacity = 1024, onBufferOverflow = BufferOverflow.DROP_OLDEST)
+
+    /**
+     * The variables whose value, as a reader sees it, has changed: made here, taken from the database (what another server wrote, or what
+     * the database answered to a change of ours that was not what memory guessed), or expired. A burst beyond a thousand unheard changes
+     * loses the oldest, so it is for redrawing what shows a variable and nothing that must be counted.
+     */
+    val changes: SharedFlow<Key> = changed.asSharedFlow()
     private var backend: SqlBackend? = null
     private var lastRev = 0L
     private var failures = 0
@@ -111,7 +124,7 @@ internal class Shard(
         cache.compute(key) { _, old ->
             if (old != null && !old.variable.isExpired() && !replace) old else Entry(next, old?.rev ?: 0).also { written = true }
         }
-        if (written) submit(Write.Put(key, value, expiry?.toEpochMilli(), replace)) else untrack(key)
+        if (written) { changed.tryEmit(key); submit(Write.Put(key, value, expiry?.toEpochMilli(), replace)) } else untrack(key)
         return written
     }
 
@@ -120,7 +133,9 @@ internal class Shard(
         track(key)
         val old = cache.remove(key)
         if (old != null) submit(Write.Remove(key)) else untrack(key)
-        return old != null && !old.variable.isExpired()
+        val existed = old != null && !old.variable.isExpired()
+        if (existed) changed.tryEmit(key)
+        return existed
     }
 
     fun change(key: Key, change: (BigDecimal) -> BigDecimal): Boolean {
@@ -143,7 +158,7 @@ internal class Shard(
             wrote = true
             Entry(Variable(key.name, Variable.format(changed), live?.expiry), old?.rev ?: 0)
         }
-        if (wrote) submit(Write.Change(key, change)) else untrack(key)
+        if (wrote) { changed.tryEmit(key); submit(Write.Change(key, change)) } else untrack(key)
         return ok
     }
 
@@ -173,7 +188,7 @@ internal class Shard(
 
     /** Drops what has expired from memory, and from the database for good. */
     fun sweep() {
-        cache.entries.removeIf { it.value.variable.isExpired() }
+        cache.entries.removeIf { entry -> entry.value.variable.isExpired().also { if (it) changed.tryEmit(entry.key) } }
         val sql = backend ?: return
         try {
             sql.purge(System.currentTimeMillis(), REMOVALS_KEPT.inWholeMilliseconds)
@@ -242,7 +257,7 @@ internal class Shard(
                 val row = sql.execute(write)
                 if (outage) logger.info("The $name variable store can be written to again.")
                 outage = false
-                finish(write.key) { if (row == null) cache.remove(write.key) else apply(row) }
+                finish(write.key) { if (row == null) { if (cache.remove(write.key)?.variable?.isExpired() == false) changed.tryEmit(write.key) } else apply(row) }
                 return
             } catch (e: CancellationException) {
                 throw e
@@ -275,9 +290,16 @@ internal class Shard(
 
     private fun apply(row: Row) {
         val now = System.currentTimeMillis()
+        var before: Variable? = null
+        var after: Variable? = null
         cache.compute(row.key) { _, old ->
-            if (old != null && old.rev > row.rev) old else if (row.isLive(now)) Entry(row.variable(), row.rev) else null
+            before = old?.variable?.takeUnless { it.isExpired() }
+            val next = if (old != null && old.rev > row.rev) old else if (row.isLive(now)) Entry(row.variable(), row.rev) else null
+            after = next?.variable?.takeUnless { it.isExpired() }
+            next
         }
+        // What memory already showed (our own change coming back) is no news.
+        if (before?.value != after?.value || (before == null) != (after == null)) changed.tryEmit(row.key)
     }
 
     companion object {

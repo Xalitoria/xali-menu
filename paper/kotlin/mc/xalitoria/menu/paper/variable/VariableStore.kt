@@ -9,6 +9,8 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.merge
 import net.xalitoria.menu.Scope
 import net.xalitoria.menu.Variable
 import net.xalitoria.menu.Variables
@@ -53,6 +55,9 @@ class VariableStore internal constructor(
 
     /** The stores that exist, once each. */
     private val distinct = listOfNotNull(memory, local, network)
+
+    /** Which variable changed, for whatever shows one: [Key.owner] is `#global` or a player's id. Merged from the stores. */
+    internal val changes: Flow<Key> = merge(*distinct.map { it.changes }.toTypedArray())
 
     private fun shard(name: String): Shard = shards.getValue(rules.of(name))
 
