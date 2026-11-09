@@ -11,7 +11,10 @@ import org.bukkit.event.inventory.ClickType
 import org.bukkit.event.inventory.InventoryClickEvent
 import org.bukkit.event.inventory.InventoryCloseEvent
 import org.bukkit.event.inventory.InventoryDragEvent
+import org.bukkit.event.entity.PlayerDeathEvent
+import org.bukkit.event.player.PlayerAttemptPickupItemEvent
 import org.bukkit.event.player.PlayerCommandPreprocessEvent
+import org.bukkit.event.player.PlayerJoinEvent
 import org.bukkit.event.player.PlayerQuitEvent
 
 class MenuListener(private val plugin: XaliMenu) : Listener {
@@ -20,17 +23,19 @@ class MenuListener(private val plugin: XaliMenu) : Listener {
         val view = event.inventory.getHolder(false) as? MenuView ?: return
         // Nothing moves in or out of a menu, whichever inventory the click was in (shift-click would carry items over).
         event.isCancelled = true
-        if (event.clickedInventory !== event.inventory) return
         val player = event.whoClicked as? Player ?: return
+        val top = event.clickedInventory === event.inventory
+        // The rows of the player's own inventory are the menu's too when it draws in them.
+        if (!top && event.clickedInventory !== player.inventory) return
         if (player.uniqueId != view.player.uniqueId) return
 
         val now = System.nanoTime()
         if (view.lastClick != 0L && now - view.lastClick < plugin.config.data.clickCooldown * 1_000_000) return
         view.lastClick = now
 
-        val item = view.itemAt(event.slot) ?: return
+        val item = (if (top) view.itemAt(event.slot) else view.inventoryItemAt(event.slot)) ?: return
         val handler = handler(item, event.click) ?: return
-        val ctx = view.contextAt(event.slot)
+        val ctx = if (top) view.contextAt(event.slot) else view.ctx
         if (!handler.require.passes(ctx, run = true)) return
         plugin.actions.run(handler.actions, ctx)
     }
@@ -52,6 +57,23 @@ class MenuListener(private val plugin: XaliMenu) : Listener {
     @EventHandler(priority = EventPriority.HIGH)
     fun onDrag(event: InventoryDragEvent) {
         if (event.inventory.getHolder(false) is MenuView) event.isCancelled = true
+    }
+
+    /** Nothing is picked up into an inventory a menu has drawn in: it could land in a slot the menu is about to give back. */
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    fun onPickup(event: PlayerAttemptPickupItemEvent) {
+        if (plugin.lending.lent(event.player)) event.isCancelled = true
+    }
+
+    /** Nothing a menu drew is ever dropped, and what it replaced is dropped in its place. */
+    @EventHandler(priority = EventPriority.LOWEST)
+    fun onDeath(event: PlayerDeathEvent) {
+        plugin.lending.died(event)
+    }
+
+    @EventHandler
+    fun onJoin(event: PlayerJoinEvent) {
+        plugin.lending.recover(event.player)
     }
 
     @EventHandler

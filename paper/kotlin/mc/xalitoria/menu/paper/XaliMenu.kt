@@ -37,6 +37,7 @@ import mc.xalitoria.menu.paper.editor.EditorSessions
 import mc.xalitoria.menu.paper.runtime.ActivatorListener
 import mc.xalitoria.menu.paper.runtime.Inputs
 import mc.xalitoria.menu.paper.runtime.ItemFactory
+import mc.xalitoria.menu.paper.runtime.Lending
 import mc.xalitoria.menu.paper.runtime.MenuListener
 import mc.xalitoria.menu.paper.runtime.LoadedMenu
 import mc.xalitoria.menu.paper.runtime.MenuManager
@@ -101,6 +102,10 @@ class XaliMenu : JavaPlugin() {
     lateinit var variables: VariableStore
         private set
 
+    /** What menus drew in players' inventories hides, and gives back. */
+    lateinit var lending: Lending
+        private set
+
     private var expansion: VariableExpansion? = null
 
     override fun onEnable() {
@@ -137,6 +142,7 @@ class XaliMenu : JavaPlugin() {
         if (pm.isPluginEnabled("WorldGuard")) regions = Regions()
         items = ItemFactory(this)
         actions = ActionRunner(this)
+        lending = Lending(this)
         menus = MenuManager(this)
         menus.watchVariables(variables.changes, scope)
         server.messenger.registerOutgoingPluginChannel(this, "BungeeCord")

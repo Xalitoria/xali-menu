@@ -21,6 +21,8 @@ class MenuView(
     val menu: Menu,
     private val opened: Context,
     private val bySlot: Map<Int, List<Pair<String, Item>>>,
+    /** The items drawn in the player's own inventory, by the slot of that inventory. */
+    private val inventoryBySlot: Map<Int, List<Pair<String, Item>>> = emptyMap(),
 ) : InventoryHolder {
     /** What goes into a slot of a paged menu: the item, the context its text and clicks use, and the element it is for. */
     private class Placed(val item: Item, val ctx: Context, val element: Map<String, String>?)
@@ -29,6 +31,9 @@ class MenuView(
     private lateinit var shown: Array<Item?>
     private lateinit var shownElement: Array<Map<String, String>?>
     private lateinit var contexts: Array<Context?>
+
+    /** What the menu has put in each slot of the player's own inventory (0 to 35). */
+    private val shownInventory = arrayOfNulls<Item>(36)
     private var refresh: ScheduledTask? = null
 
     /** What the frames of the menu's animation have drawn so far, by slot, in the order the slot's items are tried. */
@@ -85,6 +90,9 @@ class MenuView(
     /** The item that is in [slot] now, if there is one. */
     fun itemAt(slot: Int): Item? = shown.getOrNull(slot)
 
+    /** The item the menu has put in [slot] of the player's own inventory, if there is one. */
+    fun inventoryItemAt(slot: Int): Item? = shownInventory.getOrNull(slot)
+
     /**
      * Why each slot shows what it shows, one line per thing to say: the items that claim it, which of them is drawn, and for
      * each the checks of its `view` gate. A slot that nothing claims is left out.
@@ -104,6 +112,15 @@ class MenuView(
                 val [key, item] = candidate
                 val passes = item.view.passes(ctx, run = false)
                 add("  $source '$key' (priority ${item.priority}): view ${if (passes) "passes" else "does not pass"}${if (drawn === item) ", drawn" else ""}")
+                item.view.explain(ctx).forEach { add("    $it") }
+            }
+        }
+        for (entry in inventoryBySlot.entries.sortedBy { it.key }) {
+            val drawn = shownInventory[entry.key]
+            add("inventory slot ${entry.key}: " + (drawn?.let { item -> "'" + (entry.value.firstOrNull { it.second === item }?.first ?: "?") + "'" } ?: "empty"))
+            for ([key, item] in entry.value) {
+                val passes = item.view.passes(ctx, run = false)
+                add("  inventory '$key' (priority ${item.priority}): view ${if (passes) "passes" else "does not pass"}${if (drawn === item) ", drawn" else ""}")
                 item.view.explain(ctx).forEach { add("    $it") }
             }
         }
@@ -160,7 +177,25 @@ class MenuView(
                 }
             }
         }
+        drawInventory(rebuild)
         if (dynamicTitle) retitle()
+    }
+
+    /** Puts the right item in each slot of the player's own inventory that the menu draws in, as [draw] does for the menu's. */
+    private fun drawInventory(force: Boolean) {
+        for (entry in inventoryBySlot) {
+            val slot = entry.key
+            val chosen = entry.value.firstOrNull { it.second.view.passes(ctx, run = false) }?.second
+            if (chosen == null) {
+                if (shownInventory[slot] != null) {
+                    plugin.lending.put(player, slot, null)
+                    shownInventory[slot] = null
+                }
+            } else if (chosen !== shownInventory[slot] || chosen.update || force) {
+                plugin.lending.put(player, slot, plugin.lending.mark(plugin.items.build(chosen, ctx) { invalidateInventory(slot) }))
+                shownInventory[slot] = chosen
+            }
+        }
     }
 
     /**
@@ -222,6 +257,16 @@ class MenuView(
         player.scheduler.run(plugin, {
             if (plugin.menus.view(player) === this) {
                 shown[slot] = null
+                draw()
+            }
+        }, null)
+    }
+
+    /** Has [slot] of the player's inventory built again at the next [draw], from the player's thread. */
+    private fun invalidateInventory(slot: Int) {
+        player.scheduler.run(plugin, {
+            if (plugin.menus.view(player) === this) {
+                shownInventory[slot] = null
                 draw()
             }
         }, null)

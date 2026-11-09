@@ -31,6 +31,9 @@ import org.bukkit.event.inventory.InventoryType
 class LoadedMenu(val name: String, val menu: Menu, val usesVariables: Boolean = false) {
     /** Per slot, the items claiming it with the lowest priority number first, equal ones by name (a file has no order). */
     val bySlot: Map<Int, List<Pair<String, Item>>> = slotted(menu.placed())
+
+    /** The same for the items drawn in the player's own inventory, by the slot of that inventory. */
+    val inventoryBySlot: Map<Int, List<Pair<String, Item>>> = slotted(menu.inventory).filterKeys { it in Menu.INVENTORY_SLOTS }
 }
 
 private fun Item.allSlots(): List<Int> = listOfNotNull(slot) + slots
@@ -209,6 +212,11 @@ class MenuManager(private val plugin: XaliMenu) {
             }
             plugin.items.validate(value).forEach { problems += "item '$key': $it" }
         }
+        for ((key, value) in definition.inventory) {
+            if (value.allSlots().isEmpty()) problems += "inventory item '$key' has no slot, so it is never shown"
+            value.allSlots().filter { it !in Menu.INVENTORY_SLOTS }.forEach { problems += "inventory item '$key' is in slot $it, outside the inventory (0 to 35)" }
+            plugin.items.validate(value).forEach { problems += "inventory item '$key': $it" }
+        }
         definition.pages?.let { pages ->
             pages.listed().filter { definition.type == "chest" && it !in 0 until definition.size }.forEach { problems += "pages has slot $it, outside the menu" }
             if (pages.layout.size * 9 > definition.size && definition.type == "chest") problems += "pages.layout has ${pages.layout.size} rows, more than the menu"
@@ -234,7 +242,7 @@ class MenuManager(private val plugin: XaliMenu) {
         val frames = definition.animation?.frames.orEmpty()
         val animated = frames.flatMap { it.items.values }
         val actions = definition.onOpen + definition.onClose + frames.flatMap { it.onStart + it.onEnd } + definition.animation?.onStart.orEmpty() + definition.animation?.onEnd.orEmpty() +
-            (definition.items.values + animated + listOfNotNull(definition.pages?.item, definition.pages?.empty)).flatMap { item ->
+            (definition.items.values + definition.inventory.values + animated + listOfNotNull(definition.pages?.item, definition.pages?.empty)).flatMap { item ->
             val clicks = item.click
             listOfNotNull(clicks.any, clicks.left, clicks.right, clicks.shiftLeft, clicks.shiftRight, clicks.middle).flatMap { it.actions }
         }
@@ -310,7 +318,7 @@ class MenuManager(private val plugin: XaliMenu) {
 
         if (!menu.open.passes(ctx, run = true)) return
 
-        val view = MenuView(plugin, target.name, menu, ctx, target.bySlot)
+        val view = MenuView(plugin, target.name, menu, ctx, target.bySlot, target.inventoryBySlot)
         val title = view.title()
         @Suppress("DEPRECATION") // the title is legacy text, the only kind that can be changed once the menu is open
         val inventory = if (menu.type == "chest") {
@@ -319,6 +327,7 @@ class MenuManager(private val plugin: XaliMenu) {
             Bukkit.createInventory(view, runCatching { InventoryType.valueOf(menu.type.uppercase()) }.getOrDefault(InventoryType.CHEST), title)
         }
         view.attach(inventory)
+        plugin.lending.begin(player, target.inventoryBySlot.keys)
         view.draw()
 
         // Registered first, so closing the menu this player had open is not taken for the end of this one.
@@ -326,6 +335,7 @@ class MenuManager(private val plugin: XaliMenu) {
         if (player.openInventory(inventory) == null) {
             // Another plugin canceled it.
             views.remove(player.uniqueId, view)
+            plugin.lending.end(player)
             return
         }
         menu.refresh?.let { view.startRefresh(ticks(it)) }
@@ -338,12 +348,14 @@ class MenuManager(private val plugin: XaliMenu) {
     fun closed(player: Player, view: MenuView) {
         if (!views.remove(player.uniqueId, view)) return
         view.stopTasks()
+        plugin.lending.end(player)
         plugin.actions.run(view.menu.onClose, view.ctx)
     }
 
     /** The player left; there is nobody to run the close actions for. */
     fun left(player: Player) {
         views.remove(player.uniqueId)?.stopTasks()
+        plugin.lending.end(player)
     }
 
     /** Closes every open menu, for when the plugin goes away. */
@@ -352,6 +364,7 @@ class MenuManager(private val plugin: XaliMenu) {
             val view = views.remove(id) ?: continue
             view.stopTasks()
             runCatching { view.player.closeInventory() }
+            runCatching { plugin.lending.end(view.player) }
         }
     }
 

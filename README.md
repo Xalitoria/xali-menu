@@ -97,6 +97,26 @@ items {
 }
 ```
 
+**The player's own inventory.** `inventory` holds items like those of `items`, drawn in the rows under the menu while it is
+open. Their `slot` and `slots` are the inventory's slots as the game numbers them: 0 to 8 the hotbar, 9 to 35 the three
+rows above it (not armor and the off hand, which the screen doesn't show). They have everything an item has: `view`,
+`priority`, `update`, clicks. Nothing else in the inventory can be moved, and nothing can be picked up while the menu is open.
+
+```hocon
+size = 9
+items { close { material = "barrier", slot = 4, click.any.actions = [{ type = "close" }] } }
+inventory {
+    back { material = "arrow", slot = 8, name = "Back", click.any.actions = [{ type = "open", menu = "main" }] }
+    coins { material = "gold_ingot", slot = 9, name = "Coins: %xalimenu_var_coins:0%", update = true }
+}
+```
+
+The game has no inventory of its own to show there, so the items are put into the player's real one, over what it holds,
+which is kept and given back when the menu closes (or another opens, the player leaves or the server stops). The keep is also
+saved in the player's own data, together with the inventory, so a crash with a menu open loses nothing: the player is given it
+back when they join. The menu's items carry a mark and are taken out wherever they are found. A player who dies with a menu
+open drops what they had, not the menu's items. Items of an `animation`'s frames and of `pages` are drawn in the menu only.
+
 ### How a menu behaves
 
 Opening checks the menu's `open` gate, then draws the items. Of the items claiming a slot, the one with the lowest
@@ -600,7 +620,7 @@ commands exist is read from a quick scan of the files, so adding or removing one
 ### Not supported
 
 No Citizens support (use FancyNpcs); an NPC that is an entity can be matched by `entity`. The plan for closing the gap to AbstractMenus is [`PLAN.md`](PLAN.md). The item-count condition and the
-economy, permission and skin hooks, and the `group` and `meta` actions, are not tested against a live server. The personal variables of every player are
+economy, permission and skin hooks, and the `group` and `meta` actions, are not tested against a live server, nor is a player dying with a menu open that draws in their inventory. The personal variables of every player are
 loaded at startup.
 
 ## Development
