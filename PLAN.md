@@ -188,7 +188,7 @@ Each step ends with tests, the README section, and a commit.
 - Live (`XM_EDITOR=1`): `/xmenu edit` link, curl against every route (token, origin, preflight, unknown menu, path traversal, a refused
   and a checked menu, a new menu saved, the backup), and the page in a browser connected to the server: menus listed, the server's
   pack and 8 glyph names loaded, a title with `<glyph:menu_items>` drawn, and a save that changed the file.
-- Not tested: ItemsAdder and Oraxen (only Nexo's data was at hand; ItemsAdder's glyphs are read through its API by reflection),
+- Not tested: ItemsAdder and Oraxen (only Nexo's data was at hand; ItemsAdder's glyph names come from its content files, the characters, pack URL and item models from its API, none run against a real ItemsAdder),
   custom item pictures through `/v1/items` with a real Nexo item, and the deploy workflow itself (it runs on GitHub).
 - Items drawn from their models (second pass of the editor): item definitions, parents, element baking after the game's FaceBakery,
   the `gui` display transform and the item lights, rasterized in software (`raster.js`); checked against icons rendered by the game

@@ -19,6 +19,31 @@ class ItemsAdderSource : ItemSource, ListsItems {
     override fun ids(): List<String> = CustomStack.getNamespacedIdsInRegistry().map { it.toString() }.sorted()
 }
 
+/** What ItemsAdder can say about its resource pack and its pictures, which its API gives only on a running server. */
+object ItemsAdderHost {
+    /** The address ItemsAdder sends its pack from, or null while the pack is still being made or the API is not the one this was written for. */
+    fun url(): String? = try {
+        dev.lone.itemsadder.api.ItemsAdder.getPackUrl(false)?.takeIf { it.isNotBlank() }
+    } catch (e: Throwable) {
+        null
+    }
+
+    /** The item model ItemsAdder gives [id] (`namespace:id`), as a resource location, or null. */
+    fun model(id: String): String? = try {
+        dev.lone.itemsadder.api.ItemsAdder.Advanced.getItemModelResourceLocation(id)?.takeIf { it.isNotBlank() }
+    } catch (e: Throwable) {
+        null
+    }
+
+    /** The character of the font image [id] (`namespace:id`), without the colour codes ItemsAdder wraps it in. */
+    fun glyph(id: String): String? = try {
+        val image = dev.lone.itemsadder.api.FontImages.FontImageWrapper(id)
+        if (image.exists()) image.string.replace(Regex("§."), "").takeIf { it.isNotEmpty() } else null
+    } catch (e: Throwable) {
+        null
+    }
+}
+
 /** Nexo's items, as `nexo:<id>`. */
 class NexoSource : ItemSource, ListsItems {
     override val prefix = "nexo"

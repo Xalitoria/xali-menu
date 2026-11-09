@@ -177,8 +177,8 @@ How it is kept safe:
 (`plugins/Oraxen/pack/pack.zip`) and ItemsAdder (`plugins/ItemsAdder/output/generated.zip`, where it usually writes it; set `editor.pack` if yours is elsewhere), in that order. The Pack tab can also load a
 zip from the disk or from an address that allows other sites to read it.
 
-With Nexo or Oraxen installed, the editor lists the names in their `glyphs` folders, and a title can use `<glyph:name>` in the
-preview. Custom items (`nexo:ruby`, `itemsadder:ns:id`) are looked up through the plugins, so their pictures come from the pack too.
+With Nexo or Oraxen installed, the editor lists the names in their `glyphs` folders (with ItemsAdder, the `font_images` of the files in `plugins/ItemsAdder/contents`, each character asked of ItemsAdder), and a title can use `<glyph:name>` in the
+preview. Custom items (`nexo:ruby`, `itemsadder:ns:id`) are looked up through the plugins, so their pictures come from the pack too (for ItemsAdder, its own item model when the item carries none). A pack ItemsAdder hosts is downloaded from the address it gives (`ItemsAdder.getPackUrl`), like Nexo's.
 A glyph that is moved is written as the space characters of the pack's own font and, for a glyph of another font, a `<font:...>` tag.
 
 **Where a big pack comes from.** The editor picks the first of these that works:

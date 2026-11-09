@@ -13,9 +13,20 @@ import mc.xalitoria.menu.paper.editor.EditorMenus
 import mc.xalitoria.menu.paper.editor.EditorSessions
 import mc.xalitoria.menu.paper.editor.EditorApi
 import mc.xalitoria.menu.paper.editor.Json
+import mc.xalitoria.menu.paper.editor.fontImageIds
+import org.bukkit.configuration.file.YamlConfiguration
 
 /** The parts of the editor endpoint that need no server: links, the tokens behind them, and the JSON. */
 class Editor {
+    @Test
+    fun anItemsAdderFileNamesItsFontImagesByNamespace() {
+        val yaml = YamlConfiguration()
+        yaml.loadFromString("info:\n  namespace: shop\nfont_images:\n  coin:\n    path: a.png\n  gem:\n    path: b.png\nitems:\n  ruby: {}\n")
+        assertEquals(listOf("shop:coin", "shop:gem"), fontImageIds(yaml))
+        assertEquals(emptyList(), fontImageIds(YamlConfiguration().also { it.loadFromString("font_images:\n  x: {}\n") }), "no namespace, no id")
+        assertEquals(emptyList(), fontImageIds(YamlConfiguration().also { it.loadFromString("info:\n  namespace: a\n") }))
+    }
+
     @Test
     fun aTokenStandsForItsOwnerUntilItRunsOut() {
         var time = 0L

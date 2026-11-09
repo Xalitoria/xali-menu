@@ -15,8 +15,8 @@ import org.bukkit.configuration.file.YamlConfiguration
  * custom items are. All three plugins that are supported write a normal pack, so the editor reads it like any other; what it
  * cannot know is which character is which glyph, and which item model an id stands for, so those come from here.
  *
- * Nexo and Oraxen keep the glyphs in the yml files of their `glyphs` folder, each with a `char`. ItemsAdder keeps them in its own registry, asked through
- * its API by name, so nothing here is linked to it.
+ * Nexo and Oraxen keep the glyphs in the yml files of their `glyphs` folder, each with a `char`. ItemsAdder chooses the characters
+ * itself: the names come from the `font_images` of its content files, and each character is asked of its API.
  */
 internal class ResourcePacks(private val plugin: XaliMenu) {
     /**
@@ -76,6 +76,9 @@ internal class ResourcePacks(private val plugin: XaliMenu) {
         if (plugin.server.pluginManager.isPluginEnabled("Nexo")) {
             return mc.xalitoria.menu.paper.hook.NexoPackHost.url()?.takeIf { it.startsWith("http://") || it.startsWith("https://") }
         }
+        if (plugin.server.pluginManager.isPluginEnabled("ItemsAdder")) {
+            return mc.xalitoria.menu.paper.hook.ItemsAdderHost.url()?.takeIf { it.startsWith("http://") || it.startsWith("https://") }
+        }
         return null
     }
 
@@ -109,18 +112,19 @@ internal class ResourcePacks(private val plugin: XaliMenu) {
         return found
     }
 
-    private fun itemsAdder(): List<Map<String, String>> = try {
-        val api = Class.forName("dev.lone.itemsadder.api.FontImages.FontImageWrapper")
-        val ids = api.getMethod("getNamespacedIdsInRegistry").invoke(null) as Collection<*>
-        val instance = api.getMethod("instance", String::class.java)
-        val string = api.getMethod("getString")
-        ids.mapNotNull { id ->
-            val text = string.invoke(instance.invoke(null, id)) as? String ?: return@mapNotNull null
-            mapOf("name" to id.toString(), "char" to text, "plugin" to "ItemsAdder")
+    /** The ids of the font images a plugin's content files declare, `namespace:id`, found by [fontImageIds]. */
+    private fun itemsAdder(): List<Map<String, String>> {
+        val contents = plugin.server.pluginsFolder.toPath().resolve("ItemsAdder/contents")
+        if (!Files.isDirectory(contents)) return emptyList()
+        val ids = Files.walk(contents).use { files ->
+            files.filter { it.extension == "yml" }.toList().flatMap { file ->
+                runCatching { fontImageIds(YamlConfiguration.loadConfiguration(file.toFile())) }.getOrDefault(emptyList())
+            }
         }
-    } catch (e: Exception) {
-        plugin.logger.warning("The glyphs of ItemsAdder could not be read: ${e.message}")
-        emptyList()
+        return ids.distinct().mapNotNull { id ->
+            val text = mc.xalitoria.menu.paper.hook.ItemsAdderHost.glyph(id) ?: return@mapNotNull null
+            mapOf("name" to id, "char" to text, "plugin" to "ItemsAdder")
+        }
     }
 
     /**
@@ -143,7 +147,9 @@ internal class ResourcePacks(private val plugin: XaliMenu) {
                 } ?: return@mapNotNull null
                 material to mapOf(
                     "material" to stack.type.key.key,
-                    "itemModel" to stack.getData(DataComponentTypes.ITEM_MODEL)?.asString().takeIf { source != null },
+                    "itemModel" to (stack.getData(DataComponentTypes.ITEM_MODEL)?.asString()
+                        ?: if (prefix.equals("itemsadder", true)) mc.xalitoria.menu.paper.hook.ItemsAdderHost.model(material.substringAfter(':')) else null)
+                        .takeIf { source != null },
                     "customModelData" to stack.getData(DataComponentTypes.CUSTOM_MODEL_DATA)?.floats()?.map { it.toDouble() },
                     "maxDamage" to (stack.getData(DataComponentTypes.MAX_DAMAGE) ?: 0),
                 )
@@ -155,4 +161,11 @@ internal class ResourcePacks(private val plugin: XaliMenu) {
             emptyMap()
         }
     }
+}
+
+/** The font images a ItemsAdder content file declares, as `namespace:id`: the ids under `font_images`, in the `info.namespace` of the file. */
+internal fun fontImageIds(yaml: org.bukkit.configuration.ConfigurationSection): List<String> {
+    val namespace = yaml.getString("info.namespace")?.takeIf { it.isNotBlank() } ?: return emptyList()
+    val images = yaml.getConfigurationSection("font_images") ?: return emptyList()
+    return images.getKeys(false).map { "$namespace:$it" }
 }
