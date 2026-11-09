@@ -7,6 +7,7 @@
 //   message  12 bytes of iv, then the AES-GCM output
 
 import { Server } from './source.js'
+import { RangeFile } from './remote.js'
 
 const subtle = globalThis.crypto.subtle
 const encoder = new TextEncoder()
@@ -53,7 +54,7 @@ export class RelayServer extends Server {
   async request(path, options = {}) {
     const key = await this.keyPromise
     const rid = base64(crypto.getRandomValues(new Uint8Array(12)))
-    const payload = { rid, t: Date.now(), from: this.from, method: options.method ?? 'GET', path: path.startsWith('/') ? path : `/${path}`, body: options.body ?? null }
+    const payload = { rid, t: Date.now(), from: this.from, method: options.method ?? 'GET', path: path.startsWith('/') ? path : `/${path}`, body: options.body ?? null, range: options.headers?.Range ?? null }
     let response
     try {
       response = await fetch(`${this.url}/s/${this.session}/call`, { method: 'POST', body: await seal(key, this.session, 'q', payload) })
@@ -77,6 +78,12 @@ export class RelayServer extends Server {
       throw new Error(parsed.error ?? `The server answered ${answer.status}`)
     }
     return new Response(body, { status: answer.status, headers: { 'Content-Type': answer.type ?? 'application/json' } })
+  }
+
+  /** The pack is read in parts of a few megabytes, as the zip asks for them, since a pack is often too big for one message. */
+  async packFile(size) {
+    if (!size) return super.packFile(size)
+    return new RangeFile(size, async (start, end) => new Uint8Array(await (await this.request('/pack', { headers: { Range: `bytes=${start}-${end - 1}` } })).arrayBuffer()))
   }
 
   async save(name, menu) {

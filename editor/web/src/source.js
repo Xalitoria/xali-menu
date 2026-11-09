@@ -65,6 +65,12 @@ export class Server {
     return response ? response.blob() : null
   }
 
+  /**
+   * The pack to read for the editor: a Blob, or a file read by parts when the server cannot send it at once. Null if there is none.
+   * @param {number|null} size the size of the pack, from `info`
+   */
+  async packFile(size) { return this.pack() }
+
   /** What the plugins that own custom items (`nexo:ruby`) say they are: material, item model and custom model data. */
   async resolve(materials) {
     return (await (await this.request('/items', { method: 'POST', body: JSON.stringify({ materials }) })).json()).items ?? {}

@@ -4,6 +4,21 @@
 import { h, fill } from './dom.js'
 import { Pack } from './pack.js'
 import { DEFAULT_FONT } from './fonts.js'
+
+/** Whether this page may fetch [url]: an https page cannot read plain http, except from this computer. */
+export function readable(url) {
+  try {
+    const target = new URL(url)
+    return target.protocol === 'https:' || (globalThis.location?.protocol !== 'https:')
+  } catch { return false }
+}
+
+/** The file at [url] as a Blob; the host has to allow other sites to read it (CORS). */
+export async function download(url) {
+  const response = await fetch(url)
+  if (!response.ok) throw new Error(`it answered ${response.status}`)
+  return response.blob()
+}
 import { services, configure } from './services.js'
 
 export class PackPanel {
@@ -42,14 +57,30 @@ export class PackPanel {
     this.app.draw()
   }
 
-  /** Asks the server for its pack, its glyphs and what its custom items are. */
+  /**
+   * Asks the server for its glyphs and its pack. A pack that is hosted for the players (Nexo's S3 or LobFile upload, `editor.pack-url`) is
+   * downloaded from there when this page may; otherwise it comes from the server, in parts when the way to it is a relay.
+   */
   async discover() {
     const server = this.app.server
     if (!server) return
+    const info = this.app.serverInfo ?? {}
     try { this.catalog = await server.glyphs() } catch { this.catalog = [] }
+    if (info.packUrl && readable(info.packUrl)) {
+      try {
+        const host = new URL(info.packUrl).host
+        this.message = `Downloading the pack from ${host}…`
+        this.app.draw()
+        const blob = await download(info.packUrl)
+        if (!info.packSize || blob.size === info.packSize) return await this.setPack(blob, `the pack at ${host}`)
+      } catch (error) {
+        this.hostNote = `The pack could not be downloaded from its host (${error.message}); it comes from the server instead.`
+      }
+    }
     try {
-      const blob = await server.pack()
-      if (blob) await this.setPack(blob, 'the server pack')
+      const file = await server.packFile(info.packSize ?? null)
+      if (file) await this.setPack(file, 'the server pack')
+      else if (this.hostNote) { this.message = this.hostNote; this.app.draw() }
     } catch { /* the server has no pack */ }
   }
 
@@ -117,7 +148,7 @@ export class PackPanel {
         this.app.server && h('button', { onclick: () => this.discover() }, 'Use the server pack'),
         file,
         h('span', { class: 'url' }, url, h('button', { onclick: async () => {
-          try { await this.setPack(await (await fetch(url.value)).blob(), url.value) } catch (e) { this.message = `Could not download it: ${e.message}`; this.app.draw() }
+          try { await this.setPack(await download(url.value), url.value) } catch (e) { this.message = `Could not download it: ${e.message}`; this.app.draw() }
         } }, 'Download'))),
       this.message && h('p', null, this.message))
   }

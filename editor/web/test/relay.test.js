@@ -78,3 +78,23 @@ test('a save says when the admin has to approve it', async () => {
     assert.equal(server.held, true)
   } finally { globalThis.fetch = real }
 })
+
+test('a pack is read through the relay in parts, with a Range for each', async () => {
+  const key = await importKey(KEY)
+  const real = globalThis.fetch
+  const pack = Uint8Array.from({ length: 3000 }, (_, i) => i % 200)
+  const asked = []
+  globalThis.fetch = async (url, init) => {
+    const p = await open(key, 's1', 'q', new Uint8Array(init.body))
+    asked.push([p.path, p.range])
+    const [, a, b] = p.range.match(/bytes=(\d+)-(\d+)/)
+    return new Response(await seal(key, 's1', 'a', { rid: p.rid, status: 206, type: 'application/zip', body: Buffer.from(pack.slice(Number(a), Number(b) + 1)).toString('base64') }))
+  }
+  try {
+    const server = new RelayServer('https://relay.example', 's1', KEY, 'Alex')
+    const file = await server.packFile(3000)
+    assert.equal(file.size, 3000)
+    assert.deepEqual(new Uint8Array(await file.slice(10, 20).arrayBuffer()), pack.slice(10, 20))
+    assert.deepEqual(asked, [['/pack', 'bytes=0-3000'.replace('3000', '2999')]])
+  } finally { globalThis.fetch = real }
+})

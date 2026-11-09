@@ -6,7 +6,7 @@ const CENTRAL = 0x02014b50
 const LOCAL = 0x04034b50
 
 export class Zip {
-  /** @param {Blob} blob */
+  /** @param {Blob|import('./remote.js').RangeFile} blob anything with a size and `slice(start, end).arrayBuffer()` */
   constructor(blob, entries) {
     this.blob = blob
     this.entries = entries
@@ -54,9 +54,10 @@ export class Zip {
     if (header.getUint32(0, true) !== LOCAL) throw new Error('The zip is damaged')
     const start = entry.local + 30 + header.getUint16(26, true) + header.getUint16(28, true)
     const raw = this.blob.slice(start, start + entry.compressed)
-    if (entry.method === 0) return new Uint8Array(await raw.arrayBuffer())
+    const stored = new Uint8Array(await raw.arrayBuffer())
+    if (entry.method === 0) return stored
     if (entry.method !== 8) throw new Error(`${path} uses a compression this editor cannot read`)
-    return new Uint8Array(await new Response(raw.stream().pipeThrough(new DecompressionStream('deflate-raw'))).arrayBuffer())
+    return new Uint8Array(await new Response(new Blob([stored]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).arrayBuffer())
   }
 
   async text(path) { return new TextDecoder().decode(await this.bytes(path)) }
