@@ -1,0 +1,8 @@
+{
+  "name": "xalimenu-relay",
+  "version": "0.1.0",
+  "description": "The mailbox between the XaliMenu editor in a browser and a server that cannot be reached from outside. It only ever holds encrypted messages.",
+  "type": "module",
+  "license": "MIT",
+  "scripts": { "start": "node relay.js", "test": "node --test test" }
+}
