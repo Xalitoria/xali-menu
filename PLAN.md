@@ -235,5 +235,10 @@ Each step ends with tests, the README section, and a commit.
   a real relay, the save held and announced, a menu that cannot load refused, `/xmenu edits`, `apply` (the file changed, the old kept),
   a second `apply` unknown, and `share stop` ending the session at the relay.
 - Not done: a read-only link (any holder can send edits, which the admin sees as held), live seeing of each other's changes while editing
-  (each person works on their own copy), packs over 5 MB through the relay, a hosted relay.
-
+  (each person works on their own copy), a hosted relay.
+- **Big packs** (after the relay): `GET /v1/pack` answers `Range` (4 MB at most), the page reads the zip through `RangeFile` (1 MB blocks, directory first),
+  and `/v1/info` says `packSize` and `packUrl`: `editor.pack-url`, else Nexo's `NexoPlugin.instance().packServer().packUrl()` (S3, LobFile, Polymath, self-hosted).
+  The page downloads from the host when it may (https, CORS, same size as the local file) and falls back to the server's parts. Unit tests: `byteRange`,
+  `RangeFile` with a zip built by hand, the relay's `packFile`. Live: a 12.5 MB pack through the relay, its directory and one entry read with 3 MB fetched, and
+  `packUrl` in `/v1/info` from `XM_PACK_URL`. Not tested: a real S3 download (no bucket at hand) and Nexo's `packUrl()` on a running Nexo (the API was read
+  from the 1.29.1 jar).

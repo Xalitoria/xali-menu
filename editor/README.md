@@ -169,7 +169,7 @@ How it is kept safe:
 - A menu can run console commands, so a shared link must be treated as a way to ask for that: never apply an edit you have not looked at.
   `/xmenu share stop` ends your links.
 - What the link can read: the menus, the catalogs the server lists (the preview of a catalog is made for the admin who made the link, so
-  an `inventory` catalog shows the admin's items), and the resource pack if it is under 5 MB.
+  an `inventory` catalog shows the admin's items), and the resource pack, which is read in parts (see below).
 
 ### 4. Show the resource pack (optional)
 
@@ -180,6 +180,18 @@ zip from the disk or from an address that allows other sites to read it.
 With Nexo or Oraxen installed, the editor lists the names in their `glyphs` folders, and a title can use `<glyph:name>` in the
 preview. Custom items (`nexo:ruby`, `itemsadder:ns:id`) are looked up through the plugins, so their pictures come from the pack too.
 A glyph that is moved is written as the space characters of the pack's own font and, for a glyph of another font, a `<font:...>` tag.
+
+**Where a big pack comes from.** The editor picks the first of these that works:
+
+1. **The host the players download it from.** `editor.pack-url` names it; left empty, the plugin asks Nexo for the address it sends to players
+   (`Pack.server.type` S3, LOBFILE, POLYMATH or SELFHOST, so an AWS bucket is downloaded from AWS). The address goes to the editor in `/v1/info` with
+   the size of the local file, and the page downloads it itself, so the pack never passes through your server or a relay. The host has to allow
+   other sites to read it (a CORS rule on the bucket for `https://menu.xali.to`, allowing `GET`), and an https page cannot read a plain `http`
+   address such as a self-hosted one; when that fails, or the size is not the local file's, the next one is used. A presigned S3 address ends
+   after `url_expiration`, and Nexo makes a new one each time it is asked.
+2. **The server, by parts.** `GET /v1/pack` with a `Range` header returns at most 4 MB of the zip. Through a relay the editor always asks this way:
+   it reads the directory at the end of the zip and then fetches 1 MB blocks as it needs a font or a texture, so a 100 MB pack costs a few
+   megabytes. Without a `Range` the endpoint sends the whole file, which a relay refuses when it is over 5 MB.
 
 ## Development
 
