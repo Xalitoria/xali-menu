@@ -8,21 +8,23 @@ glyphs in titles into place.
 ## How it works
 
 The editor is static files: HTML, CSS and JavaScript with no build step and no dependencies. GitHub Pages serves them, and nothing
-else is hosted. There is no relay and no database. In particular:
+else has to be hosted for it. A relay is there for servers that cannot be reached from outside (below), and there is no database. In particular:
 
 - **The form is generated from the plugin.** `web/schema.json` is written by `./gradlew :menu:editor:schema` from the serializer
   descriptors that read the menu files, and the comments of the Kotlin sources. `./gradlew :menu:editor:test` fails when the file
   is older than the code, so the editor cannot drift from the plugin.
-- **A menu reaches the editor in one of two ways.** With `editor.enabled` in `config.yml`, the plugin listens on a port and the
+- **A menu reaches the editor in one of three ways.** With `editor.enabled` in `config.yml`, the plugin listens on a port and the
   browser talks to it directly (the link from `/xmenu edit` holds a token). Without it, the link holds the menu itself, compressed,
   after the `#`; the browser never sends that part to any server. The editor then gives a `.conf` file to put in the menus folder.
+  The third way is a relay, for a server that cannot be reached from outside: see "Sharing through a relay".
 - **Saving is checked twice.** The editor reports what it can see; the plugin reads the menu as it would at startup before it
   replaces the file, and refuses one that would not load. The old file is kept as `<name>.conf.bak`.
 - **The resource pack stays in the browser.** The server sends its pack (or you pick the zip), the page reads the fonts and
   textures out of it, and nothing is stored or uploaded.
 
 LuckPerms' editor works through two services run for it (a paste service and a socket relay). GitHub Pages cannot run services,
-so this editor connects the browser to the server itself, or uses a file.
+so by default this editor connects the browser to the server itself, or uses a file. The relay below is the same idea as LuckPerms',
+made so that the relay can only see encrypted bytes and never holds a menu.
 
 ## How items and windows are drawn
 
@@ -141,7 +143,35 @@ Only requests that come from the editor's site (`editor.site`), `localhost` or `
 link made with `/xmenu edit` by someone with `xalimenu.admin`, and a token ends after `editor.session-minutes` (60). A token in a
 link works like a password for that time: do not paste it into a channel that others read.
 
-### 3. Show the resource pack (optional)
+### 3. Share through a relay (optional)
+
+For a server that cannot be reached from the editor's page (no open port, behind a proxy you do not control, or a link to give to others),
+`/xmenu share [menu]` prints a link that works from anywhere. The plugin only connects out, to a relay such as the one in `menu/relay`
+(`node relay.js`, no dependencies; put it behind https, since the page is served over https). Set it in `config.yml`:
+
+  ```yaml
+  editor:
+    relay:
+      url: https://relay.example.com
+      token: ""   # only if the relay was started with XM_RELAY_TOKEN
+  ```
+
+How it is kept safe:
+
+- The link is `#relay=<relay>&session=<id>&key=<key>`. The key (AES-256-GCM) is after the `#`, so it never reaches the relay or any
+  server; the plugin and the page encrypt every request and answer with it. The relay holds a request only until the plugin has answered
+  it, writes nothing to a disk, and forgets a session when the plugin stops asking for work or `editor.session-minutes` is over.
+- The plugin drops a request that was not made with the key, is more than ten minutes old, or has been seen before.
+- **Several people can use one link.** They all see the same menus. What they save is not written: it is checked, then held, and an admin
+  runs `/xmenu edits` to list the edits, `/xmenu edits apply <id>` to write one (as a save of the editor does, with the old file kept) or
+  `/xmenu edits drop <id>`. A person's name is whatever they typed, so it only helps you tell edits apart. A later save of the same menu
+  by the same name replaces the earlier one, and an edit applied over a menu that changed meanwhile replaces it as it is (last write wins).
+- A menu can run console commands, so a shared link must be treated as a way to ask for that: never apply an edit you have not looked at.
+  `/xmenu share stop` ends your links.
+- What the link can read: the menus, the catalogs the server lists (the preview of a catalog is made for the admin who made the link, so
+  an `inventory` catalog shows the admin's items), and the resource pack if it is under 5 MB.
+
+### 4. Show the resource pack (optional)
 
 `editor.pack` can be the path of a zip. Left empty, the plugin looks for the pack of Nexo (`plugins/Nexo/pack/pack.zip`), Oraxen
 (`plugins/Oraxen/pack/pack.zip`) and ItemsAdder (`plugins/ItemsAdder/output/generated.zip`, where it usually writes it; set `editor.pack` if yours is elsewhere), in that order. The Pack tab can also load a

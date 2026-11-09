@@ -487,7 +487,9 @@ of opening or showing an item for everyone.
 classes, with the comments as help), the window with its items, problem checks while you type, and a view of the server's resource
 pack for custom items and for moving glyphs in titles. With `editor.enabled` in `config.yml` the editor reads and saves the menus
 on the server directly (the old file is kept as `<name>.conf.bak`); without it the link carries the menu and the editor gives a
-file back. How to host it and how to reach a server from it: `editor/README.md`.
+file back. `/xmenu share [menu]` makes a link that works through a relay (`relay/`, set as `editor.relay.url`): the plugin only connects out,
+everything is encrypted with a key that is only in the link, several people can use it, and what they save waits in `/xmenu edits` until an admin
+runs `/xmenu edits apply <id>` or `drop <id>`. How to host it and how to reach a server from it: `editor/README.md`.
 
 ## Extending
 

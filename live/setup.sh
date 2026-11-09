@@ -74,10 +74,14 @@ if [ -n "${XM_ADDON:-}" ]; then
   rm -rf "$classes"
 fi
 # XM_EDITOR=1 turns the web editor's endpoint on (port XM_EDITOR_PORT, default 8123; XM_EDITOR_PACK is the pack zip to show).
+# XM_RELAY=<url> sets editor.relay.url, for /xmenu share (run the relay with `node menu/relay/relay.js`).
 # XM_GLYPHS=<folder> copies a glyphs folder of Nexo or Oraxen to the server, for the glyph names the editor lists.
-if [ -n "${XM_EDITOR:-}" ]; then
+if [ -n "${XM_EDITOR:-}${XM_RELAY:-}" ]; then
   mkdir -p "$server/plugins/XaliMenu"
-  printf 'editor:\n  enabled: true\n  port: %s\n  pack: "%s"\n' "${XM_EDITOR_PORT:-8123}" "${XM_EDITOR_PACK:-}" > "$server/plugins/XaliMenu/config.yml"
+  {
+    printf 'editor:\n  enabled: %s\n  port: %s\n  pack: "%s"\n' "$([ -n "${XM_EDITOR:-}" ] && echo true || echo false)" "${XM_EDITOR_PORT:-8123}" "${XM_EDITOR_PACK:-}"
+    [ -z "${XM_RELAY:-}" ] || printf '  relay:\n    url: "%s"\n' "$XM_RELAY"
+  } > "$server/plugins/XaliMenu/config.yml"
 fi
 if [ -n "${XM_GLYPHS:-}" ]; then mkdir -p "$server/plugins/Nexo" && cp -r "$XM_GLYPHS" "$server/plugins/Nexo/glyphs"; fi
 cp "$here"/menus/*.conf "$server/plugins/XaliMenu/menus/"

@@ -219,3 +219,21 @@ Each step ends with tests, the README section, and a commit.
   26.2): `/v1/info` with the values and settings of every catalog, and `/v1/elements` for players, worlds, menus, inventory (named
   items, armor and empty slots), range (the first 500 of 1198), values sorted backwards, a catalog that does not exist, one missing a
   key, a request without a catalog, and a bad token. Not done: an `entities` catalog (needs an entity scope that is safe on Folia).
+
+### 10. Sharing the editor through a relay (done, tested live)
+
+- For a public editor like LuckPerms', without hosting anything on GitHub Pages: `menu/relay` is a Node mailbox (no dependencies, in memory,
+  sessions that end when the plugin stops asking). `/xmenu share [menu]` opens a session at `editor.relay.url` and prints
+  `#relay=...&session=...&key=...`; the plugin only connects out. Requests and answers are AES-256-GCM, with the key only in the fragment
+  (the relay sees bytes; session and direction are in the associated data; old, repeated and foreign requests are dropped).
+- The page side is `RelayServer` (`web/src/relay.js`), the same `Server` as the direct endpoint, so everything else (live elements, glyphs,
+  checks) works unchanged. The routes moved to `EditorApi`, used by the HTTP endpoint and the relay.
+- Several people can use a link. What they save is checked and held (`PendingEdits`); admins get a message, `/xmenu edits` lists, and
+  `apply <id>` / `drop <id>` decide. Nothing from a shared link is written unseen, since a menu can run commands.
+- Tests: relay (`node --test relay/test`), the page's crypto and flow (`web/test/relay.test.js`), Kotlin (`EditorRelayTest`: a message made by the
+  page's JavaScript is read by the Kotlin code, the held edits). Live (`live/bot/relay.js`, Folia 26.2): the link, `info`/`menu`/`save` through
+  a real relay, the save held and announced, a menu that cannot load refused, `/xmenu edits`, `apply` (the file changed, the old kept),
+  a second `apply` unknown, and `share stop` ending the session at the relay.
+- Not done: a read-only link (any holder can send edits, which the admin sees as held), live seeing of each other's changes while editing
+  (each person works on their own copy), packs over 5 MB through the relay, a hosted relay.
+
