@@ -52,8 +52,11 @@ The editor draws what a player sees, from the same files the game reads, with no
   and the durability bar are drawn as the game draws them, and the tooltip uses the game's own sprites, with the name, enchantments and lore.
 - **The game's files** are read from a public copy of Mojang's assets (`editor/web/src/assets.js` names it and the version) and are not
   part of this repository. Everything is fetched the first time it is needed, so the first draw of a menu takes a moment.
-- Not exact: the shimmer of an enchanted item (it moves in the game; one moment of it is shown), `head:<name>` heads (they use the default skin; only `texture:` skins are fetched), and text outside the Latin range (the game's
-  Unifont is not read).
+- Not exact: the shimmer of an enchanted item (it moves in the game; one moment of it is shown), `head:<name>` heads (they use the default skin; only `texture:` skins are fetched).
+- Text the game's own pictures lack is drawn with its fallback font, Unifont (`src/unihex.js`: the `unihex` providers, half size, `size_overrides`), read
+  once and only when such a character appears. The zip files come from the public copy when it has them, else (connected to a server) from
+  `GET /v1/game-file?name=font/unifont.zip`, which downloads the file from Mojang's servers for the server's version, checks its hash, and keeps it in
+  `plugins/XaliMenu/cache/game`. It will fetch no file but a zip of the game's `font` folder.
 
 ## Using it
 

@@ -4,6 +4,7 @@
 import { Zip } from './zip.js'
 import { DEFAULT_FONT, readFonts, flatten, cells, spaces, key } from './fonts.js'
 import { split, pickModel, modelTexture } from './models.js'
+import { UnihexSet } from './unihex.js'
 
 /** One character of a font that is a picture. [advance] is how far it moves the text on, in pixels of the game's font (8 high). */
 export class Glyph {
@@ -15,14 +16,21 @@ export class Glyph {
 
 export class Font {
   /** @param {Map<string, Glyph>} glyphs @param {Map<string, number>} spaces */
-  constructor(glyphs, spaces) {
+  constructor(glyphs, spaces, late = null) {
     this.glyphs = glyphs
     this.spaces = spaces
+    /** The glyphs of `unihex` providers, which are read only when a character nothing else has is asked for. */
+    this.late = late
   }
+
+  /** Reads what is kept back (the fallback font), if there is any. */
+  loadLate() { return this.late ? this.late.load() : Promise.resolve() }
+
+  glyphOf(character) { return this.glyphs.get(character) ?? this.late?.get(character) ?? null }
 
   /** How far the character moves the text on, or null if the font does not have it. */
   advance(character) {
-    return this.spaces.get(character) ?? this.glyphs.get(character)?.advance ?? null
+    return this.spaces.get(character) ?? this.glyphOf(character)?.advance ?? null
   }
 
   /**
@@ -32,7 +40,7 @@ export class Font {
   draw(ctx, character, x, lineTop, scale, color) {
     const space = this.spaces.get(character)
     if (space !== undefined) return space
-    const glyph = this.glyphs.get(character)
+    const glyph = this.glyphOf(character)
     if (!glyph) return null
     const width = glyph.sw * glyph.scale * scale
     const height = glyph.sh * glyph.scale * scale
@@ -84,6 +92,9 @@ export class Pack {
     return buildFont(providers, async (file) => {
       const image = await this.image(`assets/${split(file).ns}/textures/${split(file).path}`)
       return image ? { image, width: image.width, height: image.height, pixels: readPixels(image) } : null
+    }, async (file) => {
+      const name = `assets/${split(file).ns}/${split(file).path}`
+      return this.zip.has(name) ? this.zip.bytes(name) : null
     })
   }
 
@@ -145,7 +156,7 @@ export class Pack {
  * @param {any[]} providers
  * @param {(file: string) => Promise<{image: CanvasImageSource, width: number, height: number, pixels: Uint8ClampedArray}|null>} load
  */
-export async function buildFont(providers, load) {
+export async function buildFont(providers, load, loadBytes = null) {
   const glyphs = new Map()
   for (const provider of providers) {
     if (provider.type !== 'bitmap' || !provider.file) continue
@@ -163,7 +174,13 @@ export async function buildFont(providers, load) {
       glyphs.set(character, new Glyph(loaded.image, c * sw, r * sh, sw, sh, provider.ascent ?? 0, height, Math.round(width * scale) + 1))
     }))
   }
-  return new Font(glyphs, spaces(providers))
+  const hex = providers.filter((p) => p.type === 'unihex' && p.hex_file)
+  const late = hex.length && loadBytes ? new UnihexSet(hex, loadBytes, (picture, advance) => {
+    const canvas = new OffscreenCanvas(picture.width, picture.height)
+    canvas.getContext('2d').putImageData(new ImageData(picture.data, picture.width, picture.height), 0, 0)
+    return new Glyph(canvas, 0, 0, picture.width, picture.height, 7, 8, advance)
+  }) : null
+  return new Font(glyphs, spaces(providers), late)
 }
 
 function readPixels(image) {

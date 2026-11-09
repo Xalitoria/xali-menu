@@ -8,6 +8,8 @@ export const settings = {
   version: '26.2',
   /** Fetches a skin by its address through the server, since Mojang's texture server does not let other sites read it. Set when the editor is connected. */
   skinProxy: null,
+  /** Fetches a big file of the game that is not in the public copy (the fallback font's zip) through the server, which can read Mojang's. Set when the editor is connected. */
+  gameFile: null,
 }
 
 /** The pixels of a texture: RGBA, row by row. */
@@ -16,6 +18,15 @@ export class Texture {
     this.width = width
     this.height = height
     this.data = data
+  }
+}
+
+/** Parses [text] as JSON, forgiving commas before a closing bracket. */
+export function lenient(text) {
+  try { return JSON.parse(text) } catch (error) {
+    const repaired = text.replace(/,(\s*[\]}])/g, '$1')
+    if (repaired === text) throw error
+    return JSON.parse(repaired)
   }
 }
 
@@ -41,7 +52,8 @@ export class Assets {
     return this.cached(`json:${ns}:${folder}/${path}`, async () => {
       const file = `assets/${ns}/${folder}/${path}.json`
       if (this.pack?.zip.has(file)) return this.pack.zip.json(file)
-      return this.fetchGame(ns, file, (response) => response.json())
+      // Mojang's own files are read the way the game reads them, which forgives a comma before a closing bracket (some of them have one).
+      return this.fetchGame(ns, file, async (response) => lenient(await response.text()))
     })
   }
 
@@ -62,7 +74,8 @@ export class Assets {
     return this.cached(`meta:${ns}:${path}`, async () => {
       const file = `assets/${ns}/textures/${path}.png.mcmeta`
       if (this.pack?.zip.has(file)) return this.pack.zip.json(file)
-      return this.fetchGame(ns, file, (response) => response.json())
+      // Mojang's own files are read the way the game reads them, which forgives a comma before a closing bracket (some of them have one).
+      return this.fetchGame(ns, file, async (response) => lenient(await response.text()))
     })
   }
 
@@ -83,7 +96,9 @@ export class Assets {
     return this.cached(`bytes:${ns}:${file}`, async () => {
       const name = `assets/${ns}/${file}`
       if (this.pack?.zip.has(name)) return this.pack.zip.bytes(name)
-      return this.fetchGame(ns, name, async (response) => new Uint8Array(await response.arrayBuffer()))
+      const found = await this.fetchGame(ns, name, async (response) => new Uint8Array(await response.arrayBuffer()))
+      if (found || ns !== 'minecraft' || !settings.gameFile) return found
+      return settings.gameFile(file).catch(() => null)
     })
   }
 

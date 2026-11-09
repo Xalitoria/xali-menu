@@ -105,6 +105,7 @@ export class App {
       if ((hash.server && hash.token) || (hash.relay && hash.session && hash.key)) {
         this.server = hash.relay ? new RelayServer(hash.relay, hash.session, hash.key, askName()) : new Server(hash.server, hash.token)
         assetSettings.skinProxy = (url) => this.server.skin(url)
+        assetSettings.gameFile = (file) => this.server.gameFile(file)
         services.server = this.server
         forgetCatalog()
         const info = await this.server.info()

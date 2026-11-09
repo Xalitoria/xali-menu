@@ -58,6 +58,9 @@ export class Text {
             const canvas = new OffscreenCanvas(texture.width, texture.height)
             canvas.getContext('2d').putImageData(new ImageData(texture.data, texture.width, texture.height), 0, 0)
             return { image: canvas, width: texture.width, height: texture.height, pixels: texture.data }
+          }, async (file) => {
+            const { ns, path } = split(file)
+            return this.assets.bytes(ns, path)
           }))
         }
         return list
@@ -78,6 +81,12 @@ export class Text {
     for (const run of parts) {
       const k = fontKey(run.font ?? DEFAULT_FONT)
       if (!fontsByKey.has(k)) fontsByKey.set(k, await this.fonts(k))
+    }
+    // The fallback font is read once, and only for a character that no font has.
+    for (const run of parts) {
+      const fonts = fontsByKey.get(fontKey(run.font ?? DEFAULT_FONT))
+      const lacking = [...run.text].some((c) => c >= ' ' && fonts.every((f) => f.advance(c) === null))
+      if (lacking) await Promise.all(fonts.map((f) => f.loadLate()))
     }
     const placed = []
     let x = 0

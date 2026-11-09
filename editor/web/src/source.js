@@ -81,6 +81,12 @@ export class Server {
     return (await (await this.request('/colors', { method: 'POST', body: JSON.stringify({ potions }) })).json()).colors ?? []
   }
 
+  /** A file of the game's own resources that the page cannot get itself, such as `font/unifont.zip`, through the server. @returns {Promise<Uint8Array|null>} */
+  async gameFile(file) {
+    const response = await this.request(`/game-file?name=${encodeURIComponent(file)}`, { headers: { Accept: 'application/zip' } }).catch(() => null)
+    return response ? new Uint8Array(await response.arrayBuffer()) : null
+  }
+
   /** A skin of Mojang's texture server, through the server of the plugin. */
   async skin(url) {
     return (await this.request(`/skin?url=${encodeURIComponent(url)}`, { headers: { Accept: 'image/png' } })).blob()
