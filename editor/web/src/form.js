@@ -12,6 +12,11 @@ const FORMATTED = new Set(['title', 'name', 'item-name', 'lore', 'text', 'subtit
 /** The first sentence of a comment, for the line under a label. */
 const firstSentence = (text) => (text ?? '').split(/(?<=\.)\s/)[0]
 
+/** Whether a control of [type] holds other controls (an object, a map, a list of objects), and so is given the whole width. */
+function isBlock(type) {
+  return ['object', 'map', 'poly'].includes(type.kind) || (type.kind === 'list' && ['object', 'poly', 'map', 'list'].includes(type.of?.kind))
+}
+
 export class Form {
   /**
    * @param {import('./schema.js').Schema} schema
@@ -42,10 +47,40 @@ export class Form {
     const extra = options.only ? [] : Object.keys(value).filter((k) => !known.some((f) => f.key === k) && !(k === 'type' && options.variant))
 
     const root = h('div', { class: 'object' })
-    for (const field of this.ordered(present, options.first)) root.append(this.field(field, [...path, field.key], value[field.key]))
+    for (const field of this.ordered(present, options.first)) {
+      const fieldPath = [...path, field.key]
+      const chain = this.chain(field, fieldPath, value[field.key])
+      root.append(this.field(field, fieldPath, value[field.key], chain))
+      // The keys that could still be added at the levels the row passes through: they have no row of their own to put an adder in.
+      const inner = chain.levels.flatMap((level) => level.absent.map((f) => ({ label: [...level.labels, f.key].join(' › '), path: [...level.path, f.key], field: f })))
+      if (inner.length) root.append(this.adder(inner))
+    }
     for (const key of extra) root.append(this.unknown(key, [...path, key], value[key]))
-    if (absent.length) root.append(this.adder(absent, path))
+    if (absent.length) root.append(this.adder(absent.map((f) => ({ label: f.key, path: [...path, f.key], field: f }))))
     return root
+  }
+
+  /**
+   * An object whose one key holds another object (`click` holds only `left`, which holds only `actions`) is shown as one row, `click › left › actions`, not
+   * as a staircase of indents; the keys that could be added at the levels in between go into an adder under it.
+   * @returns {{labels: string[], levels: {labels: string[], path: Array, absent: object[]}[], field: object, path: Array, value: *}} the row to draw: the field
+   *   at the end of the chain, with its own path and value, and the levels passed through (none when the field is not the start of a chain)
+   */
+  chain(field, path, value) {
+    const labels = [field.key]
+    const levels = []
+    let at = { field, path, value }
+    while (at.field.type.kind === 'object') {
+      const known = this.schema.fields(at.field.type.type)
+      const object = at.value ?? {}
+      const present = known.filter((f) => f.required || f.key in object)
+      const stray = Object.keys(object).some((k) => !known.some((f) => f.key === k))
+      if (present.length !== 1 || stray || !isBlock(present[0].type)) break
+      levels.push({ labels: labels.slice(), path: at.path, absent: known.filter((f) => !f.required && !(f.key in object)) })
+      labels.push(present[0].key)
+      at = { field: present[0], path: [...at.path, present[0].key], value: object[present[0].key] }
+    }
+    return { labels, levels, ...at }
   }
 
   ordered(fields, first = []) {
@@ -53,18 +88,20 @@ export class Form {
     return [...fields].sort((a, b) => rank(a) - rank(b))
   }
 
-  /** One row: a label, the control, and a button to take the key away again. */
-  field(field, path, value) {
-    const control = this.control(field.type, path, value, field)
-    const missing = field.required && value === undefined
+  /** One row: a label, the control, and a button to take the key away again. [chain] is what [chain] made of it: the row may be several keys deep. */
+  field(field, path, value, chain = this.chain(field, path, value)) {
+    const end = chain.field
+    const control = this.control(end.type, chain.path, chain.value, end)
+    const missing = end.required && chain.value === undefined
     // A control that holds other controls (an object, a map, a list of objects) gets the whole width, with its label above it.
-    const block = ['object', 'map', 'poly'].includes(field.type.kind) || (field.type.kind === 'list' && ['object', 'poly', 'map', 'list'].includes(field.type.of?.kind))
-    return h('div', { class: `field ${missing ? 'missing' : ''} ${block ? 'block' : ''}`, 'data-key': field.key },
-      h('label', { title: field.doc ?? '' },
-        field.key, field.required && h('span', { class: 'req', title: 'required' }, '*')),
+    const block = isBlock(end.type)
+    const deep = chain.levels.length > 0
+    return h('div', { class: `field ${missing ? 'missing' : ''} ${block ? 'block' : ''} ${deep ? 'chained' : ''}`, 'data-key': field.key },
+      h('label', { title: (deep ? end.doc : field.doc) ?? '' },
+        chain.labels.join(' › '), end.required && h('span', { class: 'req', title: 'required' }, '*')),
       h('div', { class: 'control' }, control),
-      !field.required && h('button', { class: 'icon', title: 'Remove this property', onclick: () => this.store.remove(path) }, '×'),
-      field.doc && h('div', { class: 'hint', title: field.doc }, doc(firstSentence(field.doc))),
+      !field.required && h('button', { class: 'icon', title: deep ? `Remove ${chain.labels.join(' › ')}` : 'Remove this property', onclick: () => this.store.remove(path) }, '×'),
+      (deep ? end.doc : field.doc) && h('div', { class: 'hint', title: (deep ? end.doc : field.doc) }, doc(firstSentence(deep ? end.doc : field.doc))),
     )
   }
 
@@ -77,14 +114,14 @@ export class Form {
     )
   }
 
-  /** A choice of the keys that are not set yet. */
-  adder(absent, path) {
+  /** A choice of the keys that are not set yet: [options] are `{label, path, field}`, the path being where the key goes. */
+  adder(options) {
     const select = h('select', { class: 'adder', onchange: () => {
-      const field = absent.find((f) => f.key === select.value)
-      if (field) this.store.set([...path, field.key], field.default !== undefined ? structuredClone(field.default) : this.schema.blank(field.type))
+      const option = options[Number(select.value)]
+      if (option) this.store.set(option.path, option.field.default !== undefined ? structuredClone(option.field.default) : this.schema.blank(option.field.type))
     } },
       h('option', { value: '' }, '+ Add property'),
-      absent.map((f) => h('option', { value: f.key, title: f.doc ?? '' }, f.key)),
+      options.map((o, i) => h('option', { value: String(i), title: o.field.doc ?? '' }, o.label)),
     )
     return h('div', { class: 'field add' }, select)
   }
