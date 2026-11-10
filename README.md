@@ -680,6 +680,10 @@ user $ docker run -d --rm --name xali-mariadb-test -p 3307:3306 -e MARIADB_ROOT_
 user $ XALIMENU_TEST_MYSQL='jdbc:mariadb://127.0.0.1:3307/xali?user=root&password=pw' ./gradlew :menu:paper:test --rerun-tasks
 ```
 
+Code review: [`.coderabbit.yaml`](.coderabbit.yaml) holds CodeRabbit's settings and what it is told about this code. With its CLI
+installed and signed in (`coderabbit auth login`), `coderabbit review --agent -t committed` reviews what has been committed, run from
+`menu/`; the same settings apply to a pull request on GitHub once the CodeRabbit app is installed on the repository.
+
 Notes for changes:
 
 - Construct a hook for an optional plugin only after checking that the plugin is present. VaultUnlocked 2.20 renamed the
