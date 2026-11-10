@@ -121,6 +121,9 @@ Each step ends with tests, the README section, and a commit.
   a payment (`take-item` first) with no gold took nothing and with 5 gold took the gold and the item, shift-click from the
   inventory, and the inventory was exactly what the sequence leaves after the menu was closed. Not tested: creative mode, other
   menu types than a chest, number-key or hotbar swaps (cancelled, as before).
+- Compatibility: `Item` gained the `accept` parameter, which changes its constructor and `copy`, so an add-on compiled against an
+  earlier API calling `Item(...)` or `item.copy(...)` needs a rebuild (`NoSuchMethodError` otherwise). Nothing is published with the
+  old shape yet; once something is, a new field goes in with a hidden constructor for the old signature.
 - Not tested live: `group` (needs Vault's permission provider) and `meta` (needs LuckPerms).
 - `skin` (a player's name or a link, `slim` for a picture) and `skin-reset` through SkinsRestorer: looked up off the region
   threads, stored for the next visit, put on on the player's thread; one that can't be found is a console warning. Tested

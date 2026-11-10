@@ -73,7 +73,7 @@ class Anvils(private val plugin: XaliMenu) : Listener {
      * window was cut off by the plugin or the server going away, and the player took it. Run on their own thread.
      */
     fun sweep(player: Player) {
-        for (inventory in listOf(player.inventory, player.enderChest)) {
+        for (inventory in [player.inventory, player.enderChest]) {
             for (slot in 0 until inventory.size) if (marked(inventory.getItem(slot))) inventory.setItem(slot, null)
         }
         if (marked(player.itemOnCursor)) player.setItemOnCursor(null)

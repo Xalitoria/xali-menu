@@ -166,6 +166,8 @@ class MoreActions {
         assertEquals(true, Prompt.Verdict.TOO_LONG.retry)
         assertEquals(false, Prompt.Verdict.CANCEL.retry)
         assertEquals("&cThat is longer than 5 characters.", short.complaint(Prompt.Verdict.TOO_LONG), "said even when no invalid text is set")
+        val translated = mc.xalitoria.menu.paper.config.MessageConfig.Input(tooLong = "Zu lang: {0}")
+        assertEquals("Zu lang: 5", short.complaint(Prompt.Verdict.TOO_LONG, translated), "the text comes from the language file")
         assertEquals(null, short.complaint(Prompt.Verdict.INVALID))
         assertEquals(Prompt.Verdict.CANCEL, short.verdict("cancel"), "cancelling doesn't have to fit")
     }

@@ -30,7 +30,7 @@ class Dialogs(private val plugin: XaliMenu) : Listener {
         val body = listOfNotNull(error?.let { DialogBody.plainMessage(ctx.component(it)) })
         val dialog = Dialog.create { factory ->
             factory.empty()
-                .base(DialogBase.builder(ctx.component(prompt.title)).canCloseWithEscape(true).body(body).inputs(listOf(field)).build())
+                .base(DialogBase.builder(ctx.component(prompt.title)).canCloseWithEscape(true).body(body).inputs([field]).build())
                 .type(DialogType.confirmation(confirm, cancel))
         }
         ctx.player.showDialog(dialog)
@@ -50,7 +50,7 @@ class Dialogs(private val plugin: XaliMenu) : Listener {
         val reply = if (key == CANCEL) prompt.cancelWord else event.dialogResponseView?.getText(FIELD).orEmpty()
         val verdict = plugin.inputs.submit(prompt, reply)
         if (!verdict.retry) return
-        player.scheduler.run(plugin, { if (plugin.inputs.waiting(prompt)) show(prompt, prompt.complaint(verdict) ?: "That isn't accepted. Try again.", reply) }, null)
+        player.scheduler.run(plugin, { if (plugin.inputs.waiting(prompt)) show(prompt, prompt.complaint(verdict, plugin.messageConfig.data.input) ?: plugin.messageConfig.data.input.notAccepted, reply) }, null)
     }
 
     private companion object {

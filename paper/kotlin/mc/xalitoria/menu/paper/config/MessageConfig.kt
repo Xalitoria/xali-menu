@@ -12,7 +12,19 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class MessageConfig(
     val commands: Commands = Commands(),
+    val input: Input = Input(),
 ) {
+    /** What an `input` action tells a player whose reply was turned down and that the action gave no text for. */
+    @Serializable
+    data class Input(
+        @SerialName("too-long")
+        private val tooLong: String = "&cThat is longer than {0} characters.",
+        @SerialName("not-accepted")
+        val notAccepted: String = "That isn't accepted. Try again.",
+    ) {
+        fun tooLong(limit: Int): String = tooLong.formatArgs(limit)
+    }
+
     @Serializable
     data class Commands(
         @SerialName("no-permission")

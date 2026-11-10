@@ -5,6 +5,7 @@ import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import net.xalitoria.menu.Action
 import mc.xalitoria.menu.paper.XaliMenu
+import mc.xalitoria.menu.paper.config.MessageConfig
 import com.xalitoria.util.message.PLAIN
 import org.bukkit.entity.Player
 import org.bukkit.event.EventHandler
@@ -39,8 +40,8 @@ class Prompt(
     enum class Channel { CHAT, DIALOG, ANVIL }
 
     /** What to tell the player about a reply turned down with [verdict], or null for nothing. */
-    fun complaint(verdict: Verdict): String? = when (verdict) {
-        Verdict.TOO_LONG -> "&cThat is longer than $maxLength characters."
+    fun complaint(verdict: Verdict, messages: MessageConfig.Input = MessageConfig.Input()): String? = when (verdict) {
+        Verdict.TOO_LONG -> messages.tooLong(maxLength)
         Verdict.INVALID -> invalid
         else -> null
     }
@@ -115,7 +116,7 @@ class Inputs(private val plugin: XaliMenu) : Listener {
     /** Tells the viewer of [prompt] that their reply was turned down, if there is anything to tell them. */
     fun reject(prompt: Prompt, verdict: Prompt.Verdict) {
         val player = prompt.ctx.player
-        val text = prompt.complaint(verdict) ?: return
+        val text = prompt.complaint(verdict, plugin.messageConfig.data.input) ?: return
         player.scheduler.run(plugin, { player.sendMessage(prompt.ctx.component(text)) }, null)
     }
 
