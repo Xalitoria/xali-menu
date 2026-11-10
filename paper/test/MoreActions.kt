@@ -25,7 +25,7 @@ class MoreActions {
     private val log = mutableListOf<String>()
 
     private val host = object : Host {
-        override fun run(actions: List<Action>, ctx: Context) = runActions(actions, ctx) { _, reason -> log += "failed: $reason" }
+        override fun run(actions: List<Action>, ctx: Context) { runActions(actions, ctx) { _, reason -> log += "failed: $reason" } }
         override fun runLater(player: Player, ticks: Long, task: () -> Unit) = Unit
         override fun console(command: String) = Unit
         override fun open(player: Player, menu: String, args: List<String>) = Unit

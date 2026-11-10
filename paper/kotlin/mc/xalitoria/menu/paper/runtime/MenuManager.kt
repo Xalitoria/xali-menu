@@ -211,8 +211,13 @@ class MenuManager(private val plugin: XaliMenu) {
                 value.allSlots().filter { it !in 0 until definition.size }.forEach { problems += "item '$key' is in slot $it, outside the menu" }
             }
             plugin.items.validate(value).forEach { problems += "item '$key': $it" }
+            value.accept?.let { accept ->
+                if (definition.inventory.isNotEmpty()) problems += "item '$key' accepts items, which can't work in a menu that draws in the player's inventory"
+                accept.material?.let { if ('%' !in it && ItemFactory.material(it) == null) problems += "item '$key' accepts '$it', which isn't an item" }
+            }
         }
         for ((key, value) in definition.inventory) {
+            if (value.accept != null) problems += "inventory item '$key' accepts items, which only an item of the menu can"
             if (value.allSlots().isEmpty()) problems += "inventory item '$key' has no slot, so it is never shown"
             value.allSlots().filter { it !in Menu.INVENTORY_SLOTS }.forEach { problems += "inventory item '$key' is in slot $it, outside the inventory (0 to 35)" }
             plugin.items.validate(value).forEach { problems += "inventory item '$key': $it" }
@@ -244,7 +249,8 @@ class MenuManager(private val plugin: XaliMenu) {
         val actions = definition.onOpen + definition.onClose + frames.flatMap { it.onStart + it.onEnd } + definition.animation?.onStart.orEmpty() + definition.animation?.onEnd.orEmpty() +
             (definition.items.values + definition.inventory.values + animated + listOfNotNull(definition.pages?.item, definition.pages?.empty)).flatMap { item ->
             val clicks = item.click
-            listOfNotNull(clicks.any, clicks.left, clicks.right, clicks.shiftLeft, clicks.shiftRight, clicks.middle).flatMap { it.actions }
+            listOfNotNull(clicks.any, clicks.left, clicks.right, clicks.shiftLeft, clicks.shiftRight, clicks.middle).flatMap { it.actions } +
+                item.accept?.let { it.then + it.reject }.orEmpty()
         }
         actions.filterIsInstance<Actions.Open>().filter { menu(it.menu) == null }.forEach {
             problems += "opens the menu '${it.menu}', which doesn't exist"

@@ -11,7 +11,12 @@ import org.bukkit.entity.Player
  * commands, is handed to the scheduler that owns it.
  */
 class ActionRunner(private val plugin: XaliMenu) : Host {
-    override fun run(actions: List<Action>, ctx: Context) = runActions(actions, ctx) { action, reason ->
+    override fun run(actions: List<Action>, ctx: Context) {
+        attempt(actions, ctx)
+    }
+
+    /** Runs [actions] like [run]. @return whether they all ran to their end, with none aborting or failing */
+    fun attempt(actions: List<Action>, ctx: Context): Boolean = runActions(actions, ctx) { action, reason ->
         plugin.logger.warning("Action ${action::class.simpleName} failed in menu '${ctx.menu}': $reason")
     }
 
@@ -41,19 +46,23 @@ class ActionRunner(private val plugin: XaliMenu) : Host {
 
 /**
  * Runs [actions] in order. An action that fails is reported to [failed] and the rest still run; one that aborts ends
- * the list.
+ * the list. @return whether every action ran to its end: false when one aborted or failed
  */
-fun runActions(actions: List<Action>, ctx: Context, failed: (Action, String?) -> Unit) {
+fun runActions(actions: List<Action>, ctx: Context, failed: (Action, String?) -> Unit): Boolean {
+    var complete = true
     for (action in actions) {
         try {
             action.run(ctx)
         } catch (_: ActionsAborted) {
-            return
+            return false
         } catch (e: Exception) {
+            complete = false
             failed(action, e.message)
         } catch (e: LinkageError) {
             // A plugin whose API this was built against is installed in another version.
+            complete = false
             failed(action, "${e.message} is missing")
         }
     }
+    return complete
 }

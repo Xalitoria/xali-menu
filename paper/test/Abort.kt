@@ -13,7 +13,7 @@ class Abort {
     private val log = mutableListOf<String>()
 
     private val host = object : Host {
-        override fun run(actions: List<Action>, ctx: Context) = runActions(actions, ctx) { _, reason -> log += "failed: $reason" }
+        override fun run(actions: List<Action>, ctx: Context) { runActions(actions, ctx) { _, reason -> log += "failed: $reason" } }
         override fun runLater(player: Player, ticks: Long, task: () -> Unit) = Unit
         override fun console(command: String) = Unit
         override fun open(player: Player, menu: String, args: List<String>) = Unit
@@ -38,6 +38,16 @@ class Abort {
     fun stopEndsTheList() {
         ctx.run(listOf(step("a"), Actions.Stop, step("b")))
         assertEquals(listOf("a"), log)
+    }
+
+    @Test
+    fun theRunSaysWhetherEveryActionRanToItsEnd() {
+        val failed: (Action, String?) -> Unit = { _, _ -> }
+        assertEquals(true, runActions(listOf(step("a"), step("b")), ctx, failed))
+        assertEquals(true, runActions(emptyList(), ctx, failed))
+        assertEquals(false, runActions(listOf(step("a"), Actions.Stop, step("b")), ctx, failed), "an abort is no success")
+        assertEquals(false, runActions(listOf(step("a"), boom, step("b")), ctx, failed), "nor is a failure, though the rest ran")
+        assertEquals(listOf("a", "b", "a", "a", "b"), log.filterNot { it.startsWith("failed") })
     }
 
     @Test

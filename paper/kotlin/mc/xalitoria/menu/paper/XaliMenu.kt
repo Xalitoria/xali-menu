@@ -36,6 +36,7 @@ import mc.xalitoria.menu.paper.editor.EditorServer
 import mc.xalitoria.menu.paper.editor.EditorSessions
 import mc.xalitoria.menu.paper.runtime.ActivatorListener
 import mc.xalitoria.menu.paper.runtime.Anvils
+import mc.xalitoria.menu.paper.runtime.Deposits
 import mc.xalitoria.menu.paper.runtime.Dialogs
 import mc.xalitoria.menu.paper.runtime.Inputs
 import mc.xalitoria.menu.paper.runtime.ItemFactory
@@ -83,6 +84,7 @@ class XaliMenu : JavaPlugin() {
 
     lateinit var inputs: Inputs
     lateinit var dialogs: Dialogs
+    lateinit var deposits: Deposits
     lateinit var anvils: Anvils
         private set
 
@@ -167,6 +169,7 @@ class XaliMenu : JavaPlugin() {
         if (pm.isPluginEnabled("FancyNpcs")) FancyNpcs(this, activators).register()
         inputs = Inputs(this)
         pm.registerEvents(inputs, this)
+        deposits = Deposits(this)
         dialogs = Dialogs(this).also { pm.registerEvents(it, this) }
         anvils = Anvils(this).also { pm.registerEvents(it, this) }
         editor = EditorServer(this, EditorSessions({ config.data.editor.sessionMinutes }))

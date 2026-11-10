@@ -102,7 +102,7 @@ items {
 **The player's own inventory.** `inventory` holds items like those of `items`, drawn in the rows under the menu while it is
 open. Their `slot` and `slots` are the inventory's slots as the game numbers them: 0 to 8 the hotbar, 9 to 35 the three
 rows above it (not armor and the off hand, which the screen doesn't show). They have everything an item has: `view`,
-`priority`, `update`, clicks. Nothing else in the inventory can be moved, and nothing can be picked up while the menu is open.
+`priority`, `update`, clicks. Nothing else in the inventory can be moved, and nothing can be picked up while the menu is open (unless an item takes items, see below).
 
 ```hocon
 size = 9
@@ -117,6 +117,32 @@ This needs PacketEvents (preferred) or ProtocolLib, both optional: without eithe
 items only exist in the packets that fill the menu's window: the player's real inventory is never touched, so nothing can be lost, taken or duplicated
 (the data saved with a menu open holds the real items only). Clicks anywhere in a menu's window are cancelled. Items of an `animation`'s frames and of
 `pages` are drawn in the menu only.
+
+**Slots that take an item.** An item with `accept` takes an item from the player: they click the slot with the item on their
+cursor, or shift-click it in their inventory. With `material = "air"` the slot shows nothing. It doesn't work in a menu that
+draws in the player's inventory (the console says so when the menu is read), since the clicks there are the menu's.
+
+```hocon
+items {
+    deposit {
+        material = "air", slot = 13
+        accept {
+            material = "diamond", amount = 2
+            then = [{ type = "take-item", material = "gold_ingot", amount = 5 }, { type = "message", text = "Deposited {amount} {item}" }]
+            reject = [{ type = "message", text = "&cOnly diamonds" }]
+        }
+    }
+}
+```
+
+`material`, `name` and `model` say which items fit (any when none is given) and `amount` how many are taken from the stack,
+which must hold at least that many. The offered item is the one the server has (on the cursor, or in the slot that was
+shift-clicked), never what the client says, and **it is taken only after `then` ran to its end**: an action that aborts
+(`take-item` without enough, `give-item` with no room and `overflow = "ABORT"`, a failed check) or fails leaves it where it was, so put what can
+refuse before what gives. The server's state is looked at again just before the item is taken. `{item}` and `{amount}` are
+in scope in `then`; `reject` runs for an item that doesn't fit. Actions that wait (`delay`) are not waited for. While a menu has a slot like this,
+the player can pick up and put down items in their own inventory, which moves nothing of the menu; everything else is still cancelled. A shift-click goes to the
+first slot, in slot order, that the item fits, and does nothing if there is none.
 
 ### How a menu behaves
 

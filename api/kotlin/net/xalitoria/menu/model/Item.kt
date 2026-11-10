@@ -89,7 +89,40 @@ data class Item(
     val view: Gate? = null,
     /** What a click on the item does. */
     val click: Clicks = Clicks(),
+    /**
+     * Makes the slot take an item from the player: clicking it with the item on the cursor, or shift-clicking the item in
+     * the player's inventory. With `material = air` the slot shows nothing. It doesn't work in a menu that draws in the
+     * player's inventory.
+     */
+    val accept: Accept? = null,
 )
+
+/**
+ * What an item that [Item.accept]s takes. The offered item is the one the server has (on the player's cursor, or in the
+ * slot they shift-clicked), never what the client says. It is taken only once [then] has run to its end: an action that
+ * aborts or fails leaves it where it was, so put what can refuse (a check, a payment) first. In [then] `{item}` is the
+ * material of what was offered and `{amount}` how many are taken.
+ */
+@Serializable
+data class Accept(
+    /** Runs, in order, for an item that fits. */
+    val then: List<Action>,
+    /** Which materials fit; any item when absent. May contain placeholders. */
+    val material: String? = null,
+    /** The name an item must have, as it reads without colors. */
+    val name: String? = null,
+    /** The custom model data an item must have. */
+    val model: Int? = null,
+    /** How many are taken from the stack, which must hold at least that many. */
+    val amount: Int = 1,
+    /** Runs for an item that does not fit. */
+    val reject: List<Action> = [],
+) {
+    init {
+        require(then.isNotEmpty()) { "accept needs actions to run with the item" }
+        require(amount in 1..99) { "accept takes from 1 to 99 items" }
+    }
+}
 
 /** A pattern on a banner. */
 @Serializable

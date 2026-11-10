@@ -93,6 +93,13 @@ class MenuView(
     /** The item that is in [slot] now, if there is one. */
     fun itemAt(slot: Int): Item? = shown.getOrNull(slot)
 
+    /** Whether the menu draws in the player's own inventory, whose clicks then are the menu's and not for taking items. */
+    val drawsInventory: Boolean get() = inventoryBySlot.isNotEmpty()
+
+    /** The items now shown that take an item from the player (`accept`), by slot, with the context of their slot. */
+    fun acceptors(): List<Pair<Item, Context>> =
+        if (drawsInventory) emptyList() else shown.indices.mapNotNull { slot -> shown[slot]?.takeIf { it.accept != null }?.let { it to contextAt(slot) } }
+
     /** The item the menu has put in [slot] of the player's own inventory, if there is one. */
     fun inventoryItemAt(slot: Int): Item? = shownInventory.getOrNull(slot)
 

@@ -114,6 +114,13 @@ Each step ends with tests, the README section, and a commit.
   `then`, a replay with nothing waiting does nothing, the cancel button and the timeout cancel and the timeout clears the
   dialog). With ViaVersion installed the client's version is read (776). Not tested: a real client typing in a dialog, an old client
   through ViaBackwards (so the anvil is only reached with `mode = ANVIL`), Escape in a dialog (the client sends nothing).
+- Input slots (`accept` on an item, `Deposits.kt`): an item offered from the cursor or by shift-click is read from the server's state
+  (`CursorOffer`, `SlotOffer`), `then` runs, and only if it ran to its end (`runActions` now says so) is the amount taken, after
+  looking again. `reject` runs for a mismatch. A menu that draws in the player's inventory has none (a warning when it is read).
+  Live (`live/bot/deposit.js`, Folia 26.2, bot): the cursor took 2 at a time and refused the last 1, another item was refused and stayed,
+  a payment (`take-item` first) with no gold took nothing and with 5 gold took the gold and the item, shift-click from the
+  inventory, and the inventory was exactly what the sequence leaves after the menu was closed. Not tested: creative mode, other
+  menu types than a chest, number-key or hotbar swaps (cancelled, as before).
 - Not tested live: `group` (needs Vault's permission provider) and `meta` (needs LuckPerms).
 - `skin` (a player's name or a link, `slim` for a picture) and `skin-reset` through SkinsRestorer: looked up off the region
   threads, stored for the next visit, put on on the player's thread; one that can't be found is a console warning. Tested
@@ -256,8 +263,5 @@ Each step ends with tests, the README section, and a commit.
 
 ## Planned (asked for, not started)
 
-- **Input slots**: a slot with material `air` that takes an item from the player, when the player's inventory is not drawn in as part of the menu. The item must
-  not leave the player's inventory until the operation has succeeded, and must be checked against the server's own state (what is on the cursor
-  or in the slot server-side, not what the click says).
 - **Bedrock through Geyser**: the web editor will need changes, and what a menu looks like may differ between mobile and PC.
 

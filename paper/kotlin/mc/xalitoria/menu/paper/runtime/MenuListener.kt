@@ -25,16 +25,42 @@ class MenuListener(private val plugin: XaliMenu) : Listener {
         // The rows of the player's own inventory are the menu's too when it draws in them.
         if (!top && event.clickedInventory !== player.inventory) return
         if (player.uniqueId != view.player.uniqueId) return
+        // With a slot that takes the cursor's item, picking an item up and putting it down in the player's own inventory is
+        // left alone: it only moves things within it, and it is how an item gets to the cursor. Nothing else is.
+        if (!top && !view.drawsInventory && event.click in OFFERING && view.acceptors().isNotEmpty()) {
+            event.isCancelled = false
+            return
+        }
 
         val now = System.nanoTime()
         if (view.lastClick != 0L && now - view.lastClick < plugin.config.data.clickCooldown * 1_000_000) return
         view.lastClick = now
+
+        // A slot that takes an item: the one on the cursor, or the one shift-clicked in the player's inventory. Whatever is
+        // offered is looked up on the server, and nothing leaves the player until the slot's actions have run.
+        if (top) {
+            val accept = view.itemAt(event.slot)?.accept
+            if (accept != null && !view.drawsInventory && event.click in OFFERING && !player.itemOnCursor.isEmpty) {
+                plugin.deposits.offer(accept, CursorOffer(player), view.contextAt(event.slot))
+                return
+            }
+        } else if (event.click.isShiftClick && !view.drawsInventory && event.slot in 0..35) {
+            val offer = SlotOffer(player, event.slot)
+            val taker = view.acceptors().firstOrNull { plugin.deposits.fits(it.first.accept!!, offer, it.second) }
+            if (taker != null) plugin.deposits.offer(taker.first.accept!!, offer, taker.second)
+            return
+        }
 
         val item = (if (top) view.itemAt(event.slot) else view.inventoryItemAt(event.slot)) ?: return
         val handler = handler(item, event.click) ?: return
         val ctx = if (top) view.contextAt(event.slot) else view.ctx
         if (!handler.require.passes(ctx, run = true)) return
         plugin.actions.run(handler.actions, ctx)
+    }
+
+    private companion object {
+        /** The clicks that put the cursor's item down. */
+        val OFFERING = setOf(ClickType.LEFT, ClickType.RIGHT)
     }
 
     /** The handler for this kind of click, or the one for any click when the item has none of its own. */

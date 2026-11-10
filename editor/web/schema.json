@@ -2,6 +2,69 @@
   "version": "0.1.0",
   "root": "Menu",
   "types": {
+    "Accept": {
+      "doc": "What an item that `Item.accept`s takes. The offered item is the one the server has (on the player's cursor, or in the slot they shift-clicked), never what the client says. It is taken only once `then` has run to its end: an action that aborts or fails leaves it where it was, so put what can refuse (a check, a payment) first. In `then` `{item}` is the material of what was offered and `{amount}` how many are taken.",
+      "fields": [
+        {
+          "key": "then",
+          "type": {
+            "kind": "list",
+            "of": {
+              "kind": "poly",
+              "base": "Action"
+            }
+          },
+          "required": true,
+          "doc": "Runs, in order, for an item that fits."
+        },
+        {
+          "key": "material",
+          "type": {
+            "kind": "string"
+          },
+          "required": false,
+          "doc": "Which materials fit; any item when absent. May contain placeholders."
+        },
+        {
+          "key": "name",
+          "type": {
+            "kind": "string"
+          },
+          "required": false,
+          "doc": "The name an item must have, as it reads without colors."
+        },
+        {
+          "key": "model",
+          "type": {
+            "kind": "int"
+          },
+          "required": false,
+          "doc": "The custom model data an item must have."
+        },
+        {
+          "key": "amount",
+          "type": {
+            "kind": "int"
+          },
+          "required": false,
+          "default": 1,
+          "doc": "How many are taken from the stack, which must hold at least that many."
+        },
+        {
+          "key": "reject",
+          "type": {
+            "kind": "list",
+            "of": {
+              "kind": "poly",
+              "base": "Action"
+            }
+          },
+          "required": false,
+          "default": [],
+          "doc": "Runs for an item that does not fit."
+        }
+      ]
+    },
     "Action:actionbar": {
       "doc": "Shows `text` above the hotbar of the viewer.",
       "fields": [
@@ -3372,6 +3435,15 @@
           },
           "required": false,
           "doc": "What a click on the item does."
+        },
+        {
+          "key": "accept",
+          "type": {
+            "kind": "object",
+            "type": "Accept"
+          },
+          "required": false,
+          "doc": "Makes the slot take an item from the player: clicking it with the item on the cursor, or shift-clicking the item in the player's inventory. With `material = air` the slot shows nothing. It doesn't work in a menu that draws in the player's inventory."
         }
       ]
     },
