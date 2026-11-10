@@ -59,7 +59,7 @@ class MenuView(
         private set
 
     /** Whether the title holds anything that can change while the menu is open: a placeholder, or a `{page}` and the like. */
-    private val dynamicTitle = hasPlaceholder(menu.title)
+    private val dynamicTitle = '%' in menu.title || '{' in menu.title
 
     /** The title the player's client has; null until [title] is asked for. */
     private var shownTitle: String? = null

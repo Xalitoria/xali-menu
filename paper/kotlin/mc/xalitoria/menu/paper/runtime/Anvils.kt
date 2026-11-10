@@ -13,11 +13,11 @@ import org.bukkit.event.Listener
 import org.bukkit.event.inventory.InventoryClickEvent
 import org.bukkit.event.inventory.InventoryCloseEvent
 import org.bukkit.event.inventory.InventoryDragEvent
+import org.bukkit.event.inventory.InventoryType
 import org.bukkit.event.inventory.PrepareAnvilEvent
 import org.bukkit.event.entity.EntityPickupItemEvent
 import org.bukkit.event.player.PlayerDropItemEvent
 import org.bukkit.event.player.PlayerJoinEvent
-import org.bukkit.event.player.PlayerQuitEvent
 import org.bukkit.inventory.InventoryView
 import org.bukkit.inventory.ItemStack
 import org.bukkit.inventory.MenuType
@@ -39,7 +39,7 @@ class Anvils(private val plugin: XaliMenu) : Listener {
         val player = prompt.ctx.player
         val view = MenuType.ANVIL.builder().title(prompt.ctx.component(prompt.title)).build(player) ?: return
         open[player.uniqueId] = Open(view, prompt)
-        view.setItem(INPUT, named(prompt.initial.take(prompt.maxLength)))
+        view.setItem(INPUT, named(prompt.ctx.parse(prompt.initial).take(prompt.maxLength)))
         view.maximumRepairCost = 0
         player.openInventory(view)
     }
@@ -66,7 +66,7 @@ class Anvils(private val plugin: XaliMenu) : Listener {
     }
 
     private fun marked(stack: ItemStack?): Boolean =
-        stack != null && stack.type == Material.PAPER && stack.itemMeta?.persistentDataContainer?.has(MARK, PersistentDataType.BYTE) == true
+        stack != null && stack.type == Material.PAPER && stack.hasItemMeta() && stack.itemMeta.persistentDataContainer?.has(MARK, PersistentDataType.BYTE) == true
 
     /**
      * Takes the papers of an anvil out of [player]'s hands: their inventory, cursor and ender chest. One gets there when a
@@ -82,9 +82,15 @@ class Anvils(private val plugin: XaliMenu) : Listener {
     @EventHandler
     fun onJoin(event: PlayerJoinEvent) = sweep(event.player)
 
-    /** What is saved with a player holds none either. */
-    @EventHandler
-    fun onQuit(event: PlayerQuitEvent) = sweep(event.player)
+    /**
+     * Whichever anvil closes, its papers are looked for a tick later: a window of an instance of the plugin that has gone
+     * (a reload) returns its paper to the player when it closes, and nothing else notices.
+     */
+    @EventHandler(priority = EventPriority.MONITOR)
+    fun onAnvilClosed(event: InventoryCloseEvent) {
+        val player = event.player as? Player ?: return
+        if (event.inventory.type == InventoryType.ANVIL) player.scheduler.runDelayed(plugin, { sweep(player) }, null, 1)
+    }
 
     /** A paper that is thrown away, or picked up, is gone. */
     @EventHandler

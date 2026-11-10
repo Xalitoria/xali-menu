@@ -65,7 +65,7 @@ class Deposits(private val plugin: XaliMenu) {
     /**
      * Offers [offer] to [accept]. An item that does not fit runs `reject`. One that does runs `then`, and only when that
      * ran to its end, with nothing aborting or failing, is it taken, after looking at the server's state once more. A menu
-     * that `then` opens is opened after that. Run on the player's region thread, where nothing else changes the item meanwhile.
+     * that `then` opens is opened after that, whether the item was taken or not. Run on the player's region thread, where nothing else changes the item meanwhile.
      * @return whether the item was taken
      */
     fun offer(accept: Accept, offer: Offer, ctx: Context): Boolean {
@@ -85,27 +85,40 @@ class Deposits(private val plugin: XaliMenu) {
             }
             return true
         } finally {
-            settling.end(id).forEach { it() }
+            // Each on its own, so that one that fails neither changes what the offer came to nor keeps the others from running.
+            for (task in settling.end(id)) {
+                runCatching(task).onFailure { plugin.logger.warning("A menu opened by '${ctx.menu}' after its item was taken failed: ${it.message}") }
+            }
         }
     }
 }
 
-/** What waits for a deposit to be settled, by player: the tasks that were put off until then. */
+/**
+ * What waits for a deposit to be settled, by player: the tasks that were put off until then. A deposit that starts inside
+ * another one (the actions of one run another) is part of it, and what it puts off waits for the outermost to end.
+ */
 class Deferred {
-    private val waiting = ConcurrentHashMap<UUID, MutableList<() -> Unit>>()
+    private class Deposit(var depth: Int = 0, val tasks: MutableList<() -> Unit> = mutableListOf())
+
+    private val going = ConcurrentHashMap<UUID, Deposit>()
 
     /** Starts a deposit for [id]. */
     fun begin(id: UUID) {
-        waiting[id] = mutableListOf()
+        going.computeIfAbsent(id) { Deposit() }.depth++
     }
 
     /** Keeps [task] for the end of [id]'s deposit. @return false if there is none going on */
     fun defer(id: UUID, task: () -> Unit): Boolean {
-        val queue = waiting[id] ?: return false
-        queue += task
+        val deposit = going[id] ?: return false
+        deposit.tasks += task
         return true
     }
 
-    /** Ends [id]'s deposit. @return what was kept, in order */
-    fun end(id: UUID): List<() -> Unit> = waiting.remove(id).orEmpty()
+    /** Ends [id]'s deposit, the innermost first. @return what was kept, in order, once the outermost has ended; nothing before */
+    fun end(id: UUID): List<() -> Unit> {
+        val deposit = going[id] ?: return emptyList()
+        if (--deposit.depth > 0) return emptyList()
+        going.remove(id)
+        return deposit.tasks
+    }
 }

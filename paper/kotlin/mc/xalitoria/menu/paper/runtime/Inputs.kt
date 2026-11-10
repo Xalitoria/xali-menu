@@ -71,9 +71,8 @@ class Inputs(private val plugin: XaliMenu) : Listener {
         val player = prompt.ctx.player
         if (!waiting.remove(player.uniqueId, prompt)) return false
         dismiss(prompt)
-        // From the event of a window closing, what the actions open can't be opened yet. By the next tick the player may have
-        // been asked something else, which these would then answer for.
-        if (deferred) player.scheduler.run(plugin, { if (!pending(player)) prompt.ctx.run(prompt.cancelled) }, null) else prompt.ctx.run(prompt.cancelled)
+        // From the event of a window closing, what the actions open can't be opened yet.
+        if (deferred) player.scheduler.run(plugin, { prompt.ctx.run(prompt.cancelled) }, null) else prompt.ctx.run(prompt.cancelled)
         return true
     }
 

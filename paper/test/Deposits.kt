@@ -73,6 +73,22 @@ class Deposits {
     }
 
     @Test
+    fun aDepositInsideAnotherWaitsForTheOutermost() {
+        val deferred = Deferred()
+        val id = UUID.randomUUID()
+        val log = mutableListOf<String>()
+        deferred.begin(id)
+        deferred.defer(id) { log += "outer" }
+        deferred.begin(id)
+        deferred.defer(id) { log += "inner" }
+        assertTrue(deferred.end(id).isEmpty(), "the inner one ends without letting anything go")
+        assertTrue(deferred.defer(id) { log += "still going" }, "the outer one still puts things off")
+        deferred.end(id).forEach { it() }
+        assertEquals(listOf("outer", "inner", "still going"), log)
+        assertTrue(deferred.end(id).isEmpty())
+    }
+
+    @Test
     fun aPlaceholderIsAPercentNameOrAnArgument() {
         assertTrue(hasPlaceholder("%player_name%"))
         assertTrue(hasPlaceholder("{want}"))

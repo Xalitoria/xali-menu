@@ -140,7 +140,7 @@ which must hold at least that many. The offered item is the one the server has (
 shift-clicked), never what the client says, and **it is taken only after `then` ran to its end**: an action that aborts
 (`take-item` without enough, `give-item` with no room and `overflow = "ABORT"`, a failed check) or fails leaves it where it was, so put what can
 refuse before what gives. The server's state is looked at again just before the item is taken. `{item}` and `{amount}` are
-in scope in `then`; `reject` runs for an item that doesn't fit. Actions that wait (`delay`) are not waited for. An `open` in `then` opens its menu once the item has been taken, since opening one gives the cursor's item back to the inventory. While a menu has a slot like this,
+in scope in `then`; `reject` runs for an item that doesn't fit. Actions that wait (`delay`) are not waited for. An `open` in `then` opens its menu once the deposit has been settled (the item taken, or not), since opening a menu gives the cursor's item back to the inventory. Only `open` is put off: a command run for the player that opens a window by itself would give the item back first, and the item then could not be taken (the console says so). While a menu has a slot like this,
 the player can pick up and put down items in their own inventory, which moves nothing of the menu; everything else is still cancelled. A shift-click goes to the
 first slot, in slot order, that the item fits, and does nothing if there is none.
 
