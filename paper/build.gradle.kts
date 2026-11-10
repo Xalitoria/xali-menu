@@ -14,6 +14,7 @@ repositories {
     maven("https://maven.enginehub.org/repo/")
     maven("https://repo.codemc.io/repository/maven-releases/")
     maven("https://repo.dmulloy2.net/repository/public/")
+    maven("https://repo.viaversion.com/")
 }
 
 dependencies {
@@ -37,6 +38,8 @@ dependencies {
     // Either one lets a menu draw in the player's inventory; neither is loaded unless it is installed.
     compileOnly("com.github.retrooper:packetevents-spigot:2.14.0")
     compileOnly("com.comphenix.protocol:ProtocolLib:5.3.0")
+    // Tells which version a player's client is, so a text input knows whether the client has dialogs.
+    compileOnly("com.viaversion:viaversion-api:5.12.2")
 
     testImplementation(libs.xalicraft.util)
     testImplementation(libs.kotlinx.serialization.hocon)

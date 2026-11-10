@@ -11,8 +11,11 @@ import mc.xalitoria.menu.paper.XaliMenu
 import mc.xalitoria.menu.paper.XaliMenu.Companion.debug
 import mc.xalitoria.menu.paper.api.TypeRegistry
 import mc.xalitoria.menu.paper.condition.PlayerConditions
+import mc.xalitoria.menu.paper.runtime.Clients
 import mc.xalitoria.menu.paper.runtime.Context
 import mc.xalitoria.menu.paper.runtime.Prompt
+
+private const val MAX_LENGTH = 1024
 
 /** The actions that ask the viewer for something, and the ones for the groups and meta data of a permission plugin. */
 object Social {
@@ -24,14 +27,23 @@ object Social {
     }
 
     /**
-     * Closes the menu and asks the viewer to type something in chat. What they type is not said in chat; it runs [then] as
-     * `{input}`. Typing [cancel] (or waiting longer than [timeout]) runs [onCancel] instead. With [match], a regular
-     * expression the whole reply must fit, anything else is turned down with [invalid] and the viewer may try again.
+     * Closes the menu and asks the viewer to type something. [mode] says where: a dialog with a text field on clients that
+     * have them, an anvil's rename field on older ones (found through ViaVersion), or in chat. What they type is not said in
+     * chat; it runs [then] as `{input}`. Typing [cancel] (or waiting longer than [timeout]) runs [onCancel] instead, and so do
+     * the cancel button of the dialog and leaving the anvil. With [match], a regular expression the whole reply must fit,
+     * anything else is turned down with [invalid] and the viewer may try again. [title] is what the dialog and the anvil are
+     * called (the [prompt] when it is empty), [initial] what is already in the field, [submit] the label of the dialog's
+     * confirm button, and [maxLength] how long the reply may be.
      */
     @Serializable @SerialName("input")
     data class Input(
         val prompt: String,
         val then: List<Action>,
+        val mode: Mode = Mode.AUTO,
+        val title: String = "",
+        val initial: String = "",
+        val submit: String = "Confirm",
+        val maxLength: Int = 256,
         val cancel: String = "cancel",
         val onCancel: List<Action> = [],
         @Serializable(with = DurationAsString::class)
@@ -39,18 +51,35 @@ object Social {
         val match: String? = null,
         val invalid: String? = null,
     ) : Action {
+        /** `AUTO` is a dialog, or an anvil for a client that has none; the others stay where they say. */
+        enum class Mode { AUTO, ANVIL, CHAT }
+
         init {
             require(then.isNotEmpty()) { "input needs actions to run with the reply" }
             require(cancel.isNotBlank()) { "cancel can't be empty" }
+            require(maxLength in 1..MAX_LENGTH) { "maxLength must be from 1 to $MAX_LENGTH" }
             match?.let { Regex(it) }
         }
 
         override fun run(ctx: MenuContext) {
             val plugin = XaliMenu.INSTANCE
-            val asked = Prompt(ctx as Context, then, onCancel, cancel, match?.let(::Regex), invalid)
+            val channel = when {
+                mode == Mode.CHAT -> Prompt.Channel.CHAT
+                mode == Mode.ANVIL || !Clients.dialogs(ctx.player) -> Prompt.Channel.ANVIL
+                else -> Prompt.Channel.DIALOG
+            }
+            val asked = Prompt(
+                ctx as Context, then, onCancel, cancel, match?.let(::Regex), invalid,
+                channel, title.ifEmpty { prompt }, initial, submit, maxLength,
+            )
             ctx.close()
             plugin.inputs.ask(asked)
-            ctx.player.sendMessage(ctx.component(prompt))
+            // The menu closes on the player's next tick, which would close a window opened before it.
+            when (channel) {
+                Prompt.Channel.CHAT -> ctx.player.sendMessage(ctx.component(prompt))
+                Prompt.Channel.DIALOG -> ctx.runLater(1) { if (plugin.inputs.waiting(asked)) plugin.dialogs.show(asked) }
+                Prompt.Channel.ANVIL -> ctx.runLater(1) { if (plugin.inputs.waiting(asked)) plugin.anvils.show(asked) }
+            }
             ctx.runLater((timeout.inWholeMilliseconds / 50).coerceAtLeast(1)) { plugin.inputs.expire(asked) }
         }
     }

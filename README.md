@@ -20,6 +20,8 @@ sources through an [addon API](#extending).
 | HeadDatabase | No | The `hdb:<id>` item source. |
 | FancyNpcs | No | The `npc` activator. Citizens is not supported. |
 | WorldGuard | No | The `region-enter` and `region-leave` activators and the `region` condition. |
+| PacketEvents or ProtocolLib | No | Drawing in the player's inventory (`inventory`); PacketEvents is used if both are installed. |
+| ViaVersion | No | Tells `input` which version a player's client is, so a client that is too old for dialogs gets an anvil. Clients older than the server need it (with ViaBackwards) to join at all. |
 
 ### Modules
 
@@ -190,7 +192,7 @@ go on, and one that cannot do what the next depends on (`take-item` without enou
 | `experience`, `level` | Points or levels; `take` charges, and aborts if they have too few | `amount`, `take` |
 | `money`, `permission`, `group` | Through Vault: pay or charge, give or take a node or a group | `amount`, `take`, `currency`; `node`, `take`; `name`, `take` |
 | `meta` | A LuckPerms meta value (LuckPerms is needed); no `value` removes it | `key`, `value` |
-| `input` | Close the menu and ask for a chat reply, which runs `then` as `{input}` | `prompt`, `then`, `cancel` (word, default `cancel`), `on-cancel`, `timeout`, `match` (regex the reply must fit), `invalid` |
+| `input` | Close the menu and ask for text, which runs `then` as `{input}` | `prompt`, `then`, `mode` (`AUTO`, `ANVIL`, `CHAT`), `title`, `initial`, `submit`, `max-length`, `cancel` (word and button label, default `cancel`), `on-cancel`, `timeout`, `match` (regex the reply must fit), `invalid` |
 | `all`, `random` | Run actions as a unit, or pick `count` of them at random | `actions`, `count` |
 | `run-for` | Run actions for each element of a catalog, with `{index}` and its values | `catalog`, `actions`, `limit` (default 100) |
 | `delay`, `chance`, `stop` | Later, by chance, end the list | `ticks`, `action`; `percent`, `action` |
@@ -199,8 +201,15 @@ go on, and one that cannot do what the next depends on (`take-item` without enou
 | `log` | Write to the server log | `text`, `level` (`INFO`, `WARNING`, `ERROR`) |
 | `connect` | Send the viewer to another server of the proxy | `server` |
 
-`input` asks the viewer to type, so it closes the menu; nothing else the viewer types counts until they answer, and what
-they type is not said in chat. Chaining a `variable` action in `then` stores the answer:
+`input` asks the viewer to type, so it closes the menu. With `mode = AUTO` (the default) a client that has dialogs
+(Minecraft 1.21.6 and later) gets a dialog with a text field, `title` as its title, `initial` in the field and a `submit`
+and a `cancel` button; an older client (known through ViaVersion) gets an anvil whose rename field is the text field, taken
+by clicking its result. `ANVIL` always uses the anvil and `CHAT` asks in chat, where nothing else the viewer types counts
+until they answer and what they type is not said in chat. A reply that does not fit `match` is turned down with `invalid`
+(in the dialog it comes back with the message above the field, in the anvil the message is sent to chat) and the viewer may
+try again. Closing the anvil, the cancel button, typing the `cancel` word and the `timeout` run `on-cancel`; closing a dialog
+with Escape leaves the question open until it times out. The anvil is a window of its own, nothing in it can be taken, and
+nothing of it reaches the viewer's inventory. Chaining a `variable` action in `then` stores the answer:
 
 ```hocon
 click.any.actions = [{

@@ -14,6 +14,7 @@ import mc.xalitoria.menu.paper.action.Flow
 import mc.xalitoria.menu.paper.action.Inventory
 import mc.xalitoria.menu.paper.action.Social
 import mc.xalitoria.menu.paper.catalog.Catalogs
+import mc.xalitoria.menu.paper.runtime.Clients
 import mc.xalitoria.menu.paper.runtime.Context
 import mc.xalitoria.menu.paper.runtime.Host
 import mc.xalitoria.menu.paper.runtime.Prompt
@@ -162,6 +163,27 @@ class MoreActions {
         assertFailsWith<IllegalArgumentException> { Social.Input("?", []) }
         assertFailsWith<IllegalArgumentException> { Social.Input("?", [Actions.Stop], cancel = " ") }
         assertFailsWith<Exception> { Social.Input("?", [Actions.Stop], match = "(") }
+        assertFailsWith<IllegalArgumentException> { Social.Input("?", [Actions.Stop], maxLength = 0) }
+        assertFailsWith<IllegalArgumentException> { Social.Input("?", [Actions.Stop], maxLength = 5000) }
+        assertEquals(Social.Input.Mode.AUTO, Social.Input("?", [Actions.Stop]).mode, "a dialog or an anvil unless said otherwise")
+    }
+
+    @Test
+    fun aClientNeedsAtLeastMinecraft1216ForADialog() {
+        val player = ctx.player
+        val was = Clients.versionOf
+        try {
+            Clients.versionOf = { null }
+            assertEquals(true, Clients.dialogs(player), "nothing says the client is older than the server")
+            Clients.versionOf = { 771 }
+            assertEquals(true, Clients.dialogs(player))
+            Clients.versionOf = { 770 }
+            assertEquals(false, Clients.dialogs(player), "1.21.5 has no dialogs")
+            Clients.versionOf = { 47 }
+            assertEquals(false, Clients.dialogs(player))
+        } finally {
+            Clients.versionOf = was
+        }
     }
 
     @Test
@@ -197,7 +219,7 @@ class MoreActions {
                 { type = boss-bar, text = "Boss", color = RED, style = NOTCHED_10, progress = 0.5, duration = 3s }
                 { type = book, pages = ["one", "two"], title = T, author = A }
                 { type = particle, particle = flame, count = 5, everyone = true }
-                { type = input, prompt = "Name?", then = [ { type = message, text = "{input}" } ], match = "[a-z]+", invalid = "no", timeout = 1m }
+                { type = input, prompt = "Name?", then = [ { type = message, text = "{input}" } ], match = "[a-z]+", invalid = "no", timeout = 1m, mode = ANVIL, title = "Home", initial = "home", submit = "Save", max-length = 20 }
                 { type = group, name = vip }
                 { type = meta, key = prefix, value = "[V]" }
                 { type = all, actions = [ { type = close } ] }
@@ -218,6 +240,10 @@ class MoreActions {
         assertEquals(Effects.Change.ADD, (actions[6] as Effects.Health).change)
         assertEquals(5, (actions[9] as Effects.ShowTitle).fadeIn)
         assertEquals(1.minutes, (actions[13] as Social.Input).timeout)
+        assertEquals(
+            listOf(Social.Input.Mode.ANVIL, "Home", "home", "Save", 20),
+            (actions[13] as Social.Input).let { listOf(it.mode, it.title, it.initial, it.submit, it.maxLength) },
+        )
         assertEquals(Catalogs.Players(), (actions[18] as Flow.RunFor).catalog)
         assertEquals(Effects.Skin("Notch", slim = true), actions[20])
         assertEquals(Effects.SkinReset, actions[21])
@@ -231,7 +257,7 @@ class MoreActions {
             Effects.Teleport(y = "70"),
             Effects.Health("5", Effects.Change.TAKE),
             Flow.RunFor(Catalogs.Range("1", "4"), [Flow.All([Actions.Close])], limit = 3),
-            Social.Input("?", [Actions.Close], onCancel = [Actions.Refresh], match = "x+"),
+            Social.Input("?", [Actions.Close], onCancel = [Actions.Refresh], match = "x+", mode = Social.Input.Mode.CHAT, initial = "x"),
             Effects.Skin("{arg}"),
             Effects.SkinReset,
         )

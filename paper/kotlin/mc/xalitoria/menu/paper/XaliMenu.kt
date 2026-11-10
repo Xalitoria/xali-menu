@@ -35,6 +35,8 @@ import mc.xalitoria.menu.paper.editor.EditorRelay
 import mc.xalitoria.menu.paper.editor.EditorServer
 import mc.xalitoria.menu.paper.editor.EditorSessions
 import mc.xalitoria.menu.paper.runtime.ActivatorListener
+import mc.xalitoria.menu.paper.runtime.Anvils
+import mc.xalitoria.menu.paper.runtime.Dialogs
 import mc.xalitoria.menu.paper.runtime.Inputs
 import mc.xalitoria.menu.paper.runtime.ItemFactory
 import mc.xalitoria.menu.paper.runtime.MenuListener
@@ -80,6 +82,8 @@ class XaliMenu : JavaPlugin() {
         private set
 
     lateinit var inputs: Inputs
+    lateinit var dialogs: Dialogs
+    lateinit var anvils: Anvils
         private set
 
     lateinit var actions: ActionRunner
@@ -163,6 +167,8 @@ class XaliMenu : JavaPlugin() {
         if (pm.isPluginEnabled("FancyNpcs")) FancyNpcs(this, activators).register()
         inputs = Inputs(this)
         pm.registerEvents(inputs, this)
+        dialogs = Dialogs(this).also { pm.registerEvents(it, this) }
+        anvils = Anvils(this).also { pm.registerEvents(it, this) }
         editor = EditorServer(this, EditorSessions({ config.data.editor.sessionMinutes }))
         relay = EditorRelay(this, editor.api)
         editor.api.onHeld = { edit ->

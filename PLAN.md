@@ -96,8 +96,10 @@ Each step ends with tests, the README section, and a commit.
 - **The viewer**: `potion` (add, remove, clear all), `teleport` (`~` relative coordinates, other worlds, on the async
   teleport that is safe on Folia), `gamemode`, `health` and `food` (`SET` / `ADD` / `TAKE`, held in range), `level`.
 - **Showing things**: `title`, `boss-bar` (hidden after `duration`), `book`, `particle`.
-- **Asking**: `input`, a chat prompt that closes the menu, keeps the reply out of chat, validates it with a regex and runs
-  `then` with `{input}`; `cancel` word, `timeout`, `on-cancel`.
+- **Asking**: `input`, a prompt that closes the menu, validates the reply with a regex and runs `then` with `{input}`;
+  `cancel` word, `timeout`, `on-cancel`. It asks in a dialog (Paper's `Dialog` with a text input, for clients of 1.21.6 and
+  later), in an anvil's rename field for older ones (ViaVersion says which a client is) or in chat (`mode`). Dialog buttons
+  are read from `PlayerCustomClickEvent`, since Paper's callbacks are queued for a tick Folia may not run.
 - **Flow**: `all`, `random` (pick `count`), `run-for` (an action list for each element of a catalog, with `{index}`), `log`.
 - **Permissions**: `group` (Vault) and `meta` (LuckPerms, through its command).
 - Unit tests: removals across stacks, range and coordinate helpers, prompt verdicts, quoting for the console, flow actions,
@@ -105,6 +107,13 @@ Each step ends with tests, the README section, and a commit.
   nothing to take, clear, potion packet, teleport relative on x and z, game mode, health and food, levels, title packets,
   boss bar shown and hidden, book packet, particle packet and a bad particle failing alone, `run-for` and `random`, the
   `input` prompt (invalid reply, valid reply, timeout, cancel word) and ordinary chat afterwards.
+- Text input, live (Folia 26.2, bot; `live/bot/text.js`): the anvil (opens with the paper named `initial`, the result shows the typed
+  text, an invalid one is turned down and the anvil stays, a valid one closes it and runs `then`, leaving it or the timeout
+  cancels, shift-click and pick-up move nothing and the real inventory is the same before and after) and the dialog (the packet
+  has the title, the field with `initial` and `max_length`, an invalid reply brings it back with the reason, a valid one runs
+  `then`, a replay with nothing waiting does nothing, the cancel button and the timeout cancel and the timeout clears the
+  dialog). With ViaVersion installed the client's version is read (776). Not tested: a real client typing in a dialog, an old client
+  through ViaBackwards (so the anvil is only reached with `mode = ANVIL`), Escape in a dialog (the client sends nothing).
 - Not tested live: `group` (needs Vault's permission provider) and `meta` (needs LuckPerms).
 - `skin` (a player's name or a link, `slim` for a picture) and `skin-reset` through SkinsRestorer: looked up off the region
   threads, stored for the next visit, put on on the player's thread; one that can't be found is a console warning. Tested
@@ -250,7 +259,5 @@ Each step ends with tests, the README section, and a commit.
 - **Input slots**: a slot with material `air` that takes an item from the player, when the player's inventory is not drawn in as part of the menu. The item must
   not leave the player's inventory until the operation has succeeded, and must be checked against the server's own state (what is on the cursor
   or in the slot server-side, not what the click says).
-- **Text input**: the dialog of newer versions (Paper's `Dialog` with a text `DialogInput`) for clients that have it, an anvil rename for older ones, found by asking
-  ViaVersion (soft dependency) what version a player's client is. Chat input (`input` action) stays as it is.
 - **Bedrock through Geyser**: the web editor will need changes, and what a menu looks like may differ between mobile and PC.
 

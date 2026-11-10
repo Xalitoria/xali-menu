@@ -401,7 +401,7 @@
       ]
     },
     "Action:input": {
-      "doc": "Closes the menu and asks the viewer to type something in chat. What they type is not said in chat; it runs `then` as `{input}`. Typing `cancel` (or waiting longer than `timeout`) runs `onCancel` instead. With `match`, a regular expression the whole reply must fit, anything else is turned down with `invalid` and the viewer may try again.",
+      "doc": "Closes the menu and asks the viewer to type something. `mode` says where: a dialog with a text field on clients that have them, an anvil's rename field on older ones (found through ViaVersion), or in chat. What they type is not said in chat; it runs `then` as `{input}`. Typing `cancel` (or waiting longer than `timeout`) runs `onCancel` instead, and so do the cancel button of the dialog and leaving the anvil. With `match`, a regular expression the whole reply must fit, anything else is turned down with `invalid` and the viewer may try again. `title` is what the dialog and the anvil are called (the `prompt` when it is empty), `initial` what is already in the field, `submit` the label of the dialog's confirm button, and `maxLength` how long the reply may be.",
       "fields": [
         {
           "key": "prompt",
@@ -420,6 +420,51 @@
             }
           },
           "required": true
+        },
+        {
+          "key": "mode",
+          "type": {
+            "kind": "enum",
+            "values": [
+              "AUTO",
+              "ANVIL",
+              "CHAT"
+            ]
+          },
+          "required": false,
+          "default": "AUTO"
+        },
+        {
+          "key": "title",
+          "type": {
+            "kind": "string"
+          },
+          "required": false,
+          "default": ""
+        },
+        {
+          "key": "initial",
+          "type": {
+            "kind": "string"
+          },
+          "required": false,
+          "default": ""
+        },
+        {
+          "key": "submit",
+          "type": {
+            "kind": "string"
+          },
+          "required": false,
+          "default": "Confirm"
+        },
+        {
+          "key": "max-length",
+          "type": {
+            "kind": "int"
+          },
+          "required": false,
+          "default": 256
         },
         {
           "key": "cancel",
