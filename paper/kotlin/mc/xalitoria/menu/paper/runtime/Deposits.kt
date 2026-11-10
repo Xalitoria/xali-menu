@@ -79,6 +79,20 @@ class Deposits(private val plugin: XaliMenu) {
     }
 
     /**
+     * Where the offered [stack] is now that `then` has run: still in [offer], or, for the cursor's item only, in the inventory,
+     * where the window gives it back when `then` opened another menu. That is told by the inventory holding [stack]'s whole
+     * amount more of it than it did [before]; an item that `then` consumed, or that went elsewhere, is not looked for in
+     * other stacks. Null when it isn't to be found.
+     */
+    private fun sourceAfter(accept: Accept, offer: Offer, stack: ItemStack, before: Int, ctx: Context): Offer? {
+        if (fits(accept, offer, ctx)) return offer
+        if (offer !is CursorOffer) return null
+        val returned = SimilarOffer(ctx.player, stack)
+        val now = returned.stack() ?: return null
+        return returned.takeIf { now.amount >= before + stack.amount && now.amount >= accept.amount }
+    }
+
+    /**
      * Offers [offer] to [accept]. An item that does not fit runs `reject`. One that does runs `then`, and only when that
      * ran to its end, with nothing aborting or failing, is it taken, after looking at the server's state once more: what
      * then ran may have moved it (opening another menu returns the cursor's item to the inventory, and it is taken from there). Run on the player's region thread, where nothing else changes the item meanwhile.
@@ -90,11 +104,12 @@ class Deposits(private val plugin: XaliMenu) {
             return false
         }
         val stack = offer.stack() ?: return false
+        // What the player has of it in the inventory, to tell later whether the cursor's stack came back into it.
+        val before = SimilarOffer(ctx.player, stack).stack()?.amount ?: 0
         val given = ctx.with(mapOf("item" to stack.type.key.key, "amount" to accept.amount.toString()))
         if (!plugin.actions.attempt(accept.then, given)) return false
-        // Opening another menu from `then` has given the cursor's item back to the inventory: it is looked for there.
-        val source = if (fits(accept, offer, ctx)) offer else SimilarOffer(ctx.player, stack).takeIf { fits(accept, it, ctx) } ?: offer
-        if (!fits(accept, source, ctx) || !source.take(accept.amount)) {
+        val source = sourceAfter(accept, offer, stack, before, ctx)
+        if (source == null || !source.take(accept.amount)) {
             plugin.logger.warning("${ctx.player.name}'s ${stack.type.key.key} was gone when '${ctx.menu}' came to take it, after its actions had run")
             return false
         }

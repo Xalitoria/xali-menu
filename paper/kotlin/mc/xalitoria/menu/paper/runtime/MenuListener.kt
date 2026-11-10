@@ -19,7 +19,7 @@ class MenuListener(private val plugin: XaliMenu) : Listener {
     fun onClick(event: InventoryClickEvent) {
         val view = event.inventory.getHolder(false) as? MenuView ?: return
         // Nothing moves in or out of a menu, whichever inventory the click was in (shift-click would carry items over).
-        val cancelledBefore = event.isCancelled
+        val resultBefore = event.result
         event.isCancelled = true
         val player = event.whoClicked as? Player ?: return
         val top = event.clickedInventory === event.inventory
@@ -30,7 +30,7 @@ class MenuListener(private val plugin: XaliMenu) : Listener {
         // left alone: it only moves things within it, and it is how an item gets to the cursor. Nothing else is.
         if (!top && !view.drawsInventory && event.click in OFFERING && view.hasAcceptors()) {
             // Left as it was when it came, so what another plugin cancelled stays cancelled.
-            event.isCancelled = cancelledBefore
+            event.result = resultBefore
             return
         }
 

@@ -18,6 +18,9 @@ object Placeholders {
 
 private val ARGUMENT = Regex("\\{([^{}]+)}")
 
+/** Whether [text] has a placeholder in it, of PlaceholderAPI (`%name%`) or an argument (`{name}`): what it comes to is known when it is used. */
+fun hasPlaceholder(text: String): Boolean = '%' in text || ARGUMENT.containsMatchIn(text)
+
 /** Rendered text that has no placeholder in it, which is every title and lore line that never changes. */
 private val STATIC = ConcurrentHashMap<String, Component>()
 

@@ -261,7 +261,7 @@ class MenuManager(private val plugin: XaliMenu) {
     private fun acceptProblems(definition: Menu, item: Item): List<String> = buildList {
         val accept = item.accept ?: return@buildList
         if (definition.inventory.isNotEmpty()) add("accepts items, which can't work in a menu that draws in the player's inventory")
-        accept.material?.let { if ('%' !in it && '{' !in it && ItemFactory.material(it) == null) add("accepts '$it', which isn't an item") }
+        accept.material?.let { if (!hasPlaceholder(it) && ItemFactory.material(it) == null) add("accepts '$it', which isn't an item") }
     }
 
     /** What the plugin that added the activator [activator] makes of its keys, null if there is no such plugin or it refuses them. */

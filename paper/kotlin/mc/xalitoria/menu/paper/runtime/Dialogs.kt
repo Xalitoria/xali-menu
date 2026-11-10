@@ -48,8 +48,9 @@ class Dialogs(private val plugin: XaliMenu) : Listener {
         val player = (event.commonConnection as? PlayerGameConnection)?.player ?: return
         val prompt = plugin.inputs.promptOf(player)?.takeIf { it.channel == Prompt.Channel.DIALOG } ?: return
         val reply = if (key == CANCEL) prompt.cancelWord else event.dialogResponseView?.getText(FIELD).orEmpty()
-        if (plugin.inputs.submit(prompt, reply) != Prompt.Verdict.INVALID) return
-        player.scheduler.run(plugin, { if (plugin.inputs.waiting(prompt)) show(prompt, prompt.invalid ?: "That isn't accepted. Try again.", reply) }, null)
+        val verdict = plugin.inputs.submit(prompt, reply)
+        if (!verdict.retry) return
+        player.scheduler.run(plugin, { if (plugin.inputs.waiting(prompt)) show(prompt, prompt.complaint(verdict) ?: "That isn't accepted. Try again.", reply) }, null)
     }
 
     private companion object {

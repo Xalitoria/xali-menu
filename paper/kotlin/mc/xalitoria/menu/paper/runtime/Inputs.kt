@@ -28,14 +28,26 @@ class Prompt(
     val maxLength: Int = 256,
 ) {
     /** What a reply means to this prompt. */
-    enum class Verdict { ACCEPT, CANCEL, INVALID }
+    enum class Verdict {
+        ACCEPT, CANCEL, INVALID, TOO_LONG;
+
+        /** Whether the reply is turned down and the prompt waits for another. */
+        val retry: Boolean get() = this == INVALID || this == TOO_LONG
+    }
 
     /** The chat, the dialog of newer clients, or an anvil's rename field. */
     enum class Channel { CHAT, DIALOG, ANVIL }
 
+    /** What to tell the player about a reply turned down with [verdict], or null for nothing. */
+    fun complaint(verdict: Verdict): String? = when (verdict) {
+        Verdict.TOO_LONG -> "&cThat is longer than $maxLength characters."
+        Verdict.INVALID -> invalid
+        else -> null
+    }
+
     fun verdict(reply: String): Verdict = when {
         reply.trim().equals(cancelWord, ignoreCase = true) -> Verdict.CANCEL
-        reply.trim().length > maxLength -> Verdict.INVALID
+        reply.trim().length > maxLength -> Verdict.TOO_LONG
         match != null && !match.matches(reply.trim()) -> Verdict.INVALID
         else -> Verdict.ACCEPT
     }
@@ -55,17 +67,22 @@ class Inputs(private val plugin: XaliMenu) : Listener {
     }
 
     /** Ends [prompt] if it is still the one waiting, closes what it showed, and runs its cancel actions. @return whether it was */
-    fun expire(prompt: Prompt): Boolean {
-        if (!waiting.remove(prompt.ctx.player.uniqueId, prompt)) return false
+    fun expire(prompt: Prompt, deferred: Boolean = false): Boolean {
+        val player = prompt.ctx.player
+        if (!waiting.remove(player.uniqueId, prompt)) return false
         dismiss(prompt)
-        prompt.ctx.run(prompt.cancelled)
+        // From the event of a window closing, what the actions open can't be opened yet.
+        if (deferred) player.scheduler.run(plugin, { prompt.ctx.run(prompt.cancelled) }, null) else prompt.ctx.run(prompt.cancelled)
         return true
     }
 
     /** Ends every prompt and takes away what they put on the players' screens, for when the plugin goes away. */
     fun stop() {
-        for (prompt in waiting.values.toList()) runCatching { dismiss(prompt) }
+        var failed = 0
+        for (prompt in waiting.values.toList()) runCatching { dismiss(prompt) }.onFailure { failed++ }
         waiting.clear()
+        // Closing a window belongs to the player's own thread, which Folia keeps from a plugin that is going away.
+        if (failed > 0) plugin.logger.warning("$failed question window(s) couldn't be closed while the plugin went away; they close when their players leave")
     }
 
     /** Takes away what [prompt] put on the viewer's screen, if it is still there. */
@@ -81,12 +98,12 @@ class Inputs(private val plugin: XaliMenu) : Listener {
      * The viewer's [reply] to [prompt], from wherever they typed it and on any thread. A reply to a prompt that is no longer
      * the one waiting (it timed out, or was replaced) does nothing. What an accepted or cancelled reply triggers runs on the
      * player's own region.
-     * @return what the reply meant; [Prompt.Verdict.INVALID] leaves the prompt waiting for another
+     * @return what the reply meant; a verdict that is a [Prompt.Verdict.retry] leaves the prompt waiting for another
      */
     fun submit(prompt: Prompt, reply: String): Prompt.Verdict {
         val player = prompt.ctx.player
         val verdict = prompt.verdict(reply)
-        if (verdict == Prompt.Verdict.INVALID || !waiting.remove(player.uniqueId, prompt)) return verdict
+        if (verdict.retry || !waiting.remove(player.uniqueId, prompt)) return verdict
         player.scheduler.run(plugin, {
             if (prompt.channel == Prompt.Channel.ANVIL) plugin.anvils.close(player)
             if (verdict == Prompt.Verdict.CANCEL) prompt.ctx.run(prompt.cancelled)
@@ -95,10 +112,10 @@ class Inputs(private val plugin: XaliMenu) : Listener {
         return verdict
     }
 
-    /** Tells the viewer of [prompt] that their reply was turned down. */
-    fun reject(prompt: Prompt) {
+    /** Tells the viewer of [prompt] that their reply was turned down, if there is anything to tell them. */
+    fun reject(prompt: Prompt, verdict: Prompt.Verdict) {
         val player = prompt.ctx.player
-        val text = prompt.invalid ?: return
+        val text = prompt.complaint(verdict) ?: return
         player.scheduler.run(plugin, { player.sendMessage(prompt.ctx.component(text)) }, null)
     }
 
@@ -116,7 +133,8 @@ class Inputs(private val plugin: XaliMenu) : Listener {
         val prompt = waiting[player.uniqueId]?.takeIf { it.channel == Prompt.Channel.CHAT } ?: return
         event.isCancelled = true
         val reply = PLAIN.serialize(event.originalMessage())
-        if (submit(prompt, reply) == Prompt.Verdict.INVALID) reject(prompt)
+        val verdict = submit(prompt, reply)
+        if (verdict.retry) reject(prompt, verdict)
     }
 
     @EventHandler

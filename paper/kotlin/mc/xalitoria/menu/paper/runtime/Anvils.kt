@@ -5,6 +5,7 @@ import java.util.concurrent.ConcurrentHashMap
 import mc.xalitoria.menu.paper.XaliMenu
 import net.kyori.adventure.text.Component
 import org.bukkit.Material
+import org.bukkit.NamespacedKey
 import org.bukkit.entity.Player
 import org.bukkit.event.EventHandler
 import org.bukkit.event.EventPriority
@@ -13,10 +14,12 @@ import org.bukkit.event.inventory.InventoryClickEvent
 import org.bukkit.event.inventory.InventoryCloseEvent
 import org.bukkit.event.inventory.InventoryDragEvent
 import org.bukkit.event.inventory.PrepareAnvilEvent
+import org.bukkit.event.player.PlayerJoinEvent
 import org.bukkit.inventory.InventoryView
 import org.bukkit.inventory.ItemStack
 import org.bukkit.inventory.MenuType
 import org.bukkit.inventory.view.AnvilView
+import org.bukkit.persistence.PersistentDataType
 
 /**
  * The text input of a client without dialogs: an anvil whose rename field is the text field. It is a window of its own, not
@@ -33,7 +36,7 @@ class Anvils(private val plugin: XaliMenu) : Listener {
         val player = prompt.ctx.player
         val view = MenuType.ANVIL.builder().title(prompt.ctx.component(prompt.title)).build(player) ?: return
         open[player.uniqueId] = Open(view, prompt)
-        view.setItem(INPUT, named(prompt.initial))
+        view.setItem(INPUT, named(prompt.initial.take(prompt.maxLength)))
         view.maximumRepairCost = 0
         player.openInventory(view)
     }
@@ -51,7 +54,25 @@ class Anvils(private val plugin: XaliMenu) : Listener {
         view.setItem(RESULT, null)
     }
 
-    private fun named(text: String) = ItemStack(Material.PAPER).apply { editMeta { it.customName(Component.text(text)) } }
+    /** The paper the player renames. It is marked so that one that ever got out of the anvil can be taken away again. */
+    private fun named(text: String) = ItemStack(Material.PAPER).apply {
+        editMeta {
+            it.customName(Component.text(text))
+            it.persistentDataContainer.set(MARK, PersistentDataType.BYTE, 1)
+        }
+    }
+
+    /** Takes the papers of an anvil that got into [player]'s inventory (a window cut off by the plugin or the server going away). */
+    private fun sweep(player: Player) {
+        val inventory = player.inventory
+        for (slot in 0 until inventory.size) {
+            val held = inventory.getItem(slot) ?: continue
+            if (held.type == Material.PAPER && held.itemMeta?.persistentDataContainer?.has(MARK, PersistentDataType.BYTE) == true) inventory.setItem(slot, null)
+        }
+    }
+
+    @EventHandler
+    fun onJoin(event: PlayerJoinEvent) = sweep(event.player)
 
     private fun of(view: InventoryView): Open? = (view.player as? Player)?.let { open[it.uniqueId] }?.takeIf { it.view === view }
 
@@ -70,7 +91,8 @@ class Anvils(private val plugin: XaliMenu) : Listener {
         event.isCancelled = true
         if (event.rawSlot != RESULT || event.clickedInventory !== event.view.topInventory) return
         val reply = shown.view.renameText.orEmpty()
-        if (plugin.inputs.submit(shown.prompt, reply) == Prompt.Verdict.INVALID) plugin.inputs.reject(shown.prompt)
+        val verdict = plugin.inputs.submit(shown.prompt, reply)
+        if (verdict.retry) plugin.inputs.reject(shown.prompt, verdict)
     }
 
     @EventHandler(priority = EventPriority.HIGH)
@@ -85,11 +107,11 @@ class Anvils(private val plugin: XaliMenu) : Listener {
         val shown = of(event.view) ?: return
         open.remove(player.uniqueId, shown)
         clear(shown.view)
-        // What leaving it runs may open a window, which can't be done from the event of one closing.
-        player.scheduler.run(plugin, { plugin.inputs.expire(shown.prompt) }, null)
+        plugin.inputs.expire(shown.prompt, deferred = true)
     }
 
     private companion object {
+        val MARK = NamespacedKey("xalimenu", "anvil_input")
         const val INPUT = 0
         const val SECOND = 1
         const val RESULT = 2
