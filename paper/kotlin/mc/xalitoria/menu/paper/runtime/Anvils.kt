@@ -85,7 +85,8 @@ class Anvils(private val plugin: XaliMenu) : Listener {
         val shown = of(event.view) ?: return
         open.remove(player.uniqueId, shown)
         clear(shown.view)
-        plugin.inputs.expire(shown.prompt)
+        // What leaving it runs may open a window, which can't be done from the event of one closing.
+        player.scheduler.run(plugin, { plugin.inputs.expire(shown.prompt) }, null)
     }
 
     private companion object {

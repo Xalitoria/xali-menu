@@ -41,6 +41,10 @@ bot.once('spawn', async () => {
   await click(HOT0, 1, 'shift-click the diamonds: 2 are taken')
   await click(HOT0 + 1, 1, 'shift-click the stone: the pay slot takes anything, but there is no gold left, so it aborts and the stone stays')
 
+  log('=== opening a menu from the actions returns the cursor to the inventory; the item is still taken')
+  con('give Tester diamond 4'); await wait(800); state('4 given')
+  await click(HOT0, 0, 'pick up the diamonds (they stacked: 6)'); await click(2, 0, 'again slot: the menu opens again, 1 is taken'); await wait(800); state('reopened')
+
   log('=== the slot with nothing on the cursor, and a plain click')
   await click(4, 0, 'empty cursor on the gem slot'); await click(8, 0, 'the info item')
   bot.closeWindow(bot.currentWindow); await wait(800); state('closed')

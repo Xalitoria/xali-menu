@@ -83,8 +83,14 @@ class XaliMenu : JavaPlugin() {
         private set
 
     lateinit var inputs: Inputs
+        private set
+
     lateinit var dialogs: Dialogs
+        private set
+
     lateinit var deposits: Deposits
+        private set
+
     lateinit var anvils: Anvils
         private set
 
@@ -192,6 +198,8 @@ class XaliMenu : JavaPlugin() {
 
     override fun onDisable() {
         if (::menus.isInitialized) menus.closeAll()
+        // The questions that are open (a dialog, an anvil with its paper) are taken away rather than left to the server's shutdown.
+        if (::inputs.isInitialized) inputs.stop()
         if (::screens.isInitialized) screens.stop()
         if (::relay.isInitialized) relay.stop()
         if (::editor.isInitialized) editor.stop()

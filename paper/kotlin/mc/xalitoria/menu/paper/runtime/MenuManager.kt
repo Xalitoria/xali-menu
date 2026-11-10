@@ -211,10 +211,7 @@ class MenuManager(private val plugin: XaliMenu) {
                 value.allSlots().filter { it !in 0 until definition.size }.forEach { problems += "item '$key' is in slot $it, outside the menu" }
             }
             plugin.items.validate(value).forEach { problems += "item '$key': $it" }
-            value.accept?.let { accept ->
-                if (definition.inventory.isNotEmpty()) problems += "item '$key' accepts items, which can't work in a menu that draws in the player's inventory"
-                accept.material?.let { if ('%' !in it && ItemFactory.material(it) == null) problems += "item '$key' accepts '$it', which isn't an item" }
-            }
+            acceptProblems(definition, value).forEach { problems += "item '$key' $it" }
         }
         for ((key, value) in definition.inventory) {
             if (value.accept != null) problems += "inventory item '$key' accepts items, which only an item of the menu can"
@@ -228,6 +225,7 @@ class MenuManager(private val plugin: XaliMenu) {
             if (pages.item.slot != null || pages.item.slots.isNotEmpty()) problems += "the slot of the pages' item is not used; its place comes from pages.slots"
             (listOf("item" to pages.item) + listOfNotNull(pages.empty?.let { "empty" to it })).forEach { [label, item] ->
                 plugin.items.validate(item).forEach { problems += "pages.$label: $it" }
+                acceptProblems(definition, item).forEach { problems += "pages.$label $it" }
             }
         }
         definition.openWith.forEachIndexed { number, activator ->
@@ -242,6 +240,7 @@ class MenuManager(private val plugin: XaliMenu) {
                 if (item.allSlots().isEmpty()) problems += "frame ${number + 1}: item '$key' has no slot, so it is never shown"
                 if (definition.type == "chest") item.allSlots().filter { it !in 0 until definition.size }.forEach { problems += "frame ${number + 1}: item '$key' is in slot $it, outside the menu" }
                 plugin.items.validate(item).forEach { problems += "frame ${number + 1}: item '$key': $it" }
+                acceptProblems(definition, item).forEach { problems += "frame ${number + 1}: item '$key' $it" }
             }
         }
         val frames = definition.animation?.frames.orEmpty()
@@ -256,6 +255,13 @@ class MenuManager(private val plugin: XaliMenu) {
             problems += "opens the menu '${it.menu}', which doesn't exist"
         }
         return problems
+    }
+
+    /** What is wrong with [item] taking items from the player, in [definition]: nothing when it takes none. */
+    private fun acceptProblems(definition: Menu, item: Item): List<String> = buildList {
+        val accept = item.accept ?: return@buildList
+        if (definition.inventory.isNotEmpty()) add("accepts items, which can't work in a menu that draws in the player's inventory")
+        accept.material?.let { if ('%' !in it && '{' !in it && ItemFactory.material(it) == null) add("accepts '$it', which isn't an item") }
     }
 
     /** What the plugin that added the activator [activator] makes of its keys, null if there is no such plugin or it refuses them. */

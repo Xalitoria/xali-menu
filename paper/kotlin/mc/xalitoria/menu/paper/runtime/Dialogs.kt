@@ -20,7 +20,7 @@ class Dialogs(private val plugin: XaliMenu) : Listener {
     fun show(prompt: Prompt, error: String? = null, initial: String = prompt.initial) {
         val ctx = prompt.ctx
         val field = DialogInput.text(FIELD, ctx.component(prompt.title))
-            .width(WIDTH).labelVisible(false).initial(initial).maxLength(prompt.maxLength).build()
+            .width(WIDTH).labelVisible(false).initial(initial.take(prompt.maxLength)).maxLength(prompt.maxLength).build()
         val confirm = ActionButton.builder(ctx.component(prompt.submit)).width(BUTTON).action(
             DialogAction.customClick(CONFIRM, null),
         ).build()

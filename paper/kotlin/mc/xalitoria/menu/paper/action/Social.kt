@@ -58,6 +58,7 @@ object Social {
             require(then.isNotEmpty()) { "input needs actions to run with the reply" }
             require(cancel.isNotBlank()) { "cancel can't be empty" }
             require(maxLength in 1..MAX_LENGTH) { "maxLength must be from 1 to $MAX_LENGTH" }
+            require(initial.length <= maxLength) { "initial is longer than maxLength" }
             match?.let { Regex(it) }
         }
 

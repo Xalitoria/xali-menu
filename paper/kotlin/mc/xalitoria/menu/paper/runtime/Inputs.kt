@@ -35,6 +35,7 @@ class Prompt(
 
     fun verdict(reply: String): Verdict = when {
         reply.trim().equals(cancelWord, ignoreCase = true) -> Verdict.CANCEL
+        reply.trim().length > maxLength -> Verdict.INVALID
         match != null && !match.matches(reply.trim()) -> Verdict.INVALID
         else -> Verdict.ACCEPT
     }
@@ -59,6 +60,12 @@ class Inputs(private val plugin: XaliMenu) : Listener {
         dismiss(prompt)
         prompt.ctx.run(prompt.cancelled)
         return true
+    }
+
+    /** Ends every prompt and takes away what they put on the players' screens, for when the plugin goes away. */
+    fun stop() {
+        for (prompt in waiting.values.toList()) runCatching { dismiss(prompt) }
+        waiting.clear()
     }
 
     /** Takes away what [prompt] put on the viewer's screen, if it is still there. */

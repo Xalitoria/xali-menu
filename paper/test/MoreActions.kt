@@ -159,7 +159,16 @@ class MoreActions {
     }
 
     @Test
+    fun aReplyLongerThanTheLimitIsTurnedDown() {
+        val short = Prompt(ctx, [step("then")], [step("cancelled")], "cancel", null, null, maxLength = 5)
+        assertEquals(Prompt.Verdict.ACCEPT, short.verdict(" abcde "), "the limit counts what is left after trimming")
+        assertEquals(Prompt.Verdict.INVALID, short.verdict("abcdef"))
+        assertEquals(Prompt.Verdict.CANCEL, short.verdict("cancel"), "cancelling doesn't have to fit")
+    }
+
+    @Test
     fun inputChecksItsSettings() {
+        assertFailsWith<IllegalArgumentException> { Social.Input("?", [Actions.Stop], initial = "too long", maxLength = 5) }
         assertFailsWith<IllegalArgumentException> { Social.Input("?", []) }
         assertFailsWith<IllegalArgumentException> { Social.Input("?", [Actions.Stop], cancel = " ") }
         assertFailsWith<Exception> { Social.Input("?", [Actions.Stop], match = "(") }
