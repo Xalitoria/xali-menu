@@ -1,5 +1,6 @@
 // Writes plain objects as HOCON in the style the plugin uses for the menus it writes (see HoconWriter.kt): short plain
-// objects and lists stay on one line, longer ones are spread out, and the keys that name things come first.
+// objects and lists stay on one line, longer ones are spread out, an object that holds other objects (the items of a menu,
+// the inventory) always is, and the keys that name things come first.
 
 const WIDTH = 100
 const INDENT = '    '
@@ -24,13 +25,18 @@ function quote(text) {
   return JSON.stringify(text)
 }
 
+/** Whether [value] has an object (that isn't empty) among its values: a map of things, not one thing. */
+function holdsObjects(value) {
+  return Object.values(value).some((child) => isObject(child) && Object.keys(child).length > 0)
+}
+
 function isObject(value) { return typeof value === 'object' && value !== null && !Array.isArray(value) }
 
 function body(object, indent) {
   let out = ''
   for (const key of keys(object)) {
     const value = object[key]
-    if (isObject(value) && inline(value) === null) {
+    if (isObject(value) && (holdsObjects(value) || inline(value) === null)) {
       out += `${indent}${label(key)} {\n${body(value, indent + INDENT)}${indent}}\n`
     } else {
       out += `${indent}${label(key)} = ${render(value, indent)}\n`

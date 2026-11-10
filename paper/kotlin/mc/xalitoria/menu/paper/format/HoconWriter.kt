@@ -12,7 +12,8 @@ import com.typesafe.config.ConfigValueType.STRING
 /**
  * Writes a parsed config as HOCON a person can edit. The library's own renderer puts every value of every object
  * on a line of its own and sorts the keys, which turns a click action into seven lines; this keeps an object or
- * list on one line while it is short and plain, and puts the keys that name things (`type`, `material`) first.
+ * list on one line while it is short and plain, always spreads out an object that holds other objects (the items of a
+ * menu), and puts the keys that name things (`type`, `material`) first.
  */
 internal object HoconWriter {
     private const val WIDTH = 100
@@ -25,7 +26,7 @@ internal object HoconWriter {
 
     private fun body(obj: ConfigObject, indent: String): String = keys(obj).joinToString("") { key ->
         val value = obj.getValue(key)
-        if (value.valueType() == OBJECT && inline(value) == null) {
+        if (value.valueType() == OBJECT && (holdsObjects(value as ConfigObject) || inline(value) == null)) {
             "$indent${label(key)} {\n${body(value as ConfigObject, indent + INDENT)}$indent}\n"
         } else {
             "$indent${label(key)} = ${value(value, indent)}\n"
@@ -39,6 +40,9 @@ internal object HoconWriter {
         }
         else -> "{\n${body(value as ConfigObject, indent + INDENT)}$indent}"
     }
+
+    /** Whether [obj] has an object (that isn't empty) among its values: a map of things, not one thing. */
+    private fun holdsObjects(obj: ConfigObject): Boolean = obj.values.any { it.valueType() == OBJECT && (it as ConfigObject).isNotEmpty() }
 
     /** A long list of numbers (the slots of a menu) filled in lines, not one number to a line. */
     private fun numbers(items: List<String>, indent: String): String {

@@ -39,9 +39,12 @@ test('reports where a mistake is, and refuses substitutions', () => {
   assert.throws(() => parse('a b'), /expected '='/)
 })
 
-test('writes short objects on one line and long ones spread out', () => {
+test('writes short plain objects on one line, long ones and maps of things spread out', () => {
   const text = write({ title: 'T', items: { a: { material: 'stone', slot: 0 } }, commands: ['x', 'y'] })
-  assert.equal(text, 'title = "T"\ncommands = ["x", "y"]\nitems = { a = { material = "stone", slot = 0 } }\n')
+  assert.equal(text, 'title = "T"\ncommands = ["x", "y"]\nitems {\n    a = { material = "stone", slot = 0 }\n}\n')
+  const two = write({ title: 'New menu', size: 27, inventory: { item0: { material: 'stone', slot: 0 }, item1: { material: 'stone', slot: 2 } }, items: { item1: { material: 'stone', slot: 0 } } })
+  assert.equal(two, 'title = "New menu"\nsize = 27\ninventory {\n    item0 = { material = "stone", slot = 0 }\n    item1 = { material = "stone", slot = 2 }\n}\nitems {\n    item1 = { material = "stone", slot = 0 }\n}\n')
+  assert.equal(write({ catalog: { type: 'players' }, empty: {} }), 'catalog = { type = "players" }\nempty = {}\n', 'one plain thing, or nothing, stays on a line')
   const long = write({ items: { a: { material: 'stone', note: 'x'.repeat(120) } } })
   assert.match(long, /^items \{\n    a \{\n        material = "stone"\n        note = /)
 })

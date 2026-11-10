@@ -47,6 +47,19 @@ class MenuFormat {
     }
 
     @Test
+    fun aMapOfThingsIsSpreadOutAndAPlainThingStaysOnALine() {
+        val menu = Menu(
+            "New menu", size = 27,
+            inventory = mapOf("item0" to Item("stone", slot = 0), "item1" to Item("stone", slot = 2)),
+            items = mapOf("item1" to Item("stone", slot = 0)),
+        )
+        val text = Registry.format.encode(menu)
+        assertTrue("inventory {\n    item0 = { material = \"stone\", slot = 0 }\n    item1 = { material = \"stone\", slot = 2 }\n}\n" in text, text)
+        assertTrue("items {\n    item1 = { material = \"stone\", slot = 0 }\n}\n" in text, text)
+        assertEquals(menu, Registry.format.decode(text))
+    }
+
+    @Test
     fun readsWhatPeopleWrite() {
         val read = Registry.format.decode(
             """
