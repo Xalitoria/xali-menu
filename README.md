@@ -111,11 +111,10 @@ inventory {
 }
 ```
 
-The game has no inventory of its own to show there, so the items are put into the player's real one, over what it holds,
-which is kept and given back when the menu closes (or another opens, the player leaves or the server stops). The keep is also
-saved in the player's own data, together with the inventory, so a crash with a menu open loses nothing: the player is given it
-back when they join. The menu's items carry a mark and are taken out wherever they are found. A player who dies with a menu
-open drops what they had, not the menu's items. Items of an `animation`'s frames and of `pages` are drawn in the menu only.
+This needs PacketEvents (preferred) or ProtocolLib, both optional: without either the menu opens as usual, the rows are left as they are, and the console says so once. The
+items only exist in the packets that fill the menu's window: the player's real inventory is never touched, so nothing can be lost, taken or duplicated
+(the data saved with a menu open holds the real items only). Clicks anywhere in a menu's window are cancelled. Items of an `animation`'s frames and of
+`pages` are drawn in the menu only.
 
 ### How a menu behaves
 
@@ -620,7 +619,7 @@ commands exist is read from a quick scan of the files, so adding or removing one
 ### Not supported
 
 No Citizens support (use FancyNpcs); an NPC that is an entity can be matched by `entity`. The plan for closing the gap to AbstractMenus is [`PLAN.md`](PLAN.md). The item-count condition and the
-economy, permission and skin hooks, and the `group` and `meta` actions, are not tested against a live server, nor is a player dying with a menu open that draws in their inventory. The personal variables of every player are
+economy, permission and skin hooks, and the `group` and `meta` actions, are not tested against a live server. The personal variables of every player are
 loaded at startup.
 
 ## Development

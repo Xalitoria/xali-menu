@@ -12,6 +12,8 @@ plugins {
 repositories {
     mavenNexo()
     maven("https://maven.enginehub.org/repo/")
+    maven("https://repo.codemc.io/repository/maven-releases/")
+    maven("https://repo.dmulloy2.net/repository/public/")
 }
 
 dependencies {
@@ -32,6 +34,9 @@ dependencies {
     compileOnly(libs.skinsrestorer)
     compileOnly(libs.headdatabase)
     compileOnly("com.sk89q.worldguard:worldguard-bukkit:7.0.19")
+    // Either one lets a menu draw in the player's inventory; neither is loaded unless it is installed.
+    compileOnly("com.github.retrooper:packetevents-spigot:2.14.0")
+    compileOnly("com.comphenix.protocol:ProtocolLib:5.3.0")
 
     testImplementation(libs.xalicraft.util)
     testImplementation(libs.kotlinx.serialization.hocon)

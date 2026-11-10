@@ -327,7 +327,9 @@ class MenuManager(private val plugin: XaliMenu) {
             Bukkit.createInventory(view, runCatching { InventoryType.valueOf(menu.type.uppercase()) }.getOrDefault(InventoryType.CHEST), title)
         }
         view.attach(inventory)
-        plugin.lending.begin(player, target.inventoryBySlot.keys)
+        if (target.inventoryBySlot.isEmpty()) plugin.screens.end(player, resync = false)
+        else if (!plugin.screens.available) plugin.screens.unavailable(target.name)
+        else plugin.screens.expect(player, inventory.size)
         view.draw()
 
         // Registered first, so closing the menu this player had open is not taken for the end of this one.
@@ -335,7 +337,7 @@ class MenuManager(private val plugin: XaliMenu) {
         if (player.openInventory(inventory) == null) {
             // Another plugin canceled it.
             views.remove(player.uniqueId, view)
-            plugin.lending.end(player)
+            plugin.screens.end(player, resync = false)
             return
         }
         menu.refresh?.let { view.startRefresh(ticks(it)) }
@@ -348,14 +350,14 @@ class MenuManager(private val plugin: XaliMenu) {
     fun closed(player: Player, view: MenuView) {
         if (!views.remove(player.uniqueId, view)) return
         view.stopTasks()
-        plugin.lending.end(player)
+        plugin.screens.end(player)
         plugin.actions.run(view.menu.onClose, view.ctx)
     }
 
     /** The player left; there is nobody to run the close actions for. */
     fun left(player: Player) {
         views.remove(player.uniqueId)?.stopTasks()
-        plugin.lending.end(player)
+        plugin.screens.end(player, resync = false)
     }
 
     /** Closes every open menu, for when the plugin goes away. */
@@ -364,7 +366,7 @@ class MenuManager(private val plugin: XaliMenu) {
             val view = views.remove(id) ?: continue
             view.stopTasks()
             runCatching { view.player.closeInventory() }
-            runCatching { plugin.lending.end(view.player) }
+            runCatching { plugin.screens.end(view.player) }
         }
     }
 

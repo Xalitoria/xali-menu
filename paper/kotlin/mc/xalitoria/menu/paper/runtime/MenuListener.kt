@@ -11,10 +11,7 @@ import org.bukkit.event.inventory.ClickType
 import org.bukkit.event.inventory.InventoryClickEvent
 import org.bukkit.event.inventory.InventoryCloseEvent
 import org.bukkit.event.inventory.InventoryDragEvent
-import org.bukkit.event.entity.PlayerDeathEvent
-import org.bukkit.event.player.PlayerAttemptPickupItemEvent
 import org.bukkit.event.player.PlayerCommandPreprocessEvent
-import org.bukkit.event.player.PlayerJoinEvent
 import org.bukkit.event.player.PlayerQuitEvent
 
 class MenuListener(private val plugin: XaliMenu) : Listener {
@@ -57,23 +54,6 @@ class MenuListener(private val plugin: XaliMenu) : Listener {
     @EventHandler(priority = EventPriority.HIGH)
     fun onDrag(event: InventoryDragEvent) {
         if (event.inventory.getHolder(false) is MenuView) event.isCancelled = true
-    }
-
-    /** Nothing is picked up into an inventory a menu has drawn in: it could land in a slot the menu is about to give back. */
-    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
-    fun onPickup(event: PlayerAttemptPickupItemEvent) {
-        if (plugin.lending.lent(event.player)) event.isCancelled = true
-    }
-
-    /** Nothing a menu drew is ever dropped, and what it replaced is dropped in its place. */
-    @EventHandler(priority = EventPriority.LOWEST)
-    fun onDeath(event: PlayerDeathEvent) {
-        plugin.lending.died(event)
-    }
-
-    @EventHandler
-    fun onJoin(event: PlayerJoinEvent) {
-        plugin.lending.recover(event.player)
     }
 
     @EventHandler

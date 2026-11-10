@@ -34,6 +34,9 @@ class MenuView(
 
     /** What the menu has put in each slot of the player's own inventory (0 to 35). */
     private val shownInventory = arrayOfNulls<Item>(36)
+
+    /** The stacks of [shownInventory], as they are shown. */
+    private val stacksInventory = HashMap<Int, org.bukkit.inventory.ItemStack>()
     private var refresh: ScheduledTask? = null
 
     /** What the frames of the menu's animation have drawn so far, by slot, in the order the slot's items are tried. */
@@ -181,21 +184,29 @@ class MenuView(
         if (dynamicTitle) retitle()
     }
 
-    /** Puts the right item in each slot of the player's own inventory that the menu draws in, as [draw] does for the menu's. */
+    /**
+     * Puts the right item in each slot of the player's own inventory that the menu draws in, as [draw] does for the menu's, and sends them
+     * if any changed. The items only exist in the packets of the window ([mc.xalitoria.menu.paper.screen.Screens]); the inventory itself is not touched.
+     */
     private fun drawInventory(force: Boolean) {
+        if (inventoryBySlot.isEmpty() || !plugin.screens.available) return
+        var changed = force
         for (entry in inventoryBySlot) {
             val slot = entry.key
             val chosen = entry.value.firstOrNull { it.second.view.passes(ctx, run = false) }?.second
             if (chosen == null) {
                 if (shownInventory[slot] != null) {
-                    plugin.lending.put(player, slot, null)
                     shownInventory[slot] = null
+                    stacksInventory.remove(slot)
+                    changed = true
                 }
             } else if (chosen !== shownInventory[slot] || chosen.update || force) {
-                plugin.lending.put(player, slot, plugin.lending.mark(plugin.items.build(chosen, ctx) { invalidateInventory(slot) }))
+                stacksInventory[slot] = plugin.items.build(chosen, ctx) { invalidateInventory(slot) }
                 shownInventory[slot] = chosen
+                changed = true
             }
         }
+        if (changed) plugin.screens.show(player, stacksInventory.toMap())
     }
 
     /**

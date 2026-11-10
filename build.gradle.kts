@@ -41,6 +41,9 @@ paper {
         register("HeadDatabase") { load = RelativeLoad.BEFORE; required = false }
         register("FancyNpcs") { load = RelativeLoad.BEFORE; required = false }
         register("WorldGuard") { load = RelativeLoad.BEFORE; required = false }
+        // Either one lets a menu draw in the player's inventory.
+        register("packetevents") { load = RelativeLoad.BEFORE; required = false }
+        register("ProtocolLib") { load = RelativeLoad.BEFORE; required = false }
     }
     // ItemsAdder, Nexo, SkinsRestorer and HeadDatabase aren't downloadable without an account: put their jars in the
     // server's plugins by hand.

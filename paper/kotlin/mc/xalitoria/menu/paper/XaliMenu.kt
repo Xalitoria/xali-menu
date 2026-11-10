@@ -37,8 +37,8 @@ import mc.xalitoria.menu.paper.editor.EditorSessions
 import mc.xalitoria.menu.paper.runtime.ActivatorListener
 import mc.xalitoria.menu.paper.runtime.Inputs
 import mc.xalitoria.menu.paper.runtime.ItemFactory
-import mc.xalitoria.menu.paper.runtime.Lending
 import mc.xalitoria.menu.paper.runtime.MenuListener
+import mc.xalitoria.menu.paper.screen.Screens
 import mc.xalitoria.menu.paper.runtime.LoadedMenu
 import mc.xalitoria.menu.paper.runtime.MenuManager
 import mc.xalitoria.menu.paper.runtime.PluginListener
@@ -102,8 +102,8 @@ class XaliMenu : JavaPlugin() {
     lateinit var variables: VariableStore
         private set
 
-    /** What menus drew in players' inventories hides, and gives back. */
-    lateinit var lending: Lending
+    /** Draws in the bottom rows of a menu's window, the player's inventory, through the packets that fill it. */
+    lateinit var screens: Screens
         private set
 
     private var expansion: VariableExpansion? = null
@@ -142,14 +142,14 @@ class XaliMenu : JavaPlugin() {
         if (pm.isPluginEnabled("WorldGuard")) regions = Regions()
         items = ItemFactory(this)
         actions = ActionRunner(this)
-        lending = Lending(this)
+        screens = Screens(this).also { it.start() }
         menus = MenuManager(this)
         menus.watchVariables(variables.changes, scope)
         server.messenger.registerOutgoingPluginChannel(this, "BungeeCord")
         server.servicesManager.register(XaliMenuApi::class.java, ApiImpl(this), this, ServicePriority.Normal)
 
         saveExampleMenu()
-        logger info "Item sources: ${registry.sources.keys.ifEmpty { listOf("none") }.joinToString()}; economy: ${if (economyHook.available) "yes" else "no"}; skins: ${if (pm.isPluginEnabled("SkinsRestorer")) "SkinsRestorer" else "Mojang"}"
+        logger info "Item sources: ${registry.sources.keys.ifEmpty { listOf("none") }.joinToString()}; economy: ${if (economyHook.available) "yes" else "no"}; skins: ${if (pm.isPluginEnabled("SkinsRestorer")) "SkinsRestorer" else "Mojang"}; player inventory: ${screens.name ?: "off (needs PacketEvents or ProtocolLib)"}"
         expansion = VariableExpansion(this).also { it.register() }
 
         // The commands are registered when the server starts, so the labels are read now; the menus themselves are read
@@ -183,6 +183,7 @@ class XaliMenu : JavaPlugin() {
 
     override fun onDisable() {
         if (::menus.isInitialized) menus.closeAll()
+        if (::screens.isInitialized) screens.stop()
         if (::relay.isInitialized) relay.stop()
         if (::editor.isInitialized) editor.stop()
         expansion?.unregister()

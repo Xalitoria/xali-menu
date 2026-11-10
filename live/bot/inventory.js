@@ -1,9 +1,10 @@
 // Part of the live tests of XaliMenu, see ../README.md. Opens /xp, a menu that draws in the player's own inventory (menus/p.conf), over
 // items given first. Shows what is where, that a click in a drawn slot runs its action and one anywhere else moves nothing, that an
-// `update` item follows a variable, and that closing the menu brings the items back.
-//   node bot/inventory.js          the whole run
-//   XM_MODE=crash node bot/inventory.js   leaves the menu open, the data saved, and waits to be killed; the server is then killed
-//   XM_MODE=rejoin node bot/inventory.js  joins again and shows the inventory
+// `update` item follows a variable, and that closing the menu brings the items back. The items only exist in packets, so the server's own
+// inventory must never hold them.
+//   node bot/inventory.js                 the whole run
+//   XM_MODE=saved node bot/inventory.js   leaves the menu open with the player's data saved (/xmsave, from XM_ADDON=1): then read it with
+//                                         python3 bot/nbt.py <server>/world/players/data/<uuid>.dat: the real items, not the menu's
 const mineflayer = require('mineflayer'); const fs = require('fs')
 const SERVER = (process.env.XM_DIR || '/tmp/xm-live') + '/server'
 const MODE = process.env.XM_MODE || 'run'
@@ -19,7 +20,6 @@ const chat = []
 bot.on('messagePlayer', () => {}); bot.on('message', (m) => chat.push(m.toString()))
 bot.once('spawn', async () => {
   await wait(3000)
-  if (MODE === 'rejoin') { show('after rejoining', bot.inventory); console.log('DONE'); process.exit(0) }
   con('op Tester'); await wait(1000)
   con('xvar rem coins'); await wait(300)
   con('clear Tester'); await wait(300)
@@ -29,7 +29,7 @@ bot.once('spawn', async () => {
   show('before', bot.inventory)
   bot.chat('/xp'); await wait(1500)
   show('menu open', bot.currentWindow)
-  if (MODE === 'crash') { bot.chat('/xmsave'); await wait(2000); console.log('OPEN, saved'); await wait(60000); process.exit(0) }
+  if (MODE === 'saved') { bot.chat('/xmsave'); await wait(2000); console.log('OPEN, saved'); await wait(30000); process.exit(0) }
   chat.length = 0
   await bot.clickWindow(40, 0, 0); await wait(500)
   console.log('---- click on Home               chat: ' + JSON.stringify(chat.filter((m) => /home/.test(m))))

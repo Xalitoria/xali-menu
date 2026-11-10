@@ -1,7 +1,8 @@
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
-import mc.xalitoria.menu.paper.runtime.settle
+import mc.xalitoria.menu.paper.screen.Overlay
+import mc.xalitoria.menu.paper.screen.windowIndex
 import mc.xalitoria.menu.paper.runtime.slotted
 import net.xalitoria.menu.model.Menu
 
@@ -49,29 +50,37 @@ class PlayerInventory {
     }
 
     @Test
-    fun aSlotThatStillHoldsTheMenusItemGetsItsOriginalBack() {
-        val plan = settle(mapOf(1 to "sword", 2 to null), { "ghost" }, { it == "ghost" })
-        assertEquals(mapOf(1 to "sword", 2 to null), plan.restore)
-        assertTrue(plan.give.isEmpty())
+    fun theRowsOfTheInventoryComeAfterTheSlotsOfTheWindow() {
+        // a chest of 27: the rows above the hotbar are windows 27 to 53, the hotbar 54 to 62
+        assertEquals(27, windowIndex(27, 9))
+        assertEquals(53, windowIndex(27, 35))
+        assertEquals(54, windowIndex(27, 0))
+        assertEquals(62, windowIndex(27, 8))
+        // a hopper of 5
+        assertEquals(5, windowIndex(5, 9))
+        assertEquals(5 + 27 + 4, windowIndex(5, 4))
+        assertEquals((0..35).map { windowIndex(9, it) }.toSet().size, 36)
     }
 
     @Test
-    fun aSlotEmptiedByTheMenuGetsItsOriginalBack() {
-        val plan = settle(mapOf(1 to "sword"), { null }, { it == "ghost" })
-        assertEquals(mapOf(1 to "sword"), plan.restore)
+    fun anOverlayReplacesOnlyTheSlotsItDrawsIn() {
+        val overlay = Overlay(9)
+        overlay.packed = mapOf(windowIndex(9, 4) to "compass", windowIndex(9, 9) to "coins")
+        val contents = MutableList(45) { "real$it" }
+        overlay.rewrite(contents)
+        assertEquals("compass", contents[windowIndex(9, 4)])
+        assertEquals("coins", contents[9])
+        assertEquals(43, contents.count { it.startsWith("real") })
+        assertEquals("compass", overlay.replacement<String>(windowIndex(9, 4)))
+        assertEquals(null, overlay.replacement<String>(0))
     }
 
     @Test
-    fun aSlotSomeoneFilledKeepsItAndTheOriginalIsGiven() {
-        val plan = settle(mapOf(1 to "sword", 2 to "bow"), { if (it == 1) "apple" else "ghost" }, { it == "ghost" })
-        assertEquals(mapOf(2 to "bow"), plan.restore)
-        assertEquals(listOf("sword"), plan.give)
-    }
-
-    @Test
-    fun aSlotLeftAloneIsNotTouched() {
-        val plan = settle(mapOf(1 to "sword"), { "sword" }, { it == "ghost" })
-        assertTrue(plan.restore.isEmpty())
-        assertTrue(plan.give.isEmpty())
+    fun aListShorterThanTheOverlayIsLeftAlone() {
+        val overlay = Overlay(9)
+        overlay.packed = mapOf(100 to "far")
+        val contents = MutableList(45) { "real$it" }
+        overlay.rewrite(contents)
+        assertTrue(contents.all { it.startsWith("real") })
     }
 }
