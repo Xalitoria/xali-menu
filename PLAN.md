@@ -244,3 +244,13 @@ Each step ends with tests, the README section, and a commit.
   `RangeFile` with a zip built by hand, the relay's `packFile`. Live: a 12.5 MB pack through the relay, its directory and one entry read with 3 MB fetched, and
   `packUrl` in `/v1/info` from `XM_PACK_URL`. Not tested: a real S3 download (no bucket at hand) and Nexo's `packUrl()` on a running Nexo (the API was read
   from the 1.29.1 jar).
+
+## Planned (asked for, not started)
+
+- **Input slots**: a slot with material `air` that takes an item from the player, when the player's inventory is not drawn in as part of the menu. The item must
+  not leave the player's inventory until the operation has succeeded, and must be checked against the server's own state (what is on the cursor
+  or in the slot server-side, not what the click says).
+- **Text input**: the dialog of newer versions (Paper's `Dialog` with a text `DialogInput`) for clients that have it, an anvil rename for older ones, found by asking
+  ViaVersion (soft dependency) what version a player's client is. Chat input (`input` action) stays as it is.
+- **Bedrock through Geyser**: the web editor will need changes, and what a menu looks like may differ between mobile and PC.
+
