@@ -168,7 +168,7 @@ class ItemFactory(private val plugin: XaliMenu) {
     /** What is wrong with [item] that does not depend on who looks at it; nothing means it will build. */
     fun validate(item: Item): List<String> {
         val problems = mutableListOf<String>()
-        if ('%' !in item.material && base(item.material, {}, probe = true) == null) problems += "material '${item.material}' isn't a known item"
+        if (!hasPlaceholder(item.material) && base(item.material, {}, probe = true) == null) problems += "material '${item.material}' isn't a known item"
         item.enchants.keys.filter { enchantment(it) == null }.forEach { problems += "enchantment '$it' doesn't exist" }
         item.hide.filter { componentType(it) == null }.forEach { problems += "'$it' isn't a data component to hide" }
         item.color?.let { if (parseColor(it) == null) problems += "color '$it' isn't #rrggbb" }

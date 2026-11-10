@@ -13,6 +13,7 @@ import mc.xalitoria.menu.paper.api.TypeRegistry
 import mc.xalitoria.menu.paper.condition.PlayerConditions
 import mc.xalitoria.menu.paper.runtime.Clients
 import mc.xalitoria.menu.paper.runtime.Context
+import mc.xalitoria.menu.paper.runtime.hasPlaceholder
 import mc.xalitoria.menu.paper.runtime.Prompt
 
 private const val MAX_LENGTH = 1024
@@ -58,6 +59,7 @@ object Social {
             require(then.isNotEmpty()) { "input needs actions to run with the reply" }
             require(cancel.isNotBlank()) { "cancel can't be empty" }
             require(maxLength in 1..MAX_LENGTH) { "maxLength must be from 1 to $MAX_LENGTH" }
+            require(hasPlaceholder(initial) || initial.length <= maxLength) { "initial is longer than maxLength" }
             match?.let { Regex(it) }
         }
 

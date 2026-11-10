@@ -29,7 +29,10 @@ class ActionRunner(private val plugin: XaliMenu) : Host {
         plugin.server.globalRegionScheduler.run(plugin) { plugin.server.dispatchCommand(plugin.server.consoleSender, command) }
     }
 
-    override fun open(player: Player, menu: String, args: List<String>) = plugin.menus.open(player, menu, args)
+    override fun open(player: Player, menu: String, args: List<String>) {
+        // From a slot that takes an item, the window that is open is only replaced once the item has been taken.
+        if (!plugin.deposits.afterSettling(player) { plugin.menus.open(player, menu, args) }) plugin.menus.open(player, menu, args)
+    }
 
     override fun close(player: Player) {
         player.scheduler.run(plugin, { player.closeInventory() }, null)

@@ -66,13 +66,14 @@ class Inputs(private val plugin: XaliMenu) : Listener {
         waiting.put(prompt.ctx.player.uniqueId, prompt)?.let(::dismiss)
     }
 
-    /** Ends [prompt] if it is still the one waiting, closes what it showed, and runs its cancel actions. @return whether it was */
+    /** Ends [prompt] if it is still the one waiting, closes what it showed, and runs its cancel actions (a tick later when [deferred]). @return whether it was */
     fun expire(prompt: Prompt, deferred: Boolean = false): Boolean {
         val player = prompt.ctx.player
         if (!waiting.remove(player.uniqueId, prompt)) return false
         dismiss(prompt)
-        // From the event of a window closing, what the actions open can't be opened yet.
-        if (deferred) player.scheduler.run(plugin, { prompt.ctx.run(prompt.cancelled) }, null) else prompt.ctx.run(prompt.cancelled)
+        // From the event of a window closing, what the actions open can't be opened yet. By the next tick the player may have
+        // been asked something else, which these would then answer for.
+        if (deferred) player.scheduler.run(plugin, { if (!pending(player)) prompt.ctx.run(prompt.cancelled) }, null) else prompt.ctx.run(prompt.cancelled)
         return true
     }
 

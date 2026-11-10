@@ -276,7 +276,7 @@ class MenuManager(private val plugin: XaliMenu) {
         when (activator) {
             is Activator.HeldItem -> {
                 if (activator.material == null && activator.name == null && activator.model == null) add("an item activator without material, name or model fires for every click with anything in hand")
-                activator.material?.let { if ('%' !in it && ItemFactory.material(it) == null) add("material '$it' isn't a known item") }
+                activator.material?.let { if (!hasPlaceholder(it) && ItemFactory.material(it) == null) add("material '$it' isn't a known item") }
             }
             is Activator.Block -> {
                 if (activator.types.isEmpty() && activator.at == null) add("a block activator without types or at fires for every block")

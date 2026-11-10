@@ -14,7 +14,10 @@ import org.bukkit.event.inventory.InventoryClickEvent
 import org.bukkit.event.inventory.InventoryCloseEvent
 import org.bukkit.event.inventory.InventoryDragEvent
 import org.bukkit.event.inventory.PrepareAnvilEvent
+import org.bukkit.event.entity.EntityPickupItemEvent
+import org.bukkit.event.player.PlayerDropItemEvent
 import org.bukkit.event.player.PlayerJoinEvent
+import org.bukkit.event.player.PlayerQuitEvent
 import org.bukkit.inventory.InventoryView
 import org.bukkit.inventory.ItemStack
 import org.bukkit.inventory.MenuType
@@ -62,17 +65,40 @@ class Anvils(private val plugin: XaliMenu) : Listener {
         }
     }
 
-    /** Takes the papers of an anvil that got into [player]'s inventory (a window cut off by the plugin or the server going away). */
-    private fun sweep(player: Player) {
-        val inventory = player.inventory
-        for (slot in 0 until inventory.size) {
-            val held = inventory.getItem(slot) ?: continue
-            if (held.type == Material.PAPER && held.itemMeta?.persistentDataContainer?.has(MARK, PersistentDataType.BYTE) == true) inventory.setItem(slot, null)
+    private fun marked(stack: ItemStack?): Boolean =
+        stack != null && stack.type == Material.PAPER && stack.itemMeta?.persistentDataContainer?.has(MARK, PersistentDataType.BYTE) == true
+
+    /**
+     * Takes the papers of an anvil out of [player]'s hands: their inventory, cursor and ender chest. One gets there when a
+     * window was cut off by the plugin or the server going away, and the player took it. Run on their own thread.
+     */
+    fun sweep(player: Player) {
+        for (inventory in listOf(player.inventory, player.enderChest)) {
+            for (slot in 0 until inventory.size) if (marked(inventory.getItem(slot))) inventory.setItem(slot, null)
         }
+        if (marked(player.itemOnCursor)) player.setItemOnCursor(null)
     }
 
     @EventHandler
     fun onJoin(event: PlayerJoinEvent) = sweep(event.player)
+
+    /** What is saved with a player holds none either. */
+    @EventHandler
+    fun onQuit(event: PlayerQuitEvent) = sweep(event.player)
+
+    /** A paper that is thrown away, or picked up, is gone. */
+    @EventHandler
+    fun onDrop(event: PlayerDropItemEvent) {
+        if (marked(event.itemDrop.itemStack)) event.itemDrop.remove()
+    }
+
+    @EventHandler
+    fun onPickup(event: EntityPickupItemEvent) {
+        if (marked(event.item.itemStack)) {
+            event.isCancelled = true
+            event.item.remove()
+        }
+    }
 
     private fun of(view: InventoryView): Open? = (view.player as? Player)?.let { open[it.uniqueId] }?.takeIf { it.view === view }
 
