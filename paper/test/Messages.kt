@@ -1,15 +1,15 @@
-import java.nio.file.Files
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertTrue
-import mc.xalitoria.menu.paper.config.MainConfig
-import mc.xalitoria.menu.paper.config.MessageConfig
-import mc.xalitoria.menu.paper.util.verbatim
 import com.xalitoria.util.config.YamlFile
 import com.xalitoria.util.message.MINI
 import com.xalitoria.util.message.PLAIN
 import com.xalitoria.util.message.toComponent
+import com.xalitoria.util.message.verbatim
+import mc.xalitoria.menu.paper.config.MainConfig
+import mc.xalitoria.menu.paper.config.MessageConfig
 import net.kyori.adventure.text.Component
+import java.nio.file.Files
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 class Messages {
     private fun Component.flatten(): List<Component> = listOf(this) + children().flatMap { it.flatten() }

@@ -1,20 +1,20 @@
-import java.lang.reflect.Proxy
-import kotlin.test.AfterTest
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertFalse
-import kotlin.test.assertTrue
-import net.xalitoria.menu.Action
-import net.xalitoria.menu.Condition
-import net.xalitoria.menu.model.Check
-import net.xalitoria.menu.model.Gate
 import mc.xalitoria.menu.paper.action.Actions
 import mc.xalitoria.menu.paper.condition.Conditions
 import mc.xalitoria.menu.paper.runtime.Context
 import mc.xalitoria.menu.paper.runtime.Host
 import mc.xalitoria.menu.paper.runtime.Placeholders
 import mc.xalitoria.menu.paper.runtime.passes
+import net.xalitoria.menu.Action
+import net.xalitoria.menu.Condition
+import net.xalitoria.menu.model.Check
+import net.xalitoria.menu.model.Gate
 import org.bukkit.entity.Player
+import java.lang.reflect.Proxy
+import kotlin.test.AfterTest
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 class Gates {
     private val ran = mutableListOf<Action>()

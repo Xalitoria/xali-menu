@@ -1,5 +1,6 @@
 package mc.xalitoria.menu.paper.runtime
 
+import com.xalitoria.util.bukkit.runConsoleCommand
 import mc.xalitoria.menu.paper.XaliMenu
 import net.xalitoria.menu.Action
 import net.xalitoria.menu.ActionsAborted
@@ -26,7 +27,7 @@ class ActionRunner(private val plugin: XaliMenu) : Host {
 
     /** Folia has no main thread to run the console on; the global region is where console commands go. */
     override fun console(command: String) {
-        plugin.server.globalRegionScheduler.run(plugin) { plugin.server.dispatchCommand(plugin.server.consoleSender, command) }
+        plugin.runConsoleCommand(command)
     }
 
     override fun open(player: Player, menu: String, args: List<String>) {

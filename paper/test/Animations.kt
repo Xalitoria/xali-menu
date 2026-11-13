@@ -1,15 +1,3 @@
-import java.lang.reflect.Proxy
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
-import kotlin.time.Duration.Companion.milliseconds
-import kotlin.time.Duration.Companion.seconds
-import net.xalitoria.menu.Action
-import net.xalitoria.menu.model.Animation
-import net.xalitoria.menu.model.Frame
-import net.xalitoria.menu.model.Item
-import net.xalitoria.menu.model.Menu
-import net.xalitoria.menu.model.Pages
 import mc.xalitoria.menu.paper.action.Actions
 import mc.xalitoria.menu.paper.catalog.Catalogs
 import mc.xalitoria.menu.paper.runtime.Context
@@ -17,7 +5,19 @@ import mc.xalitoria.menu.paper.runtime.FrameCursor
 import mc.xalitoria.menu.paper.runtime.FrameCursor.Step
 import mc.xalitoria.menu.paper.runtime.Host
 import mc.xalitoria.menu.paper.runtime.slotted
+import net.xalitoria.menu.Action
+import net.xalitoria.menu.model.Animation
+import net.xalitoria.menu.model.Frame
+import net.xalitoria.menu.model.Item
+import net.xalitoria.menu.model.Menu
+import net.xalitoria.menu.model.Pages
 import org.bukkit.entity.Player
+import java.lang.reflect.Proxy
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 
 class Animations {
     private fun steps(cursor: FrameCursor, count: Int) = List(count) { cursor.advance() }

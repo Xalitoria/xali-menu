@@ -1,9 +1,9 @@
+import net.xalitoria.menu.Action
 import java.io.File
 import java.lang.reflect.Modifier
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
-import net.xalitoria.menu.Action
 
 /**
  * A plugin that carries its own copy of the Kotlin runtime must be able to call this API. Every class it loads has the

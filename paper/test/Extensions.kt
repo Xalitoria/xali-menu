@@ -1,8 +1,8 @@
-import java.lang.reflect.Proxy
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
-import kotlin.test.assertTrue
+import mc.xalitoria.menu.paper.action.Actions
+import mc.xalitoria.menu.paper.api.TypeRegistry
+import mc.xalitoria.menu.paper.condition.Conditions
+import mc.xalitoria.menu.paper.format.MenuFormat
+import mc.xalitoria.menu.paper.runtime.ActivatorIndex
 import net.xalitoria.menu.Action
 import net.xalitoria.menu.ActionType
 import net.xalitoria.menu.ActivatorFilter
@@ -14,13 +14,13 @@ import net.xalitoria.menu.MenuContext
 import net.xalitoria.menu.Settings
 import net.xalitoria.menu.model.Activator
 import net.xalitoria.menu.model.Handler
-import mc.xalitoria.menu.paper.action.Actions
-import mc.xalitoria.menu.paper.api.TypeRegistry
-import mc.xalitoria.menu.paper.condition.Conditions
-import mc.xalitoria.menu.paper.format.MenuFormat
-import mc.xalitoria.menu.paper.runtime.ActivatorIndex
 import org.bukkit.inventory.ItemStack
 import org.bukkit.plugin.Plugin
+import java.lang.reflect.Proxy
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
+import kotlin.test.assertTrue
 
 /** What another plugin would write: an action and a condition of its own, made from the keys of the menu file. */
 data class Reward(val points: Int) : Action {

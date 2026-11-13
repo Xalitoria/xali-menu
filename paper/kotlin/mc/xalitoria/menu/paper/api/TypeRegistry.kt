@@ -1,22 +1,22 @@
 package mc.xalitoria.menu.paper.api
 
-import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.CopyOnWriteArrayList
-import kotlin.reflect.KClass
 import kotlinx.serialization.DeserializationStrategy
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.modules.SerializersModule
 import kotlinx.serialization.modules.polymorphic
 import kotlinx.serialization.serializer
 import net.xalitoria.menu.Action
+import net.xalitoria.menu.ActionType
 import net.xalitoria.menu.ActivatorType
 import net.xalitoria.menu.Catalog
 import net.xalitoria.menu.CatalogType
-import net.xalitoria.menu.ActionType
 import net.xalitoria.menu.Condition
 import net.xalitoria.menu.ConditionType
 import net.xalitoria.menu.ItemSource
 import org.bukkit.plugin.Plugin
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.CopyOnWriteArrayList
+import kotlin.reflect.KClass
 
 /**
  * The actions, conditions and item sources there are: the built-in ones and what other plugins added. The first two are

@@ -1,5 +1,6 @@
 package mc.xalitoria.menu.paper.editor
 
+import mc.xalitoria.menu.paper.XaliMenu
 import java.net.URI
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
@@ -9,7 +10,6 @@ import java.nio.file.Path
 import java.security.MessageDigest
 import java.time.Duration
 import java.util.concurrent.ConcurrentHashMap
-import mc.xalitoria.menu.paper.XaliMenu
 
 /**
  * The files of the game that are not in the jar of the client and that the page cannot download itself, since Mojang's servers do not let other

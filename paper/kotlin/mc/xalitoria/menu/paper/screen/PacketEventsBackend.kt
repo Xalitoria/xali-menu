@@ -5,7 +5,6 @@ import com.github.retrooper.packetevents.event.PacketListenerAbstract
 import com.github.retrooper.packetevents.event.PacketListenerCommon
 import com.github.retrooper.packetevents.event.PacketListenerPriority
 import com.github.retrooper.packetevents.event.PacketSendEvent
-import com.github.retrooper.packetevents.protocol.item.ItemStack as PacketStack
 import com.github.retrooper.packetevents.protocol.packettype.PacketType
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerOpenWindow
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerSetSlot
@@ -13,6 +12,7 @@ import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerWi
 import io.github.retrooper.packetevents.util.SpigotConversionUtil
 import mc.xalitoria.menu.paper.XaliMenu
 import org.bukkit.inventory.ItemStack
+import com.github.retrooper.packetevents.protocol.item.ItemStack as PacketStack
 
 /** [Screens] through PacketEvents, which is used when it is installed. Only loaded then, since it names its classes. */
 class PacketEventsBackend(plugin: XaliMenu, private val screens: Screens) : ScreenBackend {

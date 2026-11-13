@@ -1,31 +1,31 @@
 package mc.xalitoria.menu.paper.runtime
 
 import com.typesafe.config.ConfigFactory
+import com.xalitoria.util.message.*
+import com.xalitoria.util.message.verbatim
 import io.papermc.paper.registry.RegistryAccess
 import io.papermc.paper.registry.RegistryKey
-import java.util.concurrent.ConcurrentHashMap
-import kotlin.io.path.isDirectory
-import kotlin.io.path.nameWithoutExtension
-import kotlin.time.Duration
-import net.xalitoria.menu.ActivatorFilter
-import net.xalitoria.menu.Settings
+import kotlinx.coroutines.launch
 import mc.xalitoria.menu.paper.XaliMenu
-import net.xalitoria.menu.model.Activator
-import net.xalitoria.menu.model.Item
-import net.xalitoria.menu.model.Menu
 import mc.xalitoria.menu.paper.XaliMenu.Companion.debug
 import mc.xalitoria.menu.paper.action.Actions
 import mc.xalitoria.menu.paper.format.MenuFormat
-import mc.xalitoria.menu.paper.util.verbatim
-import com.xalitoria.util.message.*
-import kotlin.time.Duration.Companion.milliseconds
-import kotlinx.coroutines.launch
 import mc.xalitoria.menu.paper.util.batched
+import net.xalitoria.menu.ActivatorFilter
+import net.xalitoria.menu.Settings
+import net.xalitoria.menu.model.Activator
+import net.xalitoria.menu.model.Item
+import net.xalitoria.menu.model.Menu
 import org.bukkit.Bukkit
 import org.bukkit.Material
 import org.bukkit.NamespacedKey
 import org.bukkit.entity.Player
 import org.bukkit.event.inventory.InventoryType
+import java.util.concurrent.ConcurrentHashMap
+import kotlin.io.path.isDirectory
+import kotlin.io.path.nameWithoutExtension
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
 
 /** A menu that has been read from its file, with its items sorted into the slots they claim. */
 class LoadedMenu(val name: String, val menu: Menu, val usesVariables: Boolean = false) {

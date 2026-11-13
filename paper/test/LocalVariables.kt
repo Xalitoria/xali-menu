@@ -1,5 +1,18 @@
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.runBlocking
+import mc.xalitoria.menu.paper.config.MainConfig.StoreKind
+import mc.xalitoria.menu.paper.config.MainConfig.Variables.Rule
+import mc.xalitoria.menu.paper.variable.Shard
+import mc.xalitoria.menu.paper.variable.SqlBackend
+import mc.xalitoria.menu.paper.variable.Storage
+import mc.xalitoria.menu.paper.variable.StoreRules
+import mc.xalitoria.menu.paper.variable.VariableStore
+import net.xalitoria.menu.Scope
 import java.math.BigDecimal
 import java.math.RoundingMode
 import java.nio.file.Files
@@ -14,19 +27,6 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
-import kotlinx.coroutines.runBlocking
-import net.xalitoria.menu.Scope
-import mc.xalitoria.menu.paper.config.MainConfig.StoreKind
-import mc.xalitoria.menu.paper.config.MainConfig.Variables.Rule
-import mc.xalitoria.menu.paper.variable.Shard
-import mc.xalitoria.menu.paper.variable.SqlBackend
-import mc.xalitoria.menu.paper.variable.Storage
-import mc.xalitoria.menu.paper.variable.StoreRules
-import mc.xalitoria.menu.paper.variable.VariableStore
 
 /** The variables of one server: memory and the SQLite file. */
 class LocalVariables {

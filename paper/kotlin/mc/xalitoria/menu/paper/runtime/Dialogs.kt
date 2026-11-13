@@ -1,18 +1,18 @@
 package mc.xalitoria.menu.paper.runtime
 
+import io.papermc.paper.connection.PlayerGameConnection
 import io.papermc.paper.dialog.Dialog
+import io.papermc.paper.event.player.PlayerCustomClickEvent
 import io.papermc.paper.registry.data.dialog.ActionButton
 import io.papermc.paper.registry.data.dialog.DialogBase
 import io.papermc.paper.registry.data.dialog.action.DialogAction
 import io.papermc.paper.registry.data.dialog.body.DialogBody
 import io.papermc.paper.registry.data.dialog.input.DialogInput
 import io.papermc.paper.registry.data.dialog.type.DialogType
-import io.papermc.paper.connection.PlayerGameConnection
-import io.papermc.paper.event.player.PlayerCustomClickEvent
+import mc.xalitoria.menu.paper.XaliMenu
 import net.kyori.adventure.key.Key
 import org.bukkit.event.EventHandler
 import org.bukkit.event.Listener
-import mc.xalitoria.menu.paper.XaliMenu
 
 /** The text input of a client that has dialogs: a window with one text field, and a confirm and a cancel button. */
 class Dialogs(private val plugin: XaliMenu) : Listener {

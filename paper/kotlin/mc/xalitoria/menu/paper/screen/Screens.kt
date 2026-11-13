@@ -1,10 +1,10 @@
 package mc.xalitoria.menu.paper.screen
 
-import java.util.UUID
-import java.util.concurrent.ConcurrentHashMap
 import mc.xalitoria.menu.paper.XaliMenu
 import org.bukkit.entity.Player
 import org.bukkit.inventory.ItemStack
+import java.util.UUID
+import java.util.concurrent.ConcurrentHashMap
 
 /** The index in a window of [slot] of a player's inventory (0 to 8 the hotbar, 9 to 35 the rows above it), when the window's own slots are [top]. */
 fun windowIndex(top: Int, slot: Int): Int = top + if (slot >= 9) slot - 9 else 27 + slot

@@ -5,9 +5,9 @@ import kotlinx.serialization.Serializable
 import mc.xalitoria.menu.paper.XaliMenu
 import mc.xalitoria.menu.paper.XaliMenu.Companion.debug
 import mc.xalitoria.menu.paper.api.TypeRegistry
+import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer
 import net.xalitoria.menu.Catalog
 import net.xalitoria.menu.MenuContext
-import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer
 import org.bukkit.Bukkit
 
 /** The catalogs XaliMenu comes with. Text may hold placeholders: PlaceholderAPI's, and `{name}` for the menu's arguments. */

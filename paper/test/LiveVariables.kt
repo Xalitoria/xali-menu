@@ -1,11 +1,3 @@
-import java.util.UUID
-import java.util.logging.Logger
-import kotlin.test.AfterTest
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertFalse
-import kotlin.test.assertTrue
-import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
@@ -25,6 +17,14 @@ import mc.xalitoria.menu.paper.variable.Shard
 import mc.xalitoria.menu.paper.variable.StoreRules
 import mc.xalitoria.menu.paper.variable.VariableStore
 import net.xalitoria.menu.Scope
+import java.util.UUID
+import java.util.logging.Logger
+import kotlin.test.AfterTest
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
+import kotlin.time.Duration.Companion.milliseconds
 
 /** What shows a variable hears when it changes: the stream of changes, the grouping of a burst, and which menus care. */
 class LiveVariables {

@@ -1,9 +1,9 @@
 package net.xalitoria.menu.model
 
-import kotlin.time.Duration
-import kotlin.time.Duration.Companion.seconds
 import kotlinx.serialization.Serializable
 import net.xalitoria.menu.Action
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * Frames that play over a menu once it is open, one after the other: each [Frame] waits for its `delay`, then draws its

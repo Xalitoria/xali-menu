@@ -1,5 +1,6 @@
 package mc.xalitoria.menu.paper.editor
 
+import mc.xalitoria.menu.paper.XaliMenu
 import java.net.URI
 import java.net.URLEncoder
 import java.net.http.HttpClient
@@ -12,7 +13,6 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
 import javax.crypto.spec.SecretKeySpec
 import kotlin.math.abs
-import mc.xalitoria.menu.paper.XaliMenu
 
 /**
  * Shares the editor through a relay (`menu/relay`), for a server that cannot be reached from the editor's page. The plugin only connects
@@ -25,6 +25,7 @@ internal class EditorRelay(private val plugin: XaliMenu, private val api: Editor
     /** One shared link. */
     class Share(val owner: String, val id: String, val secret: String, val key: SecretKeySpec, val expires: Long, val readOnly: Boolean = false) {
         @Volatile var running = true
+
         /** The requests answered lately, so that a copy sent again is not run twice. */
         val seen: MutableSet<String> = java.util.Collections.synchronizedSet(LinkedHashSet())
     }

@@ -6,20 +6,19 @@ import com.mojang.brigadier.arguments.StringArgumentType
 import com.mojang.brigadier.builder.ArgumentBuilder
 import com.mojang.brigadier.builder.LiteralArgumentBuilder
 import com.mojang.brigadier.context.CommandContext
+import com.xalitoria.util.bukkit.suggestMatching
+import com.xalitoria.util.message.*
 import io.papermc.paper.command.brigadier.CommandSourceStack
 import io.papermc.paper.command.brigadier.Commands
+import mc.xalitoria.menu.paper.XaliMenu
+import mc.xalitoria.menu.paper.XaliMenu.Companion.debug
+import net.xalitoria.menu.Scope
+import net.xalitoria.menu.Variable
+import org.bukkit.command.CommandSender
 import java.math.BigDecimal
 import java.math.RoundingMode
 import java.time.Instant
 import kotlin.time.Duration
-import net.xalitoria.menu.Scope
-import net.xalitoria.menu.Variable
-import mc.xalitoria.menu.paper.XaliMenu
-import mc.xalitoria.menu.paper.XaliMenu.Companion.debug
-import mc.xalitoria.menu.paper.util.suggestMatching
-import mc.xalitoria.menu.paper.util.verbatim
-import com.xalitoria.util.message.*
-import org.bukkit.command.CommandSender
 
 /**
  * `/xvar get|set|rem|inc|dec|mul|div <name> ...` for the global variables and `/xvarp <player> get|set|...` for the

@@ -1,16 +1,16 @@
 package mc.xalitoria.menu.paper.variable
 
-import com.zaxxer.hikari.HikariConfig
-import com.zaxxer.hikari.HikariDataSource
-import java.nio.file.Path
-import kotlin.io.path.createDirectories
 import com.xalitoria.util.config.DatabaseConfig
 import com.xalitoria.util.config.databaseType
+import com.zaxxer.hikari.HikariConfig
+import com.zaxxer.hikari.HikariDataSource
 import org.jetbrains.exposed.v1.core.Table
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.insertIgnore
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.jetbrains.exposed.v1.migration.jdbc.MigrationUtils
+import java.nio.file.Path
+import kotlin.io.path.createDirectories
 
 /**
  * The variables as rows. [scope] is `#global` or a player's id; [expiry] is epoch milliseconds, null for never. A removed

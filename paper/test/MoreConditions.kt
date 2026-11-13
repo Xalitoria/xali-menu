@@ -1,23 +1,22 @@
-import java.lang.reflect.Proxy
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
-import kotlin.test.assertFalse
-import kotlin.test.assertTrue
-import net.xalitoria.menu.Action
-import net.xalitoria.menu.Condition
-import net.xalitoria.menu.MenuContext
 import mc.xalitoria.menu.paper.action.Social
-import mc.xalitoria.menu.paper.condition.Conditions
 import mc.xalitoria.menu.paper.condition.Logic
 import mc.xalitoria.menu.paper.condition.PlayerConditions
 import mc.xalitoria.menu.paper.runtime.Context
 import mc.xalitoria.menu.paper.runtime.Host
 import mc.xalitoria.menu.paper.runtime.Placeholders
 import mc.xalitoria.menu.paper.runtime.explain
+import net.xalitoria.menu.Action
+import net.xalitoria.menu.Condition
+import net.xalitoria.menu.MenuContext
 import org.bukkit.GameMode
 import org.bukkit.entity.Player
 import org.bukkit.inventory.EquipmentSlot
+import java.lang.reflect.Proxy
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 class MoreConditions {
     private val host = object : Host {

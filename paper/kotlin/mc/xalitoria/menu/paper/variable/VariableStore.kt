@@ -1,22 +1,22 @@
 package mc.xalitoria.menu.paper.variable
 
+import com.xalitoria.util.config.databaseType
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.merge
+import mc.xalitoria.menu.paper.config.MainConfig
+import mc.xalitoria.menu.paper.config.MainConfig.StoreKind
+import net.xalitoria.menu.Scope
+import net.xalitoria.menu.Variable
+import net.xalitoria.menu.Variables
 import java.math.BigDecimal
-import java.util.function.UnaryOperator
 import java.nio.file.Path
 import java.time.Instant
+import java.util.function.UnaryOperator
 import java.util.logging.Logger
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.merge
-import net.xalitoria.menu.Scope
-import net.xalitoria.menu.Variable
-import net.xalitoria.menu.Variables
-import mc.xalitoria.menu.paper.config.MainConfig
-import mc.xalitoria.menu.paper.config.MainConfig.StoreKind
-import com.xalitoria.util.config.databaseType
 
 /** Which store a variable lives in, by its name: the first rule that matches, or the default. */
 class StoreRules(private val default: StoreKind, rules: List<MainConfig.Variables.Rule>) {

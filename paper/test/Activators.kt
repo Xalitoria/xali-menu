@@ -1,17 +1,17 @@
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
-import kotlin.test.assertFalse
-import kotlin.test.assertTrue
+import mc.xalitoria.menu.paper.runtime.ActivatorIndex
+import mc.xalitoria.menu.paper.runtime.RegionChange
+import mc.xalitoria.menu.paper.runtime.matches
 import net.xalitoria.menu.model.Activator
 import net.xalitoria.menu.model.BlockAt
 import net.xalitoria.menu.model.BlockClick
 import net.xalitoria.menu.model.Click
 import net.xalitoria.menu.model.Menu
 import net.xalitoria.menu.model.TextMatch
-import mc.xalitoria.menu.paper.runtime.ActivatorIndex
-import mc.xalitoria.menu.paper.runtime.RegionChange
-import mc.xalitoria.menu.paper.runtime.matches
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 class Activators {
     private val name: (String) -> String = { it.removePrefix("&a") }

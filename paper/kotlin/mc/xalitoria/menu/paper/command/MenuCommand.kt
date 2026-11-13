@@ -5,34 +5,33 @@ import com.mojang.brigadier.arguments.IntegerArgumentType
 import com.mojang.brigadier.arguments.StringArgumentType
 import com.mojang.brigadier.builder.LiteralArgumentBuilder
 import com.mojang.brigadier.context.CommandContext
+import com.typesafe.config.ConfigRenderOptions
+import com.xalitoria.util.bukkit.getPlayer
+import com.xalitoria.util.bukkit.suggestMatching
+import com.xalitoria.util.message.*
 import io.papermc.paper.command.brigadier.CommandSourceStack
 import io.papermc.paper.command.brigadier.Commands
 import io.papermc.paper.command.brigadier.argument.ArgumentTypes
-import java.nio.file.Path
-import kotlin.io.path.isDirectory
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import com.typesafe.config.ConfigRenderOptions
 import mc.xalitoria.menu.paper.XaliMenu
-import mc.xalitoria.menu.paper.editor.EditorLink
-import mc.xalitoria.menu.paper.editor.EditorMenus
-import mc.xalitoria.menu.paper.editor.EditorRelay
-import net.kyori.adventure.text.Component
-import net.kyori.adventure.text.event.ClickEvent
-import net.kyori.adventure.text.format.NamedTextColor
-import net.kyori.adventure.text.event.HoverEvent
 import mc.xalitoria.menu.paper.XaliMenu.Companion.debug
 import mc.xalitoria.menu.paper.deluxemenus.BukkitMaterials
 import mc.xalitoria.menu.paper.deluxemenus.DeluxeMenusImporter
+import mc.xalitoria.menu.paper.editor.EditorLink
+import mc.xalitoria.menu.paper.editor.EditorMenus
+import mc.xalitoria.menu.paper.editor.EditorRelay
 import mc.xalitoria.menu.paper.format.MenuFormat
 import mc.xalitoria.menu.paper.runtime.MenuManager
-import mc.xalitoria.menu.paper.util.suggestMatching
-import mc.xalitoria.menu.paper.util.verbatim
-import com.xalitoria.util.bukkit.getPlayer
-import com.xalitoria.util.message.*
+import net.kyori.adventure.text.Component
+import net.kyori.adventure.text.event.ClickEvent
+import net.kyori.adventure.text.event.HoverEvent
+import net.kyori.adventure.text.format.NamedTextColor
 import org.bukkit.command.CommandSender
 import org.bukkit.entity.Player
+import java.nio.file.Path
+import kotlin.io.path.isDirectory
 
 /**
  * `/xmenu import deluxemenus [overwrite] [folder]` converts the menus of a DeluxeMenus folder (`plugins/DeluxeMenus`

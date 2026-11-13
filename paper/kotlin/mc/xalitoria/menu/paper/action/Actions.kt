@@ -1,25 +1,25 @@
 package mc.xalitoria.menu.paper.action
 
+import com.xalitoria.util.message.fail
+import com.xalitoria.util.message.verbatim
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
+import mc.xalitoria.menu.paper.XaliMenu
+import mc.xalitoria.menu.paper.XaliMenu.Companion.debug
+import mc.xalitoria.menu.paper.api.TypeRegistry
+import net.kyori.adventure.key.Key
+import net.kyori.adventure.text.serializer.gson.GsonComponentSerializer
+import net.xalitoria.menu.Action
+import net.xalitoria.menu.MenuContext
+import net.xalitoria.menu.model.DurationAsString
+import org.bukkit.Registry
 import java.io.ByteArrayOutputStream
 import java.io.DataOutputStream
 import java.math.BigDecimal
 import java.math.RoundingMode
 import kotlin.random.Random
 import kotlin.time.Duration
-import kotlinx.serialization.SerialName
-import kotlinx.serialization.Serializable
-import net.xalitoria.menu.Action
-import net.xalitoria.menu.MenuContext
-import net.xalitoria.menu.model.DurationAsString
-import mc.xalitoria.menu.paper.XaliMenu
-import mc.xalitoria.menu.paper.XaliMenu.Companion.debug
-import mc.xalitoria.menu.paper.api.TypeRegistry
-import mc.xalitoria.menu.paper.util.verbatim
-import com.xalitoria.util.message.fail
-import net.kyori.adventure.key.Key
 import net.kyori.adventure.sound.Sound as AdventureSound
-import net.kyori.adventure.text.serializer.gson.GsonComponentSerializer
-import org.bukkit.Registry
 
 /**
  * The actions XaliMenu comes with. Text may hold colors (legacy codes, hex, CMI gradients, MiniMessage) and placeholders:

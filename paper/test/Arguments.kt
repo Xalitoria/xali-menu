@@ -1,16 +1,16 @@
+import com.xalitoria.util.message.PLAIN
+import mc.xalitoria.menu.paper.runtime.Context
+import mc.xalitoria.menu.paper.runtime.Host
+import mc.xalitoria.menu.paper.runtime.MenuArgs
+import mc.xalitoria.menu.paper.runtime.Placeholders
+import net.xalitoria.menu.Action
+import org.bukkit.entity.Player
 import java.lang.reflect.Proxy
 import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
-import net.xalitoria.menu.Action
-import mc.xalitoria.menu.paper.runtime.Context
-import mc.xalitoria.menu.paper.runtime.Host
-import mc.xalitoria.menu.paper.runtime.MenuArgs
-import mc.xalitoria.menu.paper.runtime.Placeholders
-import com.xalitoria.util.message.PLAIN
-import org.bukkit.entity.Player
 
 /** What players type after a menu's command is theirs, not the menu's. */
 class Arguments {

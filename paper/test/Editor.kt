@@ -1,3 +1,11 @@
+import mc.xalitoria.menu.paper.editor.EditorApi
+import mc.xalitoria.menu.paper.editor.EditorLink
+import mc.xalitoria.menu.paper.editor.EditorMenus
+import mc.xalitoria.menu.paper.editor.EditorSessions
+import mc.xalitoria.menu.paper.editor.GameFiles
+import mc.xalitoria.menu.paper.editor.Json
+import mc.xalitoria.menu.paper.editor.fontImageIds
+import org.bukkit.configuration.file.YamlConfiguration
 import java.io.ByteArrayInputStream
 import java.util.Base64
 import java.util.zip.GZIPInputStream
@@ -8,14 +16,6 @@ import kotlin.test.assertNotEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
-import mc.xalitoria.menu.paper.editor.EditorLink
-import mc.xalitoria.menu.paper.editor.EditorMenus
-import mc.xalitoria.menu.paper.editor.EditorSessions
-import mc.xalitoria.menu.paper.editor.EditorApi
-import mc.xalitoria.menu.paper.editor.Json
-import mc.xalitoria.menu.paper.editor.GameFiles
-import mc.xalitoria.menu.paper.editor.fontImageIds
-import org.bukkit.configuration.file.YamlConfiguration
 
 /** The parts of the editor endpoint that need no server: links, the tokens behind them, and the JSON. */
 class Editor {

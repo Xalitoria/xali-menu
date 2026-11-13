@@ -1,20 +1,20 @@
 package mc.xalitoria.menu.paper.action
 
-import kotlin.time.Duration
-import kotlin.time.Duration.Companion.seconds
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import net.xalitoria.menu.Action
-import net.xalitoria.menu.MenuContext
-import net.xalitoria.menu.model.DurationAsString
 import mc.xalitoria.menu.paper.XaliMenu
 import mc.xalitoria.menu.paper.XaliMenu.Companion.debug
 import mc.xalitoria.menu.paper.api.TypeRegistry
 import mc.xalitoria.menu.paper.condition.PlayerConditions
 import mc.xalitoria.menu.paper.runtime.Clients
 import mc.xalitoria.menu.paper.runtime.Context
-import mc.xalitoria.menu.paper.runtime.hasPlaceholder
 import mc.xalitoria.menu.paper.runtime.Prompt
+import mc.xalitoria.menu.paper.runtime.hasPlaceholder
+import net.xalitoria.menu.Action
+import net.xalitoria.menu.MenuContext
+import net.xalitoria.menu.model.DurationAsString
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.seconds
 
 private const val MAX_LENGTH = 1024
 

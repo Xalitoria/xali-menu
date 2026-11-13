@@ -2,15 +2,15 @@ package mc.xalitoria.menu.paper.deluxemenus
 
 import com.charleskorn.kaml.YamlMap
 import com.charleskorn.kaml.YamlNode
-import net.xalitoria.menu.Action
-import net.xalitoria.menu.model.Check
-import net.xalitoria.menu.Condition
 import mc.xalitoria.menu.paper.condition.Conditions
 import mc.xalitoria.menu.paper.condition.Logic
 import mc.xalitoria.menu.paper.condition.PlayerConditions
+import net.xalitoria.menu.Action
+import net.xalitoria.menu.Condition
+import net.xalitoria.menu.model.Check
 import net.xalitoria.menu.model.Gate
 
-private val GATE_OPTIONS: Set<String>  = ["requirements", "minimum_requirements", "stop_at_success", "success_commands", "deny_commands"]
+private val GATE_OPTIONS: Set<String> = ["requirements", "minimum_requirements", "stop_at_success", "success_commands", "deny_commands"]
 private val CHECK_OPTIONS: Set<String> = ["type", "optional", "success_commands", "deny_commands"]
 
 /** The other names DeluxeMenus 1.14 gives each type of requirement (the `!` before a name is read separately). */

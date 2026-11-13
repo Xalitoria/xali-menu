@@ -1,16 +1,16 @@
 package mc.xalitoria.menu.paper.condition
 
-import java.math.BigDecimal
+import com.xalitoria.util.message.PLAIN
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import net.xalitoria.menu.Condition
-import net.xalitoria.menu.MenuContext
 import mc.xalitoria.menu.paper.XaliMenu
 import mc.xalitoria.menu.paper.XaliMenu.Companion.debug
 import mc.xalitoria.menu.paper.api.TypeRegistry
 import mc.xalitoria.menu.paper.runtime.ItemFactory
-import com.xalitoria.util.message.PLAIN
 import net.kyori.adventure.text.Component
+import net.xalitoria.menu.Condition
+import net.xalitoria.menu.MenuContext
+import java.math.BigDecimal
 
 /** The conditions XaliMenu comes with. Text may hold placeholders: PlaceholderAPI's, and `{name}` for the menu's arguments. */
 object Conditions {

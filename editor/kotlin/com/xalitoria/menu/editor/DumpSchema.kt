@@ -1,12 +1,12 @@
 package com.xalitoria.menu.editor
 
-import java.nio.file.Files
-import java.nio.file.Path
 import kotlinx.serialization.json.Json
 import mc.xalitoria.menu.paper.action.Actions
 import mc.xalitoria.menu.paper.api.TypeRegistry
 import mc.xalitoria.menu.paper.catalog.Catalogs
 import mc.xalitoria.menu.paper.condition.Conditions
+import java.nio.file.Files
+import java.nio.file.Path
 
 /** The registry with the built-in types, as the plugin registers them. */
 fun builtIn(): TypeRegistry = TypeRegistry().also {

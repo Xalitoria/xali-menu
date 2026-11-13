@@ -1,10 +1,5 @@
 package mc.xalitoria.menu.paper.variable
 
-import java.math.BigDecimal
-import java.sql.SQLNonTransientConnectionException
-import java.sql.SQLRecoverableException
-import java.sql.SQLTransientException
-import java.time.Instant
 import net.xalitoria.menu.Variable
 import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.and
@@ -19,6 +14,11 @@ import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.jetbrains.exposed.v1.jdbc.update
 import org.jetbrains.exposed.v1.jdbc.upsert
+import java.math.BigDecimal
+import java.sql.SQLNonTransientConnectionException
+import java.sql.SQLRecoverableException
+import java.sql.SQLTransientException
+import java.time.Instant
 
 /** Whose variable and which: [owner] is `#global` or a player's id. */
 internal data class Key(val owner: String, val name: String)

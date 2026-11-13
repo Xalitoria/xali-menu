@@ -1,19 +1,18 @@
 package mc.xalitoria.menu.paper.runtime
 
-import io.papermc.paper.datacomponent.DataComponentTypes
-import io.papermc.paper.event.player.AsyncChatEvent
-import net.xalitoria.menu.model.Activator
-import net.xalitoria.menu.model.BlockClick
-import mc.xalitoria.menu.paper.XaliMenu
 import com.xalitoria.util.message.PLAIN
 import com.xalitoria.util.message.toComponent
+import io.papermc.paper.datacomponent.DataComponentTypes
+import io.papermc.paper.event.player.AsyncChatEvent
+import mc.xalitoria.menu.paper.XaliMenu
 import net.kyori.adventure.text.Component
+import net.xalitoria.menu.model.Activator
+import net.xalitoria.menu.model.BlockClick
 import org.bukkit.Bukkit
 import org.bukkit.Material
 import org.bukkit.NamespacedKey
 import org.bukkit.Tag
 import org.bukkit.entity.Player
-
 import org.bukkit.event.Cancellable
 import org.bukkit.event.EventHandler
 import org.bukkit.event.EventPriority
@@ -24,8 +23,8 @@ import org.bukkit.event.player.PlayerInteractEvent
 import org.bukkit.event.player.PlayerJoinEvent
 import org.bukkit.event.player.PlayerMoveEvent
 import org.bukkit.event.player.PlayerQuitEvent
-import org.bukkit.event.player.PlayerTeleportEvent
 import org.bukkit.event.player.PlayerSwapHandItemsEvent
+import org.bukkit.event.player.PlayerTeleportEvent
 import org.bukkit.inventory.EquipmentSlot
 import org.bukkit.inventory.ItemStack
 import java.util.UUID

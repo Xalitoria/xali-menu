@@ -1,14 +1,11 @@
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertNull
 import net.xalitoria.menu.model.AttributeModifier
 import net.xalitoria.menu.model.AttributeOperation
 import net.xalitoria.menu.model.Book
 import net.xalitoria.menu.model.Equippable
-import net.xalitoria.menu.model.Fish
 import net.xalitoria.menu.model.Firework
 import net.xalitoria.menu.model.FireworkEffect
 import net.xalitoria.menu.model.FireworkType
+import net.xalitoria.menu.model.Fish
 import net.xalitoria.menu.model.Food
 import net.xalitoria.menu.model.Item
 import net.xalitoria.menu.model.Menu
@@ -16,6 +13,9 @@ import net.xalitoria.menu.model.Rarity
 import net.xalitoria.menu.model.Tool
 import net.xalitoria.menu.model.ToolRule
 import net.xalitoria.menu.model.Trim
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertNull
 
 class ItemProperties {
     @Test

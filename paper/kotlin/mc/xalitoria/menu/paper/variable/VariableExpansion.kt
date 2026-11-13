@@ -1,14 +1,14 @@
 package mc.xalitoria.menu.paper.variable
 
-import kotlin.time.Duration.Companion.seconds
+import mc.xalitoria.menu.paper.XaliMenu
 import me.clip.placeholderapi.expansion.PlaceholderExpansion
 import net.xalitoria.menu.Scope
 import net.xalitoria.menu.Variable
-import mc.xalitoria.menu.paper.XaliMenu
 import org.bukkit.OfflinePlayer
 import org.bukkit.entity.Player
 import java.time.Duration
 import java.time.Instant
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * The variables for PlaceholderAPI:

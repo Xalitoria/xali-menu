@@ -2,13 +2,13 @@ package mc.xalitoria.menu.paper.format
 
 import com.typesafe.config.ConfigFactory
 import com.typesafe.config.ConfigObject
-import java.nio.file.Files
-import java.nio.file.Path
 import kotlinx.serialization.hocon.Hocon
 import kotlinx.serialization.hocon.decodeFromConfig
 import kotlinx.serialization.hocon.encodeToConfig
 import kotlinx.serialization.modules.SerializersModule
 import net.xalitoria.menu.model.Menu
+import java.nio.file.Files
+import java.nio.file.Path
 
 /**
  * Reads and writes menus as HOCON, the format of every file in `menus/`. The actions and conditions in a file are

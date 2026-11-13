@@ -2,14 +2,8 @@ package mc.xalitoria.menu.paper.action
 
 import io.papermc.paper.registry.RegistryAccess
 import io.papermc.paper.registry.RegistryKey
-import java.time.Duration as JavaDuration
-import kotlin.time.Duration
-import kotlin.time.Duration.Companion.seconds
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import net.xalitoria.menu.Action
-import net.xalitoria.menu.MenuContext
-import net.xalitoria.menu.model.DurationAsString
 import mc.xalitoria.menu.paper.XaliMenu
 import mc.xalitoria.menu.paper.XaliMenu.Companion.debug
 import mc.xalitoria.menu.paper.api.TypeRegistry
@@ -18,10 +12,16 @@ import net.kyori.adventure.inventory.Book
 import net.kyori.adventure.key.Key
 import net.kyori.adventure.text.Component
 import net.kyori.adventure.title.Title
+import net.xalitoria.menu.Action
+import net.xalitoria.menu.MenuContext
+import net.xalitoria.menu.model.DurationAsString
 import org.bukkit.GameMode
 import org.bukkit.Location
 import org.bukkit.Registry
 import org.bukkit.attribute.Attribute
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.seconds
+import java.time.Duration as JavaDuration
 
 /** The actions that change the viewer: their body, their position, what they see. */
 object Effects {

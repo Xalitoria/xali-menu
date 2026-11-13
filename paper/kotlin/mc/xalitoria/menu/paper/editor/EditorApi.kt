@@ -1,10 +1,10 @@
 package mc.xalitoria.menu.paper.editor
 
 import com.typesafe.config.ConfigObject
+import mc.xalitoria.menu.paper.XaliMenu
 import java.net.URI
 import java.nio.file.Files
 import java.nio.file.Path
-import mc.xalitoria.menu.paper.XaliMenu
 
 /**
  * What the editor asks of the plugin, apart from how the question arrived: over the endpoint's HTTP, or through a relay. The routes

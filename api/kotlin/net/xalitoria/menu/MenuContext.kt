@@ -1,8 +1,8 @@
 package net.xalitoria.menu
 
-import java.util.function.UnaryOperator
 import net.kyori.adventure.text.Component
 import org.bukkit.entity.Player
+import java.util.function.UnaryOperator
 
 /**
  * What an [Action] or [Condition] runs against: the player, the menu they are in, and the means to act on their behalf

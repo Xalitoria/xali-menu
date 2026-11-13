@@ -3,17 +3,17 @@ package mc.xalitoria.menu.paper.editor
 import com.typesafe.config.ConfigFactory
 import com.typesafe.config.ConfigObject
 import com.typesafe.config.ConfigRenderOptions
+import mc.xalitoria.menu.paper.XaliMenu
+import mc.xalitoria.menu.paper.format.HoconWriter
+import mc.xalitoria.menu.paper.format.MenuFormat
+import mc.xalitoria.menu.paper.runtime.LoadedMenu
+import mc.xalitoria.menu.paper.runtime.MenuManager
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardCopyOption
 import kotlin.io.path.exists
 import kotlin.io.path.isDirectory
 import kotlin.io.path.nameWithoutExtension
-import mc.xalitoria.menu.paper.XaliMenu
-import mc.xalitoria.menu.paper.format.HoconWriter
-import mc.xalitoria.menu.paper.format.MenuFormat
-import mc.xalitoria.menu.paper.runtime.LoadedMenu
-import mc.xalitoria.menu.paper.runtime.MenuManager
 
 /**
  * The menu files as the editor sees them: JSON in, JSON out. The editor edits the keys exactly as they are written in the

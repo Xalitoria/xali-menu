@@ -1,14 +1,14 @@
 package mc.xalitoria.menu.paper.editor
 
 import io.papermc.paper.datacomponent.DataComponentTypes
+import mc.xalitoria.menu.paper.XaliMenu
+import org.bukkit.configuration.file.YamlConfiguration
 import java.nio.file.Files
 import java.nio.file.Path
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.TimeUnit
 import kotlin.io.path.exists
 import kotlin.io.path.extension
-import mc.xalitoria.menu.paper.XaliMenu
-import org.bukkit.configuration.file.YamlConfiguration
 
 /**
  * What the editor needs from the plugins that make a resource pack: the pack itself, the names of their glyphs, and what their

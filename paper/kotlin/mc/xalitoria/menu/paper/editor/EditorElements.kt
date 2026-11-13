@@ -2,16 +2,16 @@ package mc.xalitoria.menu.paper.editor
 
 import com.typesafe.config.ConfigObject
 import com.typesafe.config.ConfigRenderOptions
-import java.util.concurrent.CompletableFuture
-import java.util.concurrent.ExecutionException
-import java.util.concurrent.TimeUnit
-import java.util.concurrent.TimeoutException
 import mc.xalitoria.menu.paper.XaliMenu
 import mc.xalitoria.menu.paper.format.MenuFormat
 import mc.xalitoria.menu.paper.runtime.Context
 import mc.xalitoria.menu.paper.runtime.numbered
 import mc.xalitoria.menu.paper.runtime.sortElements
 import org.bukkit.Bukkit
+import java.util.concurrent.CompletableFuture
+import java.util.concurrent.ExecutionException
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.TimeoutException
 
 /**
  * The elements a catalog lists now, for the editor's preview: what the plugin would draw for the player who asked for the link, instead

@@ -1,10 +1,10 @@
+import mc.xalitoria.menu.paper.runtime.slotted
+import mc.xalitoria.menu.paper.screen.Overlay
+import mc.xalitoria.menu.paper.screen.windowIndex
+import net.xalitoria.menu.model.Menu
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
-import mc.xalitoria.menu.paper.screen.Overlay
-import mc.xalitoria.menu.paper.screen.windowIndex
-import mc.xalitoria.menu.paper.runtime.slotted
-import net.xalitoria.menu.model.Menu
 
 /** A menu that draws in the player's own inventory, and what happens to what was there. */
 class PlayerInventory {

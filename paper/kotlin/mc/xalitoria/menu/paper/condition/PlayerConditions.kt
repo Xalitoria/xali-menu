@@ -1,19 +1,18 @@
 package mc.xalitoria.menu.paper.condition
 
-import java.math.BigDecimal
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import net.xalitoria.menu.Condition
-import net.xalitoria.menu.MenuContext
-import net.xalitoria.menu.Scope
 import mc.xalitoria.menu.paper.XaliMenu
 import mc.xalitoria.menu.paper.XaliMenu.Companion.debug
 import mc.xalitoria.menu.paper.action.Inventory
 import mc.xalitoria.menu.paper.api.TypeRegistry
+import net.xalitoria.menu.Condition
+import net.xalitoria.menu.MenuContext
+import net.xalitoria.menu.Scope
 import org.bukkit.GameMode
-import org.bukkit.attribute.Attribute
 import org.bukkit.inventory.EquipmentSlot
 import org.bukkit.inventory.ItemStack
+import java.math.BigDecimal
 
 /** The conditions about the viewer's body, belongings and surroundings. */
 object PlayerConditions {

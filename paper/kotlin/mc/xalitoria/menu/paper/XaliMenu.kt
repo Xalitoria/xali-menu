@@ -1,26 +1,26 @@
 package mc.xalitoria.menu.paper
 
+import com.xalitoria.util.bukkit.coroutineScope
+import com.xalitoria.util.config.YamlFile
+import com.xalitoria.util.message.*
 import io.papermc.paper.plugin.lifecycle.event.types.LifecycleEvents
-import java.nio.file.Files
-import kotlin.io.path.createDirectories
-import kotlin.io.path.exists
-import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.runBlocking
-import net.xalitoria.menu.XaliMenuApi
 import mc.xalitoria.menu.paper.action.Actions
 import mc.xalitoria.menu.paper.api.ApiImpl
 import mc.xalitoria.menu.paper.api.TypeRegistry
 import mc.xalitoria.menu.paper.catalog.Catalogs
 import mc.xalitoria.menu.paper.command.MenuCommand
 import mc.xalitoria.menu.paper.command.OpenCommands
+import mc.xalitoria.menu.paper.command.Permissions
 import mc.xalitoria.menu.paper.command.VariableCommand
 import mc.xalitoria.menu.paper.condition.Conditions
 import mc.xalitoria.menu.paper.config.MainConfig
 import mc.xalitoria.menu.paper.config.MessageConfig
+import mc.xalitoria.menu.paper.editor.EditorRelay
+import mc.xalitoria.menu.paper.editor.EditorServer
+import mc.xalitoria.menu.paper.editor.EditorSessions
 import mc.xalitoria.menu.paper.hook.Economy
 import mc.xalitoria.menu.paper.hook.FancyNpcs
 import mc.xalitoria.menu.paper.hook.HeadDatabaseSource
@@ -30,27 +30,25 @@ import mc.xalitoria.menu.paper.hook.NexoSource
 import mc.xalitoria.menu.paper.hook.Regions
 import mc.xalitoria.menu.paper.hook.Skins
 import mc.xalitoria.menu.paper.runtime.ActionRunner
-import mc.xalitoria.menu.paper.command.Permissions
-import mc.xalitoria.menu.paper.editor.EditorRelay
-import mc.xalitoria.menu.paper.editor.EditorServer
-import mc.xalitoria.menu.paper.editor.EditorSessions
 import mc.xalitoria.menu.paper.runtime.ActivatorListener
 import mc.xalitoria.menu.paper.runtime.Anvils
 import mc.xalitoria.menu.paper.runtime.Deposits
 import mc.xalitoria.menu.paper.runtime.Dialogs
 import mc.xalitoria.menu.paper.runtime.Inputs
 import mc.xalitoria.menu.paper.runtime.ItemFactory
-import mc.xalitoria.menu.paper.runtime.MenuListener
-import mc.xalitoria.menu.paper.screen.Screens
 import mc.xalitoria.menu.paper.runtime.LoadedMenu
+import mc.xalitoria.menu.paper.runtime.MenuListener
 import mc.xalitoria.menu.paper.runtime.MenuManager
 import mc.xalitoria.menu.paper.runtime.PluginListener
+import mc.xalitoria.menu.paper.screen.Screens
 import mc.xalitoria.menu.paper.variable.VariableExpansion
 import mc.xalitoria.menu.paper.variable.VariableStore
-import com.xalitoria.util.config.YamlFile
-import com.xalitoria.util.message.*
+import net.xalitoria.menu.XaliMenuApi
 import org.bukkit.plugin.ServicePriority
 import org.bukkit.plugin.java.JavaPlugin
+import java.nio.file.Files
+import kotlin.io.path.createDirectories
+import kotlin.io.path.exists
 
 class XaliMenu : JavaPlugin() {
     lateinit var config: YamlFile<MainConfig>
@@ -122,11 +120,7 @@ class XaliMenu : JavaPlugin() {
 
     override fun onEnable() {
         INSTANCE = this
-        scope = CoroutineScope(
-            SupervisorJob() + Dispatchers.Default + CoroutineExceptionHandler { _, throwable ->
-                logger.fail("Unhandled coroutine failure", throwable)
-            }
-        )
+        scope = coroutineScope()
 
         config = YamlFile(dataPath.resolve("config.yml"), MainConfig.serializer(), ::MainConfig)
         config.load()

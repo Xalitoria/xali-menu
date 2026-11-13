@@ -4,14 +4,14 @@ import com.mojang.brigadier.Command
 import com.mojang.brigadier.arguments.StringArgumentType
 import com.mojang.brigadier.suggestion.Suggestions
 import com.mojang.brigadier.suggestion.SuggestionsBuilder
-import java.util.concurrent.CompletableFuture
+import com.xalitoria.util.message.*
 import io.papermc.paper.command.brigadier.CommandSourceStack
 import io.papermc.paper.command.brigadier.Commands
 import mc.xalitoria.menu.paper.XaliMenu
 import mc.xalitoria.menu.paper.runtime.MenuArgs
-import com.xalitoria.util.message.*
 import org.bukkit.command.PluginIdentifiableCommand
 import org.bukkit.entity.Player
+import java.util.concurrent.CompletableFuture
 
 /**
  * The commands that open menus: each one-word entry of a menu's `commands`, unless the menu sets `register = false`.

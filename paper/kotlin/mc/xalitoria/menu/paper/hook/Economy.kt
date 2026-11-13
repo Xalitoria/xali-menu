@@ -1,10 +1,10 @@
 package mc.xalitoria.menu.paper.hook
 
-import java.math.BigDecimal
-import net.milkbowl.vault2.economy.Economy
 import net.milkbowl.vault.permission.Permission
+import net.milkbowl.vault2.economy.Economy
 import org.bukkit.entity.Player
 import org.bukkit.plugin.Plugin
+import java.math.BigDecimal
 
 /**
  * The economy and permission providers VaultUnlocked offers. They are looked up on every use: providers such as

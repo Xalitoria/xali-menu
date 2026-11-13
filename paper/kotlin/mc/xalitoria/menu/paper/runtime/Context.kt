@@ -1,15 +1,15 @@
 package mc.xalitoria.menu.paper.runtime
 
-import java.util.concurrent.ConcurrentHashMap
-import java.util.function.UnaryOperator
+import com.xalitoria.util.message.toComponent
+import com.xalitoria.util.message.verbatim
 import me.clip.placeholderapi.PlaceholderAPI
+import net.kyori.adventure.text.Component
 import net.xalitoria.menu.Action
 import net.xalitoria.menu.ActionsAborted
 import net.xalitoria.menu.MenuContext
-import mc.xalitoria.menu.paper.util.verbatim
-import com.xalitoria.util.message.toComponent
-import net.kyori.adventure.text.Component
 import org.bukkit.entity.Player
+import java.util.concurrent.ConcurrentHashMap
+import java.util.function.UnaryOperator
 
 /** PlaceholderAPI behind a seam, so what depends on it can run without a server. */
 object Placeholders {

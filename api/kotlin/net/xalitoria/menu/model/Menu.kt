@@ -1,9 +1,9 @@
 package net.xalitoria.menu.model
 
-import kotlin.time.Duration
 import kotlinx.serialization.EncodeDefault
 import kotlinx.serialization.Serializable
 import net.xalitoria.menu.Action
+import kotlin.time.Duration
 
 /**
  * A menu, as stored in `menus/<name>.conf`; the file name is the menu's name.

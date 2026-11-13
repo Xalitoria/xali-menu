@@ -2,12 +2,12 @@ package mc.xalitoria.menu.paper.editor
 
 import com.sun.net.httpserver.HttpExchange
 import com.sun.net.httpserver.HttpServer
+import mc.xalitoria.menu.paper.XaliMenu
 import java.net.InetSocketAddress
 import java.net.URI
 import java.nio.file.Files
 import java.util.concurrent.Executors
 import kotlin.io.path.fileSize
-import mc.xalitoria.menu.paper.XaliMenu
 
 /**
  * The endpoint the web editor talks to, when `editor.enabled` is on. It is the JDK's own HTTP server, so nothing is added to

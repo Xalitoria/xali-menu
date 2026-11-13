@@ -1,12 +1,12 @@
 package mc.xalitoria.menu.paper.runtime
 
-import java.util.UUID
-import java.util.concurrent.ConcurrentHashMap
 import mc.xalitoria.menu.paper.XaliMenu
 import mc.xalitoria.menu.paper.action.Inventory
 import net.xalitoria.menu.model.Accept
 import org.bukkit.entity.Player
 import org.bukkit.inventory.ItemStack
+import java.util.UUID
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Where an item that is offered to a slot of a menu is, as the server has it. Both ways to offer one are read from the

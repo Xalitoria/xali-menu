@@ -2,11 +2,11 @@ package mc.xalitoria.menu.paper.runtime
 
 import io.papermc.paper.threadedregions.scheduler.ScheduledTask
 import mc.xalitoria.menu.paper.XaliMenu
+import mc.xalitoria.menu.paper.util.legacy
+import net.xalitoria.menu.model.Animation
 import net.xalitoria.menu.model.Item
 import net.xalitoria.menu.model.Menu
-import net.xalitoria.menu.model.Animation
 import net.xalitoria.menu.model.Pages
-import mc.xalitoria.menu.paper.util.legacy
 import org.bukkit.entity.Player
 import org.bukkit.inventory.Inventory
 import org.bukkit.inventory.InventoryHolder

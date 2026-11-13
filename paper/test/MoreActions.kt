@@ -1,13 +1,3 @@
-import java.lang.reflect.Proxy
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
-import kotlin.test.assertNull
-import kotlin.time.Duration.Companion.minutes
-import kotlin.time.Duration.Companion.seconds
-import net.xalitoria.menu.Action
-import net.xalitoria.menu.Catalog
-import net.xalitoria.menu.MenuContext
 import mc.xalitoria.menu.paper.action.Actions
 import mc.xalitoria.menu.paper.action.Effects
 import mc.xalitoria.menu.paper.action.Flow
@@ -19,7 +9,17 @@ import mc.xalitoria.menu.paper.runtime.Context
 import mc.xalitoria.menu.paper.runtime.Host
 import mc.xalitoria.menu.paper.runtime.Prompt
 import mc.xalitoria.menu.paper.runtime.runActions
+import net.xalitoria.menu.Action
+import net.xalitoria.menu.Catalog
+import net.xalitoria.menu.MenuContext
 import org.bukkit.entity.Player
+import java.lang.reflect.Proxy
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
+import kotlin.test.assertNull
+import kotlin.time.Duration.Companion.minutes
+import kotlin.time.Duration.Companion.seconds
 
 class MoreActions {
     private val log = mutableListOf<String>()

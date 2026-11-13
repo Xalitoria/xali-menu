@@ -4,12 +4,12 @@ import com.destroystokyo.paper.profile.PlayerProfile
 import com.destroystokyo.paper.profile.ProfileProperty
 import io.papermc.paper.datacomponent.DataComponentTypes
 import io.papermc.paper.datacomponent.item.ResolvableProfile
-import java.util.UUID
-import java.util.concurrent.ConcurrentHashMap
 import net.skinsrestorer.api.SkinsRestorerProvider
 import org.bukkit.Material
 import org.bukkit.inventory.ItemStack
 import org.bukkit.plugin.Plugin
+import java.util.UUID
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Player heads. `head:<name>` shows an online player's own skin, which already includes what SkinsRestorer applied; for

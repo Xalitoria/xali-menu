@@ -27,7 +27,7 @@ internal object HoconWriter {
     private fun body(obj: ConfigObject, indent: String): String = keys(obj).joinToString("") { key ->
         val value = obj.getValue(key)
         if (value.valueType() == OBJECT && (holdsObjects(value as ConfigObject) || inline(value) == null)) {
-            "$indent${label(key)} {\n${body(value as ConfigObject, indent + INDENT)}$indent}\n"
+            "$indent${label(key)} {\n${body(value, indent + INDENT)}$indent}\n"
         } else {
             "$indent${label(key)} = ${value(value, indent)}\n"
         }
@@ -49,8 +49,7 @@ internal object HoconWriter {
         val lines = mutableListOf<String>()
         var line = ""
         for (item in items) {
-            if (line.isNotEmpty() && (indent + INDENT + line + ", " + item + ",").length > WIDTH) { lines += "$line,"; line = item }
-            else line = if (line.isEmpty()) item else "$line, $item"
+            if (line.isNotEmpty() && (indent + INDENT + line + ", " + item + ",").length > WIDTH) { lines += "$line,"; line = item } else line = if (line.isEmpty()) item else "$line, $item"
         }
         lines += line
         return lines.joinToString("", "[\n", "$indent]") { "${indent + INDENT}$it\n" }

@@ -1,19 +1,19 @@
-import java.nio.file.Files
-import java.nio.file.Path
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertTrue
+import com.xalitoria.menu.editor.SchemaBuilder
+import com.xalitoria.menu.editor.SourceDocs
+import com.xalitoria.menu.editor.builtIn
+import com.xalitoria.menu.editor.schema
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
-import com.xalitoria.menu.editor.SchemaBuilder
-import com.xalitoria.menu.editor.SourceDocs
-import com.xalitoria.menu.editor.builtIn
-import com.xalitoria.menu.editor.schema
 import mc.xalitoria.menu.paper.format.MenuFormat
+import java.nio.file.Files
+import java.nio.file.Path
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 class SchemaTest {
     private val menuDirectory: Path = Path.of(System.getProperty("user.dir")).parent

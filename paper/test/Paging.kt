@@ -1,13 +1,3 @@
-import java.lang.reflect.Proxy
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
-import kotlin.test.assertTrue
-import net.xalitoria.menu.Action
-import net.xalitoria.menu.Catalog
-import net.xalitoria.menu.CatalogType
-import net.xalitoria.menu.MenuContext
-import net.xalitoria.menu.model.Pages
 import mc.xalitoria.menu.paper.action.Actions
 import mc.xalitoria.menu.paper.api.TypeRegistry
 import mc.xalitoria.menu.paper.catalog.Catalogs
@@ -20,8 +10,18 @@ import mc.xalitoria.menu.paper.runtime.layoutPage
 import mc.xalitoria.menu.paper.runtime.numbered
 import mc.xalitoria.menu.paper.runtime.sortElements
 import mc.xalitoria.menu.paper.util.legacy
+import net.xalitoria.menu.Action
+import net.xalitoria.menu.Catalog
+import net.xalitoria.menu.CatalogType
+import net.xalitoria.menu.MenuContext
+import net.xalitoria.menu.model.Pages
 import org.bukkit.entity.Player
 import org.bukkit.plugin.Plugin
+import java.lang.reflect.Proxy
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
+import kotlin.test.assertTrue
 
 class Paging {
     private fun elements(vararg values: String) = values.map { mapOf("name" to it) }

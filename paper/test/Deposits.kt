@@ -1,17 +1,17 @@
-import java.util.UUID
-import kotlin.test.Test
-import kotlin.test.assertFalse
-import kotlin.test.assertTrue
-import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
-import kotlin.test.assertNull
-import net.xalitoria.menu.model.Accept
-import net.xalitoria.menu.model.Item
-import net.xalitoria.menu.model.Menu
 import mc.xalitoria.menu.paper.action.Actions
 import mc.xalitoria.menu.paper.action.Social
 import mc.xalitoria.menu.paper.runtime.Deferred
 import mc.xalitoria.menu.paper.runtime.hasPlaceholder
+import net.xalitoria.menu.model.Accept
+import net.xalitoria.menu.model.Item
+import net.xalitoria.menu.model.Menu
+import java.util.UUID
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
+import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 /** The slots that take an item from the player: how they are written. What is taken is checked live (`live/bot/deposit.js`). */
 class Deposits {

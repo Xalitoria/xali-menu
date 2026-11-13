@@ -9,32 +9,31 @@ import io.papermc.paper.datacomponent.item.Equippable
 import io.papermc.paper.datacomponent.item.FoodProperties
 import io.papermc.paper.datacomponent.item.Tool
 import io.papermc.paper.datacomponent.item.TooltipDisplay
+import io.papermc.paper.registry.RegistryAccess
+import io.papermc.paper.registry.RegistryKey
 import io.papermc.paper.registry.TypedKey
 import io.papermc.paper.registry.set.RegistrySet
 import io.papermc.paper.registry.tag.TagKey
-import net.kyori.adventure.util.TriState
-import io.papermc.paper.registry.RegistryAccess
-import io.papermc.paper.registry.RegistryKey
-import java.util.concurrent.ConcurrentHashMap
 import mc.xalitoria.menu.paper.XaliMenu
+import net.kyori.adventure.key.Key
+import net.kyori.adventure.text.format.TextDecoration
+import net.kyori.adventure.util.TriState
 import net.xalitoria.menu.model.AttributeOperation
 import net.xalitoria.menu.model.Item
 import net.xalitoria.menu.model.Trim
-import net.kyori.adventure.key.Key
-import net.kyori.adventure.text.format.TextDecoration
 import org.bukkit.Bukkit
 import org.bukkit.Color
 import org.bukkit.DyeColor
 import org.bukkit.FireworkEffect
-import org.bukkit.NamespacedKey
 import org.bukkit.Material
-import org.bukkit.block.banner.Pattern
+import org.bukkit.NamespacedKey
 import org.bukkit.attribute.AttributeModifier
+import org.bukkit.block.banner.Pattern
+import org.bukkit.entity.TropicalFish
 import org.bukkit.inventory.EquipmentSlot
 import org.bukkit.inventory.EquipmentSlotGroup
-import org.bukkit.inventory.ItemStack
-import org.bukkit.entity.TropicalFish
 import org.bukkit.inventory.ItemRarity
+import org.bukkit.inventory.ItemStack
 import org.bukkit.inventory.meta.ArmorMeta
 import org.bukkit.inventory.meta.BannerMeta
 import org.bukkit.inventory.meta.BookMeta
@@ -42,11 +41,12 @@ import org.bukkit.inventory.meta.Damageable
 import org.bukkit.inventory.meta.EnchantmentStorageMeta
 import org.bukkit.inventory.meta.FireworkEffectMeta
 import org.bukkit.inventory.meta.FireworkMeta
+import org.bukkit.inventory.meta.PotionMeta
 import org.bukkit.inventory.meta.TropicalFishBucketMeta
 import org.bukkit.inventory.meta.trim.ArmorTrim
-import org.bukkit.potion.PotionType
-import org.bukkit.inventory.meta.PotionMeta
 import org.bukkit.potion.PotionEffect
+import org.bukkit.potion.PotionType
+import java.util.concurrent.ConcurrentHashMap
 
 /** Builds the stack an [Item] shows as. Anything that cannot be resolved is skipped (and noted by [validate]) rather than failing the menu. */
 class ItemFactory(private val plugin: XaliMenu) {

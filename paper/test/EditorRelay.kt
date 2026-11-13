@@ -1,15 +1,14 @@
+import mc.xalitoria.menu.paper.editor.EditorRelay
+import mc.xalitoria.menu.paper.editor.Json
+import mc.xalitoria.menu.paper.editor.PendingEdits
+import mc.xalitoria.menu.paper.editor.RelayCrypto
 import java.util.Base64
 import kotlin.test.Test
-import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotEquals
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
-import mc.xalitoria.menu.paper.editor.EditorRelay
-import mc.xalitoria.menu.paper.editor.Json
-import mc.xalitoria.menu.paper.editor.PendingEdits
-import mc.xalitoria.menu.paper.editor.RelayCrypto
 
 /** The parts of sharing the editor through a relay that need no server: the encryption (shared with the web editor) and the held edits. */
 class EditorRelayTest {

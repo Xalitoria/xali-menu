@@ -1,17 +1,17 @@
 package mc.xalitoria.menu.paper.runtime
 
+import com.xalitoria.util.message.PLAIN
 import io.papermc.paper.event.player.AsyncChatEvent
-import java.util.UUID
-import java.util.concurrent.ConcurrentHashMap
-import net.xalitoria.menu.Action
 import mc.xalitoria.menu.paper.XaliMenu
 import mc.xalitoria.menu.paper.config.MessageConfig
-import com.xalitoria.util.message.PLAIN
+import net.xalitoria.menu.Action
 import org.bukkit.entity.Player
 import org.bukkit.event.EventHandler
 import org.bukkit.event.EventPriority
 import org.bukkit.event.Listener
 import org.bukkit.event.player.PlayerQuitEvent
+import java.util.UUID
+import java.util.concurrent.ConcurrentHashMap
 
 /** What a player's next chat message is waiting to become: the prompt of an `input` action. */
 class Prompt(

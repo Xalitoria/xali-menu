@@ -1,5 +1,20 @@
+import com.xalitoria.util.config.DatabaseConfig
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.runBlocking
+import mc.xalitoria.menu.paper.config.MainConfig
+import mc.xalitoria.menu.paper.config.MainConfig.StoreKind
+import mc.xalitoria.menu.paper.variable.Shard
+import mc.xalitoria.menu.paper.variable.SqlBackend
+import mc.xalitoria.menu.paper.variable.Storage
+import mc.xalitoria.menu.paper.variable.StoreRules
+import mc.xalitoria.menu.paper.variable.VariableStore
+import mc.xalitoria.menu.paper.variable.isTransient
+import net.xalitoria.menu.Scope
 import java.math.BigDecimal
 import java.nio.file.Files
 import java.nio.file.Path
@@ -15,21 +30,6 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import com.xalitoria.util.config.DatabaseConfig
-import kotlinx.coroutines.cancel
-import kotlinx.coroutines.runBlocking
-import net.xalitoria.menu.Scope
-import mc.xalitoria.menu.paper.config.MainConfig
-import mc.xalitoria.menu.paper.config.MainConfig.StoreKind
-import mc.xalitoria.menu.paper.variable.Shard
-import mc.xalitoria.menu.paper.variable.SqlBackend
-import mc.xalitoria.menu.paper.variable.Storage
-import mc.xalitoria.menu.paper.variable.StoreRules
-import mc.xalitoria.menu.paper.variable.VariableStore
-import mc.xalitoria.menu.paper.variable.isTransient
 
 /**
  * Several servers on one database, as several stores on one file (and, when `XALIMENU_TEST_MYSQL` holds a JDBC url such as
