@@ -21,3 +21,14 @@ dependencies {
 tasks.test {
     useJUnitPlatform()
 }
+
+publishing {
+    repositories {
+        maven("https://maven.xali.host/releases") {
+            credentials {
+                username = System.getenv("MAVEN_USER") ?: project.findProperty("maven.user") as? String
+                password = System.getenv("MAVEN_TOKEN") ?: project.findProperty("maven.token") as? String
+            }
+        }
+    }
+}

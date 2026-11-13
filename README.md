@@ -6,6 +6,21 @@ kotlinx.serialization's HOCON support, and text goes through the same color hand
 [XaliChat](../chat/README.md) (legacy codes and MiniMessage). Other plugins add their own actions, conditions and item
 sources through an [addon API](#extending).
 
+## Contents
+
+- [Installation](#installation): [Requirements](#requirements), [Modules](#modules),
+  [Building and installing](#building-and-installing), [Removal](#removal)
+- [Configuration](#configuration): [Files](#files), [Menu files](#menu-files), [How a menu behaves](#how-a-menu-behaves),
+  [Item properties](#item-properties), [Actions](#actions), [Conditions](#conditions), [Paged menus](#paged-menus),
+  [Animations](#animations), [Opening a menu by what a player does](#opening-a-menu-by-what-a-player-does),
+  [Variables](#variables)
+- [Usage](#usage): [Commands](#commands), [Importing from DeluxeMenus](#importing-from-deluxemenus)
+- [Web editor](#web-editor)
+- [Extending](#extending)
+- [Troubleshooting](#troubleshooting)
+- [Development](#development)
+- [See also](#see-also)
+
 ## Installation
 
 ### Requirements
@@ -29,6 +44,9 @@ sources through an [addon API](#extending).
 |---|---|
 | `menu/api` | `net.xalitoria.menu`: what other plugins compile against. The menu model, `Action`, `Condition`, `MenuContext`, `ItemSource`, `Variables` and `XaliMenuApi`. Shaded into the plugin's jar. |
 | `menu/paper` | `mc.xalitoria.menu.paper`: the plugin. Its built-in actions and conditions are written against the same API. |
+| [`menu/editor`](editor/README.md) | `com.xalitoria.menu.editor`: the [web editor](#web-editor) (`web/`, static files) and the task that writes its `schema.json` from the plugin's classes. Not part of the plugin jar. |
+| [`menu/relay`](relay/README.md) | A small Node.js mailbox for `/xmenu share`. Not a Gradle module. |
+| [`menu/live`](live/README.md) | Scripts that test the plugin on a real Folia server with a bot. Not a Gradle module. |
 
 ### Building and installing
 
@@ -44,6 +62,12 @@ into `run/folia/plugins` by hand.
 
 The `paper { }` descriptor is in `menu/build.gradle.kts`. The API is shaded into the plugin jar with `minimize` excluding
 it, so an addon sees it through `join-classpath`.
+
+### Removal
+
+Delete the jar. `plugins/XaliMenu/` (the menus and `variables` data) and, with `database.type` `mariadb` or `mysql`, the
+tables `<prefix>variable` and `<prefix>revision` stay. Plugins that registered actions or catalogs with XaliMenu
+(XaliFriends, XaliRedeem) report their menus as broken until the menu files that use them are deleted.
 
 ## Configuration
 
@@ -490,7 +514,7 @@ variables:
 
 ### Commands
 
-All of these need `xalimenu.admin`.
+All of these need `xalimenu.admin`. The command is `/xalimenu`, also `/xmenu` and `/menu`; the tables write `/xmenu`.
 
 | Command | Description |
 |---|---|
@@ -625,8 +649,8 @@ what they should, so `[money take, give item]` does not give the item for free. 
 > default deserializer. Constructors with default arguments are avoided in the API because they carry
 > `DefaultConstructorMarker`, a `kotlin.` type.
 
-[XaliFriends](../friends/README.md) uses XaliMenu without registering anything: its menus run `/xfriend` through the
-built-in `player` action.
+[XaliFriends](../friends/README.md) and [XaliRedeem](../redeem/README.md) use this API: they register their own actions
+(`xalifriends:accept`, `xaliredeem:redeem`) and, for XaliRedeem, a catalog, and write their menus into `plugins/XaliMenu/menus`.
 
 ## Troubleshooting
 
@@ -660,7 +684,9 @@ loaded at startup.
 ## Development
 
 Sources are under `menu/<submodule>/kotlin`, tests under `menu/<submodule>/test` (see the
-[root README](../README.md#source-layout)).
+[root README](../README.md#source-layout)). [`CONTRIBUTING.md`](CONTRIBUTING.md) walks through adding an action, a condition,
+a catalog, an item property or an activator, and the style of the documentation comments. [`PLAN.md`](PLAN.md) holds
+the roadmap and what is left.
 
 | Part | Where |
 |---|---|
@@ -697,7 +723,14 @@ Notes for changes:
 
 ## See also
 
-- [XaliFriends](../friends/README.md) — friend menus built on XaliMenu
+- [XaliFriends](../friends/README.md) and [XaliRedeem](../redeem/README.md) — plugins with menus built on XaliMenu
 - [XaliChat](../chat/README.md) — the text formatting XaliMenu shares
+- [Web editor](editor/README.md), [relay](relay/README.md) and [live tests](live/README.md)
 - [Gradle plugin](../xali-gradle/README.md) — descriptors and library loading
+- [Root README](../README.md) — the workspace
+
+## External resources
+
 - [AbstractMenus](https://github.com/AbstractMenus/minecraft-plugin) — the plugin XaliMenu is modeled on
+- [HOCON](https://github.com/lightbend/config/blob/main/HOCON.md) — the format of the menu files
+- [PlaceholderAPI](https://wiki.placeholderapi.com/) — the placeholders

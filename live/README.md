@@ -1,7 +1,23 @@
 # Live tests
 
-What the unit tests cannot show: the plugin on a real Folia server, with a bot (mineflayer) as the player. Nothing here
+**The live tests** show what the unit tests cannot: the plugin on a real Folia server, with a bot (mineflayer) as the player. Nothing here
 runs in `./gradlew test`; it is for checking a change by hand, and for finding what a mock would have hidden.
+
+## Contents
+
+- [Installation](#installation)
+- [Usage](#usage): [The scripts](#the-scripts)
+- [Why the setup is odd](#why-the-setup-is-odd)
+
+## Installation
+
+### Requirements
+
+- Node.js and npm (for mineflayer, which `setup.sh` installs into `$XM_DIR/bot`) and Python 3 (`bot/nbt.py`).
+- `JAVA_HOME` pointing at a JDK that exists. `setup.sh` falls back to `/opt/openjdk-bin-25` when it does not, so export it first.
+- A dev server in `run/folia` (see the [root README](../../README.md#dev-servers)): its Folia jar and libraries are copied.
+
+### Setting up
 
 ```console
 user $ menu/live/setup.sh
@@ -10,8 +26,26 @@ user $ node /tmp/xm-live/bot/act.js > /tmp/xm-live/act.txt; cat /tmp/xm-live/act
 user $ menu/live/server.sh stop
 ```
 
-`XM_PAPER=<jar>` makes the server a Paper one instead of the dev server's Folia. `XM_PLUGINS="Name ..."` copies plugins of the dev server by the start of their jar name. `XM_RELAY=<url>` sets the relay of `/xmenu share`. `XM_EDITOR=1` turns the web editor's endpoint on (`XM_EDITOR_PORT`, `XM_EDITOR_PACK` for a pack zip, `XM_GLYPHS` for a Nexo glyphs folder); `/xmenu edit` then prints a link, and `curl` with its token tries the endpoint. `XM_DIR` (default `/tmp/xm-live`) says where everything is put and `XM_PORT` (default 25599) which port the server uses.
+## Usage
+
+Set these before `setup.sh` (and `server.sh`):
+
+| Variable | Default | Effect |
+|---|---|---|
+| `XM_DIR` | `/tmp/xm-live` | Where everything is put. |
+| `XM_PORT` | `25599` | The port the server uses. |
+| `XM_PAPER=<jar>` | the dev server's Folia | Run a Paper server instead (DeluxeMenus and some others do not support Folia). |
+| `XM_PLUGINS="Name ..."` | none | Copy plugins of the dev server by the start of their jar name. |
+| `XM_RELAY=<url>` | none | The relay of `/xmenu share`. |
+| `XM_EDITOR=1` | off | Turn the web editor's endpoint on. `XM_EDITOR_PORT`, `XM_EDITOR_PACK` (a pack zip) and `XM_GLYPHS` (a Nexo glyphs folder) tune it; `/xmenu edit` then prints a link, and `curl` with its token tries the endpoint. |
+| `XM_ADDON=1` | off | Build and install `addon/XmDemo.java`, the demo plugin that adds an activator and `/xmsave`. |
+
 The server is offline-mode and meant to be thrown away. Do not pipe a bot into `head`: closing the pipe ends it early.
+
+### The scripts
+
+To test another plugin than XaliMenu, copy its jar (the newest in `build/libs/<module>/`) into `$XM_DIR/server/plugins`
+before `server.sh start`, and write a bot in `bot/`.
 
 | Script | Menu | Shows |
 |---|---|---|
@@ -43,3 +77,9 @@ The server is offline-mode and meant to be thrown away. Do not pipe a bot into `
   puts the jars the workspace just built into the server's library folder, where the loader finds them.
 - Item names from mineflayer are those of 26.1; the window title and custom names are right.
 - Kill the server with `server.sh stop`, never by pattern with `pkill -f`.
+
+## See also
+
+- [XaliMenu](../README.md) — the plugin these scripts test
+- [Web editor](../editor/README.md) and [relay](../relay/README.md) — the pieces `bot/editor.js` and `bot/relay.js` exercise
+- [Root README](../../README.md#dev-servers) — the dev servers

@@ -5,6 +5,9 @@ import com.xalitoria.util.message.formatArgs
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
+/** What every heading starts with: the same colors in every Xali plugin. */
+private const val HEAD = "{#a0a>}&lXALI{#fff<}&f&lMENU &7>"
+
 /**
  * Every message the plugin sends. Text is colored like in XaliChat: `&` codes, `&#RRGGBB`, CMI gradients such as
  * `{#a0a>}text{#fff<}` and MiniMessage tags all work. `{0}`, `{1} ...` are filled in by the command that sends it.
@@ -28,17 +31,17 @@ data class MessageConfig(
     @Serializable
     data class Commands(
         @SerialName("no-permission")
-        val noPermission: String = "No permission.",
+        val noPermission: String = "You don't have permission to use this command.",
         private val help: String = """
-            {#a0a>}&lXALIM{#fff<}&f&lENU &7> &dHELP
-            &d/{0} &rreload &7[menu]
+            $HEAD &dHELP
+            &d/{0} &rreload [menu]
             &d/{0} &rlist
-            &d/{0} &rinfo &7<menu>
-            &d/{0} &rvalidate &7[menu]
-            &d/{0} &rinspect &7[player]
-            &d/{0} &ropen &7<menu> [player]
-            &d/{0} &redit &7[menu]
-            &d/{0} &rimport deluxemenus &7[overwrite] [folder]
+            &d/{0} &rinfo <menu>
+            &d/{0} &rvalidate [menu]
+            &d/{0} &rinspect [player]
+            &d/{0} &ropen <menu> [player]
+            &d/{0} &redit [menu]
+            &d/{0} &rimport deluxemenus [overwrite] [folder]
         """.trimIndent(),
         val reload: Reload = Reload(),
         val menu: Menu = Menu(),
@@ -53,7 +56,7 @@ data class MessageConfig(
         @Serializable
         data class Variable(
             private val help: String = """
-                {#a0a>}&lXALIM{#fff<}&f&lENU &7> &dVARIABLES
+                $HEAD &dVARIABLES
                 &d/xvar &rget <name>
                 &d/xvar &rset <name> <value> &7[time] [replace]
                 &d/xvar &rrem <name>
@@ -73,7 +76,7 @@ data class MessageConfig(
             @SerialName("invalid-time")
             private val invalidTime: String = "'{0}' is not a time like 30m, 1h or 2d.",
             @SerialName("unknown-player")
-            private val unknownPlayer: String = "No player named '{0}' has been here.",
+            private val unknownPlayer: String = "No player called {0} has joined.",
         ) {
             fun help(): String = help
             fun unavailable(name: String): String = unavailable.formatArgs(name)
@@ -97,7 +100,7 @@ data class MessageConfig(
             private val usage: String = "Usage: &d/{0} &r{1}",
             private val opened: String = "Opened '{0}' for {1}.",
             @SerialName("target-invalid")
-            private val targetInvalid: String = "Player '{0}' not found!",
+            private val targetInvalid: String = "No player called {0} has joined.",
             private val loaded: String = "Loaded {0} menus.",
             private val list: String = "Menus ({0}): {1}",
             @SerialName("list-empty")
@@ -212,7 +215,7 @@ data class MessageConfig(
 
         @Serializable
         data class Reload(
-            val pass: String = "{#a0a>}&lXALIM{#fff<}&f&lENU &7> &aReloaded!",
+            val pass: String = "Configuration reloaded.",
         )
 
         @Serializable

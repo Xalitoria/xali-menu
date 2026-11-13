@@ -16,8 +16,8 @@ class Messages {
 
     @Test
     fun cmiGradientsInTheDefaults() {
-        val component = MessageConfig().commands.reload.pass.toComponent()
-        assertEquals("XALIMENU > Reloaded!", PLAIN.serialize(component))
+        val component = MessageConfig().commands.help("xalimenu").lineSequence().first().toComponent()
+        assertEquals("XALIMENU > HELP", PLAIN.serialize(component))
         assertTrue(component.flatten().mapNotNull { it.color() }.distinct().size > 3)
     }
 

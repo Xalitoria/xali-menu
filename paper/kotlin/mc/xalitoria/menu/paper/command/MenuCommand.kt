@@ -46,11 +46,11 @@ object MenuCommand {
     private val toolMsg get() = cmdMsg.tools
 
     fun register(registrar: Commands) {
-        registrar.register(builder().build(), "Manages XaliMenu's menus", listOf("menu", "xm"))
+        registrar.register(builder().build(), "Manages XaliMenu's menus", listOf("xmenu", "menu"))
     }
 
     private fun builder(): LiteralArgumentBuilder<CommandSourceStack> = Commands
-        .literal("xmenu")
+        .literal("xalimenu")
         .executes { ctx -> ctx.source.sender.help(); Command.SINGLE_SUCCESS }
         .then(Commands
             .literal("reload")
@@ -382,7 +382,7 @@ object MenuCommand {
         .executes { import(it, StringArgumentType.getString(it, "folder"), overwrite) }
 
     private fun CommandSender.help() {
-        if (allowed()) this send cmdMsg.help("xmenu")
+        if (allowed()) this send cmdMsg.help("xalimenu")
     }
 
     /** Whether this sender may use the subcommands, telling them if not. */

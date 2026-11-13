@@ -1,9 +1,19 @@
 # XaliMenu editor
 
-A web editor for XaliMenu's menu files, hosted at <https://menu.xali.to>. It edits the same files the plugin reads: it shows each menu
+**The XaliMenu editor** is a web editor for XaliMenu's menu files, hosted at <https://menu.xali.to>. It edits the same files the plugin reads: it shows each menu
 as a form (every action, condition, activator and item property, with the comments of the source as help), as the window with its
 items, and as text. It checks a menu while you type, shows the glyphs and custom items of the server's resource pack, and moves
 glyphs in titles into place.
+
+## Contents
+
+- [How it works](#how-it-works), [How items and windows are drawn](#how-items-and-windows-are-drawn)
+- [Using it](#using-it)
+- [Setting it up](#setting-it-up): [Host the site](#1-host-the-site-once-for-the-organization),
+  [Turn on the endpoint](#2-turn-on-the-endpoint-on-a-server-optional), [Share through a relay](#3-share-through-a-relay-optional),
+  [Show the resource pack](#4-show-the-resource-pack-optional)
+- [Development](#development)
+- [See also](#see-also)
 
 ## How it works
 
@@ -203,15 +213,60 @@ A glyph that is moved is written as the space characters of the pack's own font 
 
 ## Development
 
+### Requirements
+
+Node.js 20 or later for the page's tests, and the workspace's Gradle for the schema. The page has no build and no
+dependencies (`web/src/vendor` holds what it bundles).
+
+### Building and testing
+
 ```console
 user $ python3 -m http.server -d menu/editor/web 8765          # serve the site, then open http://127.0.0.1:8765
 user $ node --test menu/editor/web/test/                       # the tests of the page
 user $ ./gradlew :menu:editor:schema :menu:editor:test         # write schema.json, and check that it is up to date
 ```
 
+> [!TIP]
+> A browser caches ES modules and CSS across reloads. Serve the folder with a `Cache-Control: no-store` header, or from a
+> new port each time, when a change does not show.
+
 Run the schema task after a change to the menu model, a built-in type, or a comment in the sources. To try the endpoint against a real
 server, see `menu/live/README.md` (`XM_EDITOR=1`).
 
-The source is in `web/src`; each file starts with a comment about what it does. `form.js` draws the form from the schema, `store.js`
-holds the menu with undo, `check.js` finds problems, `hocon.js` and `hoconWriter.js` read and write menu files, and `zip.js`,
-`fonts.js`, `models.js`, `pack.js` and `glyphs.js` read resource packs. The pieces that need no browser have tests.
+### Source layout
+
+| Where | Holds |
+|---|---|
+| `menu/editor/kotlin/com/xalitoria/menu/editor` | `DumpSchema.kt` (the entry of the `schema` task), `SchemaBuilder.kt` (walks the serializer descriptors of the model and the plugin) and `SourceDocs.kt` (reads the KDoc comments for the help texts). |
+| `menu/editor/test/SchemaTest.kt` | Fails when `web/schema.json` is older than the code. |
+| `web/schema.json` | Written by the `schema` task. Do not edit it. It holds the plugin's version as well. |
+| `web/src` | The page. Each file starts with a comment about what it does. |
+| `web/test` | The page's tests, run with `node --test`. |
+| `tools/named-colors.py` | Writes the table of named colors. |
+
+In `web/src`: `app.js` starts the page, `form.js` draws the form from the schema, `store.js` holds the menu with undo, `check.js`
+finds problems, `hocon.js` and `hoconWriter.js` read and write menu files, `editorTab.js`, `rawTab.js`, `pagesPanel.js` and
+`glyphbar.js` are the panels, `remote.js` and `relay.js` talk to the server's endpoint and the relay, and `zip.js`, `fonts.js`,
+`models.js`, `itemdef.js`, `itemrender.js`, `pack.js` and `glyphs.js` read resource packs and draw items. The pieces that need no
+browser have tests.
+
+**Adding a field to the form**
+
+1. Add the property to the model in `menu/api` (or the action or condition in `menu/paper`) with a KDoc comment: the comment is the help.
+2. Run `./gradlew :menu:editor:schema`, and commit the changed `web/schema.json` with the change.
+3. If the editor needs more than a generic field, add it in `form.js` and a test in `web/test`.
+
+**Changing the plugin's endpoint**
+
+The server side is in `menu/paper/.../editor`. Check it live with `menu/live/bot/editor.js` (`XM_EDITOR=1`), see
+[Live tests](../live/README.md).
+
+## See also
+
+- [XaliMenu](../README.md#web-editor) — the plugin's side: `/xmenu edit`, `/xmenu share`, `editor.*` in `config.yml`
+- [Relay](../relay/README.md) — the mailbox for servers that cannot be reached from outside
+- [Live tests](../live/README.md) — trying the endpoint with a bot
+
+## External resources
+
+- [GitHub Pages](https://docs.github.com/pages) — where the site is hosted
