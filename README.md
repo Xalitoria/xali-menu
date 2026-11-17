@@ -98,7 +98,7 @@ items {
         material = "diamond_pickaxe"      # or head:<player>, texture:<base64>, hdb:<id>, itemsadder:<id>, nexo:<id>
         slot = 10
         name = "&aMiner"
-        require = { require = [{ condition = { type = "permission", node = "jobs.use" } }] }
+        view = { require = [{ condition = { type = "permission", node = "jobs.use" } }] }
         click.left = { actions = [{ type = "player", command = "jobs join miner" }, { type = "close" }] }
     }
 }
@@ -125,7 +125,7 @@ items {
 
 **The player's own inventory.** An item of `items` with `inventory-slots` is drawn in those slots of the player's inventory as well, as the game numbers them: 0 to 8 the
 hotbar, 9 to 35 the three rows above it (not armor and the off hand, which the screen doesn't show). It is the same item, so it is defined once and used in the menu and under it,
-with everything an item has: `require`, `priority`, `update`, clicks. An item with only `inventory-slots` is drawn under the menu and not in it. Nothing else in the inventory can be
+with everything an item has: `view`, `priority`, `update`, clicks. An item with only `inventory-slots` is drawn under the menu and not in it. Nothing else in the inventory can be
 moved, and nothing can be picked up while the menu is open (unless an item takes items, see below).
 
 ```hocon
@@ -172,7 +172,7 @@ first slot, in slot order, that the item fits, and does nothing if there is none
 ### How a menu behaves
 
 Opening checks the menu's `open` gate, then draws the items. Of the items claiming a slot, the one with the lowest
-`priority` (ties by name) whose `require` gate passes is drawn. `refresh` draws again, rebuilding only items marked
+`priority` (ties by name) whose `view` gate passes is drawn. `refresh` draws again, rebuilding only items marked
 `update`; a menu whose file names a variable placeholder (`%xalimenu_var_<name>%` and the like) is also drawn again, with no `refresh` needed, a moment after a variable changes (see Variables). A click runs the item's handler for that kind of click (or `any`) if its `require` gate passes. Nothing can be
 moved in or out of a menu. Everything runs on the player's region thread; console commands go to the global region
 (Folia).
@@ -186,7 +186,7 @@ use whatever provides Vault's `Permission`.
 ### Item properties
 
 Besides `material`, `slot`, `slots`, `priority`, `amount`, `name`, `lore`, `enchants`, `hide`, `unbreakable`,
-`model` (custom model data), `color` (leather and the like), `banner` (the patterns of a banner or a shield) and `base-color` (a shield's base), `potion` (custom effects), `nbt`, `update`, `require`
+`model` (custom model data), `color` (leather and the like), `banner` (the patterns of a banner or a shield) and `base-color` (a shield's base), `potion` (custom effects), `nbt`, `update`, `view`
 and `click`, an item takes the properties below. They work the same for the items of `give-item`. A property that does not
 fit the item (a `trim` on a stick) is left out, a value that cannot be used is reported when the menu is read, and an item that
 cannot be built at all is shown as a barrier and noted once in the log rather than breaking the menu.
@@ -279,7 +279,7 @@ click.any.actions = [{
 
 ### Conditions
 
-A condition is `{ type = "...", ... }` in a `require` of a gate: `require.require = [{ condition = { type = "free-slots", min = 3 } }]`.
+A condition is `{ type = "...", ... }` in a `require` of a gate: `view.require = [{ condition = { type = "free-slots", min = 3 } }]`.
 Conditions are asked on every refresh, so they only look. Numbers can be placeholders. A limit that is left out doesn't limit.
 
 | Type | Holds when | Settings |
@@ -302,13 +302,13 @@ Conditions are asked on every refresh, so they only look. Numbers can be placeho
 A `cooldown` is started by the `cooldown` action, with a `duration`; one without a `duration` never ends, which makes
 something that can be done once. The state is the variable `cooldown_<key>` (so it lives in whichever store the variable
 rules give that name), and while the variables have not loaded the cooldown counts as running. `chance` is asked again on
-every redraw, so it belongs in the `require` of a click, not in the `require` of an item.
+every redraw, so it belongs in the `require` of a click, not in the `view` of an item.
 
 ```hocon
 daily {
     material = "chest"
     slot = 13
-    require = { require = [{ condition = { type = "cooldown", key = "daily" } }] }
+    view = { require = [{ condition = { type = "cooldown", key = "daily" } }] }
     click.any.actions = [
         { type = "cooldown", key = "daily", duration = "24h" },
         { type = "give-item", item = { material = "diamond", amount = 5 }, overflow = "ABORT" },
@@ -371,7 +371,7 @@ catalogs, see [Extending](#extending).
   again when the page changes. Other plugins get them as `%xalimenu_page%`, `%xalimenu_pages%`, `%xalimenu_total%`,
   `%xalimenu_page_next%` and `%xalimenu_page_prev%` for the player's open menu.
 - **Sorting and filtering.** `sort` names a value to order by (numbers as numbers, otherwise text without regard to
-  case; `descending` turns it round). The template's `require` gate decides which elements are listed. It is applied to every
+  case; `descending` turns it round). The template's `view` gate decides which elements are listed. It is applied to every
   element *before* the elements are cut into pages, so all pages but the last are full.
 - **Slots.** The nth element of the page goes into the nth of `slots`. The template's own `slot` is not used. An item of the
   menu that claims a listed slot is drawn there on pages that have no element left for it.
@@ -414,7 +414,7 @@ animation {
 - `on-start` runs once the menu has opened, `on-end` when the last frame has played; neither for the frames of a loop, which
   start again from the menu as it is, without what the frames had drawn. A frame also has `on-start` and `on-end`.
 - A frame whose `require` gate does not hold when it comes is skipped (its delay is still waited for, and no `deny` action
-  runs). A frame's item shows over the menu's item in its slot as long as the item's own `require` gate passes, and
+  runs). A frame's item shows over the menu's item in its slot as long as the item's own `view` gate passes, and
   its `click` actions work.
 - Each frame schedules the next when it has played, on the player's region, so timing is not tied to a refresh. It stops
   when the menu closes.
@@ -479,7 +479,7 @@ memory at once and is written in the background.
 
 An open menu follows its variables: when a variable changes (set, changed, removed, expired, or written by another server of a shared store),
 the menus that name a variable placeholder in their file are drawn again about a tenth of a second later, for a personal variable only the
-owner's, and a burst of changes is one redraw. Only what a draw rebuilds changes: items marked `update`, the `require` gates and a title with
+owner's, and a burst of changes is one redraw. Only what a draw rebuilds changes: items marked `update`, the `view` gates and a title with
 placeholders. It is driven by a Kotlin `Flow` of the changes (`VariableStore.changes`), so it costs nothing while nothing changes.
 
 #### Where a variable lives
@@ -529,7 +529,7 @@ All of these need `xalimenu.admin`. The command is `/xalimenu`, also `/xmenu` an
 | `/xmenu reload [menu]` | Read the configuration, language and menus again; with a name, only that menu's file (the others stay as they are, and a file that cannot be read leaves the menu as it was). |
 | `/xmenu info <menu>` | What a menu is: title, size, commands, args, items, pages, animation, activators. |
 | `/xmenu validate [menu]` | The problems of every menu (or one) and the files that could not be read, without opening any. The same problems are logged on every load. |
-| `/xmenu inspect [player]` | Why each slot of a player's open menu shows what it shows: the items claiming it, which one is drawn, and how each check of their `require` gate comes out. The first lines are in chat, all in the console. |
+| `/xmenu inspect [player]` | Why each slot of a player's open menu shows what it shows: the items claiming it, which one is drawn, and how each check of their `view` gate comes out. The first lines are in chat, all in the console. |
 | `/xmenu import deluxemenus` | Import DeluxeMenus menus, see [below](#importing-from-deluxemenus). |
 | `/xvar ...`, `/xvarp ...` | Variables, see [above](#variables). |
 

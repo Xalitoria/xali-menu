@@ -82,7 +82,7 @@ class DeluxeMenusImporter {
 
     @Test
     fun theOtherNamesOfRequirementsAreRead() {
-        val checks = menu("Shop").items.getValue("aliases").require!!.require.map { it.condition }
+        val checks = menu("Shop").items.getValue("aliases").view!!.require.map { it.condition }
         assertEquals(Conditions.Permission("x.y"), checks[0])
         assertEquals(Conditions.Text("abc", Conditions.Text.Op.CONTAINS, "b"), checks[1])
         assertEquals(Conditions.Compare("1", Conditions.Compare.Op.NEQ, "2"), checks[2])
@@ -119,7 +119,7 @@ class DeluxeMenusImporter {
 
     @Test
     fun conditions() {
-        val checks = menu("Shop").items.getValue("sword").require!!.require.map { it.condition }
+        val checks = menu("Shop").items.getValue("sword").view!!.require.map { it.condition }
         assertEquals(
             [
                 Conditions.Not(Conditions.Permission("shop.banned")),

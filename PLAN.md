@@ -277,9 +277,8 @@ Each step ends with tests, the README section, and a commit.
   Rules in `src/placement.js`, tested in `test/placement.test.js`.
 - Not done: a `layout` for the player's inventory, armor and off hand slots. Not tried: the drawing in a real window with `inventory-slots` (the packet code is unchanged, it only gets more entries).
 
-### 12. Editor and schema finishing: `require`, dynamic values, registries (done; not live on a server)
+### 12. Editor and schema finishing: dynamic values, registries (done; not live on a server)
 
-- The `view` gate of an item is `require`, like the gates of activators, animation frames and clicks (the plugin was not in production, so nothing is migrated).
 - `amount` takes a number or text with placeholders; `dynamic-amount` is gone. The same for `model`, `damage` and `max-stack-size`, and for the switches `unbreakable`, `glow` and `hide-tooltip`
   (`DynamicInt`, `DynamicBoolean` in `net.xalitoria.menu.model`; the schema's type `dynamic` with `of`). Unit tested (`ItemProperties`, `SchemaTest`, `dynamic.test.js`, `check.test.js`).
 - The editor: a line between properties, names that wrap instead of being cut, red remove buttons, the player's rows no longer grayed out and labeled, registry dropdowns

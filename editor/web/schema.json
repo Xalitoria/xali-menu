@@ -2184,7 +2184,7 @@
       ]
     },
     "Condition:chance": {
-      "doc": "Holds `percent` times in a hundred (0 to 100). It is asked again on every redraw of an item, so it belongs in the `require` of a click, not in the `require` of an item.",
+      "doc": "Holds `percent` times in a hundred (0 to 100). It is asked again on every redraw of an item, so it belongs in the `require` of a click, not in the `view` of an item.",
       "fields": [
         {
           "key": "percent",
@@ -2917,7 +2917,7 @@
       ]
     },
     "Frame": {
-      "doc": "One step of an `Animation`. After `delay` (counted from the frame before, at least one tick) its `items` are drawn; with `clear`, what the frames before it drew goes first, so it replaces them, and without it the items stay on top. A frame whose `require` gate does not hold at that moment is skipped. A slot that an item of the frame claims shows that item instead of the menu's own, as long as the item's `require` gate passes.",
+      "doc": "One step of an `Animation`. After `delay` (counted from the frame before, at least one tick) its `items` are drawn; with `clear`, what the frames before it drew goes first, so it replaces them, and without it the items stay on top. A frame whose `require` gate does not hold at that moment is skipped. A slot that an item of the frame claims shows that item instead of the menu's own, as long as the item's `view` gate passes.",
       "fields": [
         {
           "key": "delay",
@@ -3075,7 +3075,7 @@
       ]
     },
     "Item": {
-      "doc": "An item of a menu.\n\n`material` is a Minecraft item key (`diamond_pickaxe`), or a prefixed source: `head:<player>` (a player's head, with their SkinsRestorer skin when it is installed), `texture:<base64>`, `hdb:<id>` (HeadDatabase), `itemsadder:<id>` and `nexo:<id>`. The item sits in `slot` and `slots`; when several items claim a slot, the one with the lowest `priority` whose `require` gate passes is shown.",
+      "doc": "An item of a menu.\n\n`material` is a Minecraft item key (`diamond_pickaxe`), or a prefixed source: `head:<player>` (a player's head, with their SkinsRestorer skin when it is installed), `texture:<base64>`, `hdb:<id>` (HeadDatabase), `itemsadder:<id>` and `nexo:<id>`. The item sits in `slot` and `slots`; when several items claim a slot, the one with the lowest `priority` whose `view` gate passes is shown.",
       "fields": [
         {
           "key": "material",
@@ -3430,7 +3430,7 @@
           "doc": "Draw this item again on every menu refresh, to keep its placeholders current."
         },
         {
-          "key": "require",
+          "key": "view",
           "type": {
             "kind": "object",
             "type": "Gate"
@@ -3657,7 +3657,7 @@
       ]
     },
     "Pages": {
-      "doc": "What makes a menu paged: the elements of `catalog` are drawn one page at a time into `slots`, each as `item`.\n\nThe elements are sorted (see `sort`), then the ones for which the `item`'s `require` gate does not hold are left out, and only then split into pages, so every page but the last is full. The gate and everything the item shows can use the element's values as `{name}`. The item's own `slot` and `slots` are not used; the nth element of the page goes into the nth of `slots`, or of the cells of `layout`. An item of the menu in one of the slots is drawn when the page has no element for it.\n\nA `layout` is rows of nine characters, the way the menu looks (`#########`, `#xxxxxxx#`): every `cell` character is a slot for an element, read left to right and top to bottom, and the other characters are only there to draw by. A row of fewer characters is taken as ending in blanks. Give `slots` or `layout`, not both.",
+      "doc": "What makes a menu paged: the elements of `catalog` are drawn one page at a time into `slots`, each as `item`.\n\nThe elements are sorted (see `sort`), then the ones for which the `item`'s `view` gate does not hold are left out, and only then split into pages, so every page but the last is full. The gate and everything the item shows can use the element's values as `{name}`. The item's own `slot` and `slots` are not used; the nth element of the page goes into the nth of `slots`, or of the cells of `layout`. An item of the menu in one of the slots is drawn when the page has no element for it.\n\nA `layout` is rows of nine characters, the way the menu looks (`#########`, `#xxxxxxx#`): every `cell` character is a slot for an element, read left to right and top to bottom, and the other characters are only there to draw by. A row of fewer characters is taken as ending in blanks. Give `slots` or `layout`, not both.",
       "fields": [
         {
           "key": "catalog",

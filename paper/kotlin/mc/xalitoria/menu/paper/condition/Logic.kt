@@ -56,7 +56,7 @@ object Logic {
 
     /**
      * Holds [percent] times in a hundred (0 to 100). It is asked again on every redraw of an item, so it belongs in the
-     * `require` of a click, not in the `require` of an item.
+     * `require` of a click, not in the `view` of an item.
      */
     @Serializable @SerialName("chance")
     data class Chance(val percent: Double) : Condition {

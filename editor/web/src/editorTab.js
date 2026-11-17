@@ -14,7 +14,7 @@ import { TEMPLATE, EMPTY, isPaged, listedSlots } from './pages.js'
 import { pagesView, valuesBar } from './pagesPanel.js'
 
 /** The first fields of an item's form. */
-const ITEM_FIRST = ['material', 'name', 'lore', 'amount', 'slot', 'slots', 'inventory-slots', 'require', 'click']
+const ITEM_FIRST = ['material', 'name', 'lore', 'amount', 'slot', 'slots', 'inventory-slots', 'view', 'click']
 
 /** The inventory types the menu file accepts and the editor can draw. */
 export const TYPES = [['chest', 'Chest'], ['hopper', 'Hopper (5 slots)'], ['dispenser', 'Dispenser (9 slots)'], ['dropper', 'Dropper (9 slots)'], ['shulker_box', 'Shulker box (27 slots)']]

@@ -150,7 +150,7 @@ private fun Context.convertItem(item: YamlMap): Item? {
         potion = potions(item),
         nbt = nbt(item),
         update = item.option("update").bool() ?: false,
-        require = at("view_requirement") { parseGate(item.option("view_requirement")) },
+        view = at("view_requirement") { parseGate(item.option("view_requirement")) },
         click = clicks(item),
     )
 }

@@ -244,7 +244,7 @@ class Paging {
               item {
                 material = "head:{name}"
                 name = "&e{name}"
-                require.require = [{ condition { type = permission, node = "see.{name}" } }]
+                view.require = [{ condition { type = permission, node = "see.{name}" } }]
                 click.left.actions = [{ type = player, command = "msg {name} hi" }]
               }
               empty { material = barrier, name = "&cNobody" }

@@ -108,7 +108,7 @@ class MenuView(
 
     /**
      * Why each slot shows what it shows, one line per thing to say: the items that claim it, which of them is drawn, and for
-     * each the checks of its `require` gate. A slot that nothing claims is left out.
+     * each the checks of its `view` gate. A slot that nothing claims is left out.
      */
     fun inspect(): List<String> = buildList {
         for (slot in 0 until inventory.size) {
@@ -123,18 +123,18 @@ class MenuView(
             })
             for ([source, candidate] in candidates) {
                 val [key, item] = candidate
-                val passes = item.require.passes(ctx, run = false)
+                val passes = item.view.passes(ctx, run = false)
                 add("  $source '$key' (priority ${item.priority}): view ${if (passes) "passes" else "does not pass"}${if (drawn === item) ", drawn" else ""}")
-                item.require.explain(ctx).forEach { add("    $it") }
+                item.view.explain(ctx).forEach { add("    $it") }
             }
         }
         for (entry in inventoryBySlot.entries.sortedBy { it.key }) {
             val drawn = shownInventory[entry.key]
             add("inventory slot ${entry.key}: " + (drawn?.let { item -> "'" + (entry.value.firstOrNull { it.second === item }?.first ?: "?") + "'" } ?: "empty"))
             for ([key, item] in entry.value) {
-                val passes = item.require.passes(ctx, run = false)
+                val passes = item.view.passes(ctx, run = false)
                 add("  inventory '$key' (priority ${item.priority}): view ${if (passes) "passes" else "does not pass"}${if (drawn === item) ", drawn" else ""}")
-                item.require.explain(ctx).forEach { add("    $it") }
+                item.view.explain(ctx).forEach { add("    $it") }
             }
         }
     }
@@ -143,7 +143,7 @@ class MenuView(
     fun contextAt(slot: Int): Context = contexts.getOrNull(slot) ?: ctx
 
     /**
-     * Puts the right item in each slot. Of the items that claim a slot the first (lowest priority number) whose require gate
+     * Puts the right item in each slot. Of the items that claim a slot the first (lowest priority number) whose view gate
      * passes is shown, unless the slot lists an element of the menu's pages. A slot is only rebuilt when its item or element
      * changed, or when it is marked `update` or [force] is set, since building an item means parsing its text again.
      */
@@ -160,7 +160,7 @@ class MenuView(
         }
         for (slot in 0 until inventory.size) {
             // What a frame drew comes first, then the elements of the page, then the menu's own items.
-            val framed = overlay[slot]?.firstOrNull { it.second.require.passes(ctx, run = false) }?.second
+            val framed = overlay[slot]?.firstOrNull { it.second.view.passes(ctx, run = false) }?.second
             val entry = if (framed == null) placed[slot] else null
             val chosen: Item?
             val slotCtx: Context
@@ -171,7 +171,7 @@ class MenuView(
                 chosen = entry.item
                 slotCtx = entry.ctx
             } else {
-                chosen = bySlot[slot]?.firstOrNull { it.second.require.passes(ctx, run = false) }?.second
+                chosen = bySlot[slot]?.firstOrNull { it.second.view.passes(ctx, run = false) }?.second
                 slotCtx = ctx
             }
             if (chosen == null) {
@@ -203,7 +203,7 @@ class MenuView(
         var changed = force
         for (entry in inventoryBySlot) {
             val slot = entry.key
-            val chosen = entry.value.firstOrNull { it.second.require.passes(ctx, run = false) }?.second
+            val chosen = entry.value.firstOrNull { it.second.view.passes(ctx, run = false) }?.second
             if (chosen == null) {
                 if (shownInventory[slot] != null) {
                     shownInventory[slot] = null
@@ -241,7 +241,7 @@ class MenuView(
 
     /**
      * The elements of the current page, by the slot each goes into: the catalog's, laid out by [layoutPage] with the
-     * template's `require` gate deciding which are listed.
+     * template's `view` gate deciding which are listed.
      */
     private fun layout(pages: Pages): Map<Int, Placed> {
         val listed = try {
@@ -251,7 +251,7 @@ class MenuView(
             catalogFailed = true
             emptyList()
         }
-        val layout = layoutPage(listed, pages.listed(), pages.sort, pages.descending, page) { pages.item.require.passes(opened.with(it), run = false) }
+        val layout = layoutPage(listed, pages.listed(), pages.sort, pages.descending, page) { pages.item.view.passes(opened.with(it), run = false) }
         page = layout.state.page
         pageValues = layout.state.values()
         ctx = opened.with(pageValues)

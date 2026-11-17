@@ -9,7 +9,7 @@ import net.xalitoria.menu.Action
  * [material] is a Minecraft item key (`diamond_pickaxe`), or a prefixed source: `head:<player>` (a player's head, with
  * their SkinsRestorer skin when it is installed), `texture:<base64>`, `hdb:<id>` (HeadDatabase), `itemsadder:<id>` and
  * `nexo:<id>`. The item sits in [slot] and [slots]; when several items claim a slot, the one with the lowest
- * [priority] whose [require] gate passes is shown.
+ * [priority] whose [view] gate passes is shown.
  */
 @Serializable
 data class Item(
@@ -90,7 +90,7 @@ data class Item(
     /** Draw this item again on every menu refresh, to keep its placeholders current. */
     val update: Boolean = false,
     /** Must hold for the item to be shown. An item that fails it leaves the slot to the next item that claims it. */
-    val require: Gate? = null,
+    val view: Gate? = null,
     /** What a click on the item does. */
     val click: Clicks = Clicks(),
     /**

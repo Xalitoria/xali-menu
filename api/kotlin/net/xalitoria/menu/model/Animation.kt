@@ -27,7 +27,7 @@ data class Animation(
  * One step of an [Animation]. After [delay] (counted from the frame before, at least one tick) its [items] are drawn;
  * with [clear], what the frames before it drew goes first, so it replaces them, and without it the items stay on top.
  * A frame whose [require] gate does not hold at that moment is skipped. A slot that an item of the frame claims shows
- * that item instead of the menu's own, as long as the item's `require` gate passes.
+ * that item instead of the menu's own, as long as the item's `view` gate passes.
  */
 @Serializable
 data class Frame(

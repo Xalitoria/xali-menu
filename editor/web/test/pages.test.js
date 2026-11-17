@@ -47,7 +47,7 @@ test('only the names that are known are filled in', () => {
 test('the preview of a paged menu draws the template in each slot of the first page', () => {
   const menu = {
     title: 'Players {page}/{pages}',
-    pages: { catalog: { type: 'players' }, slots: [10, 11], item: { material: 'head:{name}', name: '&e{name}', lore: ['#{index} of {total}'], require: { require: [] }, slot: 0 } },
+    pages: { catalog: { type: 'players' }, slots: [10, 11], item: { material: 'head:{name}', name: '&e{name}', lore: ['#{index} of {total}'], view: { require: [] }, slot: 0 } },
     items: { info: { material: 'paper', slot: 10, name: 'Page {page}' } },
   }
   const shown = previewMenu(menu, { name: 'Notch' })
@@ -56,7 +56,7 @@ test('the preview of a paged menu draws the template in each slot of the first p
   const [a, b] = [shown.items[`${ELEMENT}1`], shown.items[`${ELEMENT}2`]]
   assert.deepEqual([a.material, a.name, a.lore, a.slot], ['head:Notch', '&eNotch', ['#1 of 3'], 10])
   assert.deepEqual([b.material, b.slot], ['head:Notch2', 11])
-  assert.equal(a.require, undefined, 'the gate is left out')
+  assert.equal(a.view, undefined, 'the gate is left out')
   assert.ok(a.priority < (shown.items.info.priority ?? 0), 'the template is drawn in front')
   assert.equal(shown.items.info.name, 'Page 1')
   assert.equal(menu.items.info.name, 'Page {page}', 'the menu itself is not changed')
@@ -105,13 +105,13 @@ test('real elements from the server take the place of the examples, and decide t
 test('the page of no elements has only the empty item, in the first slot', () => {
   const menu = {
     title: '{page}/{pages} of {total}',
-    pages: { catalog: { type: 'players' }, slots: [11, 10], item: { material: 'paper' }, empty: { material: 'barrier', name: 'Nobody', require: { require: [] } } },
+    pages: { catalog: { type: 'players' }, slots: [11, 10], item: { material: 'paper' }, empty: { material: 'barrier', name: 'Nobody', view: { require: [] } } },
     items: {},
   }
   const shown = previewMenu(menu, { name: 'Notch' }, { empty: true })
   assert.equal(shown.title, '1/1 of 0')
   assert.deepEqual(Object.keys(shown.items), [EMPTY])
-  assert.deepEqual([shown.items[EMPTY].material, shown.items[EMPTY].name, shown.items[EMPTY].slot, shown.items[EMPTY].require], ['barrier', 'Nobody', 11, undefined])
+  assert.deepEqual([shown.items[EMPTY].material, shown.items[EMPTY].name, shown.items[EMPTY].slot, shown.items[EMPTY].view], ['barrier', 'Nobody', 11, undefined])
   const without = previewMenu({ ...menu, pages: { ...menu.pages, empty: undefined } }, {}, { empty: true })
   assert.deepEqual(Object.keys(without.items), [], 'no empty item, nothing drawn')
 })
