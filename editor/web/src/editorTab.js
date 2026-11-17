@@ -14,7 +14,7 @@ import { TEMPLATE, EMPTY, isPaged, listedSlots } from './pages.js'
 import { pagesView, valuesBar } from './pagesPanel.js'
 
 /** The first fields of an item's form. */
-const ITEM_FIRST = ['material', 'name', 'lore', 'amount', 'slot', 'slots', 'inventory-slots', 'view', 'click']
+const ITEM_FIRST = ['material', 'name', 'lore', 'amount', 'slot', 'slots', 'inventory-slots', 'require', 'click']
 
 /** The inventory types the menu file accepts and the editor can draw. */
 export const TYPES = [['chest', 'Chest'], ['hopper', 'Hopper (5 slots)'], ['dispenser', 'Dispenser (9 slots)'], ['dropper', 'Dropper (9 slots)'], ['shulker_box', 'Shulker box (27 slots)']]
@@ -374,7 +374,7 @@ export class EditorTab {
     const here = (a, slot) => app.picked.slot === slot && (app.picked.area ?? 'items') === a
     const chip = (a, slot) => h('span', { class: `chip ${here(a, slot) ? 'active' : ''}` },
       h('button', { class: 'chip-label', title: 'Show this slot', onclick: () => this.showSlot(a, slot) }, `${a === 'items' ? 'Menu' : 'Inventory'} ${slot}`),
-      h('button', { class: 'chip-x', title: `Do not draw ${id} in this slot`, 'aria-label': `Remove from slot ${slot}`, onclick: () => this.unplace(id, a, slot) }, '×'))
+      h('button', { class: 'chip-x remove', title: `Do not draw ${id} in this slot`, 'aria-label': `Remove from slot ${slot}`, onclick: () => this.unplace(id, a, slot) }, '×'))
     const none = places.items.length + places.inventory.length + places.layout.length === 0
     return h('div', { class: 'placement' },
       h('div', { class: 'placement-head' },

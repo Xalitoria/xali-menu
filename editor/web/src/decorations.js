@@ -1,5 +1,6 @@
 // What the game draws over an item in a slot: the count in the bottom right corner, and the bar of an item that is worn.
 
+import { numberOf } from './dynamic.js'
 import { shadowOf } from './text.js'
 
 /** The color of the bar of a worn item: from green to red as the item wears out. */
@@ -38,12 +39,13 @@ export function decorations(item, text, maxDamage = 0, SCALE = 3, ratio = 1) {
   canvas.style.height = `${canvas.height / ratio}px`
   const ctx = canvas.getContext('2d')
   const origin = 1 * SCALE // the item is drawn one pixel in from the corner of its slot
-  const count = item.amount ?? 1
-  if (maxDamage > 0 && (item.damage ?? 0) > 0) {
-    const width = barWidth(item.damage, maxDamage)
+  const count = numberOf(item.amount, 1)
+  const damage = numberOf(item.damage, 0)
+  if (maxDamage > 0 && damage > 0) {
+    const width = barWidth(damage, maxDamage)
     ctx.fillStyle = '#000000'
     ctx.fillRect(origin + 2 * SCALE, origin + 13 * SCALE, 13 * SCALE, 2 * SCALE)
-    ctx.fillStyle = barColor((maxDamage - item.damage) / maxDamage)
+    ctx.fillStyle = barColor((maxDamage - damage) / maxDamage)
     ctx.fillRect(origin + 2 * SCALE, origin + 13 * SCALE, width * SCALE, 1 * SCALE)
   }
   if (count !== 1) {

@@ -249,7 +249,7 @@ class MoreActions {
         val actions = menu.items.getValue("a").click.any!!.actions
         assertEquals(22, actions.size)
         assertEquals(Inventory.Overflow.ABORT, (actions[0] as Inventory.GiveItem).overflow)
-        assertEquals(2, (actions[0] as Inventory.GiveItem).item.amount)
+        assertEquals(net.xalitoria.menu.model.DynamicInt(2), (actions[0] as Inventory.GiveItem).item.amount)
         assertEquals(10.seconds, (actions[3] as Effects.Potion).duration)
         assertEquals(Effects.Change.ADD, (actions[6] as Effects.Health).change)
         assertEquals(5, (actions[9] as Effects.ShowTitle).fadeIn)
@@ -266,7 +266,7 @@ class MoreActions {
     @Test
     fun theNewActionsAreWrittenAndReadBack() {
         val actions = listOf(
-            Inventory.GiveItem(net.xalitoria.menu.model.Item("diamond", amount = 3)),
+            Inventory.GiveItem(net.xalitoria.menu.model.Item("diamond", amount = net.xalitoria.menu.model.DynamicInt(3))),
             Effects.Potion("speed", 20.seconds, 2, remove = false),
             Effects.Teleport(y = "70"),
             Effects.Health("5", Effects.Change.TAKE),

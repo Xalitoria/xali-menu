@@ -89,7 +89,7 @@ export const previewPages = (perPage, elements = null) => (elements?.length ? Ma
 
 /**
  * The menu as the window shows it: for a paged menu, one [page] (from 1) of example elements, with the template drawn in each slot that has
- * one. The template is put in front of the items that claim the same slots; its `view` gate is left out, since the editor does not know what
+ * one. The template is put in front of the items that claim the same slots; its `require` gate is left out, since the editor does not know what
  * the gate decides. With [empty], the page is the one of a catalog with nothing to list: no element, and `pages.empty` (if there is one) in
  * the first slot, as the plugin draws it. A menu that is not paged is returned as it is. [fields] is what the catalog's elements hold (name
  * to example), and [elements] are the real ones from the server when there are some, each with its `index`; without them `{page}`,
@@ -108,11 +108,11 @@ export function previewMenu(menu, fields, { page = 1, empty = false, elements = 
   const onPage = all.slice((shown - 1) * perPage, shown * perPage)
   const items = Object.fromEntries(Object.entries(menu.items ?? {}).map(([id, item]) => [id, fillAll(item, tokens)]))
   onPage.forEach((element, i) => {
-    const { view, slots, ...template } = fillAll(pages.item, { ...tokens, ...element })
+    const { require, slots, ...template } = fillAll(pages.item, { ...tokens, ...element })
     items[`${ELEMENT}${i + 1}`] = { ...template, slot: listed[i], priority: -1_000_000 }
   })
   if (empty && pages.empty) {
-    const { view, slots, ...item } = fillAll(pages.empty, tokens)
+    const { require, slots, ...item } = fillAll(pages.empty, tokens)
     items[EMPTY] = { ...item, slot: listed[0], priority: -1_000_000 }
   }
   return { ...menu, title: fillText(menu.title ?? '', tokens), items }

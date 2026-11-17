@@ -2,6 +2,8 @@
 // the wrong kind, and a slot that is outside the window. The plugin does the same and more when it reads the file, and the
 // editor shows what it says too; this is for the problems that can be shown while typing.
 
+import { numberOf, flagOf } from './dynamic.js'
+
 const SIZES = { hopper: 5, dispenser: 9, dropper: 9, crafter: 9, shulker_box: 27 }
 
 /** The number of slots of a menu, from its size or its inventory type. */
@@ -52,6 +54,14 @@ class Walker {
         else if (type.kind === 'int' && typeof value === 'number' && !Number.isInteger(value)) this.add(path, 'should be a whole number')
         break
       case 'boolean': if (typeof value !== 'boolean') this.add(path, 'should be true or false'); break
+      case 'dynamic': {
+        // A number or a switch, or text with a placeholder that the plugin works out when it draws the item.
+        const text = typeof value === 'string' && /[%{]/.test(value)
+        if (type.of === 'boolean') { if (typeof value !== 'boolean' && !text && flagOf(value, null) === null) this.add(path, 'should be true or false, or a placeholder that gives one') }
+        else if (typeof value === 'number') { if (!Number.isInteger(value)) this.add(path, 'should be a whole number') }
+        else if (!text && numberOf(value, null) === null) this.add(path, 'should be a number, or a placeholder such as %player_level% that gives one')
+        break
+      }
       case 'enum': if (!type.values.includes(value)) this.add(path, `should be one of ${type.values.join(', ')}`); break
       case 'list':
         if (!Array.isArray(value)) this.add(path, 'should be a list')

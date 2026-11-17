@@ -276,3 +276,13 @@ Each step ends with tests, the README section, and a commit.
   chips with where it is drawn, and an empty slot offers the items already defined.
   Rules in `src/placement.js`, tested in `test/placement.test.js`.
 - Not done: a `layout` for the player's inventory, armor and off hand slots. Not tried: the drawing in a real window with `inventory-slots` (the packet code is unchanged, it only gets more entries).
+
+### 12. Editor and schema finishing: `require`, dynamic values, registries (done; not live on a server)
+
+- The `view` gate of an item is `require`, like the gates of activators, animation frames and clicks (the plugin was not in production, so nothing is migrated).
+- `amount` takes a number or text with placeholders; `dynamic-amount` is gone. The same for `model`, `damage` and `max-stack-size`, and for the switches `unbreakable`, `glow` and `hide-tooltip`
+  (`DynamicInt`, `DynamicBoolean` in `net.xalitoria.menu.model`; the schema's type `dynamic` with `of`). Unit tested (`ItemProperties`, `SchemaTest`, `dynamic.test.js`, `check.test.js`).
+- The editor: a line between properties, names that wrap instead of being cut, red remove buttons, the player's rows no longer grayed out and labeled, registry dropdowns
+  (`registry.js`, from the language file), the tipped arrow follows its potion type (a quiet change now asks the server for the color, and `potions.js` gives one without a server).
+- Not done: a color picker for `color` and the firework colors, the sounds and particles registries (the language file does not name them; a server could), registry values straight from
+  the server instead of the assets, and the potion colors without a server are those of the effects as recalled for this version.

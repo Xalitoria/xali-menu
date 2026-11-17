@@ -16,7 +16,7 @@ test('reports a missing key, an unknown key and a wrong kind', () => {
   assert.ok(found.includes("title: 'title' is required"))
   assert.ok(found.includes("items.a.material: 'material' is required"))
   assert.ok(found.includes("items.a.nope: 'nope' is not a key of this"))
-  assert.ok(found.includes('items.a.amount: should be a number'))
+  assert.ok(found.includes('items.a.amount: should be a number, or a placeholder such as %player_level% that gives one'))
 })
 
 test('reports a type that does not exist, but lets an addon type through', () => {
@@ -46,4 +46,13 @@ test('an inventory slot of an item is from 0 to 35, and an item with only those 
 
 test('an item of the menu past its size is told to use inventory-slots', () => {
   assert.match(messages({ title: 'T', size: 9, items: { a: { material: 'stone', slot: 12 } } })[0], /inventory-slots/)
+})
+
+test('a number or a switch may be text with a placeholder, and any other text is told', () => {
+  const problems = (item) => check(schema, { title: 't', items: { a: { material: 'stone', slot: 0, ...item } } }).map((p) => p.path.at(-1))
+  assert.deepEqual(problems({ amount: 3, glow: true, damage: '%player_level%', unbreakable: '%op%' }), [])
+  assert.deepEqual(problems({ amount: '5' }), [], 'text of a number is a number')
+  assert.deepEqual(problems({ amount: 'many' }), ['amount'])
+  assert.deepEqual(problems({ glow: 'maybe' }), ['glow'])
+  assert.deepEqual(problems({ amount: 1.5 }), ['amount'])
 })

@@ -75,14 +75,14 @@ class DeluxeMenusImporter {
     @Test
     fun dataOfARealMaterialIsItsDamageAsInDeluxeMenus114() {
         val items = menu("Shop").items
-        assertEquals("stone" to 1, items.getValue("old_data").let { it.material to it.damage })
-        assertEquals(9, items.getValue("data_and_damage").damage, "damage wins over data")
+        assertEquals("stone" to DynamicInt(1), items.getValue("old_data").let { it.material to it.damage })
+        assertEquals(DynamicInt(9), items.getValue("data_and_damage").damage, "damage wins over data")
         assertNull(menu("Jobs").items.getValue("2").damage, "the data of an old id is the variant, not damage")
     }
 
     @Test
     fun theOtherNamesOfRequirementsAreRead() {
-        val checks = menu("Shop").items.getValue("aliases").view!!.require.map { it.condition }
+        val checks = menu("Shop").items.getValue("aliases").require!!.require.map { it.condition }
         assertEquals(Conditions.Permission("x.y"), checks[0])
         assertEquals(Conditions.Text("abc", Conditions.Text.Op.CONTAINS, "b"), checks[1])
         assertEquals(Conditions.Compare("1", Conditions.Compare.Op.NEQ, "2"), checks[2])
@@ -98,14 +98,14 @@ class DeluxeMenusImporter {
     fun itemOptions() {
         val sword = menu("Shop").items.getValue("sword")
         assertEquals([0, 2, 3, 4], sword.slots)
-        assertEquals("%player_level%", sword.dynamicAmount)
-        assertEquals(7, sword.model)
+        assertEquals(DynamicInt("%player_level%"), sword.amount, "dynamic_amount is the amount")
+        assertEquals(DynamicInt(7), sword.model)
         assertEquals("#ff8000", sword.color)
-        assertTrue(sword.update && sword.unbreakable)
+        assertTrue(sword.update && sword.unbreakable.fixed == true)
         assertEquals(["attribute_modifiers", "enchantments", "can_break"], sword.hide)
-        assertEquals(12, sword.damage)
+        assertEquals(DynamicInt(12), sword.damage)
         assertEquals(Rarity.EPIC, sword.rarity)
-        assertEquals(true, sword.glow)
+        assertEquals(DynamicBoolean(true), sword.glow)
         assertEquals(Trim("coast", "gold"), sword.trim)
         assertEquals("mypack:crown", sword.itemModel)
         assertEquals([PotionEffect("haste", 200, 1)], sword.potion)
@@ -119,7 +119,7 @@ class DeluxeMenusImporter {
 
     @Test
     fun conditions() {
-        val checks = menu("Shop").items.getValue("sword").view!!.require.map { it.condition }
+        val checks = menu("Shop").items.getValue("sword").require!!.require.map { it.condition }
         assertEquals(
             [
                 Conditions.Not(Conditions.Permission("shop.banned")),

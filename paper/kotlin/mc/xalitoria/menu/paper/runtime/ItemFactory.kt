@@ -75,7 +75,7 @@ class ItemFactory(private val plugin: XaliMenu) {
         val spec = ctx.parse(item.material)
         var stack = base(spec, loaded) ?: ItemStack(Material.BARRIER)
 
-        val amount = item.dynamicAmount?.let { ctx.parse(it).trim().toDoubleOrNull()?.toInt() } ?: item.amount
+        val amount = item.amount.resolve(ctx::parse) ?: 1
         stack.amount = amount.coerceIn(1, 99)
 
         stack.editMeta { meta ->
@@ -83,14 +83,14 @@ class ItemFactory(private val plugin: XaliMenu) {
             if (item.lore.isNotEmpty()) meta.lore(item.lore.map { line ->
                 ctx.component(line).decorationIfAbsent(TextDecoration.ITALIC, TextDecoration.State.FALSE)
             })
-            if (item.unbreakable) meta.isUnbreakable = true
+            if (item.unbreakable.resolve(ctx::parse) == true) meta.isUnbreakable = true
             for ((key, value) in item.enchants) enchantment(key)?.let { meta.addEnchant(it, value, true) }
             if (meta is BannerMeta) for (pattern in bannerPatterns(item)) meta.addPattern(pattern)
             item.itemName?.let { meta.itemName(ctx.component(it)) }
-            item.damage?.let { if (meta is Damageable) meta.damage = it.coerceAtLeast(0) }
+            item.damage?.resolve(ctx::parse)?.let { if (meta is Damageable) meta.damage = it.coerceAtLeast(0) }
             item.rarity?.let { meta.setRarity(ItemRarity.valueOf(it.name)) }
-            item.glow?.let { meta.setEnchantmentGlintOverride(it) }
-            item.maxStackSize?.let { meta.setMaxStackSize(it.coerceIn(1, 99)) }
+            item.glow?.resolve(ctx::parse)?.let { meta.setEnchantmentGlintOverride(it) }
+            item.maxStackSize?.resolve(ctx::parse)?.let { meta.setMaxStackSize(it.coerceIn(1, 99)) }
             item.itemModel?.let { key -> namespaced(key)?.let(meta::setItemModel) }
             item.tooltipStyle?.let { key -> namespaced(key)?.let(meta::setTooltipStyle) }
             item.attributes.forEachIndexed { index, spec ->
@@ -125,7 +125,7 @@ class ItemFactory(private val plugin: XaliMenu) {
             }
         }
 
-        item.model?.let {
+        item.model?.resolve(ctx::parse)?.let {
             stack.setData(DataComponentTypes.CUSTOM_MODEL_DATA, CustomModelData.customModelData().addFloat(it.toFloat()).build())
         }
         // A shield keeps its patterns and the color of its base in components, not in the meta a banner has.
@@ -135,9 +135,10 @@ class ItemFactory(private val plugin: XaliMenu) {
             item.baseColor?.let { name -> runCatching { DyeColor.valueOf(name.uppercase()) }.getOrNull()?.let { stack.setData(DataComponentTypes.BASE_COLOR, it) } }
         }
         item.color?.let { hex -> parseColor(hex)?.let { stack.setData(DataComponentTypes.DYED_COLOR, DyedItemColor.dyedItemColor(it)) } }
-        if (item.hide.isNotEmpty() || item.hideTooltip) {
+        val hideTooltip = item.hideTooltip.resolve(ctx::parse) == true
+        if (item.hide.isNotEmpty() || hideTooltip) {
             val hidden = item.hide.mapNotNull(::componentType).toTypedArray()
-            stack.setData(DataComponentTypes.TOOLTIP_DISPLAY, TooltipDisplay.tooltipDisplay().hideTooltip(item.hideTooltip).addHiddenComponents(*hidden).build())
+            stack.setData(DataComponentTypes.TOOLTIP_DISPLAY, TooltipDisplay.tooltipDisplay().hideTooltip(hideTooltip).addHiddenComponents(*hidden).build())
         }
         item.equippable?.let { spec ->
             val slot = equipmentSlot(spec.slot) ?: return@let
@@ -192,8 +193,12 @@ class ItemFactory(private val plugin: XaliMenu) {
                 rule.blocks.filter { entry -> blocks(listOf(entry)).isEmpty() }.forEach { problems += "tool rule: '$it' isn't a block or a tag of blocks" }
             }
         }
-        item.maxStackSize?.let { if (it !in 1..99) problems += "max-stack-size $it isn't between 1 and 99" }
-        item.damage?.let { if (it < 0) problems += "damage can't be negative" }
+        for (entry in listOf("amount" to item.amount, "model" to item.model, "damage" to item.damage, "max-stack-size" to item.maxStackSize)) {
+            val value = entry.second
+            if (value != null && value.fixed == null && !hasPlaceholder(value.text)) problems += "${entry.first} '${value.text}' isn't a number"
+        }
+        item.maxStackSize?.fixed?.let { if (it !in 1..99) problems += "max-stack-size $it isn't between 1 and 99" }
+        item.damage?.fixed?.let { if (it < 0) problems += "damage can't be negative" }
         item.food?.let { if (it.nutrition < 0) problems += "food nutrition can't be negative" }
         item.firework?.let { firework ->
             if (firework.power !in 0..127) problems += "firework power ${firework.power} isn't between 0 and 127"

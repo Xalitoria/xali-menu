@@ -5,9 +5,13 @@ import { h, doc } from './dom.js'
 import { summary } from './schema.js'
 import { render as renderText } from './mctext.js'
 import { reorderable } from './reorder.js'
+import { flagOf, parseDynamic, isDynamic } from './dynamic.js'
 
 /** Keys whose text is shown in the game with colors, so the form previews it. */
 const FORMATTED = new Set(['title', 'name', 'item-name', 'lore', 'text', 'subtitle', 'prompt', 'pages', 'invalid', 'message'])
+
+/** The choice of a dropdown of a registry that stands for a value typed by hand. */
+const OTHER = '\u0000other'
 
 /** The first sentence of a comment, for the line under a label. */
 const firstSentence = (text) => (text ?? '').split(/(?<=\.)\s/)[0]
@@ -43,7 +47,7 @@ export class Form {
     // `only` limits the form to some keys, for a form that is split over several places.
     const shown = (f) => !hidden.has(f.key) && (!options.only || options.only.includes(f.key))
     const present = known.filter((f) => shown(f) && (f.required || f.key in value))
-    const absent = known.filter((f) => shown(f) && !f.required && !(f.key in value))
+    const absent = this.ordered(known.filter((f) => shown(f) && !f.required && !(f.key in value)), options.first)
     const extra = options.only ? [] : Object.keys(value).filter((k) => !known.some((f) => f.key === k) && !(k === 'type' && options.variant))
 
     const root = h('div', { class: 'object' })
@@ -96,11 +100,13 @@ export class Form {
     // A control that holds other controls (an object, a map, a list of objects) gets the whole width, with its label above it.
     const block = isBlock(end.type)
     const deep = chain.levels.length > 0
+    // `require › require` (a gate holds a list of the same name) is one name to read.
+    const label = chain.labels.filter((l, i, all) => l !== all[i - 1]).join(' › ')
     return h('div', { class: `field ${missing ? 'missing' : ''} ${block ? 'block' : ''} ${deep ? 'chained' : ''}`, 'data-key': field.key },
       h('label', { title: (deep ? end.doc : field.doc) ?? '' },
-        chain.labels.join(' › '), end.required && h('span', { class: 'req', title: 'required' }, '*')),
+        label, end.required && h('span', { class: 'req', title: 'required' }, '*')),
       h('div', { class: 'control' }, control),
-      !field.required && h('button', { class: 'icon', title: deep ? `Remove ${chain.labels.join(' › ')}` : 'Remove this property', onclick: () => this.store.remove(path) }, '×'),
+      !field.required && h('button', { class: 'icon remove', title: deep ? `Remove ${label}` : 'Remove this property', 'aria-label': `Remove ${label}`, onclick: () => this.store.remove(path) }, '×'),
       (deep ? end.doc : field.doc) && h('div', { class: 'hint', title: (deep ? end.doc : field.doc) }, doc(firstSentence(deep ? end.doc : field.doc))),
     )
   }
@@ -110,7 +116,7 @@ export class Form {
     return h('div', { class: 'field unknown' },
       h('label', { title: 'Not part of the format that this editor knows' }, key),
       h('div', { class: 'control' }, this.json(path, value)),
-      h('button', { class: 'icon', title: 'Remove', onclick: () => this.store.remove(path) }, '×'),
+      h('button', { class: 'icon remove', title: `Remove ${key}`, 'aria-label': `Remove ${key}`, onclick: () => this.store.remove(path) }, '×'),
     )
   }
 
@@ -130,14 +136,17 @@ export class Form {
   control(type, path, value, field = {}) {
     const choices = type.kind === 'int' || type.kind === 'string' ? this.hooks.choices?.(path, field) : null
     if (choices) return this.choice(path, value, choices, type.kind === 'int')
+    const listed = type.kind === 'string' ? this.hooks.registry?.(field) : null
+    if (listed) return this.registry(path, value, listed)
     switch (type.kind) {
       case 'string': return this.text(path, value, field)
       case 'duration': return this.text(path, value, { ...field, placeholder: '5s, 500ms, 2m' })
       case 'int': case 'number': return this.number(type, path, value, field)
       case 'boolean': return this.checkbox(path, value, field)
+      case 'dynamic': return this.dynamic(type.of, path, value, field)
       case 'enum': return this.select(type, path, value, field)
       case 'list': return this.list(type.of, path, value ?? [], field)
-      case 'map': return this.map(type.of, path, value ?? {})
+      case 'map': return this.map(type.of, path, value ?? {}, field)
       case 'object': return this.nested(type.type, path)
       case 'poly': return this.poly(type.base, path, value, field)
       default: return this.json(path, value)
@@ -166,6 +175,25 @@ export class Form {
     return select
   }
 
+  /**
+   * A text value that is one of the [choices] of a registry of the game (`[value, label]`): a dropdown of them, and `Other…` for a value that is not
+   * in the list (another plugin's, a datapack's), which is then typed.
+   */
+  registry(path, value, choices) {
+    const custom = typeof value === 'string' && value !== '' && !choices.some(([v]) => v === value)
+    const input = h('input', { type: 'text', class: 'registry-other', value: custom ? value : '', placeholder: 'another key, such as mypack:thing', spellcheck: false, hidden: !custom,
+      oninput: () => this.store.set(path, input.value.trim(), true) })
+    const select = h('select', { onchange: () => {
+      input.hidden = select.value !== OTHER
+      if (select.value === OTHER) input.focus()
+      else this.store.set(path, select.value)
+    } },
+      value === undefined && h('option', { value: '', selected: true }, 'choose…'),
+      choices.map(([v, label]) => h('option', { value: v, selected: v === value }, label.toLowerCase() === v.replace(/_/g, ' ') || label === v ? label : `${label} (${v})`)),
+      h('option', { value: OTHER, selected: custom }, 'Other…'))
+    return h('div', { class: 'registry' }, select, input)
+  }
+
   preview(element, key, text) {
     element.replaceChildren(FORMATTED.has(key) && text ? renderText(text) : '')
   }
@@ -178,6 +206,35 @@ export class Form {
         this.store.set(path, Number(input.value), true)
       } })
     return input
+  }
+
+  /**
+   * A number or a switch that may also be text with placeholders, which the plugin works out when it draws the item. A number is a box that takes a number
+   * or a `%placeholder%` and keeps a number a number, so the file reads `amount = 3` until a placeholder is typed. A switch is a checkbox with a `%` button
+   * that turns it into a box for the placeholder, and a button that turns it back.
+   */
+  dynamic(kind, path, value, field) {
+    const typed = (input) => () => {
+      if (input.value.trim() === '') { if (!field.required) this.store.remove(path); return }
+      this.store.set(path, parseDynamic(input.value, kind), true)
+    }
+    if (kind !== 'boolean') {
+      const input = h('input', { type: 'text', class: isDynamic(value, kind) ? 'dynamic text-mode' : 'dynamic', value: value === undefined ? '' : String(value), spellcheck: false,
+        placeholder: field.default !== undefined ? String(field.default) : 'a number or a %placeholder%', title: 'A number, or a placeholder that works out to one when the item is drawn' })
+      input.oninput = () => { input.classList.toggle('text-mode', isDynamic(parseDynamic(input.value, kind), kind)); typed(input)() }
+      return input
+    }
+    const wrap = h('div', { class: 'dynamic-switch' })
+    const box = h('input', { type: 'text', class: 'dynamic text-mode', value: typeof value === 'string' ? value : '', spellcheck: false, placeholder: '%placeholder% that gives true or false',
+      title: 'A placeholder that works out to true or false when the item is drawn' })
+    box.oninput = typed(box)
+    const toText = () => { wrap.replaceChildren(box, h('button', { class: 'small', title: 'Use a switch again', onclick: () => this.store.set(path, false) }, 'Switch')); box.focus() }
+    const toSwitch = () => wrap.replaceChildren(
+      h('input', { type: 'checkbox', checked: flagOf(value, field.default ?? false), onchange: (e) => this.store.set(path, e.target.checked) }),
+      h('button', { class: 'small', title: 'Decide with a placeholder instead', onclick: toText }, '%'))
+    if (typeof value === 'string') wrap.append(box, h('button', { class: 'small', title: 'Use a switch again', onclick: () => this.store.set(path, false) }, 'Switch'))
+    else toSwitch()
+    return wrap
   }
 
   checkbox(path, value, field) {
@@ -247,25 +304,32 @@ export class Form {
       length > 1 && h('button', { class: 'grip', title: 'Drag to move (Alt + Up or Down on the keyboard)', 'aria-label': 'Move' }, '⠿'),
       control,
       h('div', { class: 'buttons' },
-        h('button', { class: 'icon', title: 'Remove', onclick: () => this.store.remove(rowPath) }, '×')))
+        h('button', { class: 'icon remove', title: 'Remove this entry', 'aria-label': 'Remove this entry', onclick: () => this.store.remove(rowPath) }, '×')))
   }
 
-  /** An object of free names to values (the items of a menu). */
-  map(of, path, entries) {
+  /** An object of free names to values (the items of a menu, or the enchantments of an item, whose names are chosen from the registry). */
+  map(of, path, entries, field = {}) {
     const root = h('div', { class: 'map' })
+    const choices = this.hooks.registry?.(field) ?? null
     for (const key of Object.keys(entries)) {
       const entryPath = [...path, key]
       const id = entryPath.join('/')
-      const name = h('input', { type: 'text', class: 'key', value: key, title: 'Name', onchange: () => this.store.rename(path, key, name.value.trim() || key) })
+      const rename = (to) => this.store.rename(path, key, to || key)
+      // A name from a registry is chosen from its list, unless it is not in it (typed by hand, or a plugin's).
+      const name = choices && choices.some(([v]) => v === key)
+        ? h('select', { class: 'key', title: 'Name', onchange: () => rename(name.value) },
+          choices.filter(([v]) => v === key || !(v in entries)).map(([v, label]) => h('option', { value: v, selected: v === key }, label)))
+        : h('input', { type: 'text', class: 'key', value: key, title: 'Name', onchange: () => rename(name.value.trim()) })
       root.append(h('details', { class: 'card entry', open: !this.shut.has(id), ontoggle: (e) => (e.target.open ? this.shut.delete(id) : this.shut.add(id)) },
         h('summary', null, h('b', null, key), h('span', { class: 'sub' }, ` ${summary(entries[key])}`)),
-        h('div', { class: 'entry-name' }, name, h('button', { class: 'icon', title: `Remove ${key}`, onclick: () => this.store.remove(entryPath) }, '×')),
+        h('div', { class: 'entry-name' }, name, h('button', { class: 'icon remove', title: `Remove ${key}`, 'aria-label': `Remove ${key}`, onclick: () => this.store.remove(entryPath) }, '×')),
         this.control(of, entryPath, entries[key])))
     }
     root.append(h('button', { class: 'add', onclick: () => {
       let n = 1
-      while (`new${n}` in entries) n++
-      this.store.set([...path, `new${n}`], this.schema.blank(of))
+      let name = choices?.map(([v]) => v).find((v) => !(v in entries))
+      while (!name) { if (!(`new${n}` in entries)) name = `new${n}`; n++ }
+      this.store.set([...path, name], this.schema.blank(of))
     } }, '+ Add'))
     return root
   }

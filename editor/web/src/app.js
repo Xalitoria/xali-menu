@@ -20,6 +20,7 @@ import { PackPanel } from './panel.js'
 import { EditorTab, TYPES, SIZES } from './editorTab.js'
 import { RawTab } from './rawTab.js'
 import { RelayServer } from './relay.js'
+import { registryChoices } from './registry.js'
 
 /** The name that the admin sees on the edits sent through a shared link; asked once for the tab. */
 function askName() {
@@ -54,6 +55,8 @@ export class App {
         if (path.length === 2 && path[0] === 'pages' && path[1] === 'sort') return this.catalogValues().map((name) => [name, name])
         return null
       },
+      // A key that takes a value of one of the game's registries (an enchantment, an effect, a dye color...) is a dropdown of them.
+      registry: (field) => registryChoices(field),
       extraVariants: (base) => (base === 'Catalog' ? Object.keys(this.serverInfo?.catalogs ?? {}) : []),
     })
     this.tab = 'Editor'
@@ -86,7 +89,8 @@ export class App {
     this.asked = new Set()
     this.store.onChange((quiet) => {
       this.refreshHeader()
-      if (quiet) { if (this.tab === 'Editor') this.editor.refresh(); this.fetchElements(); return }
+      // Typing in a field: the window is drawn again a moment later, and what the server knows of the new text (the color of a potion) is asked once typing stops.
+      if (quiet) { if (this.tab === 'Editor') this.editor.refresh(); this.fetchElements(); this.resolveSoon(); return }
       // The menu was changed by something other than the text, so a draft of the text is out of date (applying it is what sets the menu, and clears it).
       if (!this.raw.applying) this.raw.discard()
       this.draw()
@@ -315,8 +319,14 @@ export class App {
     this.draw()
   }
 
+  /** [resolveItems] once the typing has paused; the pictures are then drawn again without redrawing the form, which would take the cursor out of the box. */
+  resolveSoon() {
+    clearTimeout(this.resolving)
+    this.resolving = setTimeout(() => this.resolveItems(true), 500)
+  }
+
   /** Asks the server what the items of the open menu are (custom items, and how much each wears), once for each material. */
-  async resolveItems() {
+  async resolveItems(quiet = false) {
     if (!this.server) return
     const items = this.allItems()
     const materials = [...new Set(items.map((i) => i.material).filter((m) => typeof m === 'string' && m && !m.includes('%') && !this.asked.has(m)))]
@@ -327,7 +337,8 @@ export class App {
     try {
       if (materials.length) for (const [material, data] of Object.entries(await this.server.resolve(materials))) iconSettings.resolved.set(material, data)
       if (potions.length) (await this.server.colors(potions)).forEach((color, i) => { if (color !== null) iconSettings.potionColors.set(potionKey(potions[i]), color) })
-      this.draw()
+      if (quiet && this.tab === 'Editor') this.editor.refresh()
+      else this.draw()
     } catch { /* the server may not know; the items are then drawn from what the menu says */ }
   }
 

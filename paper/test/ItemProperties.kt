@@ -1,6 +1,8 @@
 import net.xalitoria.menu.model.AttributeModifier
 import net.xalitoria.menu.model.AttributeOperation
 import net.xalitoria.menu.model.Book
+import net.xalitoria.menu.model.DynamicBoolean
+import net.xalitoria.menu.model.DynamicInt
 import net.xalitoria.menu.model.Equippable
 import net.xalitoria.menu.model.Firework
 import net.xalitoria.menu.model.FireworkEffect
@@ -53,12 +55,12 @@ class ItemProperties {
             """.trimIndent()
         )
         val item = menu.items.getValue("a")
-        assertEquals(5, item.damage)
+        assertEquals(DynamicInt(5), item.damage)
         assertEquals("&6Apple", item.itemName)
         assertEquals(Rarity.EPIC, item.rarity)
-        assertEquals(true, item.glow)
-        assertEquals(16, item.maxStackSize)
-        assertEquals(true, item.hideTooltip)
+        assertEquals(DynamicBoolean(true), item.glow)
+        assertEquals(DynamicInt(16), item.maxStackSize)
+        assertEquals(DynamicBoolean(true), item.hideTooltip)
         assertEquals("mypack:crown", item.itemModel)
         assertEquals(mapOf("sharpness" to 3), item.storedEnchants)
         assertEquals("strong_healing", item.potionType)
@@ -80,7 +82,7 @@ class ItemProperties {
     @Test
     fun theNewPropertiesAreWrittenAndReadBack() {
         val item = Item(
-            "golden_apple", slot = 0, damage = 5, itemName = "x", rarity = Rarity.RARE, glow = false, maxStackSize = 3,
+            "golden_apple", slot = 0, damage = DynamicInt(5), itemName = "x", rarity = Rarity.RARE, glow = DynamicBoolean(false), maxStackSize = DynamicInt(3),
             food = Food(2), trim = Trim("coast", "gold"), book = Book(["p"]),
             firework = Firework([FireworkEffect(colors = ["#ffffff"])]), fish = Fish("KOB"),
             attributes = [AttributeModifier("attack_damage", 2.0, AttributeOperation.MULTIPLY_TOTAL, "hand")], tooltipStyle = "a:b",
@@ -89,5 +91,44 @@ class ItemProperties {
         )
         val menu = Menu(title = "t", items = mapOf("a" to item))
         assertEquals(menu, Registry.format.decode(Registry.format.encode(menu, [])))
+    }
+
+    @Test
+    fun aNumberOrASwitchMayBePlaceholderText() {
+        val menu = Registry.format.decode(
+            """
+            title = t
+            items {
+              a {
+                material = stone, slot = 0
+                amount = "%player_level%"
+                damage = 7
+                model = "%rank_model%"
+                glow = "%player_is_op%"
+                unbreakable = true
+              }
+            }
+            """.trimIndent()
+        )
+        val item = menu.items.getValue("a")
+        assertEquals(DynamicInt("%player_level%"), item.amount)
+        assertNull(item.amount.fixed, "text with a placeholder is only worked out when the item is drawn")
+        assertEquals(7, item.damage?.fixed)
+        assertEquals(DynamicBoolean("%player_is_op%"), item.glow)
+        assertEquals(true, item.unbreakable.fixed)
+        assertEquals(menu, Registry.format.decode(Registry.format.encode(menu, [])), "what was written as text stays text, a number stays a number")
+        val written = Registry.format.encode(Menu(title = "t", items = mapOf("a" to Item("stone", amount = DynamicInt(3)))), [])
+        assertEquals(true, Regex("""amount\s*=\s*3\b""").containsMatchIn(written), "a fixed number is written as a number: $written")
+    }
+
+    @Test
+    fun placeholderTextWorksOutToANumberOrASwitch() {
+        val fill = { text: String -> text.replace("%level%", "12.0").replace("%op%", "Yes") }
+        assertEquals(12, DynamicInt("%level%").resolve(fill))
+        assertEquals(5, DynamicInt(5).resolve(fill))
+        assertNull(DynamicInt("%name%").resolve(fill), "text that is not a number gives nothing, and the default is used")
+        assertEquals(true, DynamicBoolean("%op%").resolve(fill))
+        assertEquals(false, DynamicBoolean("off").resolve(fill))
+        assertNull(DynamicBoolean("%level%").resolve(fill))
     }
 }

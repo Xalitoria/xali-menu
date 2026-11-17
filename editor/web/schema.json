@@ -2184,7 +2184,7 @@
       ]
     },
     "Condition:chance": {
-      "doc": "Holds `percent` times in a hundred (0 to 100). It is asked again on every redraw of an item, so it belongs in the `require` of a click, not in the `view` of an item.",
+      "doc": "Holds `percent` times in a hundred (0 to 100). It is asked again on every redraw of an item, so it belongs in the `require` of a click, not in the `require` of an item.",
       "fields": [
         {
           "key": "percent",
@@ -2917,7 +2917,7 @@
       ]
     },
     "Frame": {
-      "doc": "One step of an `Animation`. After `delay` (counted from the frame before, at least one tick) its `items` are drawn; with `clear`, what the frames before it drew goes first, so it replaces them, and without it the items stay on top. A frame whose `require` gate does not hold at that moment is skipped. A slot that an item of the frame claims shows that item instead of the menu's own, as long as the item's `view` gate passes.",
+      "doc": "One step of an `Animation`. After `delay` (counted from the frame before, at least one tick) its `items` are drawn; with `clear`, what the frames before it drew goes first, so it replaces them, and without it the items stay on top. A frame whose `require` gate does not hold at that moment is skipped. A slot that an item of the frame claims shows that item instead of the menu's own, as long as the item's `require` gate passes.",
       "fields": [
         {
           "key": "delay",
@@ -3075,7 +3075,7 @@
       ]
     },
     "Item": {
-      "doc": "An item of a menu.\n\n`material` is a Minecraft item key (`diamond_pickaxe`), or a prefixed source: `head:<player>` (a player's head, with their SkinsRestorer skin when it is installed), `texture:<base64>`, `hdb:<id>` (HeadDatabase), `itemsadder:<id>` and `nexo:<id>`. The item sits in `slot` and `slots`; when several items claim a slot, the one with the lowest `priority` whose `view` gate passes is shown.",
+      "doc": "An item of a menu.\n\n`material` is a Minecraft item key (`diamond_pickaxe`), or a prefixed source: `head:<player>` (a player's head, with their SkinsRestorer skin when it is installed), `texture:<base64>`, `hdb:<id>` (HeadDatabase), `itemsadder:<id>` and `nexo:<id>`. The item sits in `slot` and `slots`; when several items claim a slot, the one with the lowest `priority` whose `require` gate passes is shown.",
       "fields": [
         {
           "key": "material",
@@ -3129,19 +3129,12 @@
         {
           "key": "amount",
           "type": {
-            "kind": "int"
+            "kind": "dynamic",
+            "of": "int"
           },
           "required": false,
           "default": 1,
-          "doc": "The number of items in the stack, 1 to 99."
-        },
-        {
-          "key": "dynamic-amount",
-          "type": {
-            "kind": "string"
-          },
-          "required": false,
-          "doc": "A placeholder that gives the amount at draw time, taking the place of `amount`."
+          "doc": "The number of items in the stack, 1 to 99: a number, or text with placeholders that works out to one when the item is drawn."
         },
         {
           "key": "name",
@@ -3190,19 +3183,21 @@
         {
           "key": "unbreakable",
           "type": {
-            "kind": "boolean"
+            "kind": "dynamic",
+            "of": "boolean"
           },
           "required": false,
           "default": false,
-          "doc": "Whether the item takes no durability damage."
+          "doc": "Whether the item takes no durability damage. A switch, or text with placeholders that works out to one."
         },
         {
           "key": "model",
           "type": {
-            "kind": "int"
+            "kind": "dynamic",
+            "of": "int"
           },
           "required": false,
-          "doc": "The custom model data number that resource packs use to choose a model."
+          "doc": "The custom model data number that resource packs use to choose a model. A number, or text with placeholders."
         },
         {
           "key": "color",
@@ -3269,10 +3264,11 @@
         {
           "key": "damage",
           "type": {
-            "kind": "int"
+            "kind": "dynamic",
+            "of": "int"
           },
           "required": false,
-          "doc": "How worn out the item is, in points of durability; the bar shows once it is more than 0."
+          "doc": "How worn out the item is, in points of durability; the bar shows once it is more than 0. A number, or text with placeholders."
         },
         {
           "key": "item-name",
@@ -3299,27 +3295,30 @@
         {
           "key": "glow",
           "type": {
-            "kind": "boolean"
+            "kind": "dynamic",
+            "of": "boolean"
           },
           "required": false,
-          "doc": "Whether the item shimmers like an enchanted one: true forces it, false takes it away from an enchanted item."
+          "doc": "Whether the item shimmers like an enchanted one: true forces it, false takes it away from an enchanted item. A switch, or text with placeholders."
         },
         {
           "key": "max-stack-size",
           "type": {
-            "kind": "int"
+            "kind": "dynamic",
+            "of": "int"
           },
           "required": false,
-          "doc": "How many fit in a stack, 1 to 99."
+          "doc": "How many fit in a stack, 1 to 99. A number, or text with placeholders."
         },
         {
           "key": "hide-tooltip",
           "type": {
-            "kind": "boolean"
+            "kind": "dynamic",
+            "of": "boolean"
           },
           "required": false,
           "default": false,
-          "doc": "Show no tooltip at all, not even the name."
+          "doc": "Show no tooltip at all, not even the name. A switch, or text with placeholders."
         },
         {
           "key": "item-model",
@@ -3431,7 +3430,7 @@
           "doc": "Draw this item again on every menu refresh, to keep its placeholders current."
         },
         {
-          "key": "view",
+          "key": "require",
           "type": {
             "kind": "object",
             "type": "Gate"
@@ -3658,7 +3657,7 @@
       ]
     },
     "Pages": {
-      "doc": "What makes a menu paged: the elements of `catalog` are drawn one page at a time into `slots`, each as `item`.\n\nThe elements are sorted (see `sort`), then the ones for which the `item`'s `view` gate does not hold are left out, and only then split into pages, so every page but the last is full. The gate and everything the item shows can use the element's values as `{name}`. The item's own `slot` and `slots` are not used; the nth element of the page goes into the nth of `slots`, or of the cells of `layout`. An item of the menu in one of the slots is drawn when the page has no element for it.\n\nA `layout` is rows of nine characters, the way the menu looks (`#########`, `#xxxxxxx#`): every `cell` character is a slot for an element, read left to right and top to bottom, and the other characters are only there to draw by. A row of fewer characters is taken as ending in blanks. Give `slots` or `layout`, not both.",
+      "doc": "What makes a menu paged: the elements of `catalog` are drawn one page at a time into `slots`, each as `item`.\n\nThe elements are sorted (see `sort`), then the ones for which the `item`'s `require` gate does not hold are left out, and only then split into pages, so every page but the last is full. The gate and everything the item shows can use the element's values as `{name}`. The item's own `slot` and `slots` are not used; the nth element of the page goes into the nth of `slots`, or of the cells of `layout`. An item of the menu in one of the slots is drawn when the page has no element for it.\n\nA `layout` is rows of nine characters, the way the menu looks (`#########`, `#xxxxxxx#`): every `cell` character is a slot for an element, read left to right and top to bottom, and the other characters are only there to draw by. A row of fewer characters is taken as ending in blanks. Give `slots` or `layout`, not both.",
       "fields": [
         {
           "key": "catalog",

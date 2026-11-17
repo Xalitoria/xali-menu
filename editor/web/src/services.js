@@ -7,6 +7,7 @@ import { WindowView } from './window.js'
 import { ItemRenderer } from './itemrender.js'
 import { settings as iconSettings } from './icons.js'
 import { loadCatalog } from './catalog.js'
+import { loadRegistries } from './registry.js'
 
 export const services = {
   assets: null, text: null, window: null, renderer: null, pack: null,
@@ -15,6 +16,8 @@ export const services = {
   /** The server the editor is connected to, if any. */
   server: null,
   catalogPromise: null,
+  /** Called when the registries (the values of enchantments, effects...) have been read from the language file: the form is drawn again to offer them. */
+  onRegistries: null,
 }
 
 /** Every item a menu can use, loaded the first time it is asked for. */
@@ -37,6 +40,12 @@ export function configure(pack = null) {
   services.renderer = new ItemRenderer(services.assets)
   iconSettings.pack = pack
   iconSettings.renderer = services.renderer
+  const assets = services.assets
+  assets.json('minecraft', 'lang', 'en_us').then((lang) => {
+    if (services.assets !== assets) return
+    loadRegistries(lang ?? {})
+    services.onRegistries?.()
+  }).catch(() => { loadRegistries({}); services.onRegistries?.() })
 }
 
 configure(null)

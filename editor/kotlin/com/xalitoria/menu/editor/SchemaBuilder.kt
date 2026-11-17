@@ -39,7 +39,7 @@ import net.xalitoria.menu.model.Menu
  *   "catalogs": { "players": { "name": "Steve" } } }
  * ```
  *
- * A type is a `kind` (`string`, `int`, `number`, `boolean`, `duration`, `enum` with `values`, `list` and `map` with `of`,
+ * A type is a `kind` (`string`, `int`, `number`, `boolean`, `duration`, `dynamic` with `of` `int` or `boolean`, `enum` with `values`, `list` and `map` with `of`,
  * `object` with the name of a type, `poly` with the name of a base) and nothing else. An object of a polymorphic base is
  * written with a `type` key whose value is a name of `poly`.
  */
@@ -112,6 +112,9 @@ class SchemaBuilder(
 
     private fun typeOf(descriptor: SerialDescriptor): JsonObject = when {
         descriptor.serialName.contains("Duration") -> kind("duration")
+        // A number or a switch that may be written as text with placeholders: the editor offers a box that takes either.
+        descriptor.serialName.contains("DynamicInt") -> buildJsonObject { put("kind", "dynamic"); put("of", "int") }
+        descriptor.serialName.contains("DynamicBoolean") -> buildJsonObject { put("kind", "dynamic"); put("of", "boolean") }
         descriptor.kind is PrimitiveKind -> kind(
             when (descriptor.kind) {
                 PrimitiveKind.BOOLEAN -> "boolean"
@@ -167,6 +170,7 @@ class SchemaBuilder(
         /** The default of a property as JSON, for the literals that can be shown; null for an expression. */
         fun literal(expression: String): JsonElement? {
             val text = expression.trim()
+            Regex("""Dynamic\w+\((.*)\)""").matchEntire(text)?.let { return literal(it.groupValues[1]) }
             return when {
                 text == "[]" || text == "emptyList()" -> JsonArray(emptyList())
                 text == "emptyMap()" -> JsonObject(emptyMap())

@@ -9,7 +9,7 @@ import net.xalitoria.menu.Action
  * [material] is a Minecraft item key (`diamond_pickaxe`), or a prefixed source: `head:<player>` (a player's head, with
  * their SkinsRestorer skin when it is installed), `texture:<base64>`, `hdb:<id>` (HeadDatabase), `itemsadder:<id>` and
  * `nexo:<id>`. The item sits in [slot] and [slots]; when several items claim a slot, the one with the lowest
- * [priority] whose [view] gate passes is shown.
+ * [priority] whose [require] gate passes is shown.
  */
 @Serializable
 data class Item(
@@ -27,10 +27,8 @@ data class Item(
     val inventorySlots: List<Int> = [],
     /** Decides between items that claim the same slot: the lowest value is tried first. */
     val priority: Int = 0,
-    /** The number of items in the stack, 1 to 99. */
-    val amount: Int = 1,
-    /** A placeholder that gives the amount at draw time, taking the place of [amount]. */
-    val dynamicAmount: String? = null,
+    /** The number of items in the stack, 1 to 99: a number, or text with placeholders that works out to one when the item is drawn. */
+    val amount: DynamicInt = DynamicInt(1),
     /** The display name. Colors, placeholders and `{name}` arguments are allowed. */
     val name: String? = null,
     /** The lines under the name, with the same formatting as [name]. */
@@ -39,10 +37,10 @@ data class Item(
     val enchants: Map<String, Int> = emptyMap(),
     /** Data component keys (`enchantments`, `attribute_modifiers`, ...) left out of the tooltip. */
     val hide: List<String> = [],
-    /** Whether the item takes no durability damage. */
-    val unbreakable: Boolean = false,
-    /** The custom model data number that resource packs use to choose a model. */
-    val model: Int? = null,
+    /** Whether the item takes no durability damage. A switch, or text with placeholders that works out to one. */
+    val unbreakable: DynamicBoolean = DynamicBoolean(false),
+    /** The custom model data number that resource packs use to choose a model. A number, or text with placeholders. */
+    val model: DynamicInt? = null,
     /** Dye color of leather armor and the like, as `#rrggbb`. */
     val color: String? = null,
     /** The patterns of a banner, from the bottom layer to the top. */
@@ -55,18 +53,18 @@ data class Item(
     val potionType: String? = null,
     /** Enchantment key to level, kept in an enchanted book rather than put on the item. */
     val storedEnchants: Map<String, Int> = emptyMap(),
-    /** How worn out the item is, in points of durability; the bar shows once it is more than 0. */
-    val damage: Int? = null,
+    /** How worn out the item is, in points of durability; the bar shows once it is more than 0. A number, or text with placeholders. */
+    val damage: DynamicInt? = null,
     /** The base name, which stays plain (not italic) and which renaming in an anvil replaces; [name] is the renamed one. */
     val itemName: String? = null,
     /** The rarity, which sets the color of the name. */
     val rarity: Rarity? = null,
-    /** Whether the item shimmers like an enchanted one: true forces it, false takes it away from an enchanted item. */
-    val glow: Boolean? = null,
-    /** How many fit in a stack, 1 to 99. */
-    val maxStackSize: Int? = null,
-    /** Show no tooltip at all, not even the name. */
-    val hideTooltip: Boolean = false,
+    /** Whether the item shimmers like an enchanted one: true forces it, false takes it away from an enchanted item. A switch, or text with placeholders. */
+    val glow: DynamicBoolean? = null,
+    /** How many fit in a stack, 1 to 99. A number, or text with placeholders. */
+    val maxStackSize: DynamicInt? = null,
+    /** Show no tooltip at all, not even the name. A switch, or text with placeholders. */
+    val hideTooltip: DynamicBoolean = DynamicBoolean(false),
     /** The key of the model resource packs give the item, such as `mypack:crown`. */
     val itemModel: String? = null,
     /** Makes the item edible. */
@@ -92,7 +90,7 @@ data class Item(
     /** Draw this item again on every menu refresh, to keep its placeholders current. */
     val update: Boolean = false,
     /** Must hold for the item to be shown. An item that fails it leaves the slot to the next item that claims it. */
-    val view: Gate? = null,
+    val require: Gate? = null,
     /** What a click on the item does. */
     val click: Clicks = Clicks(),
     /**

@@ -4,6 +4,8 @@ export class Schema {
   /** @param {{root: string, types: Object, poly: Object, version: string}} data */
   constructor(data) {
     this.data = data
+    // A field knows the type it belongs to, so that a control can tell `Item.potion-type` from another `potion-type`.
+    for (const [name, type] of Object.entries(data.types ?? {})) for (const field of type?.fields ?? []) field.owner = name
     this.version = data.version
     this.root = data.root
   }
@@ -40,6 +42,7 @@ export class Schema {
       case 'string': case 'duration': return ''
       case 'int': case 'number': return 0
       case 'boolean': return false
+      case 'dynamic': return type.of === 'boolean' ? false : 0
       case 'enum': return type.values[0]
       case 'list': return []
       case 'map': return {}

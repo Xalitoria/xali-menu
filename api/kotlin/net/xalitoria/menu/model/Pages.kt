@@ -6,7 +6,7 @@ import net.xalitoria.menu.Catalog
 /**
  * What makes a menu paged: the elements of [catalog] are drawn one page at a time into [slots], each as [item].
  *
- * The elements are sorted (see [sort]), then the ones for which the [item]'s `view` gate does not hold are left out, and
+ * The elements are sorted (see [sort]), then the ones for which the [item]'s `require` gate does not hold are left out, and
  * only then split into pages, so every page but the last is full. The gate and everything the item shows can use the
  * element's values as `{name}`. The item's own `slot` and `slots` are not used; the nth element of the page goes into the
  * nth of [slots], or of the cells of [layout]. An item of the menu in one of the slots is drawn when the page has no

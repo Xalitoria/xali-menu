@@ -42,9 +42,9 @@ class SchemaTest {
             items.a {
               material = stone
               slot = 0
-              dynamic-amount = "%x%"
+              amount = "%x%"
               hide = [enchantments]
-              view.require = [{ condition { type = permission, node = a.b } }]
+              require.require = [{ condition { type = permission, node = a.b } }]
               click.left.actions = [{ type = message, text = hi }, { type = sound, sound = a.b }]
               food { nutrition = 3, always-edible = true }
               tool { rules = [ { blocks = [stone], speed = 2 } ] }
@@ -87,8 +87,20 @@ class SchemaTest {
     }
 
     @Test
+    fun aNumberThatMayBePlaceholderTextIsDynamic() {
+        val fields = schema["types"]!!.jsonObject["Item"]!!.jsonObject["fields"]!!.jsonArray.associateBy { it.jsonObject["key"]!!.jsonPrimitive.content }
+        val amount = fields.getValue("amount").jsonObject
+        assertEquals("dynamic", amount["type"]!!.jsonObject["kind"]!!.jsonPrimitive.content)
+        assertEquals("int", amount["type"]!!.jsonObject["of"]!!.jsonPrimitive.content)
+        assertEquals("1", amount["default"]!!.jsonPrimitive.content)
+        assertEquals("boolean", fields.getValue("glow").jsonObject["type"]!!.jsonObject["of"]!!.jsonPrimitive.content)
+        assertEquals(null, fields["dynamic-amount"], "the amount is one key")
+        assertEquals("Gate", fields.getValue("require").jsonObject["type"]!!.jsonObject["type"]!!.jsonPrimitive.content)
+    }
+
+    @Test
     fun keysAreKebabCase() {
-        assertEquals("dynamic-amount", SchemaBuilder.kebab("dynamicAmount"))
+        assertEquals("max-stack-size", SchemaBuilder.kebab("maxStackSize"))
         assertEquals("on-open", SchemaBuilder.kebab("onOpen"))
         assertEquals("nbt", SchemaBuilder.kebab("nbt"))
     }

@@ -20,7 +20,7 @@ class MenuFormat {
                 name = "&aMiner",
                 lore = ["&7Mine ores", "&7A line that is long enough to push the whole list past the width of one line"],
                 enchants = mapOf("sharpness" to 2),
-                view = Gate([Check(Conditions.Not(Conditions.Money("100")))]),
+                require = Gate([Check(Conditions.Not(Conditions.Money("100")))]),
                 click = Clicks(
                     left = Handler([Actions.Player("jobs join miner"), Actions.Delay(20, Actions.Close)]),
                     shiftRight = Handler([Actions.Sound("entity.player.levelup", scope = Actions.Sound.Scope.WORLD)]),
@@ -138,6 +138,6 @@ class ExampleMenu {
         assertEquals(["xmenu-example"], menu.commands)
         assertEquals(5.seconds, menu.refresh)
         assertEquals(setOf("info", "vip", "novip", "close"), menu.items.keys)
-        assertEquals(Conditions.Permission("xalimenu.example.vip"), menu.items.getValue("vip").view?.require?.single()?.condition)
+        assertEquals(Conditions.Permission("xalimenu.example.vip"), menu.items.getValue("vip").require?.require?.single()?.condition)
     }
 }

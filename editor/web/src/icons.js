@@ -2,6 +2,7 @@
 // textures, otherwise a colored tile with the first letters of its name. The tile is always there first, so the grid never waits.
 
 import { h } from './dom.js'
+import { potionColor } from './potions.js'
 
 /** Where the textures of the game are read from when no pack has them. The page can change it. */
 export const settings = {
@@ -53,7 +54,9 @@ export function icon(item, scale = 3, ratio = 1) {
   const label = (prefix ? prefix : id).replace(/_/g, ' ').split(' ').map((w) => w[0] ?? '').join('').slice(0, 3).toUpperCase()
   const wrapper = h('span', { class: 'icon-wrap', style: `width:${(16 * scale) / ratio}px;height:${(16 * scale) / ratio}px` }, tile(label || '?', material || '?'))
   const spec = potionSpec(item)
-  const known = { ...(settings.resolved.get(material) ?? {}), ...(spec && settings.potionColors.has(potionKey(spec)) ? { potionColor: settings.potionColors.get(potionKey(spec)) } : {}) }
+  // What the server said the potion's color is, else what the colors of the game's effects make of it.
+  const color = spec ? (settings.potionColors.get(potionKey(spec)) ?? potionColor(spec.type, spec.effects)) : null
+  const known = { ...(settings.resolved.get(material) ?? {}), ...(color !== null ? { potionColor: color } : {}) }
   if (!material.includes('%') && settings.renderer) {
     // [scale] is in screen pixels per pixel of the game, so the picture has a pixel for each pixel of the screen.
     settings.renderer.render(item, known, scale).then((image) => {

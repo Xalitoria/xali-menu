@@ -152,7 +152,7 @@ class MoreConditions {
             items.a {
               material = stone
               slot = 0
-              view.require = [
+              require.require = [
                 { condition { type = and, conditions = [ { type = free-slots, min = 3 }, { type = health, min = "10" } ] } }
                 { condition { type = or, conditions = [ { type = gamemode, modes = [SURVIVAL, ADVENTURE] }, { type = world, names = [world, spawn] } ] } }
                 { condition { type = held-item, material = diamond_sword, hand = OFF_HAND } }
@@ -169,7 +169,7 @@ class MoreConditions {
             }
         """.trimIndent()
         val menu = Registry.format.decode(text)
-        val conditions = menu.items.getValue("a").view!!.require.map { it.condition }
+        val conditions = menu.items.getValue("a").require!!.require.map { it.condition }
         assertEquals(12, conditions.size)
         assertEquals(Logic.And([PlayerConditions.FreeSlots(3), PlayerConditions.Health(min = "10")]), conditions[0])
         assertEquals(PlayerConditions.Gamemode([GameMode.SURVIVAL, GameMode.ADVENTURE]), (conditions[1] as Logic.Or).conditions[0])

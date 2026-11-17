@@ -137,6 +137,9 @@ export class Inventory {
         }, 'inventory'))
       }
     }
+    // The window labels the player's rows `Inventory`; what they are for is said beside it, since nothing else in the window does.
+    grid.append(h('div', { class: 'inv-caption', style: `left:${view.css(room.x + 64)}px;top:${view.css(room.y + g.inventoryLabel)}px;font-size:${Math.max(10, view.css(6))}px;line-height:${view.css(9)}px` },
+      'click a slot to draw an item in it'))
     const background = services.window.draw(menu, { scale: view.device, ratio: view.ratio, margin: room })
     const width = view.css(g.width + 2 * room.x)
     const height = view.css(g.height + 2 * room.y)

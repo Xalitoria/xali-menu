@@ -1,6 +1,7 @@
 // Draws a menu item as the game's inventory does: finds its item definition and model in the resource pack (then in the game's
 // own files), bakes the quads, and rasterizes them with the `gui` display transform and the game's lights (see raster.js).
 
+import { numberOf, flagOf } from './dynamic.js'
 import { Assets, split } from './assets.js'
 import { Model, loadModel, bakeElements, bakeLayers, transformQuads } from './bake.js'
 import { chooseModels } from './itemdef.js'
@@ -29,7 +30,8 @@ export function skinUrl(material) {
 
 export function stateOf(item, known = {}) {
   const color = typeof item.color === 'string' && /^#[0-9a-f]{6}$/i.test(item.color) ? parseInt(item.color.slice(1), 16) : null
-  const floats = typeof item.model === 'number' ? [item.model] : known.customModelData
+  const model = numberOf(item.model, null)
+  const floats = model !== null ? [model] : known.customModelData
   const text = String(item.material ?? '')
   const head = text.startsWith('head:') || text.startsWith('texture:')
   return {
@@ -37,13 +39,13 @@ export function stateOf(item, known = {}) {
     skin: skinUrl(text),
     banner: Array.isArray(item.banner) ? item.banner : [],
     baseColor: typeof item['base-color'] === 'string' ? item['base-color'] : null,
-    glint: item.glow === true || (item.glow !== false && (Object.keys(item.enchants ?? {}).length > 0 || Object.keys(item['stored-enchants'] ?? {}).length > 0)),
+    glint: flagOf(item.glow, null) === true || (flagOf(item.glow, null) !== false && (Object.keys(item.enchants ?? {}).length > 0 || Object.keys(item['stored-enchants'] ?? {}).length > 0)),
     itemModel: item['item-model'] ?? known.itemModel ?? null,
     state: {
       customModelData: floats ? { floats } : undefined,
-      damage: item.damage ?? 0,
+      damage: numberOf(item.damage, 0),
       maxDamage: known.maxDamage ?? 0,
-      count: item.amount ?? 1,
+      count: numberOf(item.amount, 1),
       dyedColor: color,
       potionColor: known.potionColor ?? null,
       components: [],

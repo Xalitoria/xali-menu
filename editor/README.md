@@ -86,7 +86,7 @@ The Editor tab is one screen and the window of the menu never leaves it:
 | Toolbar above the window | The title, the inventory type (a dropdown) and the size, then a button for each group of the menu's properties (Opening, Events, Layout, Pages, Animation, and More for the rest) that opens a panel of its fields, and the GUI scale. A group with properties set shows how many. |
 | List on the left | Every item of the menu with its cell id, its picture, its slots (of the menu and of the inventory) and its material. Click one to edit it, drag it onto a slot to use it there, **+ Add** puts a new one in the first free slot. |
 | The window | Click a slot to pick the item in it (or add one there, or use one you have), drag an item to another slot to move it (Alt: copy). Drag the empty space around it (or use the middle button, or Space and the left button, or the wheel) to move the window, and double click the space or press **Center** to put it back. |
-| Panel on the right | The id of the item (rename it here: the legend follows), **Copy**, **Delete**, and every property of the item. |
+| Panel on the right | The id of the item (rename it here: the legend follows), **Copy**, **Delete**, and every property of the item, a line between each. A red **×** takes a property, an entry of a list or an item out of where it is. `require` (the gate that must hold for the item to be shown) is a property of the item like the others. |
 | Bar under the window | Shown when a resource pack is loaded, the server has glyphs, or the menu has custom items (`nexo:ruby`). Pick a glyph from the strip (search by name or code, a font at a time), see it large, and put it in the title at an offset; the window shows it at once. |
 
 **Paged menus.** The **Pages** button makes the menu paged and opens its panel: the catalog (a dropdown of the plugin's and of the server's plugins' catalogs, with
@@ -274,3 +274,13 @@ The server side is in `menu/paper/.../editor`. Check it live with `menu/live/bot
 ## External resources
 
 - [GitHub Pages](https://docs.github.com/pages) — where the site is hosted
+
+**Values from the game's registries and from placeholders.**
+- A key that names something of the game is a dropdown of what the game has (the enchantments of `enchants` and `stored-enchants`, the effect of a potion effect, the
+  attribute and its slot, the dye color and pattern of a banner, `potion-type`, the pattern and material of a trim, the slot of `equippable`, the fish, `hide`),
+  with **Other…** for a value that is not in the list (another plugin's, a datapack's). The names are those of the language file of the assets in use (`src/registry.js`).
+- A number or a switch that may follow a placeholder (`amount`, `model`, `damage`, `max-stack-size`, `unbreakable`, `glow`, `hide-tooltip`) is one box that takes a number or a
+  `%placeholder%`, shown in blue when it is text; a switch is a checkbox with a **%** button that turns it into that box. The picture of an item with a placeholder there is drawn with the default.
+- A tipped arrow, potion or splash potion takes the color of its `potion-type` and `potion` effects as it is typed, from the colors of the game's effects (`src/potions.js`);
+  a connected server answers with the exact color, and that is believed.
+- The player's rows are drawn like any other slot, with `Inventory` and a line under the window saying a click puts an item there.
