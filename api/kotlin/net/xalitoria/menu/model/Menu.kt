@@ -47,14 +47,6 @@ data class Menu(
     /** The items of the menu, by name. The name is only used to refer to an item from [legend] and in messages. */
     val items: Map<String, Item> = emptyMap(),
     /**
-     * Items drawn in the player's own inventory, the rows under the menu, while it is open. Their `slot` and `slots` are the
-     * slots of the inventory as the game numbers them: 0 to 8 the hotbar, 9 to 35 the three rows above it. They take the
-     * place of what is there, which comes back when the menu closes. They do everything the items of the menu do (`view`,
-     * `update`, clicks, priority), but nothing can be moved in or out. An item of [items] with `inventory-slots` is drawn there
-     * as well, which lets one item be used in the window and in the rows under it.
-     */
-    val inventory: Map<String, Item> = emptyMap(),
-    /**
      * The menu as it looks, in rows of nine characters, for items to be placed by: each character of the [legend] puts the
      * item it names in every slot where it stands, besides the item's own `slot` and `slots`. A row of fewer characters
      * ends in blanks, and a character the legend does not know is a blank.

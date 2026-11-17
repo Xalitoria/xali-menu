@@ -88,11 +88,6 @@ function slots(menu, problems) {
     for (const slot of rows) if (slot < 0 || slot > 35) problems.push({ path: ['items', name, 'inventory-slots'], message: `inventory slot ${slot} is outside the player's inventory (0 to 35: the hotbar, then the three rows above it)` })
     if (claimed.length === 0 && rows.length === 0 && !Object.values(menu.legend ?? {}).includes(name)) problems.push({ path: ['items', name], message: 'has no slot, so it is never shown' })
   }
-  for (const [name, item] of Object.entries(menu.inventory ?? {})) {
-    const claimed = [item.slot, ...(item.slots ?? [])].filter((n) => typeof n === 'number')
-    for (const slot of claimed) if (slot < 0 || slot > 35) problems.push({ path: ['inventory', name, 'slot'], message: `slot ${slot} is outside the player's inventory (0 to 35: the hotbar, then the three rows above it)` })
-    if (claimed.length === 0) problems.push({ path: ['inventory', name], message: 'has no slot, so it is never shown' })
-  }
   for (const [character, name] of Object.entries(menu.legend ?? {})) {
     if (!(name in (menu.items ?? {}))) problems.push({ path: ['legend', character], message: `the item '${name}' is not in items` })
   }

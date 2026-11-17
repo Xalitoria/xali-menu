@@ -56,9 +56,8 @@ The editor draws what a player sees, from the same files the game reads, with no
   grows with the zoom; the rest of the page scales as the browser makes it. `src/scale.js` has the arithmetic and its tests.
 - **The player's inventory** is part of the window, under the menu, and a menu can draw in it: click one of its slots and the item is saved with the slot numbers of the
   game (0 to 8 the hotbar, 9 to 35 the rows above it). An item is defined once and used anywhere in the window: its `slot` and `slots` are the slots of the menu and
-  its `inventory-slots` those of the player's inventory, so the same item can be in the menu and in the rows under it. Items of the older `inventory` list keep working
-  (they are listed under "Only in the inventory"); put one in a slot of the menu and the editor moves it to `items`, with its slots as `inventory-slots`. An item of the
-  menu with a slot past the menu's size is shown in the inventory marked in red, and reported as a problem: it is never drawn there.
+  its `inventory-slots` those of the player's inventory, so the same item can be in the menu and in the rows under it. An item of the
+  menu with a `slot` past the menu's size is shown in the inventory marked in red, and reported as a problem: it is never drawn there.
 - **Using an item in more slots.** Drag an item from one slot to another to move it (hold Alt or Ctrl to draw it in both), or drag it from the list onto any slot of the
   window, the menu's or the inventory's. Or pick the item and press **Place in more slots**: every click on a slot then draws the item there, or takes it out if it is there.
   The right panel lists where the item is drawn as chips (click one to see the slot, `×` to take the item out of it); the slots the layout gives it are shown but are the

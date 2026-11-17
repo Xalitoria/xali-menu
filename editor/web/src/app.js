@@ -5,7 +5,7 @@ import { Schema } from './schema.js'
 import { Store } from './store.js'
 import { Form } from './form.js'
 import { Inventory } from './inventory.js'
-import { claimsOf, addClaim, removeClaim, moveClaim, moveToItems, placesOf } from './placement.js'
+import { claimsOf, addClaim, removeClaim, moveClaim, placesOf } from './placement.js'
 import { check } from './check.js'
 import { fromHash, decodeData, Server, readFile, toFile, download } from './source.js'
 import { services, forgetCatalog, catalog } from './services.js'
@@ -62,8 +62,8 @@ export class App {
     this.name = 'menu'
     this.menuNames = []
     this.serverProblems = []
-    /** What is picked: the item (`item`, of the list [section]) and the slot of the window it was picked by, which is in [area], the menu's slots (`items`) or the player's inventory (`inventory`). */
-    this.picked = { slot: null, item: null, section: 'items', area: 'items' }
+    /** What is picked: the item (`item`) and the slot of the window it was picked by, which is in [area], the menu's slots (`items`) or the player's inventory (`inventory`). */
+    this.picked = { slot: null, item: null, area: 'items' }
     /** The page of the elements the window shows, from 1. */
     this.page = 1
     /** What the server listed for the catalog of the open menu: `{key, elements, total}` once answered, `{key, pending}` while asked, `{key, error}` when refused; null without a server or a paged menu. */
@@ -141,7 +141,7 @@ export class App {
     this.raw.discard()
     this.store.load(await this.server.menu(name))
     this.serverProblems = []
-    this.picked = { slot: null, item: null, section: 'items', area: 'items' }
+    this.picked = { slot: null, item: null, area: 'items' }
     this.placing = false
     this.setStatus(`Opened ${name}.`)
     this.draw()
@@ -161,17 +161,16 @@ export class App {
     if (this.tab === 'Editor') this.draw()
   }
 
-  /** The items of the menu, in the window and in the player's inventory. */
+  /** The items of the menu. */
   allItems() {
-    const menu = this.store.value
-    return [...Object.values(menu.items ?? {}), ...Object.values(menu.inventory ?? {})]
+    return Object.values(this.store.value.items ?? {})
   }
 
   /**
-   * Picks the slot [slot] of [area] that was clicked in the window, and the item that is drawn in it ([entries] says which, the one drawn first at the
-   * front, as `{name, section}`). While slots are being picked for the elements of a paged menu, or for the picked item, it does that instead.
+   * Picks the slot [slot] of [area] that was clicked in the window, and the item that is drawn in it ([names] says which, the one drawn first at the
+   * front). While slots are being picked for the elements of a paged menu, or for the picked item, it does that instead.
    */
-  pickSlot(slot, entries, area = 'items') {
+  pickSlot(slot, names, area = 'items') {
     const menu = this.store.value
     if (this.painting) {
       // The player's inventory, past the slots of the menu, cannot hold an element.
@@ -182,31 +181,22 @@ export class App {
       this.togglePlace(slot, area)
       return
     }
-    const first = entries[0]
-    const name = first?.name ?? null
+    const name = names[0] ?? null
     // The elements the preview draws are all the one template.
-    const item = name === EMPTY ? EMPTY : isPaged(name) && first.section === 'items' ? TEMPLATE : name
-    this.picked = { slot, item, section: first?.section ?? 'items', area }
+    const item = name === EMPTY ? EMPTY : isPaged(name) ? TEMPLATE : name
+    this.picked = { slot, item, area }
     this.draw()
   }
 
-  /** Draws the picked item in [slot] of [area] if it is not there, takes it out if it is. An item of the player's inventory list moves to `items` when it is put in the window. */
+  /** Draws the picked item in [slot] of [area] if it is not there, takes it out if it is. */
   togglePlace(slot, area) {
-    const { item: id, section } = this.picked
+    const { item: id } = this.picked
     const menu = this.store.value
-    if (!id || isPaged(id) || !menu[section]?.[id]) return
+    if (!id || isPaged(id) || !menu.items?.[id]) return
     // Past the slots of the menu is the player's inventory, which the cells of the window draw as theirs.
     if (area === 'items' && slot >= slotCount(menu)) return
-    const here = claimsOf(menu[section][id], section, area).includes(slot)
-    this.store.change((draft) => {
-      if (here) return removeClaim(draft, id, section, area, slot)
-      if (section === 'inventory' && area === 'items') {
-        const made = moveToItems(draft, id)
-        this.picked = { ...this.picked, item: made, section: 'items' }
-        return addClaim(draft, made, 'items', area, slot)
-      }
-      return addClaim(draft, id, section, area, slot)
-    })
+    const here = claimsOf(menu.items[id], area).includes(slot)
+    this.store.change((draft) => (here ? removeClaim(draft, id, area, slot) : addClaim(draft, id, area, slot)))
     this.draw()
   }
 
@@ -219,22 +209,18 @@ export class App {
   }
 
   /**
-   * Draws the item [source] (`{kind, name, section}`; for kind `slot` also the `area` and `slot` it was dragged from) in the slot [target] (`{area, slot}`): it
+   * Draws the item [source] (`{kind, name}`; for kind `slot` also the `area` and `slot` it was dragged from) in the slot [target] (`{area, slot}`): it
    * moves from its slot, or, when [copy] is true or it came from the list of items, it is drawn there as well.
    */
   drop(source, target, copy = false) {
     const menu = this.store.value
-    if (!menu[source.section]?.[source.name]) return
+    const id = source.name
+    if (!menu.items?.[id]) return
     if (target.area === 'items' && target.slot >= slotCount(menu)) return
-    let id = source.name
-    let section = source.section
-    this.store.change((draft) => {
-      if (section === 'inventory' && target.area === 'items') { id = moveToItems(draft, id); section = 'items' }
-      return source.kind === 'slot'
-        ? moveClaim(draft, id, section, { area: source.area, slot: source.slot }, target, copy)
-        : addClaim(draft, id, section, target.area, target.slot)
-    })
-    this.picked = { slot: target.slot, item: id, section, area: target.area }
+    this.store.change((draft) => (source.kind === 'slot'
+      ? moveClaim(draft, id, { area: source.area, slot: source.slot }, target, copy)
+      : addClaim(draft, id, target.area, target.slot)))
+    this.picked = { slot: target.slot, item: id, area: target.area }
     this.inventory.slot = target.slot
     this.inventory.area = target.area
     this.draw()
@@ -311,18 +297,18 @@ export class App {
     this.draw()
   }
 
-  /** Picks an item of the list ([section] says which: the window's or the player's inventory's), and its first slot: one of the menu's, else one of the player's inventory. */
-  pickItem(id, section = 'items') {
+  /** Picks an item of the list, and its first slot: one of the menu's, else one of the player's inventory. */
+  pickItem(id) {
     const menu = this.store.value
     let slots
     let area = 'items'
-    if (isPaged(id) && section === 'items') slots = listedSlots(menu.pages).slice(0, 1)
+    if (isPaged(id)) slots = listedSlots(menu.pages).slice(0, 1)
     else {
-      const places = placesOf(menu, id, section)
+      const places = placesOf(menu, id)
       slots = [...new Set([...places.items, ...places.layout])].sort((a, b) => a - b)
       if (slots.length === 0) { slots = [...places.inventory].sort((a, b) => a - b); area = 'inventory' }
     }
-    this.picked = { slot: slots[0] ?? null, item: id, section, area }
+    this.picked = { slot: slots[0] ?? null, item: id, area }
     this.placing = false
     this.inventory.slot = this.picked.slot
     this.inventory.area = area
@@ -406,7 +392,7 @@ export class App {
 
   draw() {
     if (!this.store.value.pages) this.painting = false
-    if (this.placing && !this.store.value[this.picked.section]?.[this.picked.item]) this.placing = false
+    if (this.placing && !this.store.value.items?.[this.picked.item]) this.placing = false
     for (const button of this.tabs.querySelectorAll('button[data-tab]')) button.classList.toggle('active', button.dataset.tab === this.tab)
     const kept = this.scrolls()
     const content = { Editor: () => this.editorTab(), Raw: () => this.raw.view(), Pack: () => this.pack.view() }[this.tab]()
@@ -429,7 +415,7 @@ export class App {
 
   /** Puts them back, unless the view is now about something else (another item, group or tab), which starts at the top again. */
   restoreScrolls(tops) {
-    const place = `${this.tab}|${this.picked.section}|${this.picked.item}|${this.editor.popover}`
+    const place = `${this.tab}|${this.picked.item}|${this.editor.popover}`
     if (place === this.drawnPlace) App.SCROLLERS.forEach((selector, i) => { const element = this.view.querySelector(selector); if (element && tops[i]) element.scrollTop = tops[i] })
     this.drawnPlace = place
   }
@@ -463,7 +449,7 @@ export class App {
     const [first, second] = problem.path ?? []
     this.showProblems = false
     this.tab = 'Editor'
-    if ((first === 'items' || first === 'inventory') && second && this.store.value[first]?.[second]) this.pickItem(second, first)
+    if (first === 'items' && second && this.store.value.items?.[second]) this.pickItem(second)
     else if (first === 'pages' && second === 'item') this.pickItem(TEMPLATE)
     else {
       this.editor.popover = this.editor.groupOf(first)

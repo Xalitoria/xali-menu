@@ -36,14 +36,14 @@ test('other inventory types have a size of their own', () => {
   assert.equal(slotCount({ size: 27 }), 27)
 })
 
-test('an item of the player inventory has a slot from 0 to 35', () => {
-  const menu = { title: 'T', size: 9, items: {}, inventory: { fine: { material: 'stone', slot: 35 }, past: { material: 'stone', slot: 36 }, none: { material: 'stone' } } }
+test('an inventory slot of an item is from 0 to 35, and an item with only those has a slot', () => {
+  const menu = { title: 'T', size: 9, items: { fine: { material: 'stone', 'inventory-slots': [0, 35] }, past: { material: 'stone', 'inventory-slots': [36] }, none: { material: 'stone' } } }
   assert.deepEqual(messages(menu), [
-    "inventory.past.slot: slot 36 is outside the player's inventory (0 to 35: the hotbar, then the three rows above it)",
-    'inventory.none: has no slot, so it is never shown',
+    "items.past.inventory-slots: inventory slot 36 is outside the player's inventory (0 to 35: the hotbar, then the three rows above it)",
+    'items.none: has no slot, so it is never shown',
   ])
 })
 
-test('an item of the window past the menu is told to go in the inventory instead', () => {
+test('an item of the menu past its size is told to use inventory-slots', () => {
   assert.match(messages({ title: 'T', size: 9, items: { a: { material: 'stone', slot: 12 } } })[0], /inventory-slots/)
 })

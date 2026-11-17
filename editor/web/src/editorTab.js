@@ -31,7 +31,7 @@ export const GROUPS = [
   { id: 'animation', label: 'Animation', keys: ['animation'], hint: 'Frames that play over the menu once it is open.' },
 ]
 
-const TOP_KEYS = ['title', 'size', 'type', 'items', 'inventory']
+const TOP_KEYS = ['title', 'size', 'type', 'items']
 
 export class EditorTab {
   /** @param {import('./app.js').App} app */
@@ -243,11 +243,9 @@ export class EditorTab {
     const ids = Object.keys(menu.items ?? {})
     const view = viewOf(2)
     const problems = app.allProblems()
-    const badIn = (section) => new Set(problems.filter((p) => p.path?.[0] === section).map((p) => p.path[1]))
-    const bad = badIn('items')
+    const bad = new Set(problems.filter((p) => p.path?.[0] === 'items').map((p) => p.path[1]))
     if (problems.some((p) => p.path?.[0] === 'pages' && p.path[1] === 'item')) bad.add(TEMPLATE)
     const sample = app.shownMenu().items?.['@element1']
-    const inventoryIds = Object.keys(menu.inventory ?? {})
     return h('aside', { class: 'sidebar items' },
       h('div', { class: 'side-head' }, h('h2', null, 'Items', h('span', { class: 'count' }, ids.length)),
         h('button', { class: 'primary small', title: 'Add an item to the first free slot', onclick: () => this.add(null, 'items') }, '+ Add')),
@@ -257,28 +255,25 @@ export class EditorTab {
         menu.pages && this.pagedRow(TEMPLATE, sample ?? menu.pages.item ?? {}, 'Element', `each of ${listedSlots(menu.pages).length} slots · ${menu.pages.catalog?.type ?? 'no catalog'}`, bad.has(TEMPLATE), view),
         menu.pages?.empty && this.pagedRow(EMPTY, menu.pages.empty, 'When there are none', 'drawn when the catalog is empty', false, view),
         ids.length === 0 && !menu.pages && h('p', { class: 'muted pad' }, 'The menu has no items. Add one, or click a slot of the window.'),
-        ids.map((id) => this.itemRow(id, 'items', view, bad)),
-        inventoryIds.length > 0 && h('div', { class: 'side-head sub', title: "Items that are only drawn in the player's own inventory. Put one in a slot of the menu to make it an ordinary item of the menu too." },
-          h('h2', null, 'Only in the inventory', h('span', { class: 'count' }, inventoryIds.length))),
-        inventoryIds.map((id) => this.itemRow(id, 'inventory', view, badIn('inventory')))))
+        ids.map((id) => this.itemRow(id, view, bad))))
   }
 
-  /** The entry of the list for the item [id] of [section]. It can be dragged onto a slot of the window. */
-  itemRow(id, section, view, bad) {
+  /** The entry of the list for the item [id]. It can be dragged onto a slot of the window. */
+  itemRow(id, view, bad) {
     const { app } = this
-    const item = this.menu[section][id]
-    const active = id === app.picked.item && section === app.picked.section
-    return h('button', { class: `item-row ${active ? 'active' : ''} ${bad.has(id) ? 'bad' : ''}`, 'data-id': id, 'data-section': section, title: `${id}: ${item.material ?? ''}`,
+    const item = this.menu.items[id]
+    const active = id === app.picked.item
+    return h('button', { class: `item-row ${active ? 'active' : ''} ${bad.has(id) ? 'bad' : ''}`, 'data-id': id, title: `${id}: ${item.material ?? ''}`,
       draggable: true,
-      ondragstart: (e) => { e.dataTransfer.effectAllowed = 'copy'; e.dataTransfer.setData('text/plain', JSON.stringify({ kind: 'item', name: id, section })) },
-      onclick: () => app.pickItem(id, section) },
+      ondragstart: (e) => { e.dataTransfer.effectAllowed = 'copy'; e.dataTransfer.setData('text/plain', JSON.stringify({ kind: 'item', name: id })) },
+      onclick: () => app.pickItem(id) },
     h('span', { class: 'item-icon' }, icon(item, view.device, view.ratio)),
-    h('span', { class: 'item-text' }, h('b', null, id), h('small', null, `${placeText(placesOf(this.menu, id, section))} · ${item.material ?? ''}`)))
+    h('span', { class: 'item-text' }, h('b', null, id), h('small', null, `${placeText(placesOf(this.menu, id))} · ${item.material ?? ''}`)))
   }
 
   /** The entry of the list for the template of a paged menu, or for its item for no elements: they are items of `pages`, not of `items`. */
   pagedRow(id, item, label, detail, bad, view) {
-    return h('button', { class: `item-row paged ${id === this.app.picked.item && this.app.picked.section === 'items' ? 'active' : ''} ${bad ? 'bad' : ''}`, 'data-id': id, title: detail, onclick: () => this.app.pickItem(id) },
+    return h('button', { class: `item-row paged ${id === this.app.picked.item ? 'active' : ''} ${bad ? 'bad' : ''}`, 'data-id': id, title: detail, onclick: () => this.app.pickItem(id) },
       h('span', { class: 'item-icon' }, icon(item, view.device, view.ratio)),
       h('span', { class: 'item-text' }, h('b', null, label), h('small', null, detail)))
   }
@@ -340,7 +335,7 @@ export class EditorTab {
     const item = { material: 'stone' }
     if (at !== null) { if (area === 'inventory') item['inventory-slots'] = [at]; else item.slot = at }
     app.store.change((draft) => { (draft.items ??= {})[id] = item; return draft })
-    app.picked = { slot: at, item: id, section: 'items', area }
+    app.picked = { slot: at, item: id, area }
     app.inventory.slot = at
     app.inventory.area = area
     app.draw()
@@ -351,36 +346,35 @@ export class EditorTab {
   itemPanel() {
     const { app } = this
     const menu = this.menu
-    const { section, area } = app.picked
-    if (section === 'items' && isPaged(app.picked.item) && menu.pages) return this.pagedPanel(app.picked.item)
-    const id = app.picked.item && menu[section]?.[app.picked.item] ? app.picked.item : null
+    if (isPaged(app.picked.item) && menu.pages) return this.pagedPanel(app.picked.item)
+    const id = app.picked.item && menu.items?.[app.picked.item] ? app.picked.item : null
     if (!id) return this.slotPanel()
-    const own = app.allProblems().filter((p) => p.path?.[0] === section && p.path[1] === id)
+    const own = app.allProblems().filter((p) => p.path?.[0] === 'items' && p.path[1] === id)
     const name = h('input', { type: 'text', class: 'id-input', value: id, spellcheck: false, 'aria-label': 'Item id',
-      oninput: () => name.classList.toggle('bad', Boolean(idProblem(menu, name.value.trim(), id, section))),
-      onchange: () => this.rename(id, name.value.trim(), name, section),
+      oninput: () => name.classList.toggle('bad', Boolean(idProblem(menu, name.value.trim(), id))),
+      onchange: () => this.rename(id, name.value.trim(), name),
       onkeydown: (e) => { if (e.key === 'Enter') name.blur() } })
     return h('aside', { class: 'sidebar props' },
       h('div', { class: 'side-head item-head' },
-        h('label', { class: 'tool grow', title: section === 'items' ? 'The id the item is known by: the legend and messages use it' : 'The id the item is known by' }, h('span', null, 'Id'), name),
-        h('button', { class: 'small', title: 'Copy the item', onclick: () => this.duplicate(id, section) }, 'Copy'),
-        h('button', { class: 'danger small', title: 'Remove the item', onclick: () => this.remove(id, section) }, 'Delete')),
+        h('label', { class: 'tool grow', title: 'The id the item is known by: the legend and messages use it' }, h('span', null, 'Id'), name),
+        h('button', { class: 'small', title: 'Copy the item', onclick: () => this.duplicate(id) }, 'Copy'),
+        h('button', { class: 'danger small', title: 'Remove the item', onclick: () => this.remove(id) }, 'Delete')),
       own.length > 0 && h('ul', { class: 'item-problems' }, own.slice(0, 6).map((p) => h('li', null, h('code', null, p.path.slice(2).join('.') || 'item'), ' ', p.message))),
-      this.placement(id, section, area),
-      h('div', { class: 'props-body' }, app.form.object('Item', [section, id], { first: ITEM_FIRST })))
+      this.placement(id),
+      h('div', { class: 'props-body' }, app.form.object('Item', ['items', id], { first: ITEM_FIRST })))
   }
 
   /**
-   * Where the item [id] of [section] is drawn: a chip for each slot of the menu and of the player's inventory (click to see it, x to take the item out
+   * Where the item [id] is drawn: a chip for each slot of the menu and of the player's inventory (click to see it, x to take the item out
    * of it), a note for the slots the layout gives it, and the button that lets slots of the window be clicked to put it in them or take it out.
    */
-  placement(id, section, area) {
+  placement(id) {
     const { app } = this
-    const places = placesOf(this.menu, id, section)
+    const places = placesOf(this.menu, id)
     const here = (a, slot) => app.picked.slot === slot && (app.picked.area ?? 'items') === a
     const chip = (a, slot) => h('span', { class: `chip ${here(a, slot) ? 'active' : ''}` },
       h('button', { class: 'chip-label', title: 'Show this slot', onclick: () => this.showSlot(a, slot) }, `${a === 'items' ? 'Menu' : 'Inventory'} ${slot}`),
-      h('button', { class: 'chip-x', title: `Do not draw ${id} in this slot`, 'aria-label': `Remove from slot ${slot}`, onclick: () => this.unplace(id, section, a, slot) }, '×'))
+      h('button', { class: 'chip-x', title: `Do not draw ${id} in this slot`, 'aria-label': `Remove from slot ${slot}`, onclick: () => this.unplace(id, a, slot) }, '×'))
     const none = places.items.length + places.inventory.length + places.layout.length === 0
     return h('div', { class: 'placement' },
       h('div', { class: 'placement-head' },
@@ -391,8 +385,7 @@ export class EditorTab {
         none && h('span', { class: 'muted' }, 'No slot yet: the item is never shown.'),
         places.items.map((slot) => chip('items', slot)),
         places.layout.length > 0 && h('span', { class: 'chip layout', title: 'The slots of the layout that its character stands for. Change them in the Layout group.' }, `Layout ${places.layout.length === 1 ? 'slot' : 'slots'} ${places.layout.join(', ')}`),
-        places.inventory.map((slot) => chip('inventory', slot))),
-      section === 'inventory' && h('p', { class: 'muted note' }, "This item is only drawn in the player's inventory. Putting it in a slot of the menu makes it an item of the menu too."))
+        places.inventory.map((slot) => chip('inventory', slot))))
   }
 
   /** Shows the slot [slot] of [area] of the window as the picked one, keeping the item that is picked: the chip is one of its places. */
@@ -404,10 +397,10 @@ export class EditorTab {
     app.draw()
   }
 
-  /** Takes the item [id] of [section] out of the slot [slot] of [area]. */
-  unplace(id, section, area, slot) {
+  /** Takes the item [id] out of the slot [slot] of [area]. */
+  unplace(id, area, slot) {
     const { app } = this
-    app.store.change((draft) => removeClaim(draft, id, section, area, slot))
+    app.store.change((draft) => removeClaim(draft, id, area, slot))
     app.draw()
   }
 
@@ -415,15 +408,14 @@ export class EditorTab {
   slotPanel() {
     const { app } = this
     const menu = this.menu
-    const { slot, area = 'items' } = app.picked
+    const { slot, area } = app.picked
     const inside = slot !== null && slot !== undefined && slot < (area === 'inventory' ? INVENTORY_SLOTS : slotCount(menu))
     if (!inside) {
       return h('aside', { class: 'sidebar props' },
         h('div', { class: 'empty-state' }, h('h2', null, 'No item picked'),
           h('p', { class: 'muted' }, 'Pick an item in the list or a slot of the window to change it. Drag an item to another slot to move it, hold Alt to draw it in both. Drag one from the list to draw it in a slot.')))
     }
-    // What can go here: every item, one of the inventory's list moves to the menu's items if it is put in the window.
-    const rows = [...Object.keys(menu.items ?? {}).map((id) => ['items', id]), ...Object.keys(menu.inventory ?? {}).map((id) => ['inventory', id])]
+    const rows = Object.keys(menu.items ?? {})
     const view = viewOf(2)
     return h('aside', { class: 'sidebar props' },
       h('div', { class: 'empty-state' },
@@ -432,11 +424,11 @@ export class EditorTab {
         h('button', { class: 'primary', onclick: () => this.add(slot, area) }, '+ New item here')),
       rows.length > 0 && h('div', { class: 'reuse' },
         h('div', { class: 'side-head sub' }, h('h2', null, 'Or use one you have')),
-        h('div', { class: 'item-rows' }, rows.map(([section, id]) => {
-          const item = menu[section][id]
-          return h('button', { class: 'item-row', title: `Draw ${id} in this slot as well`, onclick: () => app.drop({ kind: 'item', name: id, section }, { area, slot }, true) },
+        h('div', { class: 'item-rows' }, rows.map((id) => {
+          const item = menu.items[id]
+          return h('button', { class: 'item-row', title: `Draw ${id} in this slot as well`, onclick: () => app.drop({ kind: 'item', name: id }, { area, slot }, true) },
             h('span', { class: 'item-icon' }, icon(item, view.device, view.ratio)),
-            h('span', { class: 'item-text' }, h('b', null, id), h('small', null, `${placeText(placesOf(menu, id, section))} · ${item.material ?? ''}`)))
+            h('span', { class: 'item-text' }, h('b', null, id), h('small', null, `${placeText(placesOf(menu, id))} · ${item.material ?? ''}`)))
         }))))
   }
 
@@ -457,9 +449,9 @@ export class EditorTab {
       h('div', { class: 'props-body' }, app.form.object('Item', ['pages', key], { first: ITEM_FIRST, hide: ['slot', 'slots', 'priority'] })))
   }
 
-  rename(from, to, input, section = 'items') {
+  rename(from, to, input) {
     const { app } = this
-    const problem = idProblem(this.menu, to, from, section)
+    const problem = idProblem(this.menu, to, from)
     if (problem) {
       app.setStatus(problem, true)
       input.value = from
@@ -467,27 +459,26 @@ export class EditorTab {
       return
     }
     if (to === from) return
-    app.store.change((draft) => renameItem(draft, from, to, section))
+    app.store.change((draft) => renameItem(draft, from, to))
     app.picked.item = to
     app.draw()
   }
 
-  duplicate(id, section = 'items') {
+  duplicate(id) {
     const { app } = this
     const menu = this.menu
-    const area = section === 'inventory' ? 'inventory' : 'items'
-    const made = freeId(menu[section], `${id}-`)
-    const free = typeof menu[section][id].slot === 'number' ? firstFreeSlot(this.taken(area), area === 'inventory' ? INVENTORY_SLOTS : slotCount(menu)) : null
-    app.store.change((draft) => duplicateItem(draft, id, made, free, section))
-    app.picked = { slot: free, item: made, section, area }
+    const made = freeId(menu.items, `${id}-`)
+    const free = typeof menu.items[id].slot === 'number' ? firstFreeSlot(this.taken('items'), slotCount(menu)) : null
+    app.store.change((draft) => duplicateItem(draft, id, made, free))
+    app.picked = { slot: free, item: made, area: 'items' }
     app.inventory.slot = free
-    app.inventory.area = area
+    app.inventory.area = 'items'
     app.draw()
   }
 
-  remove(id, section = 'items') {
+  remove(id) {
     const { app } = this
-    app.store.change((draft) => removeItem(draft, id, section))
+    app.store.change((draft) => removeItem(draft, id))
     app.picked.item = null
     app.draw()
   }

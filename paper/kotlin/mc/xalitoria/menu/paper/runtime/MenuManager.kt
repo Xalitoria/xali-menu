@@ -44,15 +44,11 @@ fun slotted(items: Map<String, Item>): Map<Int, List<Pair<String, Item>>> = item
     .groupBy({ it.first }, { it.second })
     .mapValues { entry -> entry.value.sortedWith(compareBy({ it.second.priority }, { it.first })) }
 
-/**
- * The items [menu] draws in the player's own inventory, sorted into the slots of that inventory like [slotted]: those of `inventory` by their own slots, and
- * those of `items` by their `inventory-slots`.
- */
-fun slottedInventory(menu: Menu): Map<Int, List<Pair<String, Item>>> {
-    val claims = menu.inventory.entries.flatMap { entry -> entry.value.allSlots().map { it to (entry.key to entry.value) } } +
-        menu.items.entries.flatMap { entry -> entry.value.inventorySlots.distinct().map { it to (entry.key to entry.value) } }
-    return claims.groupBy({ it.first }, { it.second }).mapValues { entry -> entry.value.sortedWith(compareBy({ it.second.priority }, { it.first })) }
-}
+/** The items [menu] draws in the player's own inventory, sorted into the slots of that inventory by their `inventory-slots`, like [slotted] does for the menu's. */
+fun slottedInventory(menu: Menu): Map<Int, List<Pair<String, Item>>> = menu.items.entries
+    .flatMap { entry -> entry.value.inventorySlots.distinct().map { it to (entry.key to entry.value) } }
+    .groupBy({ it.first }, { it.second })
+    .mapValues { entry -> entry.value.sortedWith(compareBy({ it.second.priority }, { it.first })) }
 
 /** Whether the file of a menu names a variable placeholder (`%xalimenu_var_coins%`), so that the menu has something to show when one changes. */
 internal fun showsVariables(file: java.nio.file.Path): Boolean = try {
@@ -224,12 +220,6 @@ class MenuManager(private val plugin: XaliMenu) {
             plugin.items.validate(value).forEach { problems += "item '$key': $it" }
             acceptProblems(definition, value).forEach { problems += "item '$key' $it" }
         }
-        for ((key, value) in definition.inventory) {
-            if (value.accept != null) problems += "inventory item '$key' accepts items, which only an item of the menu can"
-            if (value.allSlots().isEmpty()) problems += "inventory item '$key' has no slot, so it is never shown"
-            value.allSlots().filter { it !in Menu.INVENTORY_SLOTS }.forEach { problems += "inventory item '$key' is in slot $it, outside the inventory (0 to 35)" }
-            plugin.items.validate(value).forEach { problems += "inventory item '$key': $it" }
-        }
         definition.pages?.let { pages ->
             pages.listed().filter { definition.type == "chest" && it !in 0 until definition.size }.forEach { problems += "pages has slot $it, outside the menu" }
             if (pages.layout.size * 9 > definition.size && definition.type == "chest") problems += "pages.layout has ${pages.layout.size} rows, more than the menu"
@@ -257,7 +247,7 @@ class MenuManager(private val plugin: XaliMenu) {
         val frames = definition.animation?.frames.orEmpty()
         val animated = frames.flatMap { it.items.values }
         val actions = definition.onOpen + definition.onClose + frames.flatMap { it.onStart + it.onEnd } + definition.animation?.onStart.orEmpty() + definition.animation?.onEnd.orEmpty() +
-            (definition.items.values + definition.inventory.values + animated + listOfNotNull(definition.pages?.item, definition.pages?.empty)).flatMap { item ->
+            (definition.items.values + animated + listOfNotNull(definition.pages?.item, definition.pages?.empty)).flatMap { item ->
             val clicks = item.click
             listOfNotNull(clicks.any, clicks.left, clicks.right, clicks.shiftLeft, clicks.shiftRight, clicks.middle).flatMap { it.actions } +
                 item.accept?.let { it.then + it.reject }.orEmpty()
@@ -271,7 +261,7 @@ class MenuManager(private val plugin: XaliMenu) {
     /** What is wrong with [item] taking items from the player, in [definition]: nothing when it takes none. */
     private fun acceptProblems(definition: Menu, item: Item): List<String> = buildList {
         val accept = item.accept ?: return@buildList
-        if (definition.inventory.isNotEmpty() || definition.items.values.any { it.inventorySlots.isNotEmpty() }) add("accepts items, which can't work in a menu that draws in the player's inventory")
+        if (definition.items.values.any { it.inventorySlots.isNotEmpty() }) add("accepts items, which can't work in a menu that draws in the player's inventory")
         accept.material?.let { if (!hasPlaceholder(it) && ItemFactory.material(it) == null) add("accepts '$it', which isn't an item") }
     }
 

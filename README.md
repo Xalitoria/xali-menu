@@ -123,21 +123,18 @@ items {
 }
 ```
 
-**The player's own inventory.** An item of `items` with `inventory-slots` is drawn in those slots of the player's inventory as well (0 to 8 the hotbar,
-9 to 35 the three rows above it), so one item is defined once and used in the menu and under it. `inventory` holds items like those of `items`, drawn in the
-rows under the menu while it is open, for items that only go there; their `slot` and `slots` are the inventory's slots as the game numbers them: 0 to 8 the hotbar, 9 to 35 the three
-rows above it (not armor and the off hand, which the screen doesn't show). They have everything an item has: `view`,
-`priority`, `update`, clicks. Nothing else in the inventory can be moved, and nothing can be picked up while the menu is open (unless an item takes items, see below).
+**The player's own inventory.** An item of `items` with `inventory-slots` is drawn in those slots of the player's inventory as well, as the game numbers them: 0 to 8 the
+hotbar, 9 to 35 the three rows above it (not armor and the off hand, which the screen doesn't show). It is the same item, so it is defined once and used in the menu and under it,
+with everything an item has: `view`, `priority`, `update`, clicks. An item with only `inventory-slots` is drawn under the menu and not in it. Nothing else in the inventory can be
+moved, and nothing can be picked up while the menu is open (unless an item takes items, see below).
 
 ```hocon
 size = 9
 items {
     close { material = "barrier", slot = 4, click.any.actions = [{ type = "close" }] }
     filler { material = "gray_stained_glass_pane", name = " ", slots = [0, 1, 7, 8], inventory-slots = [0, 1, 2, 3, 4, 5, 6, 7] }  # one item, in the menu and the hotbar
-}
-inventory {
-    back { material = "arrow", slot = 8, name = "Back", click.any.actions = [{ type = "open", menu = "main" }] }
-    coins { material = "gold_ingot", slot = 9, name = "Coins: %xalimenu_var_coins:0%", update = true }
+    back { material = "arrow", inventory-slots = [8], name = "Back", click.any.actions = [{ type = "open", menu = "main" }] }
+    coins { material = "gold_ingot", inventory-slots = [9], name = "Coins: %xalimenu_var_coins:0%", update = true }
 }
 ```
 

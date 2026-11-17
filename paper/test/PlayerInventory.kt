@@ -10,26 +10,26 @@ import kotlin.test.assertTrue
 /** A menu that draws in the player's own inventory, and what happens to what was there. */
 class PlayerInventory {
     @Test
-    fun theInventoryKeyIsRead() {
+    fun theInventorySlotsOfAnItemAreRead() {
         val menu = Registry.format.decode(
             """
             title = "Hi"
             size = 9
-            inventory {
-              back { material = arrow, slot = 8, name = "Back" }
-              rows { material = stone, slots = [9, 10, 35] }
+            items {
+              back { material = arrow, inventory-slots = [8], name = "Back" }
+              rows { material = stone, slot = 0, inventory-slots = [9, 10, 35] }
             }
             """.trimIndent(),
         )
-        assertEquals(setOf("back", "rows"), menu.inventory.keys)
-        assertEquals(8, menu.inventory.getValue("back").slot)
-        assertEquals(listOf(9, 10, 35), menu.inventory.getValue("rows").slots)
+        assertEquals(listOf(8), menu.items.getValue("back").inventorySlots)
+        assertEquals(listOf(9, 10, 35), menu.items.getValue("rows").inventorySlots)
         assertEquals(menu, Registry.format.decode(Registry.format.encode(menu, emptyList())))
     }
 
     @Test
     fun aMenuWithoutOneDrawsNothingThere() {
-        assertTrue(Registry.format.decode("title = \"Hi\"").inventory.isEmpty())
+        val menu = Registry.format.decode("title = \"Hi\"\nitems.a { material = stone, slot = 0 }")
+        assertTrue(slottedInventory(menu).isEmpty())
     }
 
     @Test
@@ -37,14 +37,14 @@ class PlayerInventory {
         val menu = Registry.format.decode(
             """
             title = "Hi"
-            inventory {
-              b { material = stone, slot = 3, priority = 1 }
-              a { material = dirt, slot = 3, priority = 2 }
-              c { material = glass, slot = 4 }
+            items {
+              b { material = stone, inventory-slots = [3], priority = 1 }
+              a { material = dirt, inventory-slots = [3], priority = 2 }
+              c { material = glass, inventory-slots = [4] }
             }
             """.trimIndent(),
         )
-        val bySlot = slotted(menu.inventory)
+        val bySlot = slottedInventory(menu)
         assertEquals(listOf("b", "a"), bySlot.getValue(3).map { it.first })
         assertEquals(setOf(3, 4), bySlot.keys)
         assertEquals(0..35, Menu.INVENTORY_SLOTS)
@@ -56,15 +56,15 @@ class PlayerInventory {
             """
             title = "Hi"
             size = 9
-            items { filler { material = gray_stained_glass_pane, slots = [0, 1], inventory-slots = [9, 10, 0], priority = 5 } }
-            inventory { coins { material = gold_ingot, slot = 9 }, back { material = arrow, slot = 8, priority = 1 } }
+            items {
+              filler { material = gray_stained_glass_pane, slots = [0, 1], inventory-slots = [9, 10, 0], priority = 5 }
+              coins { material = gold_ingot, inventory-slots = [9] }
+            }
             """.trimIndent(),
         )
-        assertEquals(listOf(9, 10, 0), menu.items.getValue("filler").inventorySlots)
-        assertEquals(menu, Registry.format.decode(Registry.format.encode(menu, emptyList())))
         val bySlot = slottedInventory(menu)
-        assertEquals(setOf(0, 8, 9, 10), bySlot.keys)
-        // both claim slot 9: the item of `inventory` has the lower priority number
+        assertEquals(setOf(0, 9, 10), bySlot.keys)
+        // both claim slot 9: equal priority goes by name
         assertEquals(listOf("coins", "filler"), bySlot.getValue(9).map { it.first })
         // the window keeps its own slots, unchanged by the inventory ones
         assertEquals(setOf(0, 1), slotted(menu.items).keys)
