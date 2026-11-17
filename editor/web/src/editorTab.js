@@ -5,7 +5,7 @@ import { h, fill } from './dom.js'
 import { slotCount } from './check.js'
 import { icon } from './icons.js'
 import { SCALES, viewOf } from './scale.js'
-import { placements } from './inventory.js'
+import { inventoryEntries, placesOf, removeClaim } from './placement.js'
 import { firstFreeSlot, freeId, idProblem, renameItem, removeItem, duplicateItem } from './items.js'
 import { INVENTORY_SLOTS } from './window.js'
 import { services } from './services.js'
@@ -14,7 +14,7 @@ import { TEMPLATE, EMPTY, isPaged, listedSlots } from './pages.js'
 import { pagesView, valuesBar } from './pagesPanel.js'
 
 /** The first fields of an item's form. */
-const ITEM_FIRST = ['material', 'name', 'lore', 'amount', 'slot', 'slots', 'view', 'click']
+const ITEM_FIRST = ['material', 'name', 'lore', 'amount', 'slot', 'slots', 'inventory-slots', 'view', 'click']
 
 /** The inventory types the menu file accepts and the editor can draw. */
 export const TYPES = [['chest', 'Chest'], ['hopper', 'Hopper (5 slots)'], ['dispenser', 'Dispenser (9 slots)'], ['dropper', 'Dropper (9 slots)'], ['shulker_box', 'Shulker box (27 slots)']]
@@ -55,7 +55,7 @@ export class EditorTab {
     return h('div', { class: 'editor' },
       this.topBar(),
       this.list,
-      h('div', { class: 'stage-wrap' }, this.stage, this.app.painting && this.paintBanner(), this.pager = this.pagerView()),
+      h('div', { class: 'stage-wrap' }, this.stage, this.app.painting && this.paintBanner(), this.app.placing && this.placeBanner(), this.pager = this.pagerView()),
       this.itemPanel(),
       this.glyphs.view())
   }
@@ -250,29 +250,30 @@ export class EditorTab {
     const inventoryIds = Object.keys(menu.inventory ?? {})
     return h('aside', { class: 'sidebar items' },
       h('div', { class: 'side-head' }, h('h2', null, 'Items', h('span', { class: 'count' }, ids.length)),
-        h('button', { class: 'primary small', title: 'Add an item to the first free slot', onclick: () => this.add() }, '+ Add')),
+        h('button', { class: 'primary small', title: 'Add an item to the first free slot', onclick: () => this.add(null, 'items') }, '+ Add')),
+      h('p', { class: 'list-hint muted', title: 'Pick an item, then Place it in more slots; or drag it from here onto a slot of the window' },
+        'One item can be in many slots, in the menu and in the player\'s inventory under it. Drag one onto a slot, or pick it and place it.'),
       h('div', { class: 'item-rows' },
         menu.pages && this.pagedRow(TEMPLATE, sample ?? menu.pages.item ?? {}, 'Element', `each of ${listedSlots(menu.pages).length} slots · ${menu.pages.catalog?.type ?? 'no catalog'}`, bad.has(TEMPLATE), view),
         menu.pages?.empty && this.pagedRow(EMPTY, menu.pages.empty, 'When there are none', 'drawn when the catalog is empty', false, view),
         ids.length === 0 && !menu.pages && h('p', { class: 'muted pad' }, 'The menu has no items. Add one, or click a slot of the window.'),
         ids.map((id) => this.itemRow(id, 'items', view, bad)),
-        h('div', { class: 'side-head sub', title: "Items drawn in the player's own inventory, under the menu, while it is open" },
-          h('h2', null, 'Player inventory', h('span', { class: 'count' }, inventoryIds.length)),
-          h('button', { class: 'small', title: "Add an item to the player's inventory", onclick: () => this.add(null, 'inventory') }, '+ Add')),
-        inventoryIds.length === 0 && h('p', { class: 'muted pad' }, "Nothing is drawn in the player's inventory. Click a slot under the window to put an item there."),
+        inventoryIds.length > 0 && h('div', { class: 'side-head sub', title: "Items that are only drawn in the player's own inventory. Put one in a slot of the menu to make it an ordinary item of the menu too." },
+          h('h2', null, 'Only in the inventory', h('span', { class: 'count' }, inventoryIds.length))),
         inventoryIds.map((id) => this.itemRow(id, 'inventory', view, badIn('inventory')))))
   }
 
-  /** The entry of the list for the item [id] of [section]. */
+  /** The entry of the list for the item [id] of [section]. It can be dragged onto a slot of the window. */
   itemRow(id, section, view, bad) {
     const { app } = this
     const item = this.menu[section][id]
-    const slots = [...(placements(this.menu, section).get(id) ?? [])].sort((a, b) => a - b)
     const active = id === app.picked.item && section === app.picked.section
     return h('button', { class: `item-row ${active ? 'active' : ''} ${bad.has(id) ? 'bad' : ''}`, 'data-id': id, 'data-section': section, title: `${id}: ${item.material ?? ''}`,
+      draggable: true,
+      ondragstart: (e) => { e.dataTransfer.effectAllowed = 'copy'; e.dataTransfer.setData('text/plain', JSON.stringify({ kind: 'item', name: id, section })) },
       onclick: () => app.pickItem(id, section) },
     h('span', { class: 'item-icon' }, icon(item, view.device, view.ratio)),
-    h('span', { class: 'item-text' }, h('b', null, id), h('small', null, `${slotText(slots)} · ${item.material ?? ''}`)))
+    h('span', { class: 'item-text' }, h('b', null, id), h('small', null, `${placeText(placesOf(this.menu, id, section))} · ${item.material ?? ''}`)))
   }
 
   /** The entry of the list for the template of a paged menu, or for its item for no elements: they are items of `pages`, not of `items`. */
@@ -286,7 +287,7 @@ export class EditorTab {
   pagerView() {
     const { app } = this
     const listed = listedSlots(this.menu.pages).length
-    if (!this.menu.pages?.item || listed === 0 || app.painting) return h('div', { class: 'pager', hidden: true })
+    if (!this.menu.pages?.item || listed === 0 || app.painting || app.placing) return h('div', { class: 'pager', hidden: true })
     if (app.picked.item === EMPTY) {
       return h('div', { class: 'pager' }, h('span', { class: 'muted' }, 'The page of a catalog with nothing to list'),
         h('button', { class: 'small', title: 'Show the elements again', onclick: () => app.pickItem(TEMPLATE) }, 'Show elements'))
@@ -309,20 +310,39 @@ export class EditorTab {
       h('button', { class: 'primary small', onclick: () => this.app.paint(false) }, 'Done'))
   }
 
-  /** Adds an item to the picked slot if it is free, otherwise to the first free one, of the window or (for [section] `inventory`) of the player's inventory. */
-  add(slot = null, section = 'items') {
+  /** The strip over the window while the slots of the picked item are being picked. */
+  placeBanner() {
+    const { picked } = this.app
+    return h('div', { class: 'paint-banner' },
+      h('span', null, h('b', null, `Place ${picked.item}.`), ' Click a slot, in the menu or in the player\'s inventory under it, to draw the item there or take it out.'),
+      h('button', { class: 'primary small', onclick: () => this.app.place(false) }, 'Done'))
+  }
+
+  /** The slots of [area] that an item is drawn in. */
+  taken(area) {
+    const menu = this.menu
+    if (area === 'inventory') return new Set(inventoryEntries(menu).keys())
+    return new Set(Object.keys(menu.items ?? {}).flatMap((id) => { const p = placesOf(menu, id); return [...p.items, ...p.layout] }))
+  }
+
+  /**
+   * Adds a new item to [slot] of [area] if it is given and free, otherwise to the picked slot if that is free, otherwise to the first free one. One for the
+   * player's inventory is an item of `items` with `inventory-slots`, which can be used in the menu too.
+   */
+  add(slot = null, area = this.app.picked.area ?? 'items') {
     const { app } = this
     const menu = this.menu
-    const count = section === 'inventory' ? INVENTORY_SLOTS : slotCount(menu)
-    const taken = new Set([...placements(menu, section).values()].flatMap((set) => [...set]))
-    const wanted = slot ?? (app.picked.section === section ? app.picked.slot : null)
-    const at = wanted !== null && wanted !== undefined && !taken.has(wanted) ? wanted : firstFreeSlot(taken, count)
-    const id = freeId(menu[section] ?? {})
-    // The list of the player's inventory is not in a menu until it has an item.
-    app.store.change((draft) => { (draft[section] ??= {})[id] = at === null ? { material: 'stone' } : { material: 'stone', slot: at }; return draft })
-    app.picked = { slot: at, item: id, section }
+    const count = area === 'inventory' ? INVENTORY_SLOTS : slotCount(menu)
+    const taken = this.taken(area)
+    const wanted = slot ?? (app.picked.area === area ? app.picked.slot : null)
+    const at = wanted !== null && wanted !== undefined && wanted < count && !taken.has(wanted) ? wanted : firstFreeSlot(taken, count)
+    const id = freeId(menu.items ?? {})
+    const item = { material: 'stone' }
+    if (at !== null) { if (area === 'inventory') item['inventory-slots'] = [at]; else item.slot = at }
+    app.store.change((draft) => { (draft.items ??= {})[id] = item; return draft })
+    app.picked = { slot: at, item: id, section: 'items', area }
     app.inventory.slot = at
-    app.inventory.section = section
+    app.inventory.area = area
     app.draw()
   }
 
@@ -331,20 +351,10 @@ export class EditorTab {
   itemPanel() {
     const { app } = this
     const menu = this.menu
-    const section = app.picked.section === 'inventory' ? 'inventory' : 'items'
+    const { section, area } = app.picked
     if (section === 'items' && isPaged(app.picked.item) && menu.pages) return this.pagedPanel(app.picked.item)
     const id = app.picked.item && menu[section]?.[app.picked.item] ? app.picked.item : null
-    if (!id) {
-      const slot = app.picked.slot
-      const inside = slot !== null && slot !== undefined && slot < (section === 'inventory' ? INVENTORY_SLOTS : slotCount(menu))
-      return h('aside', { class: 'sidebar props' },
-        h('div', { class: 'empty-state' },
-          inside
-            ? [h('h2', null, section === 'inventory' ? `Inventory slot ${slot} is not drawn in` : `Slot ${slot} is empty`),
-              section === 'inventory' && h('p', { class: 'muted' }, "The player's own item stays there while the menu is open."),
-              h('button', { class: 'primary', onclick: () => this.add(slot, section) }, '+ Add an item here')]
-            : [h('h2', null, 'No item picked'), h('p', { class: 'muted' }, 'Pick an item in the list or a slot of the window to change it. Drag an item to another slot to move it.')]))
-    }
+    if (!id) return this.slotPanel()
     const own = app.allProblems().filter((p) => p.path?.[0] === section && p.path[1] === id)
     const name = h('input', { type: 'text', class: 'id-input', value: id, spellcheck: false, 'aria-label': 'Item id',
       oninput: () => name.classList.toggle('bad', Boolean(idProblem(menu, name.value.trim(), id, section))),
@@ -356,7 +366,78 @@ export class EditorTab {
         h('button', { class: 'small', title: 'Copy the item', onclick: () => this.duplicate(id, section) }, 'Copy'),
         h('button', { class: 'danger small', title: 'Remove the item', onclick: () => this.remove(id, section) }, 'Delete')),
       own.length > 0 && h('ul', { class: 'item-problems' }, own.slice(0, 6).map((p) => h('li', null, h('code', null, p.path.slice(2).join('.') || 'item'), ' ', p.message))),
+      this.placement(id, section, area),
       h('div', { class: 'props-body' }, app.form.object('Item', [section, id], { first: ITEM_FIRST })))
+  }
+
+  /**
+   * Where the item [id] of [section] is drawn: a chip for each slot of the menu and of the player's inventory (click to see it, x to take the item out
+   * of it), a note for the slots the layout gives it, and the button that lets slots of the window be clicked to put it in them or take it out.
+   */
+  placement(id, section, area) {
+    const { app } = this
+    const places = placesOf(this.menu, id, section)
+    const here = (a, slot) => app.picked.slot === slot && (app.picked.area ?? 'items') === a
+    const chip = (a, slot) => h('span', { class: `chip ${here(a, slot) ? 'active' : ''}` },
+      h('button', { class: 'chip-label', title: 'Show this slot', onclick: () => this.showSlot(a, slot) }, `${a === 'items' ? 'Menu' : 'Inventory'} ${slot}`),
+      h('button', { class: 'chip-x', title: `Do not draw ${id} in this slot`, 'aria-label': `Remove from slot ${slot}`, onclick: () => this.unplace(id, section, a, slot) }, '×'))
+    const none = places.items.length + places.inventory.length + places.layout.length === 0
+    return h('div', { class: 'placement' },
+      h('div', { class: 'placement-head' },
+        h('b', null, 'Drawn in'),
+        h('button', { class: `small ${app.placing ? 'primary' : ''}`, title: 'Click slots of the window to draw this item in them, or take it out of them. The same item can be in as many as you like.',
+          onclick: () => app.place(!app.placing) }, app.placing ? 'Done placing' : 'Place in more slots')),
+      h('div', { class: 'chips' },
+        none && h('span', { class: 'muted' }, 'No slot yet: the item is never shown.'),
+        places.items.map((slot) => chip('items', slot)),
+        places.layout.length > 0 && h('span', { class: 'chip layout', title: 'The slots of the layout that its character stands for. Change them in the Layout group.' }, `Layout ${places.layout.length === 1 ? 'slot' : 'slots'} ${places.layout.join(', ')}`),
+        places.inventory.map((slot) => chip('inventory', slot))),
+      section === 'inventory' && h('p', { class: 'muted note' }, "This item is only drawn in the player's inventory. Putting it in a slot of the menu makes it an item of the menu too."))
+  }
+
+  /** Shows the slot [slot] of [area] of the window as the picked one, keeping the item that is picked: the chip is one of its places. */
+  showSlot(area, slot) {
+    const { app } = this
+    app.picked = { ...app.picked, slot, area }
+    app.inventory.slot = slot
+    app.inventory.area = area
+    app.draw()
+  }
+
+  /** Takes the item [id] of [section] out of the slot [slot] of [area]. */
+  unplace(id, section, area, slot) {
+    const { app } = this
+    app.store.change((draft) => removeClaim(draft, id, section, area, slot))
+    app.draw()
+  }
+
+  /** The panel when no item is picked: the slot that is, with what can be put in it. */
+  slotPanel() {
+    const { app } = this
+    const menu = this.menu
+    const { slot, area = 'items' } = app.picked
+    const inside = slot !== null && slot !== undefined && slot < (area === 'inventory' ? INVENTORY_SLOTS : slotCount(menu))
+    if (!inside) {
+      return h('aside', { class: 'sidebar props' },
+        h('div', { class: 'empty-state' }, h('h2', null, 'No item picked'),
+          h('p', { class: 'muted' }, 'Pick an item in the list or a slot of the window to change it. Drag an item to another slot to move it, hold Alt to draw it in both. Drag one from the list to draw it in a slot.')))
+    }
+    // What can go here: every item, one of the inventory's list moves to the menu's items if it is put in the window.
+    const rows = [...Object.keys(menu.items ?? {}).map((id) => ['items', id]), ...Object.keys(menu.inventory ?? {}).map((id) => ['inventory', id])]
+    const view = viewOf(2)
+    return h('aside', { class: 'sidebar props' },
+      h('div', { class: 'empty-state' },
+        h('h2', null, area === 'inventory' ? `Inventory slot ${slot} is empty` : `Slot ${slot} is empty`),
+        area === 'inventory' && h('p', { class: 'muted' }, "The player's own item stays there while the menu is open, unless an item is drawn here."),
+        h('button', { class: 'primary', onclick: () => this.add(slot, area) }, '+ New item here')),
+      rows.length > 0 && h('div', { class: 'reuse' },
+        h('div', { class: 'side-head sub' }, h('h2', null, 'Or use one you have')),
+        h('div', { class: 'item-rows' }, rows.map(([section, id]) => {
+          const item = menu[section][id]
+          return h('button', { class: 'item-row', title: `Draw ${id} in this slot as well`, onclick: () => app.drop({ kind: 'item', name: id, section }, { area, slot }, true) },
+            h('span', { class: 'item-icon' }, icon(item, view.device, view.ratio)),
+            h('span', { class: 'item-text' }, h('b', null, id), h('small', null, `${placeText(placesOf(menu, id, section))} · ${item.material ?? ''}`)))
+        }))))
   }
 
   /** The properties of the template of a paged menu, or of its item for no elements. */
@@ -394,13 +475,13 @@ export class EditorTab {
   duplicate(id, section = 'items') {
     const { app } = this
     const menu = this.menu
-    const taken = new Set([...placements(menu, section).values()].flatMap((set) => [...set]))
+    const area = section === 'inventory' ? 'inventory' : 'items'
     const made = freeId(menu[section], `${id}-`)
-    const free = typeof menu[section][id].slot === 'number' ? firstFreeSlot(taken, section === 'inventory' ? INVENTORY_SLOTS : slotCount(menu)) : null
+    const free = typeof menu[section][id].slot === 'number' ? firstFreeSlot(this.taken(area), area === 'inventory' ? INVENTORY_SLOTS : slotCount(menu)) : null
     app.store.change((draft) => duplicateItem(draft, id, made, free, section))
-    app.picked = { slot: free, item: made, section }
+    app.picked = { slot: free, item: made, section, area }
     app.inventory.slot = free
-    app.inventory.section = section
+    app.inventory.area = area
     app.draw()
   }
 
@@ -417,4 +498,12 @@ export function slotText(slots) {
   if (slots.length === 0) return 'no slot'
   if (slots.length === 1) return `slot ${slots[0]}`
   return slots.length <= 3 ? `slots ${slots.join(', ')}` : `${slots.length} slots`
+}
+
+/** The same for the places of an item (`placesOf`): its slots of the menu, with those of the layout, and its slots of the player's inventory after them. */
+export function placeText({ items, layout, inventory }) {
+  const menu = [...new Set([...items, ...layout])].sort((a, b) => a - b)
+  const rows = [...inventory].sort((a, b) => a - b)
+  if (menu.length === 0 && rows.length === 0) return 'no slot'
+  return [menu.length && slotText(menu), rows.length && `inventory ${rows.length === 1 ? 'slot' : 'slots'} ${rows.length <= 3 ? rows.join(', ') : `×${rows.length}`}`].filter(Boolean).join(' · ')
 }

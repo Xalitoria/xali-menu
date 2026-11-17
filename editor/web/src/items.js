@@ -43,11 +43,12 @@ export function removeItem(menu, id, section = 'items') {
   return menu
 }
 
-/** Puts a copy of the item [id] under the id [made] right after it. It takes [slot] if it had a slot of its own (none when [slot] is null), and no `slots`. */
+/** Puts a copy of the item [id] under the id [made] right after it. It takes [slot] if it had a slot of its own (none when [slot] is null), and no `slots` or `inventory-slots`. */
 export function duplicateItem(menu, id, made, slot = null, section = 'items') {
   if (!(id in (menu[section] ?? {})) || made in menu[section]) return null
   const copy = structuredClone(menu[section][id])
   delete copy.slots
+  delete copy['inventory-slots']
   if (typeof copy.slot === 'number') { if (slot === null) delete copy.slot; else copy.slot = slot }
   menu[section] = Object.fromEntries(Object.entries(menu[section]).flatMap(([name, item]) => (name === id ? [[name, item], [made, copy]] : [[name, item]])))
   return menu

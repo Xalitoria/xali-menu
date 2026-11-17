@@ -54,10 +54,15 @@ The editor draws what a player sees, from the same files the game reads, with no
 - **The scale** is the game's GUI scale (1 to 6, or fit): each pixel of the game is a whole number of screen pixels. When the browser is
   zoomed (or the display has a pixel ratio above 1) the preview takes the nearest whole number of screen pixels, so it stays sharp and still
   grows with the zoom; the rest of the page scales as the browser makes it. `src/scale.js` has the arithmetic and its tests.
-- **The player's inventory** is part of the window, under the menu, and a menu can draw in it: click one of its slots (or `+ Add` under
-  "Player inventory" in the list) and the item is saved in the menu's `inventory`, with the slot numbers of the game (0 to 8 the hotbar, 9 to 35
-  the rows above it). Items there are edited like the others and move by dragging, but only within the inventory. An item of the menu itself with a
-  slot past the menu's size is shown in the inventory marked in red, and reported as a problem: it is never drawn.
+- **The player's inventory** is part of the window, under the menu, and a menu can draw in it: click one of its slots and the item is saved with the slot numbers of the
+  game (0 to 8 the hotbar, 9 to 35 the rows above it). An item is defined once and used anywhere in the window: its `slot` and `slots` are the slots of the menu and
+  its `inventory-slots` those of the player's inventory, so the same item can be in the menu and in the rows under it. Items of the older `inventory` list keep working
+  (they are listed under "Only in the inventory"); put one in a slot of the menu and the editor moves it to `items`, with its slots as `inventory-slots`. An item of the
+  menu with a slot past the menu's size is shown in the inventory marked in red, and reported as a problem: it is never drawn there.
+- **Using an item in more slots.** Drag an item from one slot to another to move it (hold Alt or Ctrl to draw it in both), or drag it from the list onto any slot of the
+  window, the menu's or the inventory's. Or pick the item and press **Place in more slots**: every click on a slot then draws the item there, or takes it out if it is there.
+  The right panel lists where the item is drawn as chips (click one to see the slot, `×` to take the item out of it); the slots the layout gives it are shown but are the
+  layout's to change. An empty slot offers **+ New item here** and the items you already have. `src/placement.js` has the rules and `test/placement.test.js` its tests.
 - **The window** fills the space between the toolbars and is always on the screen. It takes the biggest GUI scale at which it fits (or the scale you chose) and
   the rest of the space is room around it, for glyphs that are used as overlays and reach past the window. It is the game's container texture for the inventory
   type (chest, hopper, dispenser, dropper), the title is in the game's font with the glyphs of the resource pack, and the player's inventory is below it. Counts
@@ -80,8 +85,8 @@ The Editor tab is one screen and the window of the menu never leaves it:
 | Where | What |
 |---|---|
 | Toolbar above the window | The title, the inventory type (a dropdown) and the size, then a button for each group of the menu's properties (Opening, Events, Layout, Pages, Animation, and More for the rest) that opens a panel of its fields, and the GUI scale. A group with properties set shows how many. |
-| List on the left | Every item of the menu with its cell id, its picture, its slots and its material. Click one to edit it, **+ Add** puts a new one in the first free slot. |
-| The window | Click a slot to pick the item in it (or add one there), drag an item to another slot to move it. Drag the empty space around it (or use the middle button, or Space and the left button, or the wheel) to move the window, and double click the space or press **Center** to put it back. |
+| List on the left | Every item of the menu with its cell id, its picture, its slots (of the menu and of the inventory) and its material. Click one to edit it, drag it onto a slot to use it there, **+ Add** puts a new one in the first free slot. |
+| The window | Click a slot to pick the item in it (or add one there, or use one you have), drag an item to another slot to move it (Alt: copy). Drag the empty space around it (or use the middle button, or Space and the left button, or the wheel) to move the window, and double click the space or press **Center** to put it back. |
 | Panel on the right | The id of the item (rename it here: the legend follows), **Copy**, **Delete**, and every property of the item. |
 | Bar under the window | Shown when a resource pack is loaded, the server has glyphs, or the menu has custom items (`nexo:ruby`). Pick a glyph from the strip (search by name or code, a font at a time), see it large, and put it in the title at an offset; the window shows it at once. |
 

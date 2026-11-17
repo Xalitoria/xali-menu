@@ -45,5 +45,5 @@ test('an item of the player inventory has a slot from 0 to 35', () => {
 })
 
 test('an item of the window past the menu is told to go in the inventory instead', () => {
-  assert.match(messages({ title: 'T', size: 9, items: { a: { material: 'stone', slot: 12 } } })[0], /put the item in 'inventory'/)
+  assert.match(messages({ title: 'T', size: 9, items: { a: { material: 'stone', slot: 12 } } })[0], /inventory-slots/)
 })

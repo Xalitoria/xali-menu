@@ -1,4 +1,5 @@
 import mc.xalitoria.menu.paper.runtime.slotted
+import mc.xalitoria.menu.paper.runtime.slottedInventory
 import mc.xalitoria.menu.paper.screen.Overlay
 import mc.xalitoria.menu.paper.screen.windowIndex
 import net.xalitoria.menu.model.Menu
@@ -47,6 +48,26 @@ class PlayerInventory {
         assertEquals(listOf("b", "a"), bySlot.getValue(3).map { it.first })
         assertEquals(setOf(3, 4), bySlot.keys)
         assertEquals(0..35, Menu.INVENTORY_SLOTS)
+    }
+
+    @Test
+    fun anItemOfTheWindowIsDrawnInTheInventoryToo() {
+        val menu = Registry.format.decode(
+            """
+            title = "Hi"
+            size = 9
+            items { filler { material = gray_stained_glass_pane, slots = [0, 1], inventory-slots = [9, 10, 0], priority = 5 } }
+            inventory { coins { material = gold_ingot, slot = 9 }, back { material = arrow, slot = 8, priority = 1 } }
+            """.trimIndent(),
+        )
+        assertEquals(listOf(9, 10, 0), menu.items.getValue("filler").inventorySlots)
+        assertEquals(menu, Registry.format.decode(Registry.format.encode(menu, emptyList())))
+        val bySlot = slottedInventory(menu)
+        assertEquals(setOf(0, 8, 9, 10), bySlot.keys)
+        // both claim slot 9: the item of `inventory` has the lower priority number
+        assertEquals(listOf("coins", "filler"), bySlot.getValue(9).map { it.first })
+        // the window keeps its own slots, unchanged by the inventory ones
+        assertEquals(setOf(0, 1), slotted(menu.items).keys)
     }
 
     @Test

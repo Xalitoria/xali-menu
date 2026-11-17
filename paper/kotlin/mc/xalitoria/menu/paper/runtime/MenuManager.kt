@@ -33,7 +33,7 @@ class LoadedMenu(val name: String, val menu: Menu, val usesVariables: Boolean = 
     val bySlot: Map<Int, List<Pair<String, Item>>> = slotted(menu.placed())
 
     /** The same for the items drawn in the player's own inventory, by the slot of that inventory. */
-    val inventoryBySlot: Map<Int, List<Pair<String, Item>>> = slotted(menu.inventory).filterKeys { it in Menu.INVENTORY_SLOTS }
+    val inventoryBySlot: Map<Int, List<Pair<String, Item>>> = slottedInventory(menu).filterKeys { it in Menu.INVENTORY_SLOTS }
 }
 
 private fun Item.allSlots(): List<Int> = listOfNotNull(slot) + slots
@@ -43,6 +43,16 @@ fun slotted(items: Map<String, Item>): Map<Int, List<Pair<String, Item>>> = item
     .flatMap { entry -> entry.value.allSlots().map { it to (entry.key to entry.value) } }
     .groupBy({ it.first }, { it.second })
     .mapValues { entry -> entry.value.sortedWith(compareBy({ it.second.priority }, { it.first })) }
+
+/**
+ * The items [menu] draws in the player's own inventory, sorted into the slots of that inventory like [slotted]: those of `inventory` by their own slots, and
+ * those of `items` by their `inventory-slots`.
+ */
+fun slottedInventory(menu: Menu): Map<Int, List<Pair<String, Item>>> {
+    val claims = menu.inventory.entries.flatMap { entry -> entry.value.allSlots().map { it to (entry.key to entry.value) } } +
+        menu.items.entries.flatMap { entry -> entry.value.inventorySlots.distinct().map { it to (entry.key to entry.value) } }
+    return claims.groupBy({ it.first }, { it.second }).mapValues { entry -> entry.value.sortedWith(compareBy({ it.second.priority }, { it.first })) }
+}
 
 /** Whether the file of a menu names a variable placeholder (`%xalimenu_var_coins%`), so that the menu has something to show when one changes. */
 internal fun showsVariables(file: java.nio.file.Path): Boolean = try {
@@ -206,7 +216,8 @@ class MenuManager(private val plugin: XaliMenu) {
         }
         if (definition.layout.size * 9 > definition.size && definition.type == "chest") problems += "layout has ${definition.layout.size} rows, more than the menu"
         for ((key, value) in definition.placed()) {
-            if (value.allSlots().isEmpty()) problems += "item '$key' has no slot, so it is never shown"
+            if (value.allSlots().isEmpty() && value.inventorySlots.isEmpty()) problems += "item '$key' has no slot, so it is never shown"
+            value.inventorySlots.filter { it !in Menu.INVENTORY_SLOTS }.forEach { problems += "item '$key' has inventory slot $it, outside the inventory (0 to 35)" }
             if (definition.type == "chest") {
                 value.allSlots().filter { it !in 0 until definition.size }.forEach { problems += "item '$key' is in slot $it, outside the menu" }
             }
@@ -260,7 +271,7 @@ class MenuManager(private val plugin: XaliMenu) {
     /** What is wrong with [item] taking items from the player, in [definition]: nothing when it takes none. */
     private fun acceptProblems(definition: Menu, item: Item): List<String> = buildList {
         val accept = item.accept ?: return@buildList
-        if (definition.inventory.isNotEmpty()) add("accepts items, which can't work in a menu that draws in the player's inventory")
+        if (definition.inventory.isNotEmpty() || definition.items.values.any { it.inventorySlots.isNotEmpty() }) add("accepts items, which can't work in a menu that draws in the player's inventory")
         accept.material?.let { if (!hasPlaceholder(it) && ItemFactory.material(it) == null) add("accepts '$it', which isn't an item") }
     }
 

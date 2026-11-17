@@ -19,6 +19,12 @@ data class Item(
     val slot: Int? = null,
     /** More slots the item occupies, in addition to [slot]. */
     val slots: List<Int> = [],
+    /**
+     * Slots of the player's own inventory this item of `items` is drawn in as well, as the game numbers them: 0 to 8 the hotbar,
+     * 9 to 35 the three rows above it. It is the same item, so it is defined once and used in the window and in the rows under it.
+     * Not used by the items of `inventory`, whose own [slot] and [slots] are inventory slots already.
+     */
+    val inventorySlots: List<Int> = [],
     /** Decides between items that claim the same slot: the lowest value is tried first. */
     val priority: Int = 0,
     /** The number of items in the stack, 1 to 99. */

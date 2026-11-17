@@ -268,3 +268,11 @@ Each step ends with tests, the README section, and a commit.
 
 - **Bedrock through Geyser**: the web editor will need changes, and what a menu looks like may differ between mobile and PC.
 
+### 11. Reusing items anywhere in the window (done, tested in a browser; not live on a server)
+
+- `inventory-slots` on an item of `items`: the same item is drawn in those slots of the player's inventory too, so it is defined once and used in the menu and under it.
+  `slottedInventory` merges them with the `inventory` list; the checks cover its range, an item with no slot at all, and `accept`. Unit tested (`PlayerInventory`).
+- The editor: any item can be dragged onto any slot of either part (the list too; Alt or Ctrl copies), picked and placed in more slots (**Place in more slots**), shown as
+  chips with where it is drawn, and an empty slot offers the items already defined. An item of the `inventory` list that is put in the menu moves to `items`.
+  Rules in `src/placement.js`, tested in `test/placement.test.js`.
+- Not done: a `layout` for the player's inventory, armor and off hand slots. Not tried: the drawing in a real window with `inventory-slots` (the packet code is unchanged, it only gets more entries).

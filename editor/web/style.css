@@ -184,3 +184,18 @@ textarea.raw { height: 100%; resize: none; padding: 12px 14px; line-height: 1.5;
   .sidebar.items { max-height: 220px; border-right: 0; border-bottom: 1px solid var(--line); } .sidebar.props { border-left: 0; border-top: 1px solid var(--line); overflow: visible; }
   .glyphbar { flex-wrap: wrap; } .glyph-card { border-right: 0; padding-right: 0; }
 }
+
+/* Where an item is drawn: chips for its slots, and the list of what can go in an empty slot. */
+.list-hint { margin: 0; padding: 8px 14px; font-size: 12px; border-bottom: 1px solid var(--line); }
+.item-row[draggable="true"] { cursor: grab; }
+.placement { padding: 10px 14px; border-bottom: 1px solid var(--line); display: grid; gap: 8px; }
+.placement-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.placement .note { margin: 0; font-size: 12px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { display: inline-flex; align-items: stretch; border: 1px solid var(--line); border-radius: 12px; background: var(--raised); font-size: 12px; overflow: hidden; }
+.chip.active { border-color: var(--accent); }
+.chip.layout { padding: 3px 9px; color: var(--muted); border-style: dashed; }
+.chip button { border: 0; border-radius: 0; background: none; padding: 3px 8px; font-size: 12px; }
+.chip .chip-label { padding-right: 4px; } .chip .chip-x { padding-left: 4px; color: var(--muted); } .chip .chip-x:hover:not(:disabled) { color: var(--danger); }
+.reuse .item-rows { padding-bottom: 12px; }
+.slot[data-area="inventory"].plain .number { opacity: .5; }
