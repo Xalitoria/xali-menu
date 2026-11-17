@@ -41,9 +41,9 @@ An action, a condition or a catalog:
 
 An item property:
 
-1. Add the field to `Item` in `api` with a KDoc comment.
+1. Add the field to `Item` in `api` with a KDoc comment. A number has its limits with `@Within(min, max)` (the plugin's check and the editor's boxes use it); a number or a switch that may follow a placeholder is a ``DynamicInt` or `DynamicBoolean``.
 2. Apply it in `ItemFactory.construct` and report wrong values in `ItemFactory.validate`.
-3. Add it to `paper/test/ItemProperties.kt` and `live/menus/i.conf`.
+3. Add it to `paper/test/ItemProperties.kt` and `live/menus/i.conf`. `./gradlew :menu:editor:schema` then shows it in the editor's form; `ConfigCheck` fails if a menu that ships with the plugin gets a warning.
 
 An activator:
 

@@ -9,6 +9,8 @@ export class Store {
     this.undoStack = []
     this.redoStack = []
     this.listeners = new Set()
+    /** Writes a menu that comes in with its easy forms the one way: set by the page, which has the schema. */
+    this.normalizer = null
     this.saved = JSON.stringify(value)
   }
 
@@ -23,6 +25,7 @@ export class Store {
 
   /** Replaces the whole menu without making it an undo step (loading another menu). */
   load(value) {
+    value = this.normalizer ? this.normalizer(value) : value
     this.value = value
     this.undoStack = []
     this.redoStack = []
@@ -88,7 +91,7 @@ export class Store {
     this.undoStack.push(this.value)
     if (this.undoStack.length > LIMIT) this.undoStack.shift()
     this.redoStack = []
-    this.value = result
+    this.value = this.normalizer ? this.normalizer(result) : result
     this.emit(quiet)
   }
 

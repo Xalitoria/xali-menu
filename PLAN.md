@@ -292,3 +292,15 @@ Each step ends with tests, the README section, and a commit.
   patterns drawn as banners, order), the bursts of a firework, a color. The firework star is tinted by its first burst (`fireworkColor`, the `firework` tint of the item definition).
 - Not done: the same for `potion` (duration in seconds, level in roman), `attributes`, `book` pages, `food`, `trim` (the armor with its trim), `tool` rules, `fish` (the bucket drawn with the fish),
   the layout and the legend as a picture, and conditions and actions as sentences instead of keys.
+
+### 14. A checked schema (done; tested without a server and in unit tests of the editor; not live on a server)
+
+- `ConfigChecker` (plugin, `format/`) walks a menu file along the descriptors of the model, which is also where the editor's `schema.json` comes from, so the two cannot drift: a key that nothing reads
+  (a warning, with the key it was probably meant to be), a missing key, a value of the wrong kind, an unknown type of an action, condition, catalog or activator, and a word that is not one of an enum's
+  are told with their path and line, all at once (`MenuFormatException`). The warnings reach `/xmenu validate`, `/xmenu reload`, the log and the editor's save answer through `problemsOf`.
+- The easy forms of a file are written the one way before it is read: one value for a list, an enum in any case. A number or switch as text was already read.
+- `@Within(min, max)` on the model gives a number its limits; they are in `schema.json` (`min`, `max`), in the editor's boxes and problems, and in the plugin's check.
+- The editor: the same words and suggestions (`suggest.js`), a **Rename to …** button for a mistyped key, `normalize.js` so that the rest of the editor only sees the one way.
+- Tests: `ConfigCheck` (and every menu that ships with the plugin or the live tests, except `i.conf` which has wrong items on purpose, reads with no warning), `SchemaTest`, `check.test.js`, `suggest.test.js`, `normalize.test.js`.
+- Not done: limits on the numbers of actions and conditions (`give-item`, `level`...), which check themselves when they are made; a key that was renamed or removed told as such (nothing has been);
+  the same checks for the plugin's `config.yml`; a reference page of every key made from the schema.

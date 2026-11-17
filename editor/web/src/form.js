@@ -7,6 +7,7 @@ import { render as renderText } from './mctext.js'
 import { reorderable } from './reorder.js'
 import { flagOf, parseDynamic, isDynamic } from './dynamic.js'
 import { editorFor } from './editors.js'
+import { closest } from './suggest.js'
 
 /** Keys whose text is shown in the game with colors, so the form previews it. */
 const FORMATTED = new Set(['title', 'name', 'item-name', 'lore', 'text', 'subtitle', 'prompt', 'pages', 'invalid', 'message'])
@@ -60,7 +61,7 @@ export class Form {
       const inner = chain.levels.flatMap((level) => level.absent.map((f) => ({ label: [...level.labels, f.key].join(' › '), path: [...level.path, f.key], field: f })))
       if (inner.length) root.append(this.adder(inner))
     }
-    for (const key of extra) root.append(this.unknown(key, [...path, key], value[key]))
+    for (const key of extra) root.append(this.unknown(key, [...path, key], value[key], closest(key, known.map((f) => f.key).filter((k) => !(k in value)))))
     if (absent.length) root.append(this.adder(absent.map((f) => ({ label: f.key, path: [...path, f.key], field: f }))))
     return root
   }
@@ -113,10 +114,13 @@ export class Form {
   }
 
   /** A key the schema does not know (an addon's, or a typo): shown as JSON so nothing is lost. */
-  unknown(key, path, value) {
+  unknown(key, path, value, suggestion = null) {
     return h('div', { class: 'field unknown' },
       h('label', { title: 'Not part of the format that this editor knows' }, key),
-      h('div', { class: 'control' }, this.json(path, value)),
+      h('div', { class: 'control' },
+        suggestion && h('div', { class: 'did-you-mean' }, 'Not a key of this, so it is ignored. ',
+          h('button', { class: 'small', title: `Rename ${key} to ${suggestion}`, onclick: () => this.store.rename(path.slice(0, -1), key, suggestion) }, `Rename to ${suggestion}`)),
+        this.json(path, value)),
       h('button', { class: 'icon remove', title: `Remove ${key}`, 'aria-label': `Remove ${key}`, onclick: () => this.store.remove(path) }, '×'),
     )
   }
@@ -203,7 +207,7 @@ export class Form {
   }
 
   number(type, path, value, field) {
-    const input = h('input', { type: 'number', value: typeof value === 'number' ? value : '', step: type.kind === 'int' ? 1 : 'any',
+    const input = h('input', { type: 'number', value: typeof value === 'number' ? value : '', step: type.kind === 'int' ? 1 : 'any', min: field.min, max: field.max,
       placeholder: field.default !== undefined ? String(field.default) : '',
       oninput: () => {
         if (input.value === '') { if (!field.required) this.store.remove(path); return }
@@ -224,7 +228,8 @@ export class Form {
     }
     if (kind !== 'boolean') {
       const input = h('input', { type: 'text', class: isDynamic(value, kind) ? 'dynamic text-mode' : 'dynamic', value: value === undefined ? '' : String(value), spellcheck: false,
-        placeholder: field.default !== undefined ? String(field.default) : 'a number or a %placeholder%', title: 'A number, or a placeholder that works out to one when the item is drawn' })
+        placeholder: field.default !== undefined ? String(field.default) : 'a number or a %placeholder%',
+        title: `A number${field.min !== undefined || field.max !== undefined ? ` from ${field.min ?? 'any'} to ${field.max ?? 'any'}` : ''}, or a placeholder that works out to one when the item is drawn` })
       input.oninput = () => { input.classList.toggle('text-mode', isDynamic(parseDynamic(input.value, kind), kind)); typed(input)() }
       return input
     }
@@ -278,7 +283,7 @@ export class Form {
   list(of, path, items, field) {
     const rows = h('div', { class: 'list' })
     if (of.kind === 'int') {
-      const input = h('input', { type: 'text', value: items.join(', '), placeholder: 'numbers, separated by commas',
+      const input = h('input', { type: 'text', value: items.join(', '), placeholder: 'numbers, separated by commas', title: field.min !== undefined || field.max !== undefined ? `Each from ${field.min ?? 'any'} to ${field.max ?? 'any'}` : '',
         oninput: () => this.store.set(path, input.value.split(/[\s,]+/).filter(Boolean).map(Number).filter((n) => !Number.isNaN(n)), true) })
       return input
     }

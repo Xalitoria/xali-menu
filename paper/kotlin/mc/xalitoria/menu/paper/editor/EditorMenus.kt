@@ -48,8 +48,8 @@ internal class EditorMenus(private val plugin: XaliMenu) {
     fun check(name: String, menu: ConfigObject): Result {
         if (!valid(name)) return Result.Refused("'$name' is not a name for a menu: use letters, digits, - and _")
         return try {
-            val decoded = format().decode(menu.render(ConfigRenderOptions.concise()))
-            Result.Ok(plugin.menus.problemsOf(LoadedMenu(name, decoded)))
+            val read = format().decodeChecked(menu.render(ConfigRenderOptions.concise()))
+            Result.Ok(plugin.menus.problemsOf(LoadedMenu(name, read.menu, warnings = read.warnings.map { it.toString() })))
         } catch (e: Exception) {
             Result.Refused(generateSequence<Throwable>(e) { it.cause }.last().message ?: e::class.simpleName.orEmpty())
         }

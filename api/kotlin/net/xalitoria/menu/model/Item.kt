@@ -16,18 +16,22 @@ data class Item(
     /** The item key or prefixed source. May contain placeholders. */
     val material: String,
     /** The slot the item occupies. Slots count from 0 at the top left. */
+    @Within(min = 0)
     val slot: Int? = null,
     /** More slots the item occupies, in addition to [slot]. */
+    @Within(min = 0)
     val slots: List<Int> = [],
     /**
      * Slots of the player's own inventory this item is drawn in as well, as the game numbers them: 0 to 8 the hotbar, 9 to 35
      * the three rows above it. It is the same item, so it is defined once and used in the menu and in the rows under it. The
      * item takes the place of what the player has there, which comes back when the menu closes; nothing can be moved in or out.
      */
+    @Within(0, 35)
     val inventorySlots: List<Int> = [],
     /** Decides between items that claim the same slot: the lowest value is tried first. */
     val priority: Int = 0,
     /** The number of items in the stack, 1 to 99: a number, or text with placeholders that works out to one when the item is drawn. */
+    @Within(1, 99)
     val amount: DynamicInt = DynamicInt(1),
     /** The display name. Colors, placeholders and `{name}` arguments are allowed. */
     val name: String? = null,
@@ -40,6 +44,7 @@ data class Item(
     /** Whether the item takes no durability damage. A switch, or text with placeholders that works out to one. */
     val unbreakable: DynamicBoolean = DynamicBoolean(false),
     /** The custom model data number that resource packs use to choose a model. A number, or text with placeholders. */
+    @Within(min = 0)
     val model: DynamicInt? = null,
     /** Dye color of leather armor and the like, as `#rrggbb`. */
     val color: String? = null,
@@ -54,6 +59,7 @@ data class Item(
     /** Enchantment key to level, kept in an enchanted book rather than put on the item. */
     val storedEnchants: Map<String, Int> = emptyMap(),
     /** How worn out the item is, in points of durability; the bar shows once it is more than 0. A number, or text with placeholders. */
+    @Within(min = 0)
     val damage: DynamicInt? = null,
     /** The base name, which stays plain (not italic) and which renaming in an anvil replaces; [name] is the renamed one. */
     val itemName: String? = null,
@@ -62,6 +68,7 @@ data class Item(
     /** Whether the item shimmers like an enchanted one: true forces it, false takes it away from an enchanted item. A switch, or text with placeholders. */
     val glow: DynamicBoolean? = null,
     /** How many fit in a stack, 1 to 99. A number, or text with placeholders. */
+    @Within(1, 99)
     val maxStackSize: DynamicInt? = null,
     /** Show no tooltip at all, not even the name. A switch, or text with placeholders. */
     val hideTooltip: DynamicBoolean = DynamicBoolean(false),
@@ -118,6 +125,7 @@ data class Accept(
     /** The custom model data an item must have. */
     val model: Int? = null,
     /** How many are taken from the stack, which must hold at least that many. */
+    @Within(1, 99, strict = true)
     val amount: Int = 1,
     /** Runs for an item that does not fit. */
     val reject: List<Action> = [],
@@ -144,6 +152,7 @@ enum class Rarity { COMMON, UNCOMMON, RARE, EPIC }
 @Serializable
 data class Food(
     /** The food points restored, in half drumsticks. */
+    @Within(min = 0)
     val nutrition: Int,
     val saturation: Float = 0f,
     /** Whether the item can be eaten with a full food bar. */
@@ -171,6 +180,7 @@ data class Firework(
     /** The bursts. */
     val effects: List<FireworkEffect> = [],
     /** The flight duration of a rocket, 1 to 3. */
+    @Within(0, 127)
     val power: Int = 1,
 )
 
@@ -214,6 +224,7 @@ data class Equippable(
 @Serializable
 data class Tool(
     val miningSpeed: Float = 1f,
+    @Within(min = 0)
     val damagePerBlock: Int = 1,
     /** Whether a player in creative mode can break blocks with the item. */
     val canDestroyInCreative: Boolean = true,
@@ -259,8 +270,10 @@ data class PotionEffect(
     /** The effect key, such as `speed`. */
     val type: String,
     /** The length in ticks. 20 ticks are one second. */
+    @Within(min = 0)
     val duration: Int,
     /** The level minus one: 0 is level I. */
+    @Within(0, 255)
     val amplifier: Int = 0,
 )
 

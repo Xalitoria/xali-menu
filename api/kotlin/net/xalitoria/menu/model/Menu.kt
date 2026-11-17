@@ -19,6 +19,7 @@ data class Menu(
     val title: String,
     /** The number of slots of a chest menu. */
     @EncodeDefault
+    @Within(9, 54)
     val size: Int = 54,
     /** `chest`, or the name of another inventory type, such as `hopper` or `dispenser`. */
     val type: String = "chest",

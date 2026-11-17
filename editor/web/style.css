@@ -238,3 +238,5 @@ input[type=color] { width: 36px; height: 32px; padding: 2px; cursor: pointer; ba
 .shapes { display: flex; flex-wrap: wrap; gap: 4px; } .shapes button.on { background: var(--accent); border-color: var(--accent); color: #07101f; }
 .burst-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; } .burst-row > .muted:first-child { min-width: 62px; } .check { display: inline-flex; gap: 6px; align-items: center; }
 input.power { width: 72px; }
+
+.did-you-mean { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 6px; color: #d9b44a; font-size: 12px; }

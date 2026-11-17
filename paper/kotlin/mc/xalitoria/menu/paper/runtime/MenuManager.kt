@@ -28,7 +28,7 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 
 /** A menu that has been read from its file, with its items sorted into the slots they claim. */
-class LoadedMenu(val name: String, val menu: Menu, val usesVariables: Boolean = false) {
+class LoadedMenu(val name: String, val menu: Menu, val usesVariables: Boolean = false, val warnings: List<String> = []) {
     /** Per slot, the items claiming it with the lowest priority number first, equal ones by name (a file has no order). */
     val bySlot: Map<Int, List<Pair<String, Item>>> = slotted(menu.placed())
 
@@ -147,7 +147,8 @@ class MenuManager(private val plugin: XaliMenu) {
         for (file in files()) {
             val name = file.toPath().nameWithoutExtension
             try {
-                found[name] = LoadedMenu(name, format.read(file.toPath()), showsVariables(file.toPath()))
+                val read = format.readChecked(file.toPath())
+                found[name] = LoadedMenu(name, read.menu, showsVariables(file.toPath()), read.warnings.map { it.toString() })
             } catch (e: Exception) {
                 failed[name] = e.message ?: e::class.simpleName.orEmpty()
                 plugin.logger fail "Menu '$name' could not be read: ${e.message}".verbatim()
@@ -181,7 +182,8 @@ class MenuManager(private val plugin: XaliMenu) {
         val file = files().firstOrNull { it.nameWithoutExtension.equals(name, ignoreCase = true) } ?: return Reread.NoFile
         val key = file.nameWithoutExtension
         val entry = try {
-            LoadedMenu(key, MenuFormat(plugin.registry.module, plugin.registry.externalNames, plugin.registry.activatorNames).read(file.toPath()), showsVariables(file.toPath()))
+            val read = MenuFormat(plugin.registry.module, plugin.registry.externalNames, plugin.registry.activatorNames).readChecked(file.toPath())
+            LoadedMenu(key, read.menu, showsVariables(file.toPath()), read.warnings.map { it.toString() })
         } catch (e: Exception) {
             failures += key to (e.message ?: e::class.simpleName.orEmpty())
             return Reread.Failed(e.message ?: e::class.simpleName.orEmpty())
@@ -200,7 +202,7 @@ class MenuManager(private val plugin: XaliMenu) {
 
     /** What is wrong with [entry] that does not depend on who opens it. */
     fun problemsOf(entry: LoadedMenu): List<String> {
-        val problems = mutableListOf<String>()
+        val problems = entry.warnings.toMutableList()
         val definition = entry.menu
         MenuArgs.problems(definition.args).forEach { problems += it }
         MenuArgs.unknown(definition.args, definition.complete).forEach { problems += "complete gives words for '$it', which isn't one of the args" }

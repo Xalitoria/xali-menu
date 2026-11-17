@@ -24,6 +24,7 @@ import net.xalitoria.menu.Catalog
 import net.xalitoria.menu.Condition
 import net.xalitoria.menu.model.Activator
 import net.xalitoria.menu.model.Menu
+import net.xalitoria.menu.model.Within
 
 /**
  * Describes the menu format as JSON for the editor: every class that a menu file can contain, with the keys it takes, the
@@ -38,6 +39,8 @@ import net.xalitoria.menu.model.Menu
  *   "poly": { "Action": { "close": "Action:close" } },
  *   "catalogs": { "players": { "name": "Steve" } } }
  * ```
+ *
+ * A field may also have `min` and `max`, the limits of a number (of each entry of a list), from `Within` on the model.
  *
  * A type is a `kind` (`string`, `int`, `number`, `boolean`, `duration`, `dynamic` with `of` `int` or `boolean`, `enum` with `values`, `list` and `map` with `of`,
  * `object` with the name of a type, `poly` with the name of a base) and nothing else. An object of a polymorphic base is
@@ -100,6 +103,11 @@ class SchemaBuilder(
                 put("type", typeOf(descriptor.getElementDescriptor(index)))
                 put("required", !descriptor.isElementOptional(index))
                 documented?.default?.let { literal(it) }?.let { put("default", it) }
+                // The limits of a number (of each entry, for a list), from the model itself.
+                descriptor.getElementAnnotations(index).filterIsInstance<Within>().firstOrNull()?.let { within ->
+                    if (within.min != Long.MIN_VALUE) put("min", within.min)
+                    if (within.max != Long.MAX_VALUE) put("max", within.max)
+                }
                 documented?.doc?.takeIf { it.isNotEmpty() }?.let { put("doc", it) }
             }
         }

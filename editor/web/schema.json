@@ -48,6 +48,8 @@
           },
           "required": false,
           "default": 1,
+          "min": 1,
+          "max": 99,
           "doc": "How many are taken from the stack, which must hold at least that many."
         },
         {
@@ -2796,6 +2798,8 @@
           },
           "required": false,
           "default": 1,
+          "min": 0,
+          "max": 127,
           "doc": "The flight duration of a rocket, 1 to 3."
         }
       ]
@@ -2896,6 +2900,7 @@
             "kind": "int"
           },
           "required": true,
+          "min": 0,
           "doc": "The food points restored, in half drumsticks."
         },
         {
@@ -3091,6 +3096,7 @@
             "kind": "int"
           },
           "required": false,
+          "min": 0,
           "doc": "The slot the item occupies. Slots count from 0 at the top left."
         },
         {
@@ -3103,6 +3109,7 @@
           },
           "required": false,
           "default": [],
+          "min": 0,
           "doc": "More slots the item occupies, in addition to `slot`."
         },
         {
@@ -3115,6 +3122,8 @@
           },
           "required": false,
           "default": [],
+          "min": 0,
+          "max": 35,
           "doc": "Slots of the player's own inventory this item is drawn in as well, as the game numbers them: 0 to 8 the hotbar, 9 to 35 the three rows above it. It is the same item, so it is defined once and used in the menu and in the rows under it. The item takes the place of what the player has there, which comes back when the menu closes; nothing can be moved in or out."
         },
         {
@@ -3134,6 +3143,8 @@
           },
           "required": false,
           "default": 1,
+          "min": 1,
+          "max": 99,
           "doc": "The number of items in the stack, 1 to 99: a number, or text with placeholders that works out to one when the item is drawn."
         },
         {
@@ -3197,6 +3208,7 @@
             "of": "int"
           },
           "required": false,
+          "min": 0,
           "doc": "The custom model data number that resource packs use to choose a model. A number, or text with placeholders."
         },
         {
@@ -3268,6 +3280,7 @@
             "of": "int"
           },
           "required": false,
+          "min": 0,
           "doc": "How worn out the item is, in points of durability; the bar shows once it is more than 0. A number, or text with placeholders."
         },
         {
@@ -3308,6 +3321,8 @@
             "of": "int"
           },
           "required": false,
+          "min": 1,
+          "max": 99,
           "doc": "How many fit in a stack, 1 to 99. A number, or text with placeholders."
         },
         {
@@ -3476,6 +3491,8 @@
           },
           "required": false,
           "default": 54,
+          "min": 9,
+          "max": 54,
           "doc": "The number of slots of a chest menu."
         },
         {
@@ -3755,6 +3772,7 @@
             "kind": "int"
           },
           "required": true,
+          "min": 0,
           "doc": "The length in ticks. 20 ticks are one second."
         },
         {
@@ -3764,6 +3782,8 @@
           },
           "required": false,
           "default": 0,
+          "min": 0,
+          "max": 255,
           "doc": "The level minus one: 0 is level I."
         }
       ]
@@ -3784,7 +3804,8 @@
             "kind": "int"
           },
           "required": false,
-          "default": 1
+          "default": 1,
+          "min": 0
         },
         {
           "key": "can-destroy-in-creative",

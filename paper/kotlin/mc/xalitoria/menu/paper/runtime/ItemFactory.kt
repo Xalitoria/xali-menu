@@ -197,6 +197,7 @@ class ItemFactory(private val plugin: XaliMenu) {
             val value = entry.second
             if (value != null && value.fixed == null && !hasPlaceholder(value.text)) problems += "${entry.first} '${value.text}' isn't a number"
         }
+        item.amount.fixed?.let { if (it !in 1..99) problems += "amount $it isn't between 1 and 99, so it is shown as ${it.coerceIn(1, 99)}" }
         item.maxStackSize?.fixed?.let { if (it !in 1..99) problems += "max-stack-size $it isn't between 1 and 99" }
         item.damage?.fixed?.let { if (it < 0) problems += "damage can't be negative" }
         item.food?.let { if (it.nutrition < 0) problems += "food nutrition can't be negative" }

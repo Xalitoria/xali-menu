@@ -3,6 +3,7 @@
 import { h, fill } from './dom.js'
 import { Schema } from './schema.js'
 import { Store } from './store.js'
+import { normalize } from './normalize.js'
 import { Form } from './form.js'
 import { Inventory } from './inventory.js'
 import { claimsOf, addClaim, removeClaim, moveClaim, placesOf } from './placement.js'
@@ -39,6 +40,7 @@ export class App {
     this.root = root
     this.schema = schema
     this.store = new Store({})
+    this.store.normalizer = (menu) => normalize(schema, menu)
     this.form = new Form(schema, this.store, {
       material: (path, value) => materialPicker({
         value: value ?? '', placeholder: 'stone, diamond_sword, nexo:ruby, head:Steve',

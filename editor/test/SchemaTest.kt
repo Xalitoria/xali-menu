@@ -98,6 +98,16 @@ class SchemaTest {
     }
 
     @Test
+    fun theLimitsOfANumberComeFromTheModel() {
+        val fields = schema["types"]!!.jsonObject["Item"]!!.jsonObject["fields"]!!.jsonArray.associateBy { it.jsonObject["key"]!!.jsonPrimitive.content }
+        assertEquals("1", fields.getValue("amount").jsonObject["min"]!!.jsonPrimitive.content)
+        assertEquals("99", fields.getValue("amount").jsonObject["max"]!!.jsonPrimitive.content)
+        assertEquals("35", fields.getValue("inventory-slots").jsonObject["max"]!!.jsonPrimitive.content)
+        assertEquals(null, fields.getValue("slot").jsonObject["max"], "a limit that is not there is left out")
+        assertEquals("9", schema["types"]!!.jsonObject["Menu"]!!.jsonObject["fields"]!!.jsonArray.first { it.jsonObject["key"]!!.jsonPrimitive.content == "size" }.jsonObject["min"]!!.jsonPrimitive.content)
+    }
+
+    @Test
     fun keysAreKebabCase() {
         assertEquals("max-stack-size", SchemaBuilder.kebab("maxStackSize"))
         assertEquals("on-open", SchemaBuilder.kebab("onOpen"))

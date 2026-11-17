@@ -87,6 +87,22 @@ Messages and menu text accept `&` codes, `&#RRGGBB`, CMI gradients (`{#a0a>}text
 The schema is the classes in `net.xalitoria.menu.model`, with keys in kebab-case (`max-stack-size`, `shift-left`,
 `on-open`). It is XaliMenu's own schema and is **not** compatible with AbstractMenus' HOCON.
 
+**What the plugin says about a file.** A menu file is checked against the schema as it is read, and every problem is told with where it is (and the line of the file):
+
+```text
+Menu 'shop' could not be read: 2 problems:
+  - items.sword.click.left.actions[0].type (line 12): 'mesage' is not an action (did you mean 'message'?)
+  - items.gem.material (line 20): is required
+Menu 'shop': items.apple.slott (line 8): is not a key of an item, so it is ignored (did you mean 'slot'?)
+```
+
+- A key that nothing reads (a typo, or the style of another config: `max_stack_size`) is a warning, with the key it was probably meant to be; the menu still loads.
+- A missing key, a value of the wrong kind, a word that is not one of an enum's or one of the types of an action, condition, catalog or activator, make the file unreadable, and all the reasons are given at once.
+- A number outside what the schema allows (`amount = 0`, `size = 100`, an `inventory-slots` past 35) is a warning. The limits are the `@Within` of the property in the model, which the editor uses too.
+- A few things may be written the easy way: one value where a list is expected (`slots = 5`, `actions = { type = close }`, `lore = "a line"`), an enum in any case (`rarity = epic`), and a number or switch as text (`slot = "3"`).
+- What another plugin's action or condition holds is checked by that plugin, not here.
+- `/xmenu validate` and `/xmenu reload` give the same words.
+
 **File** `plugins/XaliMenu/menus/jobs.conf`
 
 ```hocon
