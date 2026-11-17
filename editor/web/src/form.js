@@ -6,6 +6,7 @@ import { summary } from './schema.js'
 import { render as renderText } from './mctext.js'
 import { reorderable } from './reorder.js'
 import { flagOf, parseDynamic, isDynamic } from './dynamic.js'
+import { editorFor } from './editors.js'
 
 /** Keys whose text is shown in the game with colors, so the form previews it. */
 const FORMATTED = new Set(['title', 'name', 'item-name', 'lore', 'text', 'subtitle', 'prompt', 'pages', 'invalid', 'message'])
@@ -74,7 +75,7 @@ export class Form {
     const labels = [field.key]
     const levels = []
     let at = { field, path, value }
-    while (at.field.type.kind === 'object') {
+    while (at.field.type.kind === 'object' && !editorFor(at.field)) {
       const known = this.schema.fields(at.field.type.type)
       const object = at.value ?? {}
       const present = known.filter((f) => f.required || f.key in object)
@@ -98,7 +99,7 @@ export class Form {
     const control = this.control(end.type, chain.path, chain.value, end)
     const missing = end.required && chain.value === undefined
     // A control that holds other controls (an object, a map, a list of objects) gets the whole width, with its label above it.
-    const block = isBlock(end.type)
+    const block = isBlock(end.type) || Boolean(editorFor(end)?.block)
     const deep = chain.levels.length > 0
     // `require › require` (a gate holds a list of the same name) is one name to read.
     const label = chain.labels.filter((l, i, all) => l !== all[i - 1]).join(' › ')
@@ -134,6 +135,9 @@ export class Form {
 
   /** The control for a value of [type]. */
   control(type, path, value, field = {}) {
+    // A value that has a control made for it (the patterns of a banner, the bursts of a firework, a color).
+    const editor = editorFor(field)
+    if (editor) return editor(this.store, path, value, this.store.get(path.slice(0, -1)))
     const choices = type.kind === 'int' || type.kind === 'string' ? this.hooks.choices?.(path, field) : null
     if (choices) return this.choice(path, value, choices, type.kind === 'int')
     const listed = type.kind === 'string' ? this.hooks.registry?.(field) : null

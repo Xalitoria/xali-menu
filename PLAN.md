@@ -285,3 +285,10 @@ Each step ends with tests, the README section, and a commit.
   (`registry.js`, from the language file), the tipped arrow follows its potion type (a quiet change now asks the server for the color, and `potions.js` gives one without a server).
 - Not done: a color picker for `color` and the firework colors, the sounds and particles registries (the language file does not name them; a server could), registry values straight from
   the server instead of the assets, and the potion colors without a server are those of the effects as recalled for this version.
+
+### 13. Editors made for a kind of value (banner, firework, color; done in a browser, not live on a server)
+
+- `src/editors.js`: the form asks `editorFor(field)` before it draws its generic control, so a kind of value can have a control of its own: the layers of a banner (dye colors, a gallery of the
+  patterns drawn as banners, order), the bursts of a firework, a color. The firework star is tinted by its first burst (`fireworkColor`, the `firework` tint of the item definition).
+- Not done: the same for `potion` (duration in seconds, level in roman), `attributes`, `book` pages, `food`, `trim` (the armor with its trim), `tool` rules, `fish` (the bucket drawn with the fish),
+  the layout and the legend as a picture, and conditions and actions as sentences instead of keys.

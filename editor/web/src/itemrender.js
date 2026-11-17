@@ -28,6 +28,14 @@ export function skinUrl(material) {
   }
 }
 
+/** The color a firework star shows: the average of the colors of its first burst, as 0xRRGGBB, or null when it has none. */
+export function fireworkColor(item) {
+  const colors = (item.firework?.effects?.[0]?.colors ?? []).filter((c) => /^#[0-9a-f]{6}$/i.test(String(c))).map((c) => parseInt(c.slice(1), 16))
+  if (colors.length === 0) return null
+  const mean = (shift) => Math.trunc(colors.reduce((sum, c) => sum + ((c >> shift) & 255), 0) / colors.length)
+  return (mean(16) << 16) | (mean(8) << 8) | mean(0)
+}
+
 export function stateOf(item, known = {}) {
   const color = typeof item.color === 'string' && /^#[0-9a-f]{6}$/i.test(item.color) ? parseInt(item.color.slice(1), 16) : null
   const model = numberOf(item.model, null)
@@ -48,6 +56,7 @@ export function stateOf(item, known = {}) {
       count: numberOf(item.amount, 1),
       dyedColor: color,
       potionColor: known.potionColor ?? null,
+      fireworkColor: fireworkColor(item),
       components: [],
     },
   }

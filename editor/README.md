@@ -284,3 +284,10 @@ The server side is in `menu/paper/.../editor`. Check it live with `menu/live/bot
 - A tipped arrow, potion or splash potion takes the color of its `potion-type` and `potion` effects as it is typed, from the colors of the game's effects (`src/potions.js`);
   a connected server answers with the exact color, and that is believed.
 - The player's rows are drawn like any other slot, with `Inventory` and a line under the window saying a click puts an item there.
+
+**Editors made for a kind of value** (`src/editors.js`, which the form uses in place of its generic control):
+- `banner` (also what a shield shows): the item as it is drawn with the layers, and for each layer, bottom first, the sixteen dye colors to click, the pattern (a gallery of how each pattern
+  looks, a banner each) and buttons to move it and take it out.
+- `firework`: the flight, and each burst with its shape (small ball, large ball, star, burst, creeper), its colors and the colors it fades to as chips with the picker of the browser, and
+  whether it twinkles or leaves a trail. A firework star in the window takes the average color of its first burst.
+- `color` (leather armor and the like): the picker of the browser and the `#rrggbb` text.

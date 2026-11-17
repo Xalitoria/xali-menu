@@ -39,6 +39,7 @@ export function tintColor(tint, state) {
     case 'constant': return Array.isArray(tint.value) ? floats(tint.value) : (rgb(tint.value) ?? WHITE)
     case 'dye': return state.dyedColor ?? fallback
     case 'potion': return state.potionColor ?? fallback
+    case 'firework': return state.fireworkColor ?? fallback
     case 'custom_model_data': return state.customModelData?.colors?.[tint.index ?? 0] ?? fallback
     case 'grass': return colormap(state.colormaps?.grass, tint.temperature ?? 0.5, tint.downfall ?? 1) ?? rgb(tint.default) ?? 0x91bd59
     case 'foliage': return colormap(state.colormaps?.foliage, tint.temperature ?? 0.5, tint.downfall ?? 1) ?? rgb(tint.default) ?? 0x77ab2f
