@@ -1,5 +1,6 @@
 package mc.xalitoria.menu.paper.action
 
+import net.xalitoria.menu.model.Within
 import com.xalitoria.util.message.fail
 import com.xalitoria.util.message.verbatim
 import kotlinx.serialization.SerialName
@@ -206,6 +207,7 @@ object Actions {
     @Serializable @SerialName("sound")
     data class Sound(
         val sound: String,
+        @Within(min = 0)
         val volume: Float = 1f,
         val pitch: Float = 1f,
         val scope: Scope = Scope.PLAYER,
@@ -237,13 +239,13 @@ object Actions {
 
     /** Runs [action] after [ticks]. */
     @Serializable @SerialName("delay")
-    data class Delay(val ticks: Long, val action: Action) : Action {
+    data class Delay(@Within(min = 0) val ticks: Long, val action: Action) : Action {
         override fun run(ctx: MenuContext) = ctx.runLater(ticks) { ctx.run(listOf(action)) }
     }
 
     /** Runs [action] with a chance of [percent] (0 to 100). If it aborts, so does the list this is in. */
     @Serializable @SerialName("chance")
-    data class Chance(val percent: Double, val action: Action) : Action {
+    data class Chance(@Within(0, 100) val percent: Double, val action: Action) : Action {
         override fun run(ctx: MenuContext) {
             if (Random.nextDouble() * 100 < percent) action.run(ctx)
         }

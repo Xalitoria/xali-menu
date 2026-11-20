@@ -116,4 +116,19 @@ class ConfigCheck {
         val found = problems("items.a { material = stone, slot = 1, accept { then = [{ type = close }], amount = 0 } }").single()
         assertTrue("items.a.accept.amount" in found && "from 1 to 99" in found, found)
     }
+
+    @Test
+    fun theNumbersOfActionsAndConditionsHaveLimitsToo() {
+        fun click(action: String) = "items.a { material = stone, slot = 1, click.left.actions = [$action] }"
+        // What an action refuses when it is made is told with where it is, instead of the reader's own words.
+        val potion = problems(click("{ type = potion, effect = speed, amplifier = 300 }")).single()
+        assertTrue("items.a.click.left.actions[0].amplifier" in potion && "from 0 to 255, not 300" in potion, potion)
+        assertTrue("from 1 to 1000" in problems(click("{ type = particle, particle = flame, count = 0 }")).single())
+        assertTrue("can't be below 1, not 0" in problems(click("{ type = take-item, material = stone, amount = 0 }")).single())
+        assertTrue("from 0 to 100, not 120" in problems("items.a { material = stone, slot = 1, view.require = [{ condition { type = chance, percent = 120 } }] }").single())
+        // What is still made is warned about.
+        assertEquals(["items.a.click.left.actions[0].percent (line 2): should be from 0 to 100, not 150"], warnings(click("{ type = chance, percent = 150, action = { type = close } }")))
+        assertEquals(["items.a.click.left.actions[0].ticks (line 2): can't be below 0, not -5"], warnings(click("{ type = delay, ticks = -5, action = { type = close } }")))
+        assertEquals([], warnings(click("{ type = delay, ticks = 20, action = { type = close } }")))
+    }
 }

@@ -1,5 +1,6 @@
 package mc.xalitoria.menu.paper.action
 
+import net.xalitoria.menu.model.Within
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import mc.xalitoria.menu.paper.XaliMenu
@@ -44,6 +45,7 @@ object Social {
         val title: String = "",
         val initial: String = "",
         val submit: String = "Confirm",
+        @Within(min = 1, strict = true)
         val maxLength: Int = 256,
         val cancel: String = "cancel",
         val onCancel: List<Action> = [],

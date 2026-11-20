@@ -1,5 +1,6 @@
 package mc.xalitoria.menu.paper.condition
 
+import net.xalitoria.menu.model.Within
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import mc.xalitoria.menu.paper.api.TypeRegistry
@@ -41,7 +42,7 @@ object Logic {
 
     /** Holds when [count] or more of [conditions] do. */
     @Serializable @SerialName("at-least")
-    data class AtLeast(val count: Int, val conditions: List<Condition>) : Condition {
+    data class AtLeast(@Within(min = 0, strict = true) val count: Int, val conditions: List<Condition>) : Condition {
         init {
             require(count >= 0) { "count can't be negative" }
         }
@@ -59,7 +60,7 @@ object Logic {
      * `require` of a click, not in the `view` of an item.
      */
     @Serializable @SerialName("chance")
-    data class Chance(val percent: Double) : Condition {
+    data class Chance(@Within(0, 100, strict = true) val percent: Double) : Condition {
         init {
             require(percent in 0.0..100.0) { "percent is between 0 and 100" }
         }

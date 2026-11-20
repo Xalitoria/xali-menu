@@ -1,5 +1,6 @@
 package mc.xalitoria.menu.paper.action
 
+import net.xalitoria.menu.model.Within
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import mc.xalitoria.menu.paper.XaliMenu
@@ -27,7 +28,7 @@ object Flow {
 
     /** Runs [count] of the [actions], picked at random and each at most once. */
     @Serializable @SerialName("random")
-    data class Pick(val actions: List<Action>, val count: Int = 1) : Action {
+    data class Pick(val actions: List<Action>, @Within(min = 1, strict = true) val count: Int = 1) : Action {
         init {
             require(actions.isNotEmpty()) { "random needs actions to pick from" }
             require(count >= 1) { "random picks at least one" }
@@ -41,7 +42,7 @@ object Flow {
      * first [limit] elements are used. Each run is a list of its own, so one that stops does not end the others.
      */
     @Serializable @SerialName("run-for")
-    data class RunFor(val catalog: Catalog, val actions: List<Action>, val limit: Int = 100) : Action {
+    data class RunFor(val catalog: Catalog, val actions: List<Action>, @Within(min = 1, strict = true) val limit: Int = 100) : Action {
         init {
             require(limit >= 1) { "limit must be at least 1" }
         }

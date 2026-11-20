@@ -33,6 +33,7 @@ sealed interface Activator {
         val material: String? = null,
         /** The name of the item in hand, written as in a menu (colors are ignored when comparing). */
         val name: String? = null,
+        @Within(min = 0)
         val model: Int? = null,
         val click: Click = Click.ANY,
         /** Whether the player must be sneaking (`true`) or not (`false`); either when absent. */
@@ -45,6 +46,7 @@ sealed interface Activator {
     /** The player joins the server, after [delay] ticks. */
     @Serializable @SerialName("join")
     data class Join(
+        @Within(min = 0)
         val delay: Int = 20,
         override val require: Gate? = null,
         override val cancel: Boolean = false,

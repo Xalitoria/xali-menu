@@ -678,7 +678,7 @@ Sends `text` in chat to every player on the server.
 
 Runs `action` with a chance of `percent` (0 to 100). If it aborts, so does the list this is in.
 
-- `percent`: number; required
+- `percent`: number; required; 0 to 100
 
 - `action`: [an action](#actions); required
 
@@ -696,7 +696,7 @@ Takes every item that matches from the viewer: with nothing to match on, the who
 
 - `name`: text
 
-- `model`: whole number
+- `model`: whole number; at least 0
 
 ### Action `close`
 
@@ -730,7 +730,7 @@ Starts the cooldown `key` for the viewer (or for everybody with `scope` `GLOBAL`
 
 Runs `action` after `ticks`.
 
-- `ticks`: whole number; required
+- `ticks`: whole number; required; at least 0
 
 - `action`: [an action](#actions); required
 
@@ -798,7 +798,7 @@ Closes the menu and asks the viewer to type something. `mode` says where: a dial
 
 - `submit`: text; default `"Confirm"`
 
-- `max-length`: whole number; default `256`
+- `max-length`: whole number; default `256`; at least 1
 
 - `cancel`: text; default `"cancel"`
 
@@ -880,7 +880,7 @@ Shows a particle at the viewer's feet, moved by `dx`, `dy`, `dz`. `count` of the
 
 - `particle`: text; required
 
-- `count`: whole number; default `10`
+- `count`: whole number; default `10`; 1 to 1000
 
 - `spread`: number; default `0.5`
 
@@ -916,7 +916,7 @@ Gives the viewer a potion effect, or with `remove` takes `effect` off them (ever
 
 - `duration`: time, such as `5s`, `500ms` or `1m`; default `"30s"`
 
-- `amplifier`: whole number; default `0`
+- `amplifier`: whole number; default `0`; 0 to 255
 
 - `particles`: `true` or `false`; default `true`
 
@@ -928,7 +928,7 @@ Runs `count` of the `actions`, picked at random and each at most once.
 
 - `actions`: list of [an action](#actions); required
 
-- `count`: whole number; default `1`
+- `count`: whole number; default `1`; at least 1
 
 ### Action `refresh`
 
@@ -944,7 +944,7 @@ Runs `actions` once for each element of `catalog`, with the element's values as 
 
 - `actions`: list of [an action](#actions); required
 
-- `limit`: whole number; default `100`
+- `limit`: whole number; default `100`; at least 1
 
 ### Action `skin`
 
@@ -966,7 +966,7 @@ Plays `sound` to the viewer, a sound key such as `entity.experience_orb.pickup`.
 
 - `sound`: text; required
 
-- `volume`: number
+- `volume`: number; at least 0
 
 - `pitch`: number
 
@@ -984,11 +984,11 @@ Takes `amount` of the items that match from the viewer. If they have fewer nothi
 
 - `material`: text
 
-- `amount`: whole number; default `1`
+- `amount`: whole number; default `1`; at least 1
 
 - `name`: text
 
-- `model`: whole number
+- `model`: whole number; at least 0
 
 ### Action `teleport`
 
@@ -1014,11 +1014,11 @@ Shows the viewer a title and a subtitle in the middle of the screen. The times a
 
 - `subtitle`: text; default `""`
 
-- `fade-in`: whole number; default `10`
+- `fade-in`: whole number; default `10`; at least 0
 
-- `stay`: whole number; default `70`
+- `stay`: whole number; default `70`; at least 0
 
-- `fade-out`: whole number; default `20`
+- `fade-out`: whole number; default `20`; at least 0
 
 ### Action `variable`
 
@@ -1054,7 +1054,7 @@ Holds when all of `conditions` do.
 
 Holds when `count` or more of `conditions` do.
 
-- `count`: whole number; required
+- `count`: whole number; required; at least 0
 
 - `conditions`: list of [an condition](#conditions); required
 
@@ -1062,7 +1062,7 @@ Holds when `count` or more of `conditions` do.
 
 Holds `percent` times in a hundred (0 to 100). It is asked again on every redraw of an item, so it belongs in the `require` of a click, not in the `view` of an item.
 
-- `percent`: number; required
+- `percent`: number; required; 0 to 100
 
 ### Condition `compare`
 
@@ -1102,7 +1102,7 @@ The viewer's food level (0 to 20) is between `min` and `max`.
 
 The viewer has `min` or more empty slots in their inventory (not counting armor and the off hand).
 
-- `min`: whole number; default `1`
+- `min`: whole number; default `1`; 0 to 36
 
 ### Condition `gamemode`
 
@@ -1132,9 +1132,9 @@ The viewer holds at least `amount` of an item that matches, in `hand`.
 
 - `name`: text
 
-- `model`: whole number
+- `model`: whole number; at least 0
 
-- `amount`: whole number; default `1`
+- `amount`: whole number; default `1`; at least 1
 
 - `hand`: one of `HAND`, `OFF_HAND`, `FEET`, `LEGS`, `CHEST`, `HEAD`, `BODY`, `SADDLE`; default `"HAND"`
 
@@ -1144,7 +1144,7 @@ The viewer carries `amount` or more of `material`; `name` and `lore`, when set, 
 
 - `material`: text; required
 
-- `amount`: whole number; default `1`
+- `amount`: whole number; default `1`; at least 1
 
 - `name`: text
 
@@ -1342,7 +1342,7 @@ The click of a player, with an item in the hand (any hand: the main one is used)
 
   The name of the item in hand, written as in a menu (colors are ignored when comparing).
 
-- `model`: whole number
+- `model`: whole number; at least 0
 
 - `click`: one of `LEFT`, `RIGHT`, `ANY`; default `"ANY"`
 
@@ -1360,7 +1360,7 @@ The click of a player, with an item in the hand (any hand: the main one is used)
 
 The player joins the server, after `delay` ticks.
 
-- `delay`: whole number; default `20`
+- `delay`: whole number; default `20`; at least 0
 
 - `require`: [Gate](#gate)
 
@@ -1454,7 +1454,7 @@ The whole numbers from `from` to `to`, both included and given as numbers or pla
 
 - `to`: text; required
 
-- `step`: whole number; default `1`
+- `step`: whole number; default `1`; at least 1
 
 - `descending`: `true` or `false`; default `false`
 

@@ -1,5 +1,6 @@
 package mc.xalitoria.menu.paper.condition
 
+import net.xalitoria.menu.model.Within
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import mc.xalitoria.menu.paper.XaliMenu
@@ -52,7 +53,7 @@ object PlayerConditions {
 
     /** The viewer has [min] or more empty slots in their inventory (not counting armor and the off hand). */
     @Serializable @SerialName("free-slots")
-    data class FreeSlots(val min: Int = 1) : Condition {
+    data class FreeSlots(@Within(0, 36, strict = true) val min: Int = 1) : Condition {
         init {
             require(min in 0..36) { "min is between 0 and 36" }
         }
@@ -65,7 +66,9 @@ object PlayerConditions {
     data class HeldItem(
         val material: String? = null,
         val name: String? = null,
+        @Within(min = 0)
         val model: Int? = null,
+        @Within(min = 1, strict = true)
         val amount: Int = 1,
         val hand: EquipmentSlot = EquipmentSlot.HAND,
     ) : Condition {

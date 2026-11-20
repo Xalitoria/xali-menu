@@ -1,5 +1,6 @@
 package mc.xalitoria.menu.paper.action
 
+import net.xalitoria.menu.model.Within
 import com.xalitoria.util.message.PLAIN
 import io.papermc.paper.datacomponent.DataComponentTypes
 import kotlinx.serialization.SerialName
@@ -78,8 +79,10 @@ object Inventory {
     @Serializable @SerialName("take-item")
     data class TakeItem(
         val material: String? = null,
+        @Within(min = 1, strict = true)
         val amount: Int = 1,
         val name: String? = null,
+        @Within(min = 0)
         val model: Int? = null,
     ) : Action {
         init {
@@ -105,7 +108,7 @@ object Inventory {
 
     /** Takes every item that matches from the viewer: with nothing to match on, the whole inventory. */
     @Serializable @SerialName("clear-items")
-    data class ClearItems(val material: String? = null, val name: String? = null, val model: Int? = null) : Action {
+    data class ClearItems(val material: String? = null, val name: String? = null, @Within(min = 0) val model: Int? = null) : Action {
         override fun run(ctx: MenuContext) {
             val inventory = ctx.player.inventory
             if (material == null && name == null && model == null) return inventory.clear()

@@ -1,5 +1,6 @@
 package mc.xalitoria.menu.paper.action
 
+import net.xalitoria.menu.model.Within
 import io.papermc.paper.registry.RegistryAccess
 import io.papermc.paper.registry.RegistryKey
 import kotlinx.serialization.SerialName
@@ -69,6 +70,7 @@ object Effects {
         val effect: String,
         @Serializable(with = DurationAsString::class)
         val duration: Duration = 30.seconds,
+        @Within(0, 255, strict = true)
         val amplifier: Int = 0,
         val particles: Boolean = true,
         val remove: Boolean = false,
@@ -174,8 +176,11 @@ object Effects {
     data class ShowTitle(
         val title: String = "",
         val subtitle: String = "",
+        @Within(min = 0, strict = true)
         val fadeIn: Int = 10,
+        @Within(min = 0, strict = true)
         val stay: Int = 70,
+        @Within(min = 0, strict = true)
         val fadeOut: Int = 20,
     ) : Action {
         init {
@@ -232,6 +237,7 @@ object Effects {
     @Serializable @SerialName("particle")
     data class ShowParticle(
         val particle: String,
+        @Within(1, 1000, strict = true)
         val count: Int = 10,
         val spread: Double = 0.5,
         val speed: Double = 0.0,

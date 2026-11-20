@@ -87,3 +87,12 @@ test('a number outside the limits the model gives it is told in the words of the
   assert.deepEqual(found({ slots: [2, -1] }), ['slots.1: can\'t be below 0, not -1'])
   assert.ok(check(schema, { title: 'T', size: 100 }).some((p) => p.path[0] === 'size' && p.message === 'should be from 9 to 54, not 100'))
 })
+
+test('the numbers of an action or a condition have their limits too', () => {
+  const messagesOf = (menu) => messages({ title: 'T', items: { a: { material: 'stone', slot: 1, ...menu } } })
+  assert.ok(messagesOf({ click: { left: { actions: [{ type: 'chance', percent: 150, action: { type: 'close' } }] } } })
+    .includes('items.a.click.left.actions.0.percent: should be from 0 to 100, not 150'))
+  assert.ok(messagesOf({ click: { left: { actions: [{ type: 'potion', effect: 'speed', amplifier: 300 }] } } })
+    .includes('items.a.click.left.actions.0.amplifier: should be from 0 to 255, not 300'))
+  assert.deepEqual(messagesOf({ click: { left: { actions: [{ type: 'delay', ticks: 20, action: { type: 'close' } }] } } }), [])
+})

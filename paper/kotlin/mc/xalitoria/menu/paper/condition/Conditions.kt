@@ -1,5 +1,6 @@
 package mc.xalitoria.menu.paper.condition
 
+import net.xalitoria.menu.model.Within
 import com.xalitoria.util.message.PLAIN
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -55,6 +56,7 @@ object Conditions {
     @Serializable @SerialName("item")
     data class Item(
         val material: String,
+        @Within(min = 1)
         val amount: Int = 1,
         val name: String? = null,
         val lore: List<String> = [],

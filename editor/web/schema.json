@@ -203,7 +203,9 @@
           "type": {
             "kind": "number"
           },
-          "required": true
+          "required": true,
+          "min": 0,
+          "max": 100
         },
         {
           "key": "action",
@@ -249,7 +251,8 @@
           "type": {
             "kind": "int"
           },
-          "required": false
+          "required": false,
+          "min": 0
         }
       ]
     },
@@ -319,7 +322,8 @@
           "type": {
             "kind": "int"
           },
-          "required": true
+          "required": true,
+          "min": 0
         },
         {
           "key": "action",
@@ -529,7 +533,8 @@
             "kind": "int"
           },
           "required": false,
-          "default": 256
+          "default": 256,
+          "min": 1
         },
         {
           "key": "cancel",
@@ -756,7 +761,9 @@
             "kind": "int"
           },
           "required": false,
-          "default": 10
+          "default": 10,
+          "min": 1,
+          "max": 1000
         },
         {
           "key": "spread",
@@ -864,7 +871,9 @@
             "kind": "int"
           },
           "required": false,
-          "default": 0
+          "default": 0,
+          "min": 0,
+          "max": 255
         },
         {
           "key": "particles",
@@ -904,7 +913,8 @@
             "kind": "int"
           },
           "required": false,
-          "default": 1
+          "default": 1,
+          "min": 1
         }
       ]
     },
@@ -940,7 +950,8 @@
             "kind": "int"
           },
           "required": false,
-          "default": 100
+          "default": 100,
+          "min": 1
         }
       ]
     },
@@ -983,7 +994,8 @@
           "type": {
             "kind": "number"
           },
-          "required": false
+          "required": false,
+          "min": 0
         },
         {
           "key": "pitch",
@@ -1027,7 +1039,8 @@
             "kind": "int"
           },
           "required": false,
-          "default": 1
+          "default": 1,
+          "min": 1
         },
         {
           "key": "name",
@@ -1041,7 +1054,8 @@
           "type": {
             "kind": "int"
           },
-          "required": false
+          "required": false,
+          "min": 0
         }
       ]
     },
@@ -1122,7 +1136,8 @@
             "kind": "int"
           },
           "required": false,
-          "default": 10
+          "default": 10,
+          "min": 0
         },
         {
           "key": "stay",
@@ -1130,7 +1145,8 @@
             "kind": "int"
           },
           "required": false,
-          "default": 70
+          "default": 70,
+          "min": 0
         },
         {
           "key": "fade-out",
@@ -1138,7 +1154,8 @@
             "kind": "int"
           },
           "required": false,
-          "default": 20
+          "default": 20,
+          "min": 0
         }
       ]
     },
@@ -1466,7 +1483,8 @@
           "type": {
             "kind": "int"
           },
-          "required": false
+          "required": false,
+          "min": 0
         },
         {
           "key": "click",
@@ -1527,7 +1545,8 @@
             "kind": "int"
           },
           "required": false,
-          "default": 20
+          "default": 20,
+          "min": 0
         },
         {
           "key": "require",
@@ -1991,7 +2010,8 @@
             "kind": "int"
           },
           "required": false,
-          "default": 1
+          "default": 1,
+          "min": 1
         },
         {
           "key": "descending",
@@ -2170,7 +2190,8 @@
           "type": {
             "kind": "int"
           },
-          "required": true
+          "required": true,
+          "min": 0
         },
         {
           "key": "conditions",
@@ -2193,7 +2214,9 @@
           "type": {
             "kind": "number"
           },
-          "required": true
+          "required": true,
+          "min": 0,
+          "max": 100
         }
       ]
     },
@@ -2301,7 +2324,9 @@
             "kind": "int"
           },
           "required": false,
-          "default": 1
+          "default": 1,
+          "min": 0,
+          "max": 36
         }
       ]
     },
@@ -2379,7 +2404,8 @@
           "type": {
             "kind": "int"
           },
-          "required": false
+          "required": false,
+          "min": 0
         },
         {
           "key": "amount",
@@ -2387,7 +2413,8 @@
             "kind": "int"
           },
           "required": false,
-          "default": 1
+          "default": 1,
+          "min": 1
         },
         {
           "key": "hand",
@@ -2425,7 +2452,8 @@
             "kind": "int"
           },
           "required": false,
-          "default": 1
+          "default": 1,
+          "min": 1
         },
         {
           "key": "name",

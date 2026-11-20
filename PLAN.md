@@ -302,6 +302,7 @@ Each step ends with tests, the README section, and a commit.
 - `@Within(min, max)` on the model gives a number its limits; they are in `schema.json` (`min`, `max`), in the editor's boxes and problems, and in the plugin's check.
 - The editor: the same words and suggestions (`suggest.js`), a **Rename to …** button for a mistyped key, `normalize.js` so that the rest of the editor only sees the one way.
 - Tests: `ConfigCheck` (and every menu that ships with the plugin or the live tests, except `i.conf` which has wrong items on purpose, reads with no warning), `SchemaTest`, `check.test.js`, `suggest.test.js`, `normalize.test.js`.
-- Not done: limits on the numbers of actions and conditions (`give-item`, `level`...), which check themselves when they are made; a key that was renamed or removed told as such (nothing has been);
+- The numbers of actions, conditions, activators and catalogs have `@Within` limits as well (`percent`, `amplifier`, `count`, `ticks`...); what the class refused when it was made is a strict limit, so it is told with its path and line.
+- Not done: limits on numbers that are not whole (`pitch`, `progress`, `distance`, which `@Within` cannot give), and on the text ones (`amount` of `money`, `level`: they are placeholders); a key that was renamed or removed told as such (nothing has been);
   the same checks for the plugin's `config.yml`.
 - A reference page of every key, `REFERENCE.md`, is written from the schema by `editor/tools/reference.mjs`; `reference.test.js` fails when it is stale.

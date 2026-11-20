@@ -1,5 +1,6 @@
 package mc.xalitoria.menu.paper.catalog
 
+import net.xalitoria.menu.model.Within
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import mc.xalitoria.menu.paper.XaliMenu
@@ -99,7 +100,7 @@ object Catalogs {
 
     /** The whole numbers from [from] to [to], both included and given as numbers or placeholders, [step] apart: `value`. */
     @Serializable @SerialName("range")
-    data class Range(val from: String, val to: String, val step: Int = 1, val descending: Boolean = false) : Catalog {
+    data class Range(val from: String, val to: String, @Within(min = 1, strict = true) val step: Int = 1, val descending: Boolean = false) : Catalog {
         init {
             require(step > 0) { "the step of a range must be above 0" }
         }
