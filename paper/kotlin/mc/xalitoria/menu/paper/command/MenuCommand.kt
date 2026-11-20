@@ -23,6 +23,7 @@ import mc.xalitoria.menu.paper.editor.EditorLink
 import mc.xalitoria.menu.paper.editor.EditorMenus
 import mc.xalitoria.menu.paper.editor.EditorRelay
 import mc.xalitoria.menu.paper.format.MenuFormat
+import mc.xalitoria.menu.paper.runtime.Clients
 import mc.xalitoria.menu.paper.runtime.MenuManager
 import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.event.ClickEvent
@@ -82,6 +83,14 @@ object MenuCommand {
             )
         )
         .then(Commands
+            .literal("client")
+            .executes { ctx -> client(ctx, ctx.source.sender as? Player) }
+            .then(Commands
+                .argument("player", ArgumentTypes.player())
+                .executes { ctx -> client(ctx, ctx.getPlayer("player")) }
+            )
+        )
+        .then(Commands
             .literal("list")
             .executes { ctx ->
                 val sender = ctx.source.sender
@@ -97,10 +106,17 @@ object MenuCommand {
             .then(Commands
                 .argument("menu", StringArgumentType.word())
                 .suggests { _, builder -> builder.suggestMatching(plugin.menus.names) }
-                .executes { ctx -> open(ctx, StringArgumentType.getString(ctx, "menu"), target = null) }
+                .executes { ctx -> open(ctx, StringArgumentType.getString(ctx, "menu"), target = null, args = emptyList()) }
                 .then(Commands
                     .argument("player", ArgumentTypes.player())
-                    .executes { ctx -> open(ctx, StringArgumentType.getString(ctx, "menu"), ctx.getPlayer("player")) }
+                    .executes { ctx -> open(ctx, StringArgumentType.getString(ctx, "menu"), ctx.getPlayer("player"), emptyList()) }
+                    .then(Commands
+                        .argument("args", StringArgumentType.greedyString())
+                        .executes { ctx ->
+                            val raw = StringArgumentType.getString(ctx, "args").trim().split(' ').filter { it.isNotEmpty() }
+                            open(ctx, StringArgumentType.getString(ctx, "menu"), ctx.getPlayer("player"), raw)
+                        }
+                    )
                 )
             )
         )
@@ -173,7 +189,7 @@ object MenuCommand {
         }
         val menu = entry.menu
         val frames = menu.animation?.frames?.size
-        val kind = listOfNotNull("paged".takeIf { menu.pages != null }, "animated".takeIf { frames != null }).ifEmpty { listOf("simple") }.joinToString(", ")
+        val kind = listOfNotNull("paged".takeIf { menu.pages != null }, "animated".takeIf { frames != null }, "bedrock".takeIf { menu.bedrock != null }).ifEmpty { listOf("simple") }.joinToString(", ")
         sender info toolMsg.infoHeader(entry.name.verbatim(), kind)
         fun line(label: String, value: Any?) {
             if (value != null) sender info toolMsg.infoLine(label, value.toString().verbatim())
@@ -182,10 +198,20 @@ object MenuCommand {
         line("size", if (menu.type == "chest") "${menu.size} slots" else menu.type)
         line("commands", menu.commands.joinToString().ifEmpty { null })
         line("args", menu.args.joinToString().ifEmpty { null })
-        line("items", "${menu.items.size} (${entry.bySlot.size} slots)")
+        line("items", "${menu.items.size} (${entry.bySlot.size} slots" + (if (entry.inventoryBySlot.isNotEmpty()) ", ${entry.inventoryBySlot.size} inventory slots" else "") + ")")
+        if (menu.layout.isNotEmpty()) line("layout", "${menu.layout.size} rows, ${menu.legend.size} legend keys")
         line("refresh", menu.refresh)
         menu.pages?.let { line("pages", "${it.catalog::class.simpleName}, ${it.listed().size} slots") }
         line("animation", frames?.let { "$it frames" + if (menu.animation!!.loop) ", looping" else "" })
+        menu.bedrock?.let { b ->
+            val target = b.menu?.let { "redirect -> $it" } ?: b.mode.name
+            val scope = listOfNotNull(
+                b.devices.takeIf { it.isNotEmpty() }?.joinToString("/", prefix = "devices="),
+                b.inputs.takeIf { it.isNotEmpty() }?.joinToString("/", prefix = "inputs="),
+                b.ui.takeIf { it.isNotEmpty() }?.joinToString("/", prefix = "ui="),
+            ).joinToString(", ")
+            line("bedrock", if (scope.isEmpty()) target else "$target ($scope)")
+        }
         line("open-with", menu.openWith.joinToString { it::class.simpleName.orEmpty() }.ifEmpty { null })
         line("open gate", menu.open?.let { "${it.require.size} checks" })
         return Command.SINGLE_SUCCESS
@@ -229,20 +255,52 @@ object MenuCommand {
             return Command.SINGLE_SUCCESS
         }
         val view = plugin.menus.view(target)
-        if (view == null) {
+        val bedrockSession = if (view == null) plugin.bedrockForms.session(target) else null
+        if (view == null && bedrockSession == null) {
             sender fail toolMsg.inspectClosed(target.name)
+            return Command.SINGLE_SUCCESS
+        }
+        if (bedrockSession != null) {
+            val profile = Clients.profile(target)
+            sender info toolMsg.inspectHeader(target.name, bedrockSession.name.verbatim())
+            sender info "client: ${profile.edition.name.lowercase()} (${profile.os.name.lowercase()}, ${profile.input.name.lowercase()}, ${profile.ui.name.lowercase()})".verbatim()
+            sender info "bedrock form: ${bedrockSession.presentation::class.simpleName}, page ${bedrockSession.page + 1}".verbatim()
             return Command.SINGLE_SUCCESS
         }
         // The view belongs to the player's region thread; the report is made there and sent from there.
         target.scheduler.run(plugin, {
-            val lines = view.inspect()
-            sender info toolMsg.inspectHeader(target.name, view.name.verbatim())
+            val lines = buildList {
+                val p = view!!.profile
+                add("client: ${p.edition.name.lowercase()} (${p.os.name.lowercase()}, ${p.input.name.lowercase()}, ${p.ui.name.lowercase()})")
+                addAll(view.inspect())
+            }
+            sender info toolMsg.inspectHeader(target.name, view!!.name.verbatim())
             lines.take(toolMsg.inspectShown).forEach { sender info it.verbatim() }
             if (lines.size > toolMsg.inspectShown) {
                 sender info toolMsg.inspectMore(lines.size - toolMsg.inspectShown)
                 plugin.logger.info(lines.joinToString("\n"))
             }
         }, null)
+        return Command.SINGLE_SUCCESS
+    }
+
+    private fun client(ctx: CommandContext<CommandSourceStack>, target: Player?): Int {
+        val sender = ctx.source.sender
+        if (!sender.allowed()) return Command.SINGLE_SUCCESS
+        if (target == null) {
+            sender fail menuMsg.playerOnly
+            return Command.SINGLE_SUCCESS
+        }
+        val profile = Clients.profile(target)
+        val dialogs = if (Clients.dialogs(target)) "yes" else if (profile.isBedrock && plugin.bedrockForms.available) "bedrock form" else "no"
+        sender info toolMsg.clientInfo(
+            target.name,
+            profile.edition.name.lowercase(),
+            "${profile.os.name.lowercase()}/${profile.device.name.lowercase()}",
+            profile.input.name.lowercase(),
+            profile.ui.name.lowercase(),
+            dialogs,
+        )
         return Command.SINGLE_SUCCESS
     }
 
@@ -359,7 +417,7 @@ object MenuCommand {
     }
 
     /** Opens [menu] for [target], or for the sender if it is a player and no target is given. */
-    private fun open(ctx: CommandContext<CommandSourceStack>, menu: String, target: Player?): Int {
+    private fun open(ctx: CommandContext<CommandSourceStack>, menu: String, target: Player?, args: List<String> = emptyList()): Int {
         val sender = ctx.source.sender
         if (!sender.allowed()) return Command.SINGLE_SUCCESS
         if (plugin.menus.menu(menu) == null) {
@@ -371,7 +429,7 @@ object MenuCommand {
             sender fail menuMsg.playerOnly
             return Command.SINGLE_SUCCESS
         }
-        plugin.menus.open(player, menu)
+        plugin.menus.open(player, menu, args)
         if (player !== sender) sender pass menuMsg.opened(menu.verbatim(), player.name)
         return Command.SINGLE_SUCCESS
     }

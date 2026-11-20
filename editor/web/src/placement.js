@@ -7,18 +7,24 @@
 /** The two parts of the window the editor draws: the menu's slots and the slots of the player's inventory. */
 export const AREAS = ['items', 'inventory']
 
-/** The slots [item] claims in [area] by what it says itself (not by the layout), in the order it says them. */
+/** The slots a matrix claims (an item's `matrix`): every character of its rows but `-` and a space, nine to a row, left to right and top to bottom. */
+export function matrixSlots(rows) {
+  return (Array.isArray(rows) ? rows : [rows]).flatMap((row, r) => [...String(row ?? '')].flatMap((c, column) => (c !== '-' && c !== ' ' ? [r * 9 + column] : [])))
+}
+
+/** The slots [item] claims in [area] by what it says itself (not by the layout), in the order it says them. A `matrix` counts as its slots. */
 export function claimsOf(item, area) {
   if (!item) return []
-  const list = area === 'items' ? [item.slot, ...(item.slots ?? [])] : (item['inventory-slots'] ?? [])
+  const list = area === 'items' ? [item.slot, ...(item.slots ?? []), ...(item.matrix ? matrixSlots(item.matrix) : [])] : (item['inventory-slots'] ?? [])
   return list.filter((n, i) => typeof n === 'number' && list.indexOf(n) === i)
 }
 
-/** Sets the slots [item] claims in [area] to [slots], writing a lone slot of the menu as `slot` and the rest as `slots`. */
+/** Sets the slots [item] claims in [area] to [slots], writing a lone slot of the menu as `slot` and the rest as `slots`. A `matrix` is written out as slots, so it is not claimed twice. */
 export function setClaims(item, area, slots) {
   if (area === 'items') {
     delete item.slot
     delete item.slots
+    delete item.matrix
     if (slots.length) item.slot = slots[0]
     if (slots.length > 1) item.slots = slots.slice(1)
   } else if (slots.length) item['inventory-slots'] = slots

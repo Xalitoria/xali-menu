@@ -39,7 +39,8 @@ data class MessageConfig(
             &d/{0} &rinfo <menu>
             &d/{0} &rvalidate [menu]
             &d/{0} &rinspect [player]
-            &d/{0} &ropen <menu> [player]
+            &d/{0} &rclient [player]
+            &d/{0} &ropen <menu> [player] [args...]
             &d/{0} &redit [menu]
             &d/{0} &rimport deluxemenus [overwrite] [folder]
         """.trimIndent(),
@@ -140,6 +141,8 @@ data class MessageConfig(
             private val inspectHeader: String = "{0} has '{1}' open:",
             @SerialName("inspect-more")
             private val inspectMore: String = "...and {0} more lines; the console has all of them.",
+            @SerialName("client-info")
+            private val clientInfo: String = "{0}: {1} ({2}, input {3}, UI {4}, dialogs {5})",
             @YamlComment("How many lines of `/xmenu inspect` are shown in chat; the console gets all of them.")
             @SerialName("inspect-shown")
             val inspectShown: Int = 30,
@@ -155,6 +158,8 @@ data class MessageConfig(
             fun inspectClosed(player: String): String = inspectClosed.formatArgs(player)
             fun inspectHeader(player: String, menu: String): String = inspectHeader.formatArgs(player, menu)
             fun inspectMore(count: Int): String = inspectMore.formatArgs(count)
+            fun clientInfo(player: String, edition: String, os: String, input: String, ui: String, dialogs: String): String =
+                clientInfo.formatArgs(player, edition, os, input, ui, dialogs)
         }
 
         @Serializable

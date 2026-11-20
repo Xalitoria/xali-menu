@@ -55,6 +55,7 @@ export const TEMPLATES = {
     text: '{input} {op} {value}',
     regex: '{input} matches {pattern}',
     'at-least': 'At least {count} of the conditions below hold',
+    client: 'The player uses {edition} edition',
     near: 'The player is within {distance} blocks of {x} {y} {z} in {world}',
   },
 }

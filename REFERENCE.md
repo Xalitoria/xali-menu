@@ -15,6 +15,10 @@ A value that is a list may be written as the one value, and an enum in any case 
 - [Animation](#animation)
 - [AttributeModifier](#attributemodifier)
 - [BannerLayer](#bannerlayer)
+- [BedrockButton](#bedrockbutton)
+- [BedrockChoice](#bedrockchoice)
+- [BedrockItem](#bedrockitem)
+- [BedrockMenu](#bedrockmenu)
 - [BlockAt](#blockat)
 - [Book](#book)
 - [Check](#check)
@@ -28,6 +32,7 @@ A value that is a list may be written as the one value, and an enum in any case 
 - [Gate](#gate)
 - [Handler](#handler)
 - [Item](#item)
+- [Matrix](#matrix)
 - [Pages](#pages)
 - [PotionEffect](#potioneffect)
 - [Tool](#tool)
@@ -37,6 +42,7 @@ A value that is a list may be written as the one value, and an enum in any case 
 - [Conditions](#conditions)
 - [Activators](#activators)
 - [Catalogs](#catalogs)
+- [Bedrock form fields](#bedrock-form-fields)
 
 ## Menu
 
@@ -116,6 +122,10 @@ A menu, as stored in `menus/<name>.conf`; the file name is the menu's name.
 
   Makes the menu list the elements of a catalog, a page at a time.
 
+- `bedrock`: [BedrockMenu](#bedrockmenu)
+
+  How this menu is displayed and interacted with by Bedrock Edition players (through Floodgate or Geyser).
+
 ## Accept
 
 What an item that `Item.accept`s takes. The offered item is the one the server has (on the player's cursor, or in the slot they shift-clicked), never what the client says. It is taken only once `then` has run to its end: an action that aborts or fails leaves it where it was, so put what can refuse (a check, a payment) first. In `then` `{item}` is the material of what was offered and `{amount}` how many are taken.
@@ -184,6 +194,166 @@ A pattern on a banner.
 
   A banner pattern key, such as `stripe_top`.
 
+## BedrockButton
+
+One button of a Bedrock `SIMPLE` form.
+
+- `text`: text; required
+
+  Label shown on the button. Use `\n` for a second line. Colors and placeholders are allowed.
+
+- `image`: text
+
+  Optional button icon: an `https://` URL, a Bedrock texture path (`textures/items/diamond`), or a vanilla item key (`diamond`).
+
+- `view`: [Gate](#gate)
+
+  Must hold for the button to appear in the form.
+
+- `actions`: list of [an action](#actions); default `[]`
+
+  Actions run in order when the button is tapped.
+
+- `require`: [Gate](#gate)
+
+  Must hold for `actions` to run when tapped.
+
+## BedrockChoice
+
+One of the two buttons of a Bedrock `MODAL` form.
+
+- `text`: text; required
+
+  Label shown on the button. Colors and placeholders are allowed.
+
+- `actions`: list of [an action](#actions); default `[]`
+
+  Actions run in order when this button is chosen.
+
+- `require`: [Gate](#gate)
+
+  Must hold for `actions` to run when chosen.
+
+## BedrockItem
+
+Per-item presentation and interaction overrides for Bedrock Edition players.
+
+Used when an inventory menu is converted to a Bedrock `SIMPLE` form or when a Bedrock player activates a multi-click item and sees the action picker form.
+
+- `text`: text
+
+  Button label in an auto-converted Bedrock form. Defaults to the item's `name` (and first lore line when `include-lore` is on).
+
+- `image`: text
+
+  Button icon in an auto-converted Bedrock form: an `https://` URL, a Bedrock texture path (`textures/items/diamond`), or a vanilla item key.
+
+- `hidden`: `true` or `false`; default `false`
+
+  Hide this item from auto-converted Bedrock forms.
+
+- `left-label`: text
+
+  Button label for `click.left` in the Bedrock action picker.
+
+- `right-label`: text
+
+  Button label for `click.right` in the Bedrock action picker.
+
+- `shift-left-label`: text
+
+  Button label for `click.shift-left` in the Bedrock action picker.
+
+- `shift-right-label`: text
+
+  Button label for `click.shift-right` in the Bedrock action picker.
+
+- `middle-label`: text
+
+  Button label for `click.middle` in the Bedrock action picker.
+
+## BedrockMenu
+
+How a menu behaves for Bedrock Edition players (connected through Floodgate or Geyser).
+
+A menu can render as a native Bedrock form (`SIMPLE`, `MODAL` or `CUSTOM`), redirect to another menu (`menu`), or stay an inventory window (`INVENTORY`) with Bedrock-safe title handling and click adaptation. Filters (`devices`, `inputs`, `ui`) restrict form or redirect behavior to matching Bedrock devices (for example, showing a `SIMPLE` form to touch and controller players while Bedrock PC players keep the chest inventory).
+
+- `mode`: one of `AUTO`, `INVENTORY`, `SIMPLE`, `MODAL`, `CUSTOM`; default `"AUTO"`
+
+  How this menu opens for matching Bedrock players. `AUTO` picks `CUSTOM` when `fields` are set, `MODAL` when `confirm` is set, `SIMPLE` when `buttons` are set, or follows `bedrock.default-mode` in `config.yml`.
+
+- `devices`: list of one of `PC`, `MOBILE`, `CONSOLE`, `VR`, `UNKNOWN`; default `[]`
+
+  Bedrock device categories this configuration applies to; empty means every Bedrock device.
+
+- `inputs`: list of one of `KEYBOARD_MOUSE`, `TOUCH`, `CONTROLLER`, `VR`, `UNKNOWN`; default `[]`
+
+  Bedrock input modes this configuration applies to; empty means any input mode.
+
+- `ui`: list of one of `JAVA`, `CLASSIC`, `POCKET`; default `[]`
+
+  Bedrock UI profiles this configuration applies to; empty means any UI profile.
+
+- `menu`: text
+
+  Another menu to open instead for matching Bedrock players, such as a mobile-tailored layout.
+
+- `title`: text
+
+  Title shown to Bedrock players instead of the menu's Java title, avoiding resource-pack font glyphs.
+
+- `content`: text; default `""`
+
+  Body text shown above the buttons of a `SIMPLE` or `MODAL` form. Colors, placeholders and `\n` line breaks are allowed.
+
+- `buttons`: list of [BedrockButton](#bedrockbutton); default `[]`
+
+  Explicit buttons of a `SIMPLE` form. When empty, visible items (and paged elements) of the menu become buttons automatically.
+
+- `confirm`: [BedrockChoice](#bedrockchoice)
+
+  First button of a `MODAL` form.
+
+- `cancel`: [BedrockChoice](#bedrockchoice)
+
+  Second button of a `MODAL` form.
+
+- `fields`: list of [a bedrockfield](#bedrock-form-fields); default `[]`
+
+  Interactive controls and labels of a `CUSTOM` form.
+
+- `on-submit`: list of [an action](#actions); default `[]`
+
+  Actions run when a `CUSTOM` form is submitted. Each field's answer is in scope as `{id}`.
+
+- `on-close`: list of [an action](#actions); default `[]`
+
+  Actions run when a Bedrock form is closed without tapping a button or submitting.
+
+- `skip-fillers`: `true` or `false`; default `true`
+
+  Skip decorative items that have no click actions when converting an inventory menu into a `SIMPLE` form.
+
+- `include-lore`: `true` or `false`; default `true`
+
+  Include the first non-blank lore line under the item name on auto-converted `SIMPLE` form buttons.
+
+- `action-picker`: `true` or `false`; default `true`
+
+  Open a follow-up choice form when a Bedrock player activates an item with multiple click handlers (such as left and right click).
+
+- `inventory-overlay`: `true` or `false`; default `false`
+
+  Whether `inventory-slots` packet overlays are drawn for Bedrock Pocket UI players.
+
+- `prev-button`: text; default `"&e« Previous ({page_prev}/{pages})"`
+
+  Label for the previous-page button on an auto-converted paged `SIMPLE` form.
+
+- `next-button`: text; default `"&eNext ({page_next}/{pages}) »"`
+
+  Label for the next-page button on an auto-converted paged `SIMPLE` form.
+
 ## BlockAt
 
 One block, by `world` (any world when absent) and coordinates.
@@ -210,7 +380,7 @@ The text of a written book. A page is text like any other, with colors and place
 
 A `Condition` with what to run when it fails or holds. A check marked `optional` may fail, as long as `Gate.minimum` checks hold.
 
-- `condition`: [an condition](#conditions); required
+- `condition`: [a condition](#conditions); required
 
 - `optional`: `true` or `false`; default `false`
 
@@ -538,15 +708,41 @@ An item of a menu.
 
   Makes the slot take an item from the player: clicking it with the item on the cursor, or shift-clicking the item in the player's inventory. With `material = air` the slot shows nothing. It doesn't work in a menu that draws in the player's inventory.
 
+- `bedrock`: [BedrockItem](#bedrockitem)
+
+  Optional display and click-label overrides for Bedrock Edition players.
+
+- `matrix`: list of text; default `[]`
+
+  Slots of the menu drawn as a picture, in addition to `slot` and `slots`: rows of at most nine characters, read left to right and top to bottom, where every character but `-` and a space is a slot of this item. `["---------", "-xxxxxxx-"]` is slots 10 to 16. It is the AbstractMenus way to write a slot as a matrix.
+
+## Matrix
+
+A drawing of a menu's slots as rows of characters, with the item each character stands for written next to it, as in AbstractMenus' `matrix { cells, templates }`. It is used by `Pages.matrix`, where the elements of a catalog fill the cells.
+
+`cells` are rows of at most nine characters, read left to right and top to bottom, so the nth character of a row is the nth column of the window. `templates` name the characters that stand for something: a key is one character, and its value is the item drawn in every cell where that character stands. A character with no template is a blank, and a row of fewer characters ends in blanks. A character that HOCON reads as something else needs quotes (`"#"`).```hocon cells = ["#########", "#xxxxxxx#", "#xxxxxxx#", "####c####"] templates { x { material = "head:{name}", name = "&e{name}" } c { material = "barrier", name = "&cClose" } }```
+
+- `cells`: list of text; required
+
+  The rows of the drawing, at most nine characters each.
+
+- `templates`: map from a name to [Item](#item); required
+
+  The item of each character that stands for something, by that character.
+
 ## Pages
 
-What makes a menu paged: the elements of `catalog` are drawn one page at a time into `slots`, each as `item`.
+What makes a menu paged: the elements of `catalog` are drawn one page at a time into the slots of the menu.
 
-The elements are sorted (see `sort`), then the ones for which the `item`'s `view` gate does not hold are left out, and only then split into pages, so every page but the last is full. The gate and everything the item shows can use the element's values as `{name}`. The item's own `slot` and `slots` are not used; the nth element of the page goes into the nth of `slots`, or of the cells of `layout`. An item of the menu in one of the slots is drawn when the page has no element for it.
+The elements are sorted (see `sort`), then the ones for which the `item`'s `view` gate does not hold are left out, and only then split into pages, so every page but the last is full. The gate and everything the item shows can use the element's values as `{name}`. The item's own `slot` and `slots` are not used; the nth element of the page goes into the nth of the slots. An item of the menu in one of the slots is drawn when the page has no element for it.
 
-A `layout` is rows of nine characters, the way the menu looks (`#########`, `#xxxxxxx#`): every `cell` character is a slot for an element, read left to right and top to bottom, and the other characters are only there to draw by. A row of fewer characters is taken as ending in blanks. Give `slots` or `layout`, not both.
+The slots come from one of three places, and only one may be given:
 
-- `catalog`: [an catalog](#catalogs); required
+- `slots`, a list of slot numbers, drawn with `item`; - a `layout`, rows of nine characters, the way the menu looks (`#########`, `#xxxxxxx#`): every `cell` character is a slot for an element, read left to right and top to bottom, and the other characters are only there to draw by. A row of fewer characters is taken as ending in blanks. It is drawn with `item`; - a `matrix`, which names an item for each of several characters, so the cells of one drawing can show different things. The elements still fill the cells in order, and each is drawn as the template of the cell it falls in. `item` is not used.
+
+With a `matrix` there is no single gate to leave elements out by before they are split into pages. The `view` of a template is asked after the element has its cell, and an element whose template does not show leaves its cell to what the menu has there.
+
+- `catalog`: [a catalog](#catalogs); required
 
   The source of the elements.
 
@@ -554,9 +750,9 @@ A `layout` is rows of nine characters, the way the menu looks (`#########`, `#xx
 
   The slots the elements go into.
 
-- `item`: [Item](#item); required
+- `item`: [Item](#item)
 
-  The item drawn for each element.
+  The item drawn for each element when the slots come from `slots` or `layout`.
 
 - `layout`: list of text; default `[]`
 
@@ -576,7 +772,11 @@ A `layout` is rows of nine characters, the way the menu looks (`#########`, `#xx
 
 - `empty`: [Item](#item)
 
-  Drawn in the first of the `slots` when the catalog has no element to list.
+  Drawn in the first of the slots when the catalog has no element to list.
+
+- `matrix`: [Matrix](#matrix)
+
+  Rows of characters and the item of each, instead of `slots` or `layout` with one `item`.
 
 ## PotionEffect
 
@@ -790,7 +990,7 @@ Closes the menu and asks the viewer to type something. `mode` says where: a dial
 
 - `then`: list of [an action](#actions); required
 
-- `mode`: one of `AUTO`, `ANVIL`, `CHAT`; default `"AUTO"`
+- `mode`: one of `AUTO`, `DIALOG`, `ANVIL`, `CHAT`, `FORM`; default `"AUTO"`
 
 - `title`: text; default `""`
 
@@ -940,7 +1140,7 @@ It has no keys of its own.
 
 Runs `actions` once for each element of `catalog`, with the element's values as `{name}` (and `{index}`, from 1). The first `limit` elements are used. Each run is a list of its own, so one that stops does not end the others.
 
-- `catalog`: [an catalog](#catalogs); required
+- `catalog`: [a catalog](#catalogs); required
 
 - `actions`: list of [an action](#actions); required
 
@@ -1042,13 +1242,13 @@ Changes a variable. `op` says how: set it to `value`, remove it, or change its n
 
 A check that is true or false: one entry of a `require` list, with `type` naming the condition.
 
-[`and`](#condition-and), [`at-least`](#condition-at-least), [`chance`](#condition-chance), [`compare`](#condition-compare), [`cooldown`](#condition-cooldown), [`experience`](#condition-experience), [`food`](#condition-food), [`free-slots`](#condition-free-slots), [`gamemode`](#condition-gamemode), [`group`](#condition-group), [`health`](#condition-health), [`held-item`](#condition-held-item), [`item`](#condition-item), [`level`](#condition-level), [`money`](#condition-money), [`near`](#condition-near), [`never`](#condition-never), [`not`](#condition-not), [`one-of`](#condition-one-of), [`online`](#condition-online), [`online-count`](#condition-online-count), [`or`](#condition-or), [`permission`](#condition-permission), [`regex`](#condition-regex), [`region`](#condition-region), [`text`](#condition-text), [`variable-exists`](#condition-variable-exists), [`world`](#condition-world)
+[`and`](#condition-and), [`at-least`](#condition-at-least), [`chance`](#condition-chance), [`client`](#condition-client), [`compare`](#condition-compare), [`cooldown`](#condition-cooldown), [`experience`](#condition-experience), [`food`](#condition-food), [`free-slots`](#condition-free-slots), [`gamemode`](#condition-gamemode), [`group`](#condition-group), [`health`](#condition-health), [`held-item`](#condition-held-item), [`item`](#condition-item), [`level`](#condition-level), [`money`](#condition-money), [`near`](#condition-near), [`never`](#condition-never), [`not`](#condition-not), [`one-of`](#condition-one-of), [`online`](#condition-online), [`online-count`](#condition-online-count), [`or`](#condition-or), [`permission`](#condition-permission), [`regex`](#condition-regex), [`region`](#condition-region), [`text`](#condition-text), [`variable-exists`](#condition-variable-exists), [`world`](#condition-world)
 
 ### Condition `and`
 
 Holds when all of `conditions` do.
 
-- `conditions`: list of [an condition](#conditions); required
+- `conditions`: list of [a condition](#conditions); required
 
 ### Condition `at-least`
 
@@ -1056,13 +1256,27 @@ Holds when `count` or more of `conditions` do.
 
 - `count`: whole number; required; at least 0
 
-- `conditions`: list of [an condition](#conditions); required
+- `conditions`: list of [a condition](#conditions); required
 
 ### Condition `chance`
 
 Holds `percent` times in a hundred (0 to 100). It is asked again on every redraw of an item, so it belongs in the `require` of a click, not in the `view` of an item.
 
 - `percent`: number; required; 0 to 100
+
+### Condition `client`
+
+Holds when the viewer's client matches every given filter: `edition` (`JAVA` or `BEDROCK`), `devices` (`PC`, `MOBILE`, `CONSOLE`, `VR`), `os` (`ANDROID`, `IOS`, `WINDOWS`, `XBOX`, ...), `inputs` (`KEYBOARD_MOUSE`, `TOUCH`, `CONTROLLER`, `VR`) and `ui` (`JAVA`, `CLASSIC`, `POCKET`).
+
+- `edition`: one of `JAVA`, `BEDROCK`
+
+- `devices`: list of one of `PC`, `MOBILE`, `CONSOLE`, `VR`, `UNKNOWN`; default `[]`
+
+- `os`: list of one of `JAVA`, `ANDROID`, `IOS`, `OSX`, `LINUX`, `AMAZON`, `GEAR_VR`, `HOLOLENS`, `WINDOWS`, `WINDOWS_PHONE`, `DEDICATED`, `TVOS`, `PLAYSTATION`, `SWITCH`, `XBOX`, `UNKNOWN`; default `[]`
+
+- `inputs`: list of one of `KEYBOARD_MOUSE`, `TOUCH`, `CONTROLLER`, `VR`, `UNKNOWN`; default `[]`
+
+- `ui`: list of one of `JAVA`, `CLASSIC`, `POCKET`; default `[]`
 
 ### Condition `compare`
 
@@ -1190,13 +1404,13 @@ It has no keys of its own.
 
 Holds when `condition` does not.
 
-- `condition`: [an condition](#conditions); required
+- `condition`: [a condition](#conditions); required
 
 ### Condition `one-of`
 
 Holds when exactly one of `conditions` does.
 
-- `conditions`: list of [an condition](#conditions); required
+- `conditions`: list of [a condition](#conditions); required
 
 ### Condition `online`
 
@@ -1216,7 +1430,7 @@ The number of players online is between `min` and `max`.
 
 Holds when any of `conditions` does.
 
-- `conditions`: list of [an condition](#conditions); required
+- `conditions`: list of [a condition](#conditions); required
 
 ### Condition `permission`
 
@@ -1475,3 +1689,121 @@ Fixed texts, each one element with the value `value`: the entries of `list`, the
 The worlds of the server: `name` and `environment` (`normal`, `nether` or `the_end`).
 
 It has no keys of its own.
+
+## Bedrock form fields
+
+An interactive control or label of a Bedrock `CUSTOM` form, with `type` naming the field.
+
+[`dropdown`](#bedrockfield-dropdown), [`input`](#bedrockfield-input), [`label`](#bedrockfield-label), [`slider`](#bedrockfield-slider), [`step-slider`](#bedrockfield-step-slider), [`toggle`](#bedrockfield-toggle)
+
+### BedrockField `dropdown`
+
+A dropdown list whose chosen option text is bound to `{id}` and 0-based index to `{id}_index`.
+
+- `id`: text; required
+
+  Variable name used in `{id}` and `{id}_index` within `on-submit` actions.
+
+- `text`: text; required
+
+  Label shown above the dropdown.
+
+- `options`: list of text; required
+
+  Choices listed in order.
+
+- `default`: whole number; default `0`; at least 0
+
+  0-based index of the initially selected option.
+
+### BedrockField `input`
+
+A text box whose entered text is bound to `{id}` on submit.
+
+- `id`: text; required
+
+  Variable name used in `{id}` within `on-submit` actions.
+
+- `text`: text; required
+
+  Label shown above the text box.
+
+- `placeholder`: text; default `""`
+
+  Hint text shown when the box is empty.
+
+- `default`: text; default `""`
+
+  Initial text placed in the box. Placeholders are allowed.
+
+### BedrockField `label`
+
+Static text displayed inside the form. Produces no submitted value.
+
+- `text`: text; required
+
+  Text shown in the form. Colors and placeholders are allowed.
+
+### BedrockField `slider`
+
+A numeric slider whose chosen value is bound to `{id}` on submit.
+
+- `id`: text; required
+
+  Variable name used in `{id}` within `on-submit` actions.
+
+- `text`: text; required
+
+  Label shown above the slider.
+
+- `min`: number
+
+  Lowest selectable value.
+
+- `max`: number
+
+  Highest selectable value.
+
+- `step`: number
+
+  Increment between values on the slider.
+
+- `default`: number
+
+  Starting value; defaults to `min`.
+
+### BedrockField `step-slider`
+
+A stepped slider over named `steps`, binding the chosen label to `{id}` and its 0-based index to `{id}_index`.
+
+- `id`: text; required
+
+  Variable name used in `{id}` and `{id}_index` within `on-submit` actions.
+
+- `text`: text; required
+
+  Label shown above the step slider.
+
+- `steps`: list of text; required
+
+  Ordered labels of each stop along the slider.
+
+- `default`: whole number; default `0`; at least 0
+
+  0-based index of the starting stop.
+
+### BedrockField `toggle`
+
+An on/off switch whose value (`true` or `false`) is bound to `{id}` on submit.
+
+- `id`: text; required
+
+  Variable name used in `{id}` within `on-submit` actions.
+
+- `text`: text; required
+
+  Label shown beside the switch.
+
+- `default`: `true` or `false`; default `false`
+
+  Initial state of the switch.

@@ -262,7 +262,7 @@ class Paging {
         assertEquals([10, 11, 12], pages.slots)
         assertEquals("name", pages.sort)
         assertTrue(pages.descending)
-        assertEquals("head:{name}", pages.item.material)
+        assertEquals("head:{name}", pages.item?.material)
         assertEquals("barrier", pages.empty?.material)
         assertEquals([Actions.Page(by = 1)], menu.items.getValue("next").click.any?.actions)
     }

@@ -106,7 +106,27 @@ data class Item(
      * player's inventory.
      */
     val accept: Accept? = null,
-)
+    /** Optional display and click-label overrides for Bedrock Edition players. */
+    val bedrock: BedrockItem? = null,
+    /**
+     * Slots of the menu drawn as a picture, in addition to [slot] and [slots]: rows of at most nine characters, read left to
+     * right and top to bottom, where every character but `-` and a space is a slot of this item. `["---------", "-xxxxxxx-"]`
+     * is slots 10 to 16. It is the AbstractMenus way to write a slot as a matrix.
+     */
+    val matrix: List<String> = [],
+) {
+    init {
+        require(matrix.all { it.length <= 9 }) { "a row of matrix has more than 9 characters" }
+    }
+
+    /** The slots of [matrix], in the order the rows are read. */
+    fun matrixSlots(): List<Int> = matrix.flatMapIndexed { row, text ->
+        text.mapIndexedNotNull { column, c -> if (c != '-' && c != ' ') row * 9 + column else null }
+    }
+
+    /** Every slot of the menu the item claims by what it says itself: [slot], [slots] and [matrix], without repeats. */
+    fun claimed(): List<Int> = (listOfNotNull(slot) + slots + matrixSlots()).distinct()
+}
 
 /**
  * What an item that [Item.accept]s takes. The offered item is the one the server has (on the player's cursor, or in the

@@ -20,7 +20,7 @@ class PacketEventsBackend(plugin: XaliMenu, private val screens: Screens) : Scre
 
     private val listener: PacketListenerCommon = PacketEvents.getAPI().eventManager.registerListener(object : PacketListenerAbstract(PacketListenerPriority.NORMAL) {
         override fun onPacketSend(event: PacketSendEvent) {
-            val id = event.user?.uuid ?: return
+            val id = event.user.uuid ?: return
             when (event.packetType) {
                 PacketType.Play.Server.OPEN_WINDOW -> screens.opened(id, WrapperPlayServerOpenWindow(event).containerId)
                 PacketType.Play.Server.WINDOW_ITEMS -> {

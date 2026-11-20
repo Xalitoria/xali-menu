@@ -12,9 +12,11 @@ import { services } from './services.js'
 import { GlyphBar } from './glyphbar.js'
 import { TEMPLATE, EMPTY, isPaged, listedSlots } from './pages.js'
 import { pagesView, valuesBar } from './pagesPanel.js'
+import { DEVICES, deviceById, presentationFor, titleForDevice } from './bedrock.js'
+import { bedrockBanner, bedrockFormView } from './bedrockPreview.js'
 
 /** The first fields of an item's form. */
-const ITEM_FIRST = ['material', 'name', 'lore', 'amount', 'slot', 'slots', 'inventory-slots', 'view', 'click']
+const ITEM_FIRST = ['material', 'name', 'lore', 'amount', 'slot', 'slots', 'inventory-slots', 'view', 'click', 'bedrock']
 
 /** The inventory types the menu file accepts and the editor can draw. */
 export const TYPES = [['chest', 'Chest'], ['hopper', 'Hopper (5 slots)'], ['dispenser', 'Dispenser (9 slots)'], ['dropper', 'Dropper (9 slots)'], ['shulker_box', 'Shulker box (27 slots)']]
@@ -29,6 +31,7 @@ export const GROUPS = [
   { id: 'layout', label: 'Layout', keys: ['layout', 'legend'], hint: 'The menu as it looks, in rows of nine characters, for placing items by.' },
   { id: 'pages', label: 'Pages', keys: ['pages'], hint: 'List the elements of a catalog, a page at a time.' },
   { id: 'animation', label: 'Animation', keys: ['animation'], hint: 'Frames that play over the menu once it is open.' },
+  { id: 'bedrock', label: 'Bedrock', keys: ['bedrock'], hint: 'Bedrock Edition forms, device targeting and touch/controller interaction overrides.' },
 ]
 
 const TOP_KEYS = ['title', 'size', 'type', 'items']
@@ -39,6 +42,10 @@ export class EditorTab {
     this.app = app
     /** The id of the group whose panel is open, or null. */
     this.popover = null
+    /** Which client device the stage previews (`java`, `bedrock-pc`, `bedrock-mobile`, `bedrock-console`). */
+    this.device = 'java'
+    /** Assumed server `bedrock.default-mode` when previewing Bedrock devices without explicit form settings. */
+    this.bedrockDefault = 'touch-form'
     this.glyphs = new GlyphBar(app)
     this.observer = null
   }
@@ -88,8 +95,21 @@ export class EditorTab {
     if (!width || !height) return
     this.lastBox = this.boxKey()
     const { app } = this
-    app.inventory.draw({ width, height }, { menu: app.shownMenu(), listed: new Set(listedSlots(this.menu.pages)), painting: app.painting })
-    fill(this.stage, this.app.inventory.root)
+    const device = deviceById(this.device)
+    const presentation = presentationFor(this.menu, device, this.bedrockDefault)
+    const isBedrock = device.edition === 'BEDROCK'
+    this.stage.classList.toggle('bedrock-stage', isBedrock && presentation.kind !== 'inventory')
+    if (isBedrock && presentation.kind !== 'inventory') {
+      fill(this.stage,
+        bedrockBanner(app, device, presentation, this.bedrockDefault),
+        h('div', { class: 'bedrock-canvas' }, bedrockFormView(app, device, presentation)))
+      this.pager?.replaceWith(this.pager = this.pagerView())
+      return
+    }
+    const shown = app.shownMenu()
+    const preview = isBedrock ? { ...shown, title: titleForDevice(shown, device) } : shown
+    app.inventory.draw({ width, height }, { menu: preview, listed: new Set(listedSlots(this.menu.pages)), painting: app.painting })
+    fill(this.stage, ...(isBedrock ? [bedrockBanner(app, device, presentation, this.bedrockDefault), this.app.inventory.root] : [this.app.inventory.root]))
     this.pager?.replaceWith(this.pager = this.pagerView())
     // The window opens in the middle of the stage, and stays where it was dragged to.
     if (this.app.centerStage) { this.pan = { x: 0, y: 0 }; this.app.centerStage = false }
@@ -195,6 +215,8 @@ export class EditorTab {
       h('span', { class: 'divider' }),
       h('div', { class: 'tool-group' }, groups.map((group) => this.groupButton(group, known))),
       h('span', { class: 'divider' }),
+      h('div', { class: 'tool' }, h('span', null, 'View as'),
+        this.select(DEVICES.map((d) => [d.id, d.label]), this.device, (v) => { this.device = v; app.centerStage = true; this.drawStage() })),
       h('div', { class: 'tool' }, h('span', null, 'GUI scale'),
         h('div', { class: 'tool-row' },
           this.select([['0', 'Fit'], ...SCALES.map((n) => [String(n), `${n}×`])], String(services.scale), (v) => { services.scale = Number(v); app.centerStage = true; this.drawStage() }),

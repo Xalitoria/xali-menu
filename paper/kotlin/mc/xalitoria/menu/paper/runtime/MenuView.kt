@@ -2,6 +2,9 @@ package mc.xalitoria.menu.paper.runtime
 
 import io.papermc.paper.threadedregions.scheduler.ScheduledTask
 import mc.xalitoria.menu.paper.XaliMenu
+import mc.xalitoria.menu.paper.bedrock.BedrockPlanner
+import mc.xalitoria.menu.paper.bedrock.ClientProfile
+import mc.xalitoria.menu.paper.util.bedrockText
 import mc.xalitoria.menu.paper.util.legacy
 import net.xalitoria.menu.model.Animation
 import net.xalitoria.menu.model.Item
@@ -23,9 +26,11 @@ class MenuView(
     private val bySlot: Map<Int, List<Pair<String, Item>>>,
     /** The items drawn in the player's own inventory, by the slot of that inventory. */
     private val inventoryBySlot: Map<Int, List<Pair<String, Item>>> = emptyMap(),
+    /** Detected client profile of the viewer (Java or Bedrock, device OS, input mode, UI profile). */
+    val profile: ClientProfile = ClientProfile.JAVA,
 ) : InventoryHolder {
     /** What goes into a slot of a paged menu: the item, the context its text and clicks use, and the element it is for. */
-    private class Placed(val item: Item, val ctx: Context, val element: Map<String, String>?)
+    private class Placed(val item: Item, val ctx: Context, val element: Map<String, String>?, val gated: Boolean = false)
 
     private lateinit var inventory: Inventory
     private lateinit var shown: Array<Item?>
@@ -58,8 +63,11 @@ class MenuView(
     var pageValues: Map<String, String> = emptyMap()
         private set
 
+    /** Raw title template for this viewer (uses `bedrock.title` on Bedrock when configured). */
+    private val titleTemplate = BedrockPlanner.titleTemplate(menu, profile)
+
     /** Whether the title holds anything that can change while the menu is open: a placeholder, or a `{page}` and the like. */
-    private val dynamicTitle = '%' in menu.title || '{' in menu.title
+    private val dynamicTitle = '%' in titleTemplate || '{' in titleTemplate
 
     /** The title the player's client has; null until [title] is asked for. */
     private var shownTitle: String? = null
@@ -75,12 +83,16 @@ class MenuView(
 
     override fun getInventory(): Inventory = inventory
 
+    private fun renderTitle(): String =
+        if (profile.isBedrock) ctx.bedrockText(titleTemplate, plugin.config.data.bedrock.stripPrivateUseTitle)
+        else ctx.legacy(titleTemplate)
+
     /**
      * The title to open the inventory with. A paged menu works out its first page first, so the title can already show it.
      */
     fun title(): String {
         menu.pages?.let { layout(it) }
-        return ctx.legacy(menu.title).also { shownTitle = it }
+        return renderTitle().also { shownTitle = it }
     }
 
     fun attach(inventory: Inventory) {
@@ -94,7 +106,8 @@ class MenuView(
     fun itemAt(slot: Int): Item? = shown.getOrNull(slot)
 
     /** Whether the menu draws in the player's own inventory, whose clicks then are the menu's and not for taking items. */
-    val drawsInventory: Boolean get() = inventoryBySlot.isNotEmpty()
+    val drawsInventory: Boolean
+        get() = inventoryBySlot.isNotEmpty() && BedrockPlanner.shouldDrawInventoryOverlay(menu, profile, plugin.config.data.bedrock)
 
     /** Whether any item now shown takes an item from the player; cheap enough to ask on every click. */
     fun hasAcceptors(): Boolean = !drawsInventory && shown.any { it?.accept != null }
@@ -161,7 +174,8 @@ class MenuView(
         for (slot in 0 until inventory.size) {
             // What a frame drew comes first, then the elements of the page, then the menu's own items.
             val framed = overlay[slot]?.firstOrNull { it.second.view.passes(ctx, run = false) }?.second
-            val entry = if (framed == null) placed[slot] else null
+            // A template of a matrix has its `view` asked here: the elements were not left out by it before they were split into pages.
+            val entry = if (framed == null) placed[slot]?.takeIf { !it.gated || it.item.view.passes(it.ctx, run = false) } else null
             val chosen: Item?
             val slotCtx: Context
             if (framed != null) {
@@ -199,7 +213,7 @@ class MenuView(
      * if any changed. The items only exist in the packets of the window ([mc.xalitoria.menu.paper.screen.Screens]); the inventory itself is not touched.
      */
     private fun drawInventory(force: Boolean) {
-        if (inventoryBySlot.isEmpty() || !plugin.screens.available) return
+        if (!drawsInventory || !plugin.screens.available) return
         var changed = force
         for (entry in inventoryBySlot) {
             val slot = entry.key
@@ -226,7 +240,7 @@ class MenuView(
      */
     @Suppress("DEPRECATION")
     private fun retitle() {
-        val wanted = ctx.legacy(menu.title)
+        val wanted = renderTitle()
         if (wanted == shownTitle) return
         val open = player.openInventory
         if (open.topInventory !== inventory) return // not open yet: the title it opens with is [title]
@@ -251,13 +265,17 @@ class MenuView(
             catalogFailed = true
             emptyList()
         }
-        val layout = layoutPage(listed, pages.listed(), pages.sort, pages.descending, page) { pages.item.view.passes(opened.with(it), run = false) }
+        val layout = layoutPage(listed, pages.listed(), pages.sort, pages.descending, page) { pages.item?.view.passes(opened.with(it), run = false) }
         page = layout.state.page
         pageValues = layout.state.values()
         ctx = opened.with(pageValues)
 
         if (layout.empty) return pages.empty?.let { mapOf(pages.listed().first() to Placed(it, ctx, null)) } ?: emptyMap()
-        return layout.placed.associate { [slot, element] -> slot to Placed(pages.item, ctx.with(element), element) }
+        val templates = pages.templates()
+        return layout.placed.associate { [slot, element] ->
+            val template = templates.getValue(slot)
+            slot to Placed(template, ctx.with(element), element, gated = template !== pages.item)
+        }
     }
 
     /** Moves to the page [value] pages on, or to page [value] (from 1) if not [relative], and draws it. */

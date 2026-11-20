@@ -21,6 +21,9 @@ import mc.xalitoria.menu.paper.config.MessageConfig
 import mc.xalitoria.menu.paper.editor.EditorRelay
 import mc.xalitoria.menu.paper.editor.EditorServer
 import mc.xalitoria.menu.paper.editor.EditorSessions
+import mc.xalitoria.menu.paper.bedrock.BedrockForms
+import mc.xalitoria.menu.paper.bedrock.ClientProfile
+import mc.xalitoria.menu.paper.hook.BedrockHooks
 import mc.xalitoria.menu.paper.hook.Economy
 import mc.xalitoria.menu.paper.hook.FancyNpcs
 import mc.xalitoria.menu.paper.hook.HeadDatabaseSource
@@ -32,6 +35,7 @@ import mc.xalitoria.menu.paper.hook.Skins
 import mc.xalitoria.menu.paper.runtime.ActionRunner
 import mc.xalitoria.menu.paper.runtime.ActivatorListener
 import mc.xalitoria.menu.paper.runtime.Anvils
+import mc.xalitoria.menu.paper.runtime.Clients
 import mc.xalitoria.menu.paper.runtime.Deposits
 import mc.xalitoria.menu.paper.runtime.Dialogs
 import mc.xalitoria.menu.paper.runtime.Inputs
@@ -116,6 +120,10 @@ class XaliMenu : JavaPlugin() {
     lateinit var screens: Screens
         private set
 
+    /** Bedrock Edition detection and native Cumulus forms, through Floodgate or Geyser-Spigot. */
+    lateinit var bedrockForms: BedrockForms
+        private set
+
     private var expansion: VariableExpansion? = null
 
     override fun onEnable() {
@@ -149,13 +157,15 @@ class XaliMenu : JavaPlugin() {
         items = ItemFactory(this)
         actions = ActionRunner(this)
         screens = Screens(this).also { it.start() }
+        bedrockForms = BedrockForms(this, BedrockHooks.detect(this))
+        Clients.profileOf = { player -> bedrockForms.bridge?.profile(player) ?: ClientProfile.JAVA }
         menus = MenuManager(this)
         menus.watchVariables(variables.changes, scope)
         server.messenger.registerOutgoingPluginChannel(this, "BungeeCord")
         server.servicesManager.register(XaliMenuApi::class.java, ApiImpl(this), this, ServicePriority.Normal)
 
         saveExampleMenu()
-        logger info "Item sources: ${registry.sources.keys.ifEmpty { listOf("none") }.joinToString()}; economy: ${if (economyHook.available) "yes" else "no"}; skins: ${if (pm.isPluginEnabled("SkinsRestorer")) "SkinsRestorer" else "Mojang"}; player inventory: ${screens.name ?: "off (needs PacketEvents or ProtocolLib)"}"
+        logger info "Item sources: ${registry.sources.keys.ifEmpty { listOf("none") }.joinToString()}; economy: ${if (economyHook.available) "yes" else "no"}; skins: ${if (pm.isPluginEnabled("SkinsRestorer")) "SkinsRestorer" else "Mojang"}; player inventory: ${screens.name ?: "off (needs PacketEvents or ProtocolLib)"}; bedrock: ${bedrockForms.name ?: "off (needs Floodgate or Geyser)"}"
         expansion = VariableExpansion(this).also { it.register() }
 
         // The commands are registered when the server starts, so the labels are read now; the menus themselves are read

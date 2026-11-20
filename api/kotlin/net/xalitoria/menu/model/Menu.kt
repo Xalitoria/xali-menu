@@ -61,6 +61,8 @@ data class Menu(
     val animation: Animation? = null,
     /** Makes the menu list the elements of a catalog, a page at a time. */
     val pages: Pages? = null,
+    /** How this menu is displayed and interacted with by Bedrock Edition players (through Floodgate or Geyser). */
+    val bedrock: BedrockMenu? = null,
 ) {
     init {
         require(layout.all { it.length <= 9 }) { "a row of layout has more than 9 characters" }

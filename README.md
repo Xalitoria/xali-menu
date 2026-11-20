@@ -12,8 +12,8 @@ sources through an [addon API](#extending).
   [Building and installing](#building-and-installing), [Removal](#removal)
 - [Configuration](#configuration): [Files](#files), [Menu files](#menu-files), [How a menu behaves](#how-a-menu-behaves),
   [Item properties](#item-properties), [Actions](#actions), [Conditions](#conditions), [Paged menus](#paged-menus),
-  [Animations](#animations), [Opening a menu by what a player does](#opening-a-menu-by-what-a-player-does),
-  [Variables](#variables)
+  [Animations](#animations), [Bedrock and multi-device support](#bedrock-and-multi-device-support),
+  [Opening a menu by what a player does](#opening-a-menu-by-what-a-player-does), [Variables](#variables)
 - [Usage](#usage): [Commands](#commands), [Importing from DeluxeMenus](#importing-from-deluxemenus)
 - [Web editor](#web-editor)
 - [Extending](#extending)
@@ -37,6 +37,7 @@ sources through an [addon API](#extending).
 | WorldGuard | No | The `region-enter` and `region-leave` activators and the `region` condition. |
 | PacketEvents or ProtocolLib | No | Drawing in the player's inventory (`inventory`); PacketEvents is used if both are installed. |
 | ViaVersion | No | Tells `input` which version a player's client is, so a client that is too old for dialogs gets an anvil. Clients older than the server need it (with ViaBackwards) to join at all. |
+| Floodgate or Geyser-Spigot | No | Detects Bedrock Edition players (OS, device kind, input mode, Classic/Pocket UI) and sends native Cumulus forms (`SimpleForm`, `ModalForm`, `CustomForm`, action pickers and `input` text forms). Floodgate is preferred when both are installed. |
 
 ### Modules
 
@@ -75,7 +76,7 @@ tables `<prefix>variable` and `<prefix>revision` stay. Plugins that registered a
 
 | File | Holds |
 |---|---|
-| `plugins/XaliMenu/config.yml` | `debug`, `language`, `click-cooldown`, `database` and `variables`. |
+| `plugins/XaliMenu/config.yml` | `debug`, `language`, `click-cooldown`, `database`, `variables`, `editor` and `bedrock`. |
 | `plugins/XaliMenu/language/<language>.yml` | Every message, written with the defaults on the first start. |
 | `plugins/XaliMenu/menus/<name>.conf` | One menu per file. `example.conf` is written on the first start. |
 
@@ -264,7 +265,7 @@ go on, and one that cannot do what the next depends on (`take-item` without enou
 | `experience`, `level` | Points or levels; `take` charges, and aborts if they have too few | `amount`, `take` |
 | `money`, `permission`, `group` | Through Vault: pay or charge, give or take a node or a group | `amount`, `take`, `currency`; `node`, `take`; `name`, `take` |
 | `meta` | A LuckPerms meta value (LuckPerms is needed); no `value` removes it | `key`, `value` |
-| `input` | Close the menu and ask for text, which runs `then` as `{input}` | `prompt`, `then`, `mode` (`AUTO`, `ANVIL`, `CHAT`), `title`, `initial`, `submit`, `max-length`, `cancel` (word and button label, default `cancel`), `on-cancel`, `timeout`, `match` (regex the reply must fit), `invalid` |
+| `input` | Close the menu and ask for text, which runs `then` as `{input}` | `prompt`, `then`, `mode` (`AUTO`, `DIALOG`, `ANVIL`, `CHAT`, `FORM`), `title`, `initial`, `submit`, `max-length`, `cancel` (word and button label, default `cancel`), `on-cancel`, `timeout`, `match` (regex the reply must fit), `invalid` |
 | `all`, `random` | Run actions as a unit, or pick `count` of them at random | `actions`, `count` |
 | `run-for` | Run actions for each element of a catalog, with `{index}` and its values | `catalog`, `actions`, `limit` (default 100) |
 | `delay`, `chance`, `stop` | Later, by chance, end the list | `ticks`, `action`; `percent`, `action` |
@@ -273,11 +274,7 @@ go on, and one that cannot do what the next depends on (`take-item` without enou
 | `log` | Write to the server log | `text`, `level` (`INFO`, `WARNING`, `ERROR`) |
 | `connect` | Send the viewer to another server of the proxy | `server` |
 
-`input` asks the viewer to type, so it closes the menu. With `mode = AUTO` (the default) a client that has dialogs
-(Minecraft 1.21.6 and later) gets a dialog with a text field, `title` as its title, `initial` in the field and a `submit`
-and a `cancel` button; an older client (known through ViaVersion) gets an anvil whose rename field is the text field, taken
-by clicking its result. `ANVIL` always uses the anvil and `CHAT` asks in chat, where nothing else the viewer types counts
-until they answer and what they type is not said in chat. A reply that does not fit `match` is turned down with `invalid`
+`input` asks the viewer to type, so it closes the menu. With `mode = AUTO` (the default) a Bedrock client (when Floodgate or Geyser is installed and `bedrock.input-forms` is on) gets a native Bedrock `CustomForm` with a text box; a Java client that has dialogs (Minecraft 1.21.6 and later) gets a dialog with a text field, `title` as its title, `initial` in the field and a `submit` and a `cancel` button; an older Java client (known through ViaVersion) gets an anvil whose rename field is the text field, taken by clicking its result. `FORM`, `DIALOG`, `ANVIL` and `CHAT` request that channel directly (`CHAT` asks in chat, where nothing else the viewer types counts until they answer and what they type is not said in chat). A reply that does not fit `match` is turned down with `invalid`
 (in the dialog it comes back with the message above the field, in the anvil the message is sent to chat) and the viewer may
 try again. Closing the anvil, the cancel button, typing the `cancel` word and the `timeout` run `on-cancel`; closing a dialog
 with Escape leaves the question open until it times out. The anvil is a window of its own, nothing in it can be taken, and
@@ -312,6 +309,7 @@ Conditions are asked on every refresh, so they only look. Numbers can be placeho
 | `compare`, `text`, `regex` | numbers, text or a pattern fit; see [Variables](#variables) | `left`, `op`, `right`; `input`, `op`, `value`; `input`, `pattern` |
 | `variable-exists` | a variable exists | `name`, `scope` (`GLOBAL`, `PLAYER`) |
 | `cooldown` | the cooldown `key` is not running | `key`, `scope` (`PLAYER`, `GLOBAL`) |
+| `client` | the viewer's client matches edition, hardware, OS, input mode or UI profile | `edition` (`JAVA`, `BEDROCK`), `devices` (`PC`, `MOBILE`, `CONSOLE`, `VR`), `os` (`ANDROID`, `IOS`, `WINDOWS`, `XBOX`, `PLAYSTATION`, `SWITCH`, ...), `inputs` (`KEYBOARD_MOUSE`, `TOUCH`, `CONTROLLER`, `VR`), `ui` (`JAVA`, `CLASSIC`, `POCKET`) |
 | `and`, `or`, `one-of`, `at-least`, `not` | other conditions combine | `conditions`; `count`, `conditions`; `condition` |
 | `chance` | luck decides, `percent` times in a hundred | `percent` |
 
@@ -435,6 +433,57 @@ animation {
 - Each frame schedules the next when it has played, on the player's region, so timing is not tied to a refresh. It stops
   when the menu closes.
 
+### Bedrock and multi-device support
+
+When Floodgate (preferred, works standalone and behind Velocity) or Geyser-Spigot is installed, XaliMenu detects each
+player's edition (`JAVA` or `BEDROCK`), operating system (`ANDROID`, `IOS`, `WINDOWS`, `XBOX`, `PLAYSTATION`, `SWITCH`, ...),
+device category (`PC`, `MOBILE`, `CONSOLE`, `VR`), input mode (`KEYBOARD_MOUSE`, `TOUCH`, `CONTROLLER`, `VR`) and UI profile
+(`CLASSIC`, `POCKET`). Every Cumulus form callback is dispatched onto the player's Folia region thread before gates or actions run.
+
+**Per-menu `bedrock` section.** Any menu can add a `bedrock { ... }` block to render as a native Bedrock form, redirect
+specific devices to another menu, or tune how the inventory window behaves on Bedrock:
+
+```hocon
+title = "<shift:-8><glyph:shop_bg>&8Shop"
+size = 27
+bedrock {
+    mode = "SIMPLE"                     # AUTO | INVENTORY | SIMPLE | MODAL | CUSTOM
+    inputs = ["TOUCH", "CONTROLLER"]    # only touch/controller Bedrock players get the form; Bedrock PC keeps the chest
+    title = "&8Shop"                    # clean title without Java resource-pack glyphs
+    content = "&7Tap an item to trade"
+    skip-fillers = true                 # omit border panes with no click handlers
+    include-lore = true                 # show first lore line under each button label
+    action-picker = true                # open a choice form for items with left + right clicks
+}
+items {
+    diamond {
+        material = "diamond", slot = 13, name = "&bDiamond", lore = ["&7100 coins"]
+        bedrock { left-label = "&aBuy 1", right-label = "&cSell 1", image = "textures/items/diamond" }
+        click.left.actions = [{ type = "player", command = "buy diamond" }]
+        click.right.actions = [{ type = "player", command = "sell diamond" }]
+    }
+}
+```
+
+- **Form modes**: `SIMPLE` uses explicit `buttons` when given, otherwise converts the menu's visible items and paged
+  elements automatically (skipping fillers and `bedrock.hidden = true` items, deduplicating multi-slot items, and adding
+  previous/next page buttons for paged menus). `MODAL` shows a two-button dialog (`confirm` and `cancel`). `CUSTOM` shows
+  interactive `fields` (`label`, `input`, `toggle`, `dropdown`, `slider`, `step-slider`) and runs `on-submit` with each
+  field's answer as `{id}` (and `{id}_index` for dropdowns and step sliders).
+- **Device targeting**: `devices`, `inputs` and `ui` restrict the `bedrock` block to matching Bedrock clients; non-matching
+  Bedrock devices (such as Bedrock PC with keyboard, mouse and Classic UI) stay on the chest inventory. Set `bedrock.menu` to
+  redirect matching devices to a dedicated menu file instead.
+- **Interaction & UI adaptation**: On Bedrock inventory menus, Private Use Area font glyphs in titles are stripped when
+  `bedrock.title` is absent (`bedrock.strip-private-use-title`), `inventory-slots` packet overlays are skipped on Pocket UI
+  by default (`bedrock.pocket-inventory-overlay`), and clicking a multi-click item on touch/controller opens an action-picker
+  form (or falls back to the item's sole click handler if only `right` or `shift-left` is defined).
+- **Conditions & placeholders**: Use `{ type = "client", ... }` in any gate (`open`, `view`, `require`, `open-with`) and
+  `%xalimenu_client_edition%`, `%xalimenu_client_device%`, `%xalimenu_client_os%`, `%xalimenu_client_input%`,
+  `%xalimenu_client_ui%` in text.
+- **Server defaults**: `bedrock.default-mode` in `config.yml` (`inventory`, `touch-form`, or `always-form`) sets what
+  happens for menus that have no explicit `bedrock` form settings. `bedrock.icon-url` optionally points vanilla button icons
+  at a hosted image template (`https://.../items/{material}.png`) instead of Bedrock's built-in `textures/...` paths.
+
 ### Opening a menu by what a player does
 
 Besides `commands`, a menu lists in `open-with` the things that open it. Each entry is an object whose `type` names it:
@@ -541,11 +590,12 @@ All of these need `xalimenu.admin`. The command is `/xalimenu`, also `/xmenu` an
 | Command | Description |
 |---|---|
 | `/xmenu list` | List the menus. |
-| `/xmenu open <menu> [player]` | Open a menu for oneself or another player. |
+| `/xmenu open <menu> [player] [args...]` | Open a menu for oneself or another player, optionally passing menu arguments. |
 | `/xmenu reload [menu]` | Read the configuration, language and menus again; with a name, only that menu's file (the others stay as they are, and a file that cannot be read leaves the menu as it was). |
-| `/xmenu info <menu>` | What a menu is: title, size, commands, args, items, pages, animation, activators. |
+| `/xmenu info <menu>` | What a menu is: title, size, commands, args, items, layout, pages, animation, bedrock mode, activators. |
 | `/xmenu validate [menu]` | The problems of every menu (or one) and the files that could not be read, without opening any. The same problems are logged on every load. |
-| `/xmenu inspect [player]` | Why each slot of a player's open menu shows what it shows: the items claiming it, which one is drawn, and how each check of their `view` gate comes out. The first lines are in chat, all in the console. |
+| `/xmenu inspect [player]` | Why each slot of a player's open menu shows what it shows (or the active Bedrock form), including the viewer's detected client profile. The first lines are in chat, all in the console. |
+| `/xmenu client [player]` | Show a player's detected client edition, OS/device, input mode, UI profile and dialog/form support. |
 | `/xmenu import deluxemenus` | Import DeluxeMenus menus, see [below](#importing-from-deluxemenus). |
 | `/xvar ...`, `/xvarp ...` | Variables, see [above](#variables). |
 
@@ -589,7 +639,8 @@ of opening or showing an item for everyone.
 ## Web editor
 
 `/xmenu edit [menu]` prints a link to the editor at <https://menu.xali.to>: a form for every key of the format (built from the plugin's own
-classes, with the comments as help), the window with its items, problem checks while you type, and a view of the server's resource
+classes, with the comments as help), the window with its items, a **View as** device switcher (`Java (PC)`, `Bedrock (PC)`,
+`Bedrock (Mobile)`, `Bedrock (Console)`) with live previews of Bedrock forms and device compatibility notes, problem checks while you type, and a view of the server's resource
 pack for custom items and for moving glyphs in titles. With `editor.enabled` in `config.yml` the editor reads and saves the menus
 on the server directly (the old file is kept as `<name>.conf.bak`); without it the link carries the menu and the editor gives a
 file back. `/xmenu share [menu]` (or `share readonly [menu]`, which cannot send edits back) makes a link that works through a relay (`relay/`, set as `editor.relay.url`): the plugin only connects out,
@@ -715,6 +766,7 @@ the roadmap and what is left.
 | Built-in actions and conditions | `menu/paper/.../action` (`Actions.kt`, `Flow.kt`, `Inventory.kt`, `Effects.kt`, `Social.kt`), `condition` (`Conditions.kt`, `Logic.kt`, `PlayerConditions.kt`) |
 | Menu schema and reading | `menu/api/.../model`, `menu/paper/.../format` |
 | Runtime: gates, items, clicks, paging, activators, animation | `menu/paper/.../runtime` |
+| Bedrock planning, forms and hooks | `menu/paper/.../bedrock`, `menu/paper/.../hook/BedrockHook.kt` |
 | Catalogs | `menu/paper/.../catalog` |
 | Variables: stores and sync | `menu/paper/.../variable` |
 | Addon API implementation | `menu/paper/.../api` |

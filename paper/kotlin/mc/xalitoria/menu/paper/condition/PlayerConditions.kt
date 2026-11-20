@@ -7,9 +7,15 @@ import mc.xalitoria.menu.paper.XaliMenu
 import mc.xalitoria.menu.paper.XaliMenu.Companion.debug
 import mc.xalitoria.menu.paper.action.Inventory
 import mc.xalitoria.menu.paper.api.TypeRegistry
+import mc.xalitoria.menu.paper.runtime.Clients
 import net.xalitoria.menu.Condition
 import net.xalitoria.menu.MenuContext
 import net.xalitoria.menu.Scope
+import net.xalitoria.menu.model.ClientEdition
+import net.xalitoria.menu.model.DeviceKind
+import net.xalitoria.menu.model.DeviceOs
+import net.xalitoria.menu.model.InputMode
+import net.xalitoria.menu.model.UiProfile
 import org.bukkit.GameMode
 import org.bukkit.inventory.EquipmentSlot
 import org.bukkit.inventory.ItemStack
@@ -33,6 +39,7 @@ object PlayerConditions {
         registry.condition<Group>()
         registry.condition<VariableExists>()
         registry.condition<Cooldown>()
+        registry.condition<Client>()
     }
 
     /**
@@ -209,4 +216,26 @@ object PlayerConditions {
 
     /** The name of the variable that holds the cooldown [key]. */
     fun variable(key: String): String = "cooldown_" + key.trim().replace(Regex("[^A-Za-z0-9_]"), "_")
+
+    /**
+     * Holds when the viewer's client matches every given filter: [edition] (`JAVA` or `BEDROCK`), [devices] (`PC`,
+     * `MOBILE`, `CONSOLE`, `VR`), [os] (`ANDROID`, `IOS`, `WINDOWS`, `XBOX`, ...), [inputs] (`KEYBOARD_MOUSE`,
+     * `TOUCH`, `CONTROLLER`, `VR`) and [ui] (`JAVA`, `CLASSIC`, `POCKET`).
+     */
+    @Serializable @SerialName("client")
+    data class Client(
+        val edition: ClientEdition? = null,
+        val devices: List<DeviceKind> = [],
+        val os: List<DeviceOs> = [],
+        val inputs: List<InputMode> = [],
+        val ui: List<UiProfile> = [],
+    ) : Condition {
+        init {
+            require(edition != null || devices.isNotEmpty() || os.isNotEmpty() || inputs.isNotEmpty() || ui.isNotEmpty()) {
+                "client needs at least one filter (edition, devices, os, inputs or ui)"
+            }
+        }
+
+        override fun test(ctx: MenuContext): Boolean = Clients.profile(ctx.player).matches(edition, devices, os, inputs, ui)
+    }
 }

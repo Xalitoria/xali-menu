@@ -7,6 +7,7 @@ const BASES = [
   ['Condition', 'Conditions', 'A check that is true or false: one entry of a `require` list, with `type` naming the condition.'],
   ['Activator', 'Activators', 'What opens a menu besides its commands, with `type` naming the activator.'],
   ['Catalog', 'Catalogs', 'A list of things a menu draws from, such as the players or the menus, with `type` naming the catalog.'],
+  ['BedrockField', 'Bedrock form fields', 'An interactive control or label of a Bedrock `CUSTOM` form, with `type` naming the field.'],
 ]
 
 const baseTitle = (base) => BASES.find(([name]) => name === base)?.[1] ?? base
@@ -30,7 +31,7 @@ export function describe(type) {
     case 'duration': return 'time, such as `5s`, `500ms` or `1m`'
     case 'enum': return `one of ${type.values.map((v) => `\`${v}\``).join(', ')}`
     case 'object': return link(type.type, typeHeading(type.type))
-    case 'poly': return `${link(`an ${type.base.toLowerCase()}`, baseTitle(type.base))}`
+    case 'poly': return `${link(`${/^[aeiou]/i.test(type.base) ? 'an' : 'a'} ${type.base.toLowerCase()}`, baseTitle(type.base))}`
     case 'list': return `list of ${describe(type.of)}`
     case 'map': return `map from a name to ${describe(type.of)}`
     case 'dynamic': return type.of === 'boolean'

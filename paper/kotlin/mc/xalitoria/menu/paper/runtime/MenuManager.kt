@@ -9,11 +9,19 @@ import kotlinx.coroutines.launch
 import mc.xalitoria.menu.paper.XaliMenu
 import mc.xalitoria.menu.paper.XaliMenu.Companion.debug
 import mc.xalitoria.menu.paper.action.Actions
+import mc.xalitoria.menu.paper.action.Flow
+import mc.xalitoria.menu.paper.action.Social
+import mc.xalitoria.menu.paper.bedrock.BedrockPlanner
+import mc.xalitoria.menu.paper.bedrock.Presentation
 import mc.xalitoria.menu.paper.format.MenuFormat
 import mc.xalitoria.menu.paper.util.batched
+import net.xalitoria.menu.Action
 import net.xalitoria.menu.ActivatorFilter
 import net.xalitoria.menu.Settings
 import net.xalitoria.menu.model.Activator
+import net.xalitoria.menu.model.BedrockField
+import net.xalitoria.menu.model.BedrockMenu
+import net.xalitoria.menu.model.Gate
 import net.xalitoria.menu.model.Item
 import net.xalitoria.menu.model.Menu
 import org.bukkit.Bukkit
@@ -36,11 +44,9 @@ class LoadedMenu(val name: String, val menu: Menu, val usesVariables: Boolean = 
     val inventoryBySlot: Map<Int, List<Pair<String, Item>>> = slottedInventory(menu).filterKeys { it in Menu.INVENTORY_SLOTS }
 }
 
-private fun Item.allSlots(): List<Int> = listOfNotNull(slot) + slots
-
 /** [items] sorted into the slots they claim: per slot, lowest priority number first, equal ones by name (a file has no order). */
 fun slotted(items: Map<String, Item>): Map<Int, List<Pair<String, Item>>> = items.entries
-    .flatMap { entry -> entry.value.allSlots().map { it to (entry.key to entry.value) } }
+    .flatMap { entry -> entry.value.claimed().map { it to (entry.key to entry.value) } }
     .groupBy({ it.first }, { it.second })
     .mapValues { entry -> entry.value.sortedWith(compareBy({ it.second.priority }, { it.first })) }
 
@@ -214,19 +220,25 @@ class MenuManager(private val plugin: XaliMenu) {
         }
         if (definition.layout.size * 9 > definition.size && definition.type == "chest") problems += "layout has ${definition.layout.size} rows, more than the menu"
         for ((key, value) in definition.placed()) {
-            if (value.allSlots().isEmpty() && value.inventorySlots.isEmpty()) problems += "item '$key' has no slot, so it is never shown"
+            if (value.claimed().isEmpty() && value.inventorySlots.isEmpty()) problems += "item '$key' has no slot, so it is never shown"
             value.inventorySlots.filter { it !in Menu.INVENTORY_SLOTS }.forEach { problems += "item '$key' has inventory slot $it, outside the inventory (0 to 35)" }
             if (definition.type == "chest") {
-                value.allSlots().filter { it !in 0 until definition.size }.forEach { problems += "item '$key' is in slot $it, outside the menu" }
+                value.claimed().filter { it !in 0 until definition.size }.forEach { problems += "item '$key' is in slot $it, outside the menu" }
             }
             plugin.items.validate(value).forEach { problems += "item '$key': $it" }
             acceptProblems(definition, value).forEach { problems += "item '$key' $it" }
         }
         definition.pages?.let { pages ->
             pages.listed().filter { definition.type == "chest" && it !in 0 until definition.size }.forEach { problems += "pages has slot $it, outside the menu" }
-            if (pages.layout.size * 9 > definition.size && definition.type == "chest") problems += "pages.layout has ${pages.layout.size} rows, more than the menu"
-            if (pages.item.slot != null || pages.item.slots.isNotEmpty()) problems += "the slot of the pages' item is not used; its place comes from pages.slots"
-            (listOf("item" to pages.item) + listOfNotNull(pages.empty?.let { "empty" to it })).forEach { [label, item] ->
+            val rows = maxOf(pages.layout.size, pages.matrix?.cells?.size ?: 0)
+            if (rows * 9 > definition.size && definition.type == "chest") problems += "pages.${if (pages.matrix != null) "matrix.cells" else "layout"} has $rows rows, more than the menu"
+            pages.matrix?.let { matrix ->
+                val used = matrix.cells.flatMap { it.toList() }.map { it.toString() }.toSet()
+                matrix.templates.keys.filter { it !in used }.forEach { problems += "matrix.templates has '$it', which stands in no cell of matrix.cells" }
+            }
+            val templates = pages.matrix?.templates?.map { [char, item] -> "matrix.templates.$char" to item }.orEmpty()
+            (listOfNotNull(pages.item?.let { "item" to it }) + templates + listOfNotNull(pages.empty?.let { "empty" to it })).forEach { [label, item] ->
+                if (label != "empty" && (item.claimed().isNotEmpty())) problems += "the slot of pages.$label is not used; its place comes from where the elements go"
                 plugin.items.validate(item).forEach { problems += "pages.$label: $it" }
                 acceptProblems(definition, item).forEach { problems += "pages.$label $it" }
             }
@@ -240,24 +252,112 @@ class MenuManager(private val plugin: XaliMenu) {
         }
         definition.animation?.frames?.forEachIndexed { number, frame ->
             for ([key, item] in frame.items) {
-                if (item.allSlots().isEmpty()) problems += "frame ${number + 1}: item '$key' has no slot, so it is never shown"
-                if (definition.type == "chest") item.allSlots().filter { it !in 0 until definition.size }.forEach { problems += "frame ${number + 1}: item '$key' is in slot $it, outside the menu" }
+                if (item.claimed().isEmpty()) problems += "frame ${number + 1}: item '$key' has no slot, so it is never shown"
+                if (definition.type == "chest") item.claimed().filter { it !in 0 until definition.size }.forEach { problems += "frame ${number + 1}: item '$key' is in slot $it, outside the menu" }
                 plugin.items.validate(item).forEach { problems += "frame ${number + 1}: item '$key': $it" }
                 acceptProblems(definition, item).forEach { problems += "frame ${number + 1}: item '$key' $it" }
             }
         }
-        val frames = definition.animation?.frames.orEmpty()
-        val animated = frames.flatMap { it.items.values }
-        val actions = definition.onOpen + definition.onClose + frames.flatMap { it.onStart + it.onEnd } + definition.animation?.onStart.orEmpty() + definition.animation?.onEnd.orEmpty() +
-            (definition.items.values + animated + listOfNotNull(definition.pages?.item, definition.pages?.empty)).flatMap { item ->
-            val clicks = item.click
-            listOfNotNull(clicks.any, clicks.left, clicks.right, clicks.shiftLeft, clicks.shiftRight, clicks.middle).flatMap { it.actions } +
-                item.accept?.let { it.then + it.reject }.orEmpty()
-        }
-        actions.filterIsInstance<Actions.Open>().filter { menu(it.menu) == null }.forEach {
+        bedrockProblems(entry).forEach { problems += it }
+        allActionsOf(definition).filterIsInstance<Actions.Open>().filter { menu(it.menu) == null }.forEach {
             problems += "opens the menu '${it.menu}', which doesn't exist"
         }
         return problems
+    }
+
+    /** Validates the `bedrock` section of [entry], if present. */
+    private fun bedrockProblems(entry: LoadedMenu): List<String> = buildList {
+        val cfg = entry.menu.bedrock ?: return@buildList
+        cfg.menu?.takeIf { it.isNotBlank() }?.let { target ->
+            if (target.equals(entry.name, ignoreCase = true)) add("bedrock.menu points to '${entry.name}' itself")
+            else if (menu(target) == null) add("bedrock.menu points to '$target', which doesn't exist")
+        }
+        if (cfg.mode == BedrockMenu.Mode.MODAL) {
+            if (cfg.confirm == null) add("bedrock.mode is MODAL, which needs a confirm button")
+            if (cfg.cancel == null) add("bedrock.mode is MODAL, which needs a cancel button")
+        }
+        if (cfg.mode == BedrockMenu.Mode.CUSTOM && cfg.fields.isEmpty()) {
+            add("bedrock.mode is CUSTOM, which has no fields")
+        }
+        val seenIds = HashSet<String>()
+        for (field in cfg.fields) {
+            val id = when (field) {
+                is BedrockField.Input -> field.id
+                is BedrockField.Toggle -> field.id
+                is BedrockField.Dropdown -> field.id
+                is BedrockField.Slider -> field.id
+                is BedrockField.StepSlider -> field.id
+                is BedrockField.Label -> null
+            }
+            if (id != null && !seenIds.add(id)) add("bedrock.fields has duplicate id '$id'")
+        }
+    }
+
+    /** Every action reachable in [definition], walking nested actions (`delay`, `chance`, `all`, `random`, `run-for`, `input`) and gates' `deny` lists. */
+    private fun allActionsOf(definition: Menu): List<Action> = buildList {
+        fun visit(action: Action) {
+            add(action)
+            when (action) {
+                is Actions.Delay -> visit(action.action)
+                is Actions.Chance -> visit(action.action)
+                is Flow.All -> action.actions.forEach(::visit)
+                is Flow.Pick -> action.actions.forEach(::visit)
+                is Flow.RunFor -> action.actions.forEach(::visit)
+                is Social.Input -> {
+                    action.then.forEach(::visit)
+                    action.onCancel.forEach(::visit)
+                }
+            }
+        }
+        fun visitGate(gate: Gate?) {
+            if (gate != null) {
+                gate.deny.forEach(::visit)
+                gate.require.forEach { it.deny.forEach(::visit) }
+            }
+        }
+        fun visitItem(item: Item) {
+            visitGate(item.view)
+            val clicks = item.click
+            listOfNotNull(clicks.any, clicks.left, clicks.right, clicks.shiftLeft, clicks.shiftRight, clicks.middle).forEach { handler ->
+                visitGate(handler.require)
+                handler.actions.forEach(::visit)
+            }
+            item.accept?.let { accept ->
+                accept.then.forEach(::visit)
+                accept.reject.forEach(::visit)
+            }
+        }
+        visitGate(definition.open)
+        definition.onOpen.forEach(::visit)
+        definition.onClose.forEach(::visit)
+        definition.openWith.forEach { visitGate(it.require) }
+        definition.items.values.forEach(::visitItem)
+        definition.pages?.let { pages ->
+            pages.item?.let(::visitItem)
+            pages.matrix?.templates?.values?.forEach(::visitItem)
+            pages.empty?.let(::visitItem)
+        }
+        definition.animation?.let { anim ->
+            anim.onStart.forEach(::visit)
+            anim.onEnd.forEach(::visit)
+            anim.frames.forEach { frame ->
+                visitGate(frame.require)
+                frame.onStart.forEach(::visit)
+                frame.onEnd.forEach(::visit)
+                frame.items.values.forEach(::visitItem)
+            }
+        }
+        definition.bedrock?.let { cfg ->
+            cfg.buttons.forEach { button ->
+                visitGate(button.view)
+                visitGate(button.require)
+                button.actions.forEach(::visit)
+            }
+            cfg.confirm?.let { c -> visitGate(c.require); c.actions.forEach(::visit) }
+            cfg.cancel?.let { c -> visitGate(c.require); c.actions.forEach(::visit) }
+            cfg.onSubmit.forEach(::visit)
+            cfg.onClose.forEach(::visit)
+        }
     }
 
     /** What is wrong with [item] taking items from the player, in [definition]: nothing when it takes none. */
@@ -322,7 +422,7 @@ class MenuManager(private val plugin: XaliMenu) {
         player.scheduler.run(plugin, { open(player, target, args) }, null)
     }
 
-    private fun open(player: Player, target: LoadedMenu, args: List<String>) {
+    private fun open(player: Player, target: LoadedMenu, args: List<String>, depth: Int = 0) {
         val menu = target.menu
         val named = MenuArgs.bind(menu.args, args)
         if (named == null) {
@@ -333,7 +433,34 @@ class MenuManager(private val plugin: XaliMenu) {
 
         if (!menu.open.passes(ctx, run = true)) return
 
-        val view = MenuView(plugin, target.name, menu, ctx, target.bySlot, target.inventoryBySlot)
+        val profile = Clients.profile(player)
+        when (val presentation = BedrockPlanner.plan(menu, profile, plugin.config.data.bedrock)) {
+            is Presentation.Redirect -> {
+                if (depth < 4) {
+                    val redirected = menu(presentation.menu)
+                    if (redirected != null) {
+                        open(player, redirected, args, depth + 1)
+                        return
+                    }
+                    plugin.logger.warning("Menu '${target.name}' redirects Bedrock players to '${presentation.menu}', which doesn't exist")
+                } else {
+                    plugin.logger.warning("Menu '${target.name}' exceeded the Bedrock redirect limit")
+                }
+            }
+            Presentation.SimpleForm, Presentation.ModalForm, Presentation.CustomForm -> {
+                if (plugin.bedrockForms.available) {
+                    val hadInventory = views.remove(player.uniqueId)
+                    hadInventory?.stopTasks()
+                    plugin.screens.end(player, resync = hadInventory != null)
+                    if (hadInventory != null) player.closeInventory()
+                    if (plugin.bedrockForms.open(player, target, ctx, presentation)) return
+                }
+            }
+            Presentation.Inventory -> Unit
+        }
+
+        plugin.bedrockForms.left(player)
+        val view = MenuView(plugin, target.name, menu, ctx, target.bySlot, target.inventoryBySlot, profile)
         val title = view.title()
         @Suppress("DEPRECATION") // the title is legacy text, the only kind that can be changed once the menu is open
         val inventory = if (menu.type == "chest") {
@@ -342,7 +469,8 @@ class MenuManager(private val plugin: XaliMenu) {
             Bukkit.createInventory(view, runCatching { InventoryType.valueOf(menu.type.uppercase()) }.getOrDefault(InventoryType.CHEST), title)
         }
         view.attach(inventory)
-        if (target.inventoryBySlot.isEmpty()) plugin.screens.end(player, resync = false)
+        val drawOverlay = target.inventoryBySlot.isNotEmpty() && BedrockPlanner.shouldDrawInventoryOverlay(menu, profile, plugin.config.data.bedrock)
+        if (!drawOverlay) plugin.screens.end(player, resync = false)
         else if (!plugin.screens.available) plugin.screens.unavailable(target.name)
         else plugin.screens.expect(player, inventory.size)
         view.draw()
@@ -372,6 +500,7 @@ class MenuManager(private val plugin: XaliMenu) {
     /** The player left; there is nobody to run the close actions for. */
     fun left(player: Player) {
         views.remove(player.uniqueId)?.stopTasks()
+        plugin.bedrockForms.left(player)
         plugin.screens.end(player, resync = false)
     }
 
@@ -383,6 +512,7 @@ class MenuManager(private val plugin: XaliMenu) {
             runCatching { view.player.closeInventory() }
             runCatching { plugin.screens.end(view.player) }
         }
+        plugin.bedrockForms.closeAll()
     }
 
     private fun ticks(duration: Duration): Long = (duration.inWholeMilliseconds / 50).coerceAtLeast(1)

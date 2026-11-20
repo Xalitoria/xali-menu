@@ -169,7 +169,7 @@ class ConfigChecker(
             error(join(path, "type"), typeValue, "'$type' is not ${if (base.first() in "aeiou") "an" else "a"} $base${if (type.contains(':')) " (is the plugin that adds it installed?)" else ""}${hint.ifEmpty { " (see the list in the README)" }}")
             return value.unwrapped()
         }
-        return structure(variant, value, path, skip = "type").let { LinkedHashMap<String, Any?>(it as Map<String, Any?>).also { out -> out["type"] = type } }
+        return structure(variant, value, path, skip = "type")?.also { out -> out["type"] = type }
     }
 
     private fun variantsOf(descriptor: SerialDescriptor): List<SerialDescriptor> = when (descriptor.kind) {
@@ -181,7 +181,7 @@ class ConfigChecker(
     private fun baseName(descriptor: SerialDescriptor): String =
         descriptor.serialName.substringAfter('<').substringBefore('>').substringAfterLast('.').lowercase()
 
-    private fun structure(descriptor: SerialDescriptor, value: ConfigValue, path: String, skip: String?): Any? {
+    private fun structure(descriptor: SerialDescriptor, value: ConfigValue, path: String, skip: String?): LinkedHashMap<String, Any?>? {
         if (value !is ConfigObject) {
             error(path, value, "should be an object with keys, not ${describe(value)}")
             return null

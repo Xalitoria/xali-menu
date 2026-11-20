@@ -266,7 +266,16 @@ Each step ends with tests, the README section, and a commit.
 
 ## Planned (asked for, not started)
 
-- **Bedrock through Geyser**: the web editor will need changes, and what a menu looks like may differ between mobile and PC.
+*(None currently queued.)*
+
+### 16. Bedrock & multi-device support (done; unit tested in Kotlin and JS; not yet tested live against Geyser/Floodgate)
+
+- **Detection & hooks** (`hook/BedrockHook.kt`, `bedrock/ClientProfile.kt`, `runtime/Clients.kt`): Floodgate (preferred) or Geyser-Spigot soft dependencies; detects `ClientEdition` (`JAVA`/`BEDROCK`), `DeviceOs`, `DeviceKind` (`PC`/`MOBILE`/`CONSOLE`/`VR`), `InputMode` (`KEYBOARD_MOUSE`/`TOUCH`/`CONTROLLER`/`VR`) and `UiProfile` (`JAVA`/`CLASSIC`/`POCKET`). Bedrock clients report `Clients.dialogs = false`.
+- **Per-menu & per-item model** (`api/.../model/Bedrock.kt`): `menu.bedrock` (`mode`: `AUTO`/`INVENTORY`/`SIMPLE`/`MODAL`/`CUSTOM`, device/input/UI filters, `menu` redirect, `title`, `content`, explicit `buttons`, `confirm`/`cancel` modal choices, sealed `BedrockField` custom form controls, `on-submit`/`on-close`, `skip-fillers`, `include-lore`, `action-picker`, `inventory-overlay`, pagination labels) and `item.bedrock` (`text`, `image`, `hidden`, click-choice labels).
+- **Runtime** (`bedrock/BedrockPlanner.kt`, `bedrock/BedrockForms.kt`): auto-converts chest and paged menus into `SimpleForm` (deduplicating multi-slot items, skipping fillers, adding prev/next page buttons, resolving Bedrock texture paths or configured icon URLs), opens action-picker forms for multi-click items on touch/controller, strips PUA font glyphs from Bedrock inventory titles when `bedrock.title` is absent, skips `inventory-slots` packet overlays on Pocket UI by default, and uses native `CustomForm` for `input` actions (`mode = AUTO` or `FORM`). Every Cumulus callback dispatches onto the player's Folia region thread.
+- **Conditions, placeholders & commands**: `client` condition, `%xalimenu_client_edition|device|os|input|ui%` placeholders, `/xmenu client [player]`, `/xmenu open <menu> [player] [args...]`, deeper recursive action validation in `MenuManager.problemsOf`, and zero compiler/shadow warnings.
+- **Web editor** (`editor/web/src/bedrock.js`, `bedrockPreview.js`, `editorTab.js`, `check.js`, `sentences.js`, `inline.js`): **View as** device switcher (`Java (PC)`, `Bedrock (PC)`, `Bedrock (Mobile)`, `Bedrock (Console)`), interactive `SimpleForm`/`ModalForm`/`CustomForm`/redirect previews, compatibility notes strip, `Bedrock` settings popover, and `bedrock.test.js`.
+- **Tests**: `paper/test/Bedrock.kt`, `editor/test/SchemaTest.kt`, `editor/web/test/bedrock.test.js`, `reference.test.js`, `sentences.test.js`. Not tested live against a running Geyser/Floodgate server yet.
 
 ### 11. Reusing items anywhere in the window (done, tested in a browser; not live on a server)
 

@@ -112,6 +112,16 @@ export function condition(c) {
     case 'and': return `All of ${count(c.conditions, 'condition')} hold`
     case 'at-least': return `At least ${c.count ?? '?'} of ${count(c.conditions, 'condition')} hold`
     case 'chance': return `By chance, ${c.percent ?? '?'}% of the time`
+    case 'client': {
+      const parts = [
+        has(c.edition) && lower(c.edition),
+        Array.isArray(c.devices) && c.devices.length && list(c.devices.map(lower)),
+        Array.isArray(c.os) && c.os.length && list(c.os.map(lower)),
+        Array.isArray(c.inputs) && c.inputs.length && list(c.inputs.map(lower)),
+        Array.isArray(c.ui) && c.ui.length && `${list(c.ui.map(lower))} UI`,
+      ].filter(Boolean)
+      return parts.length ? `The player's client is ${parts.join(', ')}` : 'The player matches a client filter'
+    }
     case 'compare': return `${c.left ?? '?'} ${OPS[c.op] ?? c.op ?? '?'} ${c.right ?? '?'}`
     case 'cooldown': return `The cooldown ${text(c.key)} is over`
     case 'experience': return `The player has ${between(c.min, c.max, ' experience points')}`

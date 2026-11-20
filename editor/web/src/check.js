@@ -5,6 +5,7 @@
 import { numberOf, flagOf } from './dynamic.js'
 import { closest, hint } from './suggest.js'
 import { normalize } from './normalize.js'
+import { matrixSlots } from './placement.js'
 
 const SIZES = { hopper: 5, dispenser: 9, dropper: 9, crafter: 9, shulker_box: 27 }
 
@@ -25,7 +26,9 @@ export function check(schema, menu, known = null) {
   walk.object(schema.root, menu, [])
   if (known) materials(menu, known, problems)
   // The rest looks at the menu as the editor holds it, with what is written the easy way written the one way.
-  slots(normalize(schema, menu), problems)
+  const normalized = normalize(schema, menu)
+  slots(normalized, problems)
+  bedrock(normalized, problems)
   return problems
 }
 
@@ -126,7 +129,7 @@ function isObject(value) { return typeof value === 'object' && value !== null &&
 function slots(menu, problems) {
   const count = slotCount(menu)
   for (const [name, item] of Object.entries(menu.items ?? {})) {
-    const claimed = [item.slot, ...(item.slots ?? [])].filter((n) => typeof n === 'number')
+    const claimed = [item.slot, ...(item.slots ?? []), ...(item.matrix ? matrixSlots(item.matrix) : [])].filter((n) => typeof n === 'number')
     // A negative slot is told by the limits the model gives; here is what the size of this menu adds.
     for (const slot of claimed) if (slot >= count) problems.push({ path: ['items', name, 'slot'], message: `slot ${slot} is outside the menu (0 to ${count - 1}); the slots after it are the player's inventory, which an item of the menu draws only with 'inventory-slots'` })
     const rows = (item['inventory-slots'] ?? []).filter((n) => typeof n === 'number')
@@ -138,6 +141,57 @@ function slots(menu, problems) {
   if (menu.type === undefined || menu.type === 'chest') {
     if (count % 9 !== 0 || count < 9 || count > 54) problems.push({ path: ['size'], message: `size ${count} is not 9, 18, … 54` })
   }
+}
+
+/** Bedrock form checks: modal buttons, custom form fields, unique ids and slider/dropdown bounds. */
+function bedrock(menu, problems) {
+  const cfg = menu.bedrock
+  if (!isObject(cfg)) return
+  const mode = String(cfg.mode ?? 'AUTO').toUpperCase()
+  if (mode === 'MODAL') {
+    if (!isObject(cfg.confirm)) problems.push({ path: ['bedrock', 'confirm'], message: 'MODAL mode needs a confirm button' })
+    if (!isObject(cfg.cancel)) problems.push({ path: ['bedrock', 'cancel'], message: 'MODAL mode needs a cancel button' })
+  }
+  const fields = Array.isArray(cfg.fields) ? cfg.fields : []
+  if (mode === 'CUSTOM' && fields.length === 0) {
+    problems.push({ path: ['bedrock', 'fields'], message: 'CUSTOM mode needs at least one field' })
+  }
+  const seen = new Set()
+  fields.forEach((field, index) => {
+    if (!isObject(field)) return
+    const type = String(field.type ?? '').toLowerCase()
+    const path = ['bedrock', 'fields', index]
+    if (type !== 'label' && typeof field.id === 'string') {
+      const id = field.id.trim()
+      if (!id) problems.push({ path: [...path, 'id'], message: 'id cannot be empty' })
+      else if (seen.has(id)) problems.push({ path: [...path, 'id'], message: `duplicate field id '${id}'` })
+      else seen.add(id)
+    }
+    if (type === 'dropdown') {
+      const options = Array.isArray(field.options) ? field.options : []
+      if (options.length === 0) problems.push({ path: [...path, 'options'], message: 'dropdown needs at least one option' })
+      else if (typeof field.default === 'number' && (field.default < 0 || field.default >= options.length)) {
+        problems.push({ path: [...path, 'default'], message: `default ${field.default} is outside 0..${options.length - 1}` })
+      }
+    }
+    if (type === 'step-slider') {
+      const steps = Array.isArray(field.steps) ? field.steps : []
+      if (steps.length === 0) problems.push({ path: [...path, 'steps'], message: 'step-slider needs at least one step' })
+      else if (typeof field.default === 'number' && (field.default < 0 || field.default >= steps.length)) {
+        problems.push({ path: [...path, 'default'], message: `default ${field.default} is outside 0..${steps.length - 1}` })
+      }
+    }
+    if (type === 'slider') {
+      const min = typeof field.min === 'number' ? field.min : 0
+      const max = typeof field.max === 'number' ? field.max : 100
+      const step = typeof field.step === 'number' ? field.step : 1
+      if (max <= min) problems.push({ path: [...path, 'max'], message: `max (${max}) must be greater than min (${min})` })
+      if (step <= 0) problems.push({ path: [...path, 'step'], message: `step (${step}) must be positive` })
+      if (typeof field.default === 'number' && (field.default < min || field.default > max)) {
+        problems.push({ path: [...path, 'default'], message: `default (${field.default}) must be between ${min} and ${max}` })
+      }
+    }
+  })
 }
 
 /**

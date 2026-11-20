@@ -1,6 +1,7 @@
 package mc.xalitoria.menu.paper.variable
 
 import mc.xalitoria.menu.paper.XaliMenu
+import mc.xalitoria.menu.paper.runtime.Clients
 import me.clip.placeholderapi.expansion.PlaceholderExpansion
 import net.xalitoria.menu.Scope
 import net.xalitoria.menu.Variable
@@ -35,7 +36,23 @@ class VariableExpansion(private val plugin: XaliMenu) : PlaceholderExpansion() {
     override fun persist() = true
 
     override fun onRequest(player: OfflinePlayer?, params: String): String? {
-        if (params in PAGE_VALUES) return (player as? Player)?.let { plugin.menus.view(it) }?.pageValues?.get(params)
+        if (params in PAGE_VALUES) {
+            val online = player as? Player ?: return null
+            return plugin.menus.view(online)?.pageValues?.get(params)
+                ?: plugin.bedrockForms.session(online)?.pageValues?.get(params)
+        }
+        if (params.startsWith("client_")) {
+            val online = player as? Player ?: return null
+            val profile = Clients.profile(online)
+            return when (params) {
+                "client_edition" -> profile.edition.name.lowercase()
+                "client_device" -> profile.device.name.lowercase()
+                "client_os" -> profile.os.name.lowercase()
+                "client_input" -> profile.input.name.lowercase()
+                "client_ui" -> profile.ui.name.lowercase()
+                else -> null
+            }
+        }
         val kind = params.substringBefore('_')
         val rest = params.substringAfter('_', "")
         if (rest.isEmpty()) return null

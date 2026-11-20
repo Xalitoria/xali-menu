@@ -496,8 +496,10 @@
             "kind": "enum",
             "values": [
               "AUTO",
+              "DIALOG",
               "ANVIL",
-              "CHAT"
+              "CHAT",
+              "FORM"
             ]
           },
           "required": false,
@@ -1876,6 +1878,607 @@
         }
       ]
     },
+    "BedrockButton": {
+      "doc": "One button of a Bedrock `SIMPLE` form.",
+      "fields": [
+        {
+          "key": "text",
+          "type": {
+            "kind": "string"
+          },
+          "required": true,
+          "doc": "Label shown on the button. Use `\\n` for a second line. Colors and placeholders are allowed."
+        },
+        {
+          "key": "image",
+          "type": {
+            "kind": "string"
+          },
+          "required": false,
+          "doc": "Optional button icon: an `https://` URL, a Bedrock texture path (`textures/items/diamond`), or a vanilla item key (`diamond`)."
+        },
+        {
+          "key": "view",
+          "type": {
+            "kind": "object",
+            "type": "Gate"
+          },
+          "required": false,
+          "doc": "Must hold for the button to appear in the form."
+        },
+        {
+          "key": "actions",
+          "type": {
+            "kind": "list",
+            "of": {
+              "kind": "poly",
+              "base": "Action"
+            }
+          },
+          "required": false,
+          "default": [],
+          "doc": "Actions run in order when the button is tapped."
+        },
+        {
+          "key": "require",
+          "type": {
+            "kind": "object",
+            "type": "Gate"
+          },
+          "required": false,
+          "doc": "Must hold for `actions` to run when tapped."
+        }
+      ]
+    },
+    "BedrockChoice": {
+      "doc": "One of the two buttons of a Bedrock `MODAL` form.",
+      "fields": [
+        {
+          "key": "text",
+          "type": {
+            "kind": "string"
+          },
+          "required": true,
+          "doc": "Label shown on the button. Colors and placeholders are allowed."
+        },
+        {
+          "key": "actions",
+          "type": {
+            "kind": "list",
+            "of": {
+              "kind": "poly",
+              "base": "Action"
+            }
+          },
+          "required": false,
+          "default": [],
+          "doc": "Actions run in order when this button is chosen."
+        },
+        {
+          "key": "require",
+          "type": {
+            "kind": "object",
+            "type": "Gate"
+          },
+          "required": false,
+          "doc": "Must hold for `actions` to run when chosen."
+        }
+      ]
+    },
+    "BedrockField:dropdown": {
+      "doc": "A dropdown list whose chosen option text is bound to `{id}` and 0-based index to `{id}_index`.",
+      "fields": [
+        {
+          "key": "id",
+          "type": {
+            "kind": "string"
+          },
+          "required": true,
+          "doc": "Variable name used in `{id}` and `{id}_index` within `on-submit` actions."
+        },
+        {
+          "key": "text",
+          "type": {
+            "kind": "string"
+          },
+          "required": true,
+          "doc": "Label shown above the dropdown."
+        },
+        {
+          "key": "options",
+          "type": {
+            "kind": "list",
+            "of": {
+              "kind": "string"
+            }
+          },
+          "required": true,
+          "doc": "Choices listed in order."
+        },
+        {
+          "key": "default",
+          "type": {
+            "kind": "int"
+          },
+          "required": false,
+          "default": 0,
+          "min": 0,
+          "doc": "0-based index of the initially selected option."
+        }
+      ]
+    },
+    "BedrockField:input": {
+      "doc": "A text box whose entered text is bound to `{id}` on submit.",
+      "fields": [
+        {
+          "key": "id",
+          "type": {
+            "kind": "string"
+          },
+          "required": true,
+          "doc": "Variable name used in `{id}` within `on-submit` actions."
+        },
+        {
+          "key": "text",
+          "type": {
+            "kind": "string"
+          },
+          "required": true,
+          "doc": "Label shown above the text box."
+        },
+        {
+          "key": "placeholder",
+          "type": {
+            "kind": "string"
+          },
+          "required": false,
+          "default": "",
+          "doc": "Hint text shown when the box is empty."
+        },
+        {
+          "key": "default",
+          "type": {
+            "kind": "string"
+          },
+          "required": false,
+          "default": "",
+          "doc": "Initial text placed in the box. Placeholders are allowed."
+        }
+      ]
+    },
+    "BedrockField:label": {
+      "doc": "Static text displayed inside the form. Produces no submitted value.",
+      "fields": [
+        {
+          "key": "text",
+          "type": {
+            "kind": "string"
+          },
+          "required": true,
+          "doc": "Text shown in the form. Colors and placeholders are allowed."
+        }
+      ]
+    },
+    "BedrockField:slider": {
+      "doc": "A numeric slider whose chosen value is bound to `{id}` on submit.",
+      "fields": [
+        {
+          "key": "id",
+          "type": {
+            "kind": "string"
+          },
+          "required": true,
+          "doc": "Variable name used in `{id}` within `on-submit` actions."
+        },
+        {
+          "key": "text",
+          "type": {
+            "kind": "string"
+          },
+          "required": true,
+          "doc": "Label shown above the slider."
+        },
+        {
+          "key": "min",
+          "type": {
+            "kind": "number"
+          },
+          "required": false,
+          "doc": "Lowest selectable value."
+        },
+        {
+          "key": "max",
+          "type": {
+            "kind": "number"
+          },
+          "required": false,
+          "doc": "Highest selectable value."
+        },
+        {
+          "key": "step",
+          "type": {
+            "kind": "number"
+          },
+          "required": false,
+          "doc": "Increment between values on the slider."
+        },
+        {
+          "key": "default",
+          "type": {
+            "kind": "number"
+          },
+          "required": false,
+          "doc": "Starting value; defaults to `min`."
+        }
+      ]
+    },
+    "BedrockField:step-slider": {
+      "doc": "A stepped slider over named `steps`, binding the chosen label to `{id}` and its 0-based index to `{id}_index`.",
+      "fields": [
+        {
+          "key": "id",
+          "type": {
+            "kind": "string"
+          },
+          "required": true,
+          "doc": "Variable name used in `{id}` and `{id}_index` within `on-submit` actions."
+        },
+        {
+          "key": "text",
+          "type": {
+            "kind": "string"
+          },
+          "required": true,
+          "doc": "Label shown above the step slider."
+        },
+        {
+          "key": "steps",
+          "type": {
+            "kind": "list",
+            "of": {
+              "kind": "string"
+            }
+          },
+          "required": true,
+          "doc": "Ordered labels of each stop along the slider."
+        },
+        {
+          "key": "default",
+          "type": {
+            "kind": "int"
+          },
+          "required": false,
+          "default": 0,
+          "min": 0,
+          "doc": "0-based index of the starting stop."
+        }
+      ]
+    },
+    "BedrockField:toggle": {
+      "doc": "An on/off switch whose value (`true` or `false`) is bound to `{id}` on submit.",
+      "fields": [
+        {
+          "key": "id",
+          "type": {
+            "kind": "string"
+          },
+          "required": true,
+          "doc": "Variable name used in `{id}` within `on-submit` actions."
+        },
+        {
+          "key": "text",
+          "type": {
+            "kind": "string"
+          },
+          "required": true,
+          "doc": "Label shown beside the switch."
+        },
+        {
+          "key": "default",
+          "type": {
+            "kind": "boolean"
+          },
+          "required": false,
+          "default": false,
+          "doc": "Initial state of the switch."
+        }
+      ]
+    },
+    "BedrockItem": {
+      "doc": "Per-item presentation and interaction overrides for Bedrock Edition players.\n\nUsed when an inventory menu is converted to a Bedrock `SIMPLE` form or when a Bedrock player activates a multi-click item and sees the action picker form.",
+      "fields": [
+        {
+          "key": "text",
+          "type": {
+            "kind": "string"
+          },
+          "required": false,
+          "doc": "Button label in an auto-converted Bedrock form. Defaults to the item's `name` (and first lore line when `include-lore` is on)."
+        },
+        {
+          "key": "image",
+          "type": {
+            "kind": "string"
+          },
+          "required": false,
+          "doc": "Button icon in an auto-converted Bedrock form: an `https://` URL, a Bedrock texture path (`textures/items/diamond`), or a vanilla item key."
+        },
+        {
+          "key": "hidden",
+          "type": {
+            "kind": "boolean"
+          },
+          "required": false,
+          "default": false,
+          "doc": "Hide this item from auto-converted Bedrock forms."
+        },
+        {
+          "key": "left-label",
+          "type": {
+            "kind": "string"
+          },
+          "required": false,
+          "doc": "Button label for `click.left` in the Bedrock action picker."
+        },
+        {
+          "key": "right-label",
+          "type": {
+            "kind": "string"
+          },
+          "required": false,
+          "doc": "Button label for `click.right` in the Bedrock action picker."
+        },
+        {
+          "key": "shift-left-label",
+          "type": {
+            "kind": "string"
+          },
+          "required": false,
+          "doc": "Button label for `click.shift-left` in the Bedrock action picker."
+        },
+        {
+          "key": "shift-right-label",
+          "type": {
+            "kind": "string"
+          },
+          "required": false,
+          "doc": "Button label for `click.shift-right` in the Bedrock action picker."
+        },
+        {
+          "key": "middle-label",
+          "type": {
+            "kind": "string"
+          },
+          "required": false,
+          "doc": "Button label for `click.middle` in the Bedrock action picker."
+        }
+      ]
+    },
+    "BedrockMenu": {
+      "doc": "How a menu behaves for Bedrock Edition players (connected through Floodgate or Geyser).\n\nA menu can render as a native Bedrock form (`SIMPLE`, `MODAL` or `CUSTOM`), redirect to another menu (`menu`), or stay an inventory window (`INVENTORY`) with Bedrock-safe title handling and click adaptation. Filters (`devices`, `inputs`, `ui`) restrict form or redirect behavior to matching Bedrock devices (for example, showing a `SIMPLE` form to touch and controller players while Bedrock PC players keep the chest inventory).",
+      "fields": [
+        {
+          "key": "mode",
+          "type": {
+            "kind": "enum",
+            "values": [
+              "AUTO",
+              "INVENTORY",
+              "SIMPLE",
+              "MODAL",
+              "CUSTOM"
+            ]
+          },
+          "required": false,
+          "default": "AUTO",
+          "doc": "How this menu opens for matching Bedrock players. `AUTO` picks `CUSTOM` when `fields` are set, `MODAL` when `confirm` is set, `SIMPLE` when `buttons` are set, or follows `bedrock.default-mode` in `config.yml`."
+        },
+        {
+          "key": "devices",
+          "type": {
+            "kind": "list",
+            "of": {
+              "kind": "enum",
+              "values": [
+                "PC",
+                "MOBILE",
+                "CONSOLE",
+                "VR",
+                "UNKNOWN"
+              ]
+            }
+          },
+          "required": false,
+          "default": [],
+          "doc": "Bedrock device categories this configuration applies to; empty means every Bedrock device."
+        },
+        {
+          "key": "inputs",
+          "type": {
+            "kind": "list",
+            "of": {
+              "kind": "enum",
+              "values": [
+                "KEYBOARD_MOUSE",
+                "TOUCH",
+                "CONTROLLER",
+                "VR",
+                "UNKNOWN"
+              ]
+            }
+          },
+          "required": false,
+          "default": [],
+          "doc": "Bedrock input modes this configuration applies to; empty means any input mode."
+        },
+        {
+          "key": "ui",
+          "type": {
+            "kind": "list",
+            "of": {
+              "kind": "enum",
+              "values": [
+                "JAVA",
+                "CLASSIC",
+                "POCKET"
+              ]
+            }
+          },
+          "required": false,
+          "default": [],
+          "doc": "Bedrock UI profiles this configuration applies to; empty means any UI profile."
+        },
+        {
+          "key": "menu",
+          "type": {
+            "kind": "string"
+          },
+          "required": false,
+          "doc": "Another menu to open instead for matching Bedrock players, such as a mobile-tailored layout."
+        },
+        {
+          "key": "title",
+          "type": {
+            "kind": "string"
+          },
+          "required": false,
+          "doc": "Title shown to Bedrock players instead of the menu's Java title, avoiding resource-pack font glyphs."
+        },
+        {
+          "key": "content",
+          "type": {
+            "kind": "string"
+          },
+          "required": false,
+          "default": "",
+          "doc": "Body text shown above the buttons of a `SIMPLE` or `MODAL` form. Colors, placeholders and `\\n` line breaks are allowed."
+        },
+        {
+          "key": "buttons",
+          "type": {
+            "kind": "list",
+            "of": {
+              "kind": "object",
+              "type": "BedrockButton"
+            }
+          },
+          "required": false,
+          "default": [],
+          "doc": "Explicit buttons of a `SIMPLE` form. When empty, visible items (and paged elements) of the menu become buttons automatically."
+        },
+        {
+          "key": "confirm",
+          "type": {
+            "kind": "object",
+            "type": "BedrockChoice"
+          },
+          "required": false,
+          "doc": "First button of a `MODAL` form."
+        },
+        {
+          "key": "cancel",
+          "type": {
+            "kind": "object",
+            "type": "BedrockChoice"
+          },
+          "required": false,
+          "doc": "Second button of a `MODAL` form."
+        },
+        {
+          "key": "fields",
+          "type": {
+            "kind": "list",
+            "of": {
+              "kind": "poly",
+              "base": "BedrockField"
+            }
+          },
+          "required": false,
+          "default": [],
+          "doc": "Interactive controls and labels of a `CUSTOM` form."
+        },
+        {
+          "key": "on-submit",
+          "type": {
+            "kind": "list",
+            "of": {
+              "kind": "poly",
+              "base": "Action"
+            }
+          },
+          "required": false,
+          "default": [],
+          "doc": "Actions run when a `CUSTOM` form is submitted. Each field's answer is in scope as `{id}`."
+        },
+        {
+          "key": "on-close",
+          "type": {
+            "kind": "list",
+            "of": {
+              "kind": "poly",
+              "base": "Action"
+            }
+          },
+          "required": false,
+          "default": [],
+          "doc": "Actions run when a Bedrock form is closed without tapping a button or submitting."
+        },
+        {
+          "key": "skip-fillers",
+          "type": {
+            "kind": "boolean"
+          },
+          "required": false,
+          "default": true,
+          "doc": "Skip decorative items that have no click actions when converting an inventory menu into a `SIMPLE` form."
+        },
+        {
+          "key": "include-lore",
+          "type": {
+            "kind": "boolean"
+          },
+          "required": false,
+          "default": true,
+          "doc": "Include the first non-blank lore line under the item name on auto-converted `SIMPLE` form buttons."
+        },
+        {
+          "key": "action-picker",
+          "type": {
+            "kind": "boolean"
+          },
+          "required": false,
+          "default": true,
+          "doc": "Open a follow-up choice form when a Bedrock player activates an item with multiple click handlers (such as left and right click)."
+        },
+        {
+          "key": "inventory-overlay",
+          "type": {
+            "kind": "boolean"
+          },
+          "required": false,
+          "default": false,
+          "doc": "Whether `inventory-slots` packet overlays are drawn for Bedrock Pocket UI players."
+        },
+        {
+          "key": "prev-button",
+          "type": {
+            "kind": "string"
+          },
+          "required": false,
+          "default": "&e« Previous ({page_prev}/{pages})",
+          "doc": "Label for the previous-page button on an auto-converted paged `SIMPLE` form."
+        },
+        {
+          "key": "next-button",
+          "type": {
+            "kind": "string"
+          },
+          "required": false,
+          "default": "&eNext ({page_next}/{pages}) »",
+          "doc": "Label for the next-page button on an auto-converted paged `SIMPLE` form."
+        }
+      ]
+    },
     "BlockAt": {
       "doc": "One block, by `world` (any world when absent) and coordinates.",
       "fields": [
@@ -2217,6 +2820,103 @@
           "required": true,
           "min": 0,
           "max": 100
+        }
+      ]
+    },
+    "Condition:client": {
+      "doc": "Holds when the viewer's client matches every given filter: `edition` (`JAVA` or `BEDROCK`), `devices` (`PC`, `MOBILE`, `CONSOLE`, `VR`), `os` (`ANDROID`, `IOS`, `WINDOWS`, `XBOX`, ...), `inputs` (`KEYBOARD_MOUSE`, `TOUCH`, `CONTROLLER`, `VR`) and `ui` (`JAVA`, `CLASSIC`, `POCKET`).",
+      "fields": [
+        {
+          "key": "edition",
+          "type": {
+            "kind": "enum",
+            "values": [
+              "JAVA",
+              "BEDROCK"
+            ]
+          },
+          "required": false
+        },
+        {
+          "key": "devices",
+          "type": {
+            "kind": "list",
+            "of": {
+              "kind": "enum",
+              "values": [
+                "PC",
+                "MOBILE",
+                "CONSOLE",
+                "VR",
+                "UNKNOWN"
+              ]
+            }
+          },
+          "required": false,
+          "default": []
+        },
+        {
+          "key": "os",
+          "type": {
+            "kind": "list",
+            "of": {
+              "kind": "enum",
+              "values": [
+                "JAVA",
+                "ANDROID",
+                "IOS",
+                "OSX",
+                "LINUX",
+                "AMAZON",
+                "GEAR_VR",
+                "HOLOLENS",
+                "WINDOWS",
+                "WINDOWS_PHONE",
+                "DEDICATED",
+                "TVOS",
+                "PLAYSTATION",
+                "SWITCH",
+                "XBOX",
+                "UNKNOWN"
+              ]
+            }
+          },
+          "required": false,
+          "default": []
+        },
+        {
+          "key": "inputs",
+          "type": {
+            "kind": "list",
+            "of": {
+              "kind": "enum",
+              "values": [
+                "KEYBOARD_MOUSE",
+                "TOUCH",
+                "CONTROLLER",
+                "VR",
+                "UNKNOWN"
+              ]
+            }
+          },
+          "required": false,
+          "default": []
+        },
+        {
+          "key": "ui",
+          "type": {
+            "kind": "list",
+            "of": {
+              "kind": "enum",
+              "values": [
+                "JAVA",
+                "CLASSIC",
+                "POCKET"
+              ]
+            }
+          },
+          "required": false,
+          "default": []
         }
       ]
     },
@@ -3498,6 +4198,55 @@
           },
           "required": false,
           "doc": "Makes the slot take an item from the player: clicking it with the item on the cursor, or shift-clicking the item in the player's inventory. With `material = air` the slot shows nothing. It doesn't work in a menu that draws in the player's inventory."
+        },
+        {
+          "key": "bedrock",
+          "type": {
+            "kind": "object",
+            "type": "BedrockItem"
+          },
+          "required": false,
+          "doc": "Optional display and click-label overrides for Bedrock Edition players."
+        },
+        {
+          "key": "matrix",
+          "type": {
+            "kind": "list",
+            "of": {
+              "kind": "string"
+            }
+          },
+          "required": false,
+          "default": [],
+          "doc": "Slots of the menu drawn as a picture, in addition to `slot` and `slots`: rows of at most nine characters, read left to right and top to bottom, where every character but `-` and a space is a slot of this item. `[\"---------\", \"-xxxxxxx-\"]` is slots 10 to 16. It is the AbstractMenus way to write a slot as a matrix."
+        }
+      ]
+    },
+    "Matrix": {
+      "doc": "A drawing of a menu's slots as rows of characters, with the item each character stands for written next to it, as in AbstractMenus' `matrix { cells, templates }`. It is used by `Pages.matrix`, where the elements of a catalog fill the cells.\n\n`cells` are rows of at most nine characters, read left to right and top to bottom, so the nth character of a row is the nth column of the window. `templates` name the characters that stand for something: a key is one character, and its value is the item drawn in every cell where that character stands. A character with no template is a blank, and a row of fewer characters ends in blanks. A character that HOCON reads as something else needs quotes (`\"#\"`).```hocon cells = [\"#########\", \"#xxxxxxx#\", \"#xxxxxxx#\", \"####c####\"] templates { x { material = \"head:{name}\", name = \"&e{name}\" } c { material = \"barrier\", name = \"&cClose\" } }```",
+      "fields": [
+        {
+          "key": "cells",
+          "type": {
+            "kind": "list",
+            "of": {
+              "kind": "string"
+            }
+          },
+          "required": true,
+          "doc": "The rows of the drawing, at most nine characters each."
+        },
+        {
+          "key": "templates",
+          "type": {
+            "kind": "map",
+            "of": {
+              "kind": "object",
+              "type": "Item"
+            }
+          },
+          "required": true,
+          "doc": "The item of each character that stands for something, by that character."
         }
       ]
     },
@@ -3698,11 +4447,20 @@
           },
           "required": false,
           "doc": "Makes the menu list the elements of a catalog, a page at a time."
+        },
+        {
+          "key": "bedrock",
+          "type": {
+            "kind": "object",
+            "type": "BedrockMenu"
+          },
+          "required": false,
+          "doc": "How this menu is displayed and interacted with by Bedrock Edition players (through Floodgate or Geyser)."
         }
       ]
     },
     "Pages": {
-      "doc": "What makes a menu paged: the elements of `catalog` are drawn one page at a time into `slots`, each as `item`.\n\nThe elements are sorted (see `sort`), then the ones for which the `item`'s `view` gate does not hold are left out, and only then split into pages, so every page but the last is full. The gate and everything the item shows can use the element's values as `{name}`. The item's own `slot` and `slots` are not used; the nth element of the page goes into the nth of `slots`, or of the cells of `layout`. An item of the menu in one of the slots is drawn when the page has no element for it.\n\nA `layout` is rows of nine characters, the way the menu looks (`#########`, `#xxxxxxx#`): every `cell` character is a slot for an element, read left to right and top to bottom, and the other characters are only there to draw by. A row of fewer characters is taken as ending in blanks. Give `slots` or `layout`, not both.",
+      "doc": "What makes a menu paged: the elements of `catalog` are drawn one page at a time into the slots of the menu.\n\nThe elements are sorted (see `sort`), then the ones for which the `item`'s `view` gate does not hold are left out, and only then split into pages, so every page but the last is full. The gate and everything the item shows can use the element's values as `{name}`. The item's own `slot` and `slots` are not used; the nth element of the page goes into the nth of the slots. An item of the menu in one of the slots is drawn when the page has no element for it.\n\nThe slots come from one of three places, and only one may be given:\n\n- `slots`, a list of slot numbers, drawn with `item`; - a `layout`, rows of nine characters, the way the menu looks (`#########`, `#xxxxxxx#`): every `cell` character is a slot for an element, read left to right and top to bottom, and the other characters are only there to draw by. A row of fewer characters is taken as ending in blanks. It is drawn with `item`; - a `matrix`, which names an item for each of several characters, so the cells of one drawing can show different things. The elements still fill the cells in order, and each is drawn as the template of the cell it falls in. `item` is not used.\n\nWith a `matrix` there is no single gate to leave elements out by before they are split into pages. The `view` of a template is asked after the element has its cell, and an element whose template does not show leaves its cell to what the menu has there.",
       "fields": [
         {
           "key": "catalog",
@@ -3731,8 +4489,8 @@
             "kind": "object",
             "type": "Item"
           },
-          "required": true,
-          "doc": "The item drawn for each element."
+          "required": false,
+          "doc": "The item drawn for each element when the slots come from `slots` or `layout`."
         },
         {
           "key": "layout",
@@ -3779,7 +4537,16 @@
             "type": "Item"
           },
           "required": false,
-          "doc": "Drawn in the first of the `slots` when the catalog has no element to list."
+          "doc": "Drawn in the first of the slots when the catalog has no element to list."
+        },
+        {
+          "key": "matrix",
+          "type": {
+            "kind": "object",
+            "type": "Matrix"
+          },
+          "required": false,
+          "doc": "Rows of characters and the item of each, instead of `slots` or `layout` with one `item`."
         }
       ]
     },
@@ -3991,6 +4758,14 @@
       "region-leave": "Activator:region-leave",
       "swap-hands": "Activator:swap-hands"
     },
+    "BedrockField": {
+      "dropdown": "BedrockField:dropdown",
+      "input": "BedrockField:input",
+      "label": "BedrockField:label",
+      "slider": "BedrockField:slider",
+      "step-slider": "BedrockField:step-slider",
+      "toggle": "BedrockField:toggle"
+    },
     "Catalog": {
       "inventory": "Catalog:inventory",
       "menus": "Catalog:menus",
@@ -4003,6 +4778,7 @@
       "and": "Condition:and",
       "at-least": "Condition:at-least",
       "chance": "Condition:chance",
+      "client": "Condition:client",
       "compare": "Condition:compare",
       "cooldown": "Condition:cooldown",
       "experience": "Condition:experience",

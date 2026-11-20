@@ -267,3 +267,43 @@ input.power { width: 72px; }
 .palette-tools { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; } .palette-entry { display: inline-flex; gap: 4px; align-items: center; padding: 2px 4px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); }
 .palette-tool { display: inline-flex; gap: 4px; align-items: center; padding: 2px 6px; } .palette-tool.on { border-color: var(--accent); background: var(--raised); } .palette-tool b { font-family: ui-monospace, monospace; }
 .palette-add { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin-top: 6px; } input.layout-char { width: 3ch; text-align: center; font-family: ui-monospace, monospace; }
+
+/* Bedrock preview inside the stage */
+.stage.bedrock-stage { overflow: auto; cursor: default; touch-action: auto; display: flex; flex-direction: column; align-items: center; padding: 14px; gap: 12px; }
+.bedrock-banner { position: relative; z-index: 6; width: min(560px, calc(100% - 24px)); margin: 10px auto 0; padding: 8px 12px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 6px 18px #0006; display: grid; gap: 6px; }
+.stage.bedrock-stage .bedrock-banner { margin-top: 0; }
+.bedrock-banner-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.bedrock-pill { font-size: 12px; font-weight: 600; color: var(--accent); }
+.bedrock-notes { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; font-size: 12px; }
+.bedrock-notes li { padding: 4px 8px; border-radius: 4px; background: var(--raised); color: var(--muted); border-left: 3px solid var(--accent); }
+.bedrock-notes li.warn { border-left-color: #d9b44a; color: #f0d788; }
+.bedrock-canvas { width: 100%; display: flex; justify-content: center; padding: 4px 0 48px; }
+.bedrock-frame { background: #c6c6c6; color: #1f1f1f; border: 3px solid #fff; border-right-color: #555; border-bottom-color: #555; border-radius: 4px; box-shadow: 0 12px 32px #000a; overflow: hidden; }
+.bedrock-frame.mobile { width: min(360px, 100%); }
+.bedrock-frame.wide { width: min(460px, 100%); }
+.bedrock-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 12px; background: #d6d6d6; border-bottom: 2px solid #8a8a8a; font-weight: 700; }
+.bedrock-title { font-size: 15px; overflow-wrap: anywhere; }
+.bedrock-x { font-weight: 700; color: #444; font-size: 18px; line-height: 1; }
+.bedrock-body { padding: 12px; background: #48494a; color: #f2f2f2; display: grid; gap: 10px; }
+.bedrock-body.redirect { color: #f2f2f2; }
+.bedrock-content { font-size: 13px; line-height: 1.4; padding: 6px 8px; background: #313233; border: 1px solid #222; border-radius: 3px; }
+.bedrock-buttons { display: grid; gap: 6px; max-height: 440px; overflow: auto; }
+.bedrock-btn { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; padding: 8px 10px; min-height: 44px; background: #d0d1d4; color: #1e1e1f; border: 2px solid #fff; border-right-color: #58585a; border-bottom-color: #58585a; border-radius: 2px; font-weight: 600; }
+.bedrock-btn:hover { background: #4c9a3c; color: #fff; border-color: #82d96c; border-right-color: #2c5e22; border-bottom-color: #2c5e22; }
+.bedrock-btn.active { outline: 2px solid var(--accent); outline-offset: 1px; }
+.bedrock-btn.submit { justify-content: center; margin-top: 4px; }
+.bedrock-btn-icon { width: 32px; height: 32px; flex: none; display: grid; place-items: center; background: #0002; border-radius: 2px; overflow: hidden; }
+.bedrock-img { width: 32px; height: 32px; object-fit: contain; image-rendering: pixelated; }
+.bedrock-btn-text { display: grid; flex: 1; min-width: 0; gap: 2px; }
+.bedrock-btn-main { overflow-wrap: anywhere; }
+.bedrock-btn-sub { font-size: 12px; font-weight: 400; opacity: .85; overflow-wrap: anywhere; }
+.bedrock-badge { font-size: 11px; padding: 2px 6px; border-radius: 10px; background: #1d2027; color: var(--accent); border: 1px solid var(--accent); white-space: nowrap; }
+.bedrock-modal-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.bedrock-modal-actions .bedrock-btn { justify-content: center; }
+.bedrock-fields { display: grid; gap: 10px; }
+.bedrock-field { display: grid; gap: 4px; }
+.bedrock-field.toggle { grid-template-columns: 1fr auto; align-items: center; }
+.bedrock-field.label { font-size: 13px; padding: 2px 0; }
+.bedrock-field-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 13px; }
+.bedrock-field input[type=text], .bedrock-field select { background: #313233; color: #fff; border: 1px solid #1e1e1f; border-radius: 2px; }
+.bedrock-var { font-size: 11px; color: var(--accent); background: #1d2027; padding: 1px 5px; border-radius: 4px; margin-left: auto; }

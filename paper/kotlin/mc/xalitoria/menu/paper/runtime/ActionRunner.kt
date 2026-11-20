@@ -36,15 +36,18 @@ class ActionRunner(private val plugin: XaliMenu) : Host {
     }
 
     override fun close(player: Player) {
-        player.scheduler.run(plugin, { player.closeInventory() }, null)
+        player.scheduler.run(plugin, {
+            plugin.bedrockForms.close(player)
+            player.closeInventory()
+        }, null)
     }
 
     override fun refresh(player: Player) {
-        plugin.menus.view(player)?.draw(force = true)
+        plugin.menus.view(player)?.draw(force = true) ?: plugin.bedrockForms.refresh(player)
     }
 
     override fun page(player: Player, relative: Boolean, value: Int) {
-        plugin.menus.view(player)?.turn(relative, value)
+        plugin.menus.view(player)?.turn(relative, value) ?: plugin.bedrockForms.turn(player, relative, value)
     }
 }
 

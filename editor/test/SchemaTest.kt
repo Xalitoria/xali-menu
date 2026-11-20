@@ -162,8 +162,9 @@ class SchemaTest {
 
     @Test
     fun theSchemaHasTheBasesAndTheirVariants() {
-        assertEquals(setOf("Action", "Activator", "Catalog", "Condition"), schema.poly.keys)
-        assertTrue("close" in schema.poly.getValue("Action") && "permission" in schema.poly.getValue("Condition"))
+        assertEquals(setOf("Action", "Activator", "BedrockField", "Catalog", "Condition"), schema.poly.keys)
+        assertTrue("close" in schema.poly.getValue("Action") && "permission" in schema.poly.getValue("Condition") && "client" in schema.poly.getValue("Condition"))
+        assertEquals(setOf("dropdown", "input", "label", "slider", "step-slider", "toggle"), schema.poly.getValue("BedrockField").keys)
         // Every variant a base names is a type of the schema.
         for ([base, variants] in schema.poly) for (type in variants.values) assertTrue(type in schema.types, "$base: $type")
     }

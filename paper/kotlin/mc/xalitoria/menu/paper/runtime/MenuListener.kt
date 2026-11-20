@@ -1,6 +1,7 @@
 package mc.xalitoria.menu.paper.runtime
 
 import mc.xalitoria.menu.paper.XaliMenu
+import mc.xalitoria.menu.paper.bedrock.BedrockPlanner
 import net.xalitoria.menu.model.Handler
 import net.xalitoria.menu.model.Item
 import org.bukkit.entity.Player
@@ -54,8 +55,31 @@ class MenuListener(private val plugin: XaliMenu) : Listener {
         }
 
         val item = (if (top) view.itemAt(event.slot) else view.inventoryItemAt(event.slot)) ?: return
-        val handler = handler(item, event.click) ?: return
         val ctx = if (top) view.contextAt(event.slot) else view.ctx
+        val bedrockCfg = plugin.config.data.bedrock
+        val actionPicker = view.menu.bedrock?.actionPicker ?: true
+        val choices = if (view.profile.isBedrock && bedrockCfg.clickFallback) BedrockPlanner.choicesFor(item) else emptyList()
+
+        // Touch, controller and Pocket UI players cannot right-click or shift-click easily; offer a choice form when an item has multiple click handlers.
+        if (view.profile.prefersForm && bedrockCfg.clickFallback && actionPicker && choices.size > 1 && plugin.bedrockForms.available) {
+            player.scheduler.run(plugin, {
+                player.closeInventory()
+                plugin.bedrockForms.showActionPicker(player, item, ctx, choices)
+            }, null)
+            return
+        }
+
+        val handler = handler(item, event.click) ?: run {
+            if (!view.profile.isBedrock || !bedrockCfg.clickFallback || choices.isEmpty()) return
+            if (choices.size > 1 && actionPicker && plugin.bedrockForms.available) {
+                player.scheduler.run(plugin, {
+                    player.closeInventory()
+                    plugin.bedrockForms.showActionPicker(player, item, ctx, choices)
+                }, null)
+                return
+            }
+            choices.first().handler
+        }
         if (!handler.require.passes(ctx, run = true)) return
         plugin.actions.run(handler.actions, ctx)
     }

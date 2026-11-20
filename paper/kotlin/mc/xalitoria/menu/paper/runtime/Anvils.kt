@@ -37,7 +37,7 @@ class Anvils(private val plugin: XaliMenu) : Listener {
     /** Opens the anvil of [prompt] for its viewer. */
     fun show(prompt: Prompt) {
         val player = prompt.ctx.player
-        val view = MenuType.ANVIL.builder().title(prompt.ctx.component(prompt.title)).build(player) ?: return
+        val view = MenuType.ANVIL.builder().title(prompt.ctx.component(prompt.title)).build(player)
         open[player.uniqueId] = Open(view, prompt)
         view.setItem(INPUT, named(prompt.ctx.parse(prompt.initial).take(prompt.maxLength)))
         view.maximumRepairCost = 0
@@ -66,7 +66,7 @@ class Anvils(private val plugin: XaliMenu) : Listener {
     }
 
     private fun marked(stack: ItemStack?): Boolean =
-        stack != null && stack.type == Material.PAPER && stack.hasItemMeta() && stack.itemMeta.persistentDataContainer?.has(MARK, PersistentDataType.BYTE) == true
+        stack != null && stack.type == Material.PAPER && stack.hasItemMeta() && stack.itemMeta.persistentDataContainer.has(MARK, PersistentDataType.BYTE)
 
     /**
      * Takes the papers of an anvil out of [player]'s hands: their inventory, cursor and ender chest. One gets there when a

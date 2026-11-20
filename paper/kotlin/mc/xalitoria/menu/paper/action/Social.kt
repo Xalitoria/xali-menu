@@ -54,8 +54,11 @@ object Social {
         val match: String? = null,
         val invalid: String? = null,
     ) : Action {
-        /** `AUTO` is a dialog, or an anvil for a client that has none; the others stay where they say. */
-        enum class Mode { AUTO, ANVIL, CHAT }
+        /**
+         * `AUTO` uses a Bedrock form for Bedrock clients, a dialog for Java 1.21.6+, and an anvil for older Java
+         * clients; `DIALOG`, `ANVIL`, `CHAT` and `FORM` ask for that channel directly.
+         */
+        enum class Mode { AUTO, DIALOG, ANVIL, CHAT, FORM }
 
         init {
             require(then.isNotEmpty()) { "input needs actions to run with the reply" }
@@ -67,10 +70,17 @@ object Social {
 
         override fun run(ctx: MenuContext) {
             val plugin = XaliMenu.INSTANCE
-            val channel = when {
-                mode == Mode.CHAT -> Prompt.Channel.CHAT
-                mode == Mode.ANVIL || !Clients.dialogs(ctx.player) -> Prompt.Channel.ANVIL
-                else -> Prompt.Channel.DIALOG
+            val canForm = Clients.isBedrock(ctx.player) && plugin.bedrockForms.available
+            val channel = when (mode) {
+                Mode.CHAT -> Prompt.Channel.CHAT
+                Mode.ANVIL -> Prompt.Channel.ANVIL
+                Mode.DIALOG -> if (Clients.dialogs(ctx.player)) Prompt.Channel.DIALOG else Prompt.Channel.ANVIL
+                Mode.FORM -> if (canForm) Prompt.Channel.FORM else if (Clients.dialogs(ctx.player)) Prompt.Channel.DIALOG else Prompt.Channel.ANVIL
+                Mode.AUTO -> when {
+                    canForm && plugin.config.data.bedrock.inputForms -> Prompt.Channel.FORM
+                    Clients.dialogs(ctx.player) -> Prompt.Channel.DIALOG
+                    else -> Prompt.Channel.ANVIL
+                }
             }
             val asked = Prompt(
                 ctx as Context, then, onCancel, cancel, match?.let(::Regex), invalid,
@@ -83,6 +93,14 @@ object Social {
                 Prompt.Channel.CHAT -> ctx.player.sendMessage(ctx.component(prompt))
                 Prompt.Channel.DIALOG -> ctx.runLater(1) { if (plugin.inputs.waiting(asked)) plugin.dialogs.show(asked) }
                 Prompt.Channel.ANVIL -> ctx.runLater(1) { if (plugin.inputs.waiting(asked)) plugin.anvils.show(asked) }
+                Prompt.Channel.FORM -> ctx.runLater(1) {
+                    if (plugin.inputs.waiting(asked) && !plugin.bedrockForms.showInput(asked)) {
+                        // Fall back to chat if the Bedrock form could not be sent.
+                        val fallback = Prompt(ctx, then, onCancel, cancel, match?.let(::Regex), invalid, Prompt.Channel.CHAT, title.ifEmpty { prompt }, initial, submit, maxLength)
+                        plugin.inputs.ask(fallback)
+                        ctx.player.sendMessage(ctx.component(prompt))
+                    }
+                }
             }
             ctx.runLater((timeout.inWholeMilliseconds / 50).coerceAtLeast(1)) { plugin.inputs.expire(asked) }
         }

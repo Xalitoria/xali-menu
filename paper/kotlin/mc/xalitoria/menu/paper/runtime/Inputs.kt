@@ -36,8 +36,8 @@ class Prompt(
         val retry: Boolean get() = this == INVALID || this == TOO_LONG
     }
 
-    /** The chat, the dialog of newer clients, or an anvil's rename field. */
-    enum class Channel { CHAT, DIALOG, ANVIL }
+    /** The chat, the dialog of newer Java clients, an anvil's rename field, or a native Bedrock CustomForm. */
+    enum class Channel { CHAT, DIALOG, ANVIL, FORM }
 
     /** What to tell the player about a reply turned down with [verdict], or null for nothing. */
     fun complaint(verdict: Verdict, messages: MessageConfig.Input = MessageConfig.Input()): String? = when (verdict) {
@@ -92,6 +92,7 @@ class Inputs(private val plugin: XaliMenu) : Listener {
             Prompt.Channel.CHAT -> {}
             Prompt.Channel.DIALOG -> prompt.ctx.player.closeDialog()
             Prompt.Channel.ANVIL -> plugin.anvils.close(prompt.ctx.player)
+            Prompt.Channel.FORM -> plugin.bedrockForms.close(prompt.ctx.player)
         }
     }
 

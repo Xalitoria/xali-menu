@@ -31,7 +31,51 @@ data class MainConfig(
         "reachable. Off, the link carries the menu itself and the editor gives you a file to put in the menus folder.",
     )
     val editor: Editor = Editor(),
+    @YamlComment(
+        "Bedrock Edition support through Floodgate or Geyser-Spigot: default form conversion, native text-input forms,",
+        "touch/controller click adaptation and Pocket UI safety.",
+    )
+    val bedrock: Bedrock = Bedrock(),
 ) {
+    /** Default presentation for Bedrock players when a menu's `bedrock.mode` is `AUTO` or absent. */
+    @Serializable
+    enum class DefaultBedrockMode {
+        @SerialName("inventory") INVENTORY,
+        @SerialName("touch-form") TOUCH_FORM,
+        @SerialName("always-form") ALWAYS_FORM,
+    }
+
+    @Serializable
+    data class Bedrock(
+        @YamlComment(
+            "How menus without explicit Bedrock form settings open for Bedrock players: `inventory` (chest window),",
+            "`touch-form` (SimpleForm for touch/controller/Pocket UI, chest window for Bedrock PC Classic UI), or",
+            "`always-form` (SimpleForm for every Bedrock player).",
+        )
+        @SerialName("default-mode")
+        val defaultMode: DefaultBedrockMode = DefaultBedrockMode.INVENTORY,
+        @YamlComment("Use a native Bedrock CustomForm for `input` actions when `mode` is `AUTO` or `FORM`.")
+        @SerialName("input-forms")
+        val inputForms: Boolean = true,
+        @YamlComment(
+            "When a Bedrock player activates an inventory item with no handler for that click kind, fall back to its",
+            "only click handler or open a choice form when several click handlers exist (such as left and right click).",
+        )
+        @SerialName("click-fallback")
+        val clickFallback: Boolean = true,
+        @YamlComment("Send `inventory-slots` packet overlays to Bedrock Pocket UI players. Off by default because Pocket UI handles them poorly.")
+        @SerialName("pocket-inventory-overlay")
+        val pocketInventoryOverlay: Boolean = false,
+        @YamlComment("Remove Private Use Area glyphs (Java resource-pack shifts/textures) from Bedrock inventory titles when `bedrock.title` is not set.")
+        @SerialName("strip-private-use-title")
+        val stripPrivateUseTitle: Boolean = true,
+        @YamlComment(
+            "Optional URL template for vanilla item icons on Bedrock forms, with `{material}` replaced by the lowercase",
+            "item key (for example `https://example.com/icons/{material}.png`). Empty uses Bedrock's built-in texture paths.",
+        )
+        @SerialName("icon-url")
+        val iconUrl: String = "",
+    )
     @Serializable
     data class Editor(
         val enabled: Boolean = false,

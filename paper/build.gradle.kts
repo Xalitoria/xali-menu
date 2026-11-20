@@ -15,6 +15,11 @@ repositories {
     maven("https://repo.codemc.io/repository/maven-releases/")
     maven("https://repo.dmulloy2.net/repository/public/")
     maven("https://repo.viaversion.com/")
+    maven("https://repo.opencollab.dev/main/") {
+        content {
+            includeGroupByRegex("org\\.(geysermc|cloudburstmc)\\..*")
+        }
+    }
 }
 
 dependencies {
@@ -40,6 +45,9 @@ dependencies {
     compileOnly("com.comphenix.protocol:ProtocolLib:5.3.0")
     // Tells which version a player's client is, so a text input knows whether the client has dialogs.
     compileOnly("com.viaversion:viaversion-api:5.12.2")
+    // Bedrock detection (device, input mode, UI profile) and native Cumulus forms; loaded only when installed.
+    compileOnly("org.geysermc.floodgate:api:2.2.5-SNAPSHOT")
+    compileOnly("org.geysermc.geyser:api:2.12.1-SNAPSHOT")
 
     testImplementation(libs.xalicraft.util)
     testImplementation(libs.kotlinx.serialization.hocon)
@@ -55,6 +63,7 @@ tasks.test {
 tasks {
     jar { enabled = false }
     shadowJar {
+        duplicatesStrategy = DuplicatesStrategy.INCLUDE
         // Other plugins use the API's classes from this jar, whether or not the plugin itself does.
         minimize {
             exclude(project(sibling("api").path))

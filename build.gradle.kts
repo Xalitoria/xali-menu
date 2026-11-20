@@ -45,6 +45,9 @@ paper {
         register("packetevents") { load = RelativeLoad.BEFORE; required = false }
         register("ProtocolLib") { load = RelativeLoad.BEFORE; required = false }
         register("ViaVersion") { load = RelativeLoad.BEFORE; required = false }
+        // Bedrock player detection and native Cumulus forms, through Floodgate (preferred) or Geyser-Spigot.
+        register("floodgate") { load = RelativeLoad.BEFORE; required = false }
+        register("Geyser-Spigot") { load = RelativeLoad.BEFORE; required = false }
     }
     // ItemsAdder, Nexo, SkinsRestorer and HeadDatabase aren't downloadable without an account: put their jars in the
     // server's plugins by hand.

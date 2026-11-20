@@ -10,7 +10,7 @@ import { decorations } from './decorations.js'
 import { tooltipLines, drawTooltip } from './tooltip.js'
 import { services } from './services.js'
 import { isPaged } from './pages.js'
-import { claimsOf, inventoryEntries } from './placement.js'
+import { claimsOf, inventoryEntries, matrixSlots } from './placement.js'
 
 /** The slots of the menu each item claims: its `slot` and `slots`, and the cells of the layout that its legend character stands for. */
 export function placements(menu) {
@@ -19,6 +19,7 @@ export function placements(menu) {
   for (const [name, item] of Object.entries(menu.items ?? {})) {
     if (typeof item.slot === 'number') claim(name, item.slot)
     for (const slot of item.slots ?? []) if (typeof slot === 'number') claim(name, slot)
+    if (item.matrix) for (const slot of matrixSlots(item.matrix)) claim(name, slot)
   }
   const legend = menu.legend ?? {}
   ;(menu.layout ?? []).forEach((row, r) => [...String(row)].forEach((c, column) => { if (legend[c] && menu.items?.[legend[c]]) claim(legend[c], r * 9 + column) }))

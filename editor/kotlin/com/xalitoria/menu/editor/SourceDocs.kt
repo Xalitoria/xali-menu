@@ -58,7 +58,7 @@ class SourceDocs(private val classes: Map<String, List<ClassDocs>>) {
                 if (!isDeclaration) { index++; continue }
                 val indent = line.length - line.trimStart().length
                 while (stack.isNotEmpty() && stack.last().second >= indent) stack.removeLast()
-                val name = match!!.groupValues[2]
+                val name = match.groupValues[2]
                 stack.addLast(name to indent)
 
                 val [doc, annotations] = leadingComment(lines, index)
