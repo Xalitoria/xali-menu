@@ -8,6 +8,7 @@ import { reorderable } from './reorder.js'
 import { flagOf, parseDynamic, isDynamic } from './dynamic.js'
 import { editorFor } from './editors.js'
 import { closest } from './suggest.js'
+import { sentence } from './sentences.js'
 
 /** Keys whose text is shown in the game with colors, so the form previews it. */
 const FORMATTED = new Set(['title', 'name', 'item-name', 'lore', 'text', 'subtitle', 'prompt', 'pages', 'invalid', 'message'])
@@ -39,6 +40,16 @@ export class Form {
     this.open = new Set()
     /** The nested objects the user folded: they start open, since what is inside is what is being edited. */
     this.shut = new Set()
+    /** The lines that say an action or a condition in words, by path: they are brought up to date as it is typed in, which does not draw the form again. */
+    this.sentences = new Map()
+    store.onChange(() => this.updateSentences())
+  }
+
+  updateSentences() {
+    for (const [element, { base, path }] of this.sentences) {
+      if (!element.isConnected) { this.sentences.delete(element); continue }
+      element.textContent = sentence(base, this.store.get(path)) ?? ''
+    }
   }
 
   /** The form for an object of the named type at [path]. */
@@ -273,8 +284,11 @@ export class Form {
       current !== undefined && !names.includes(current) && h('option', { value: current, selected: true }, `${current} (unknown)`),
       names.map((n) => h('option', { value: n, selected: n === current }, n)))
     const variantDoc = typeName ? this.schema.type(typeName).doc : null
+    const says = h('div', { class: 'sentence' }, sentence(base, value))
+    if (['Action', 'Condition'].includes(base)) this.sentences.set(says, { base, path })
     return h('div', { class: 'poly' },
       select,
+      says,
       variantDoc && h('div', { class: 'hint' }, doc(firstSentence(variantDoc))),
       typeName ? this.object(typeName, path, { variant: true }) : current !== undefined && this.json(path, value, ['type']),
     )
@@ -299,6 +313,13 @@ export class Form {
     this.store.set(path, [...items, this.schema.blank(of)])
   }
 
+  /** What a collapsed row says: an action or condition as a sentence, and a check of a gate as the sentence of its condition. */
+  rowSummary(of, item) {
+    if (of.kind === 'poly') return sentence(of.base, item)
+    if (of.kind === 'object' && of.type === 'Check') return `${item?.optional ? 'Optional: ' : ''}${sentence('Condition', item?.condition)}`.replace(/: $/, '')
+    return ''
+  }
+
   /** One entry of a list: a grip to drag it by, the control, and a button to remove it. */
   row(of, path, index, item, length, field) {
     const rowPath = [...path, index]
@@ -306,7 +327,7 @@ export class Form {
     const id = rowPath.join('/')
     const control = complex
       ? h('details', { class: 'card', open: this.open.has(id), ontoggle: (e) => (e.target.open ? this.open.add(id) : this.open.delete(id)) },
-          h('summary', null, summary(item) || 'empty'),
+          h('summary', null, this.rowSummary(of, item) || summary(item) || 'empty'),
           this.control(of, rowPath, item, field))
       : this.control(of, rowPath, item, { ...field, key: field.key })
     return h('div', { class: 'row' },
