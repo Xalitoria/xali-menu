@@ -10,6 +10,7 @@ import { claimsOf, addClaim, removeClaim, moveClaim, placesOf } from './placemen
 import { check } from './check.js'
 import { fromHash, decodeData, Server, readFile, toFile, download } from './source.js'
 import { services, forgetCatalog, catalog } from './services.js'
+import { knownItems } from './catalog.js'
 import { materialPicker } from './picker.js'
 import { isCustomMaterial } from './items.js'
 import { isPaged, listedSlots, toggleSlot, previewMenu, previewPages, TEMPLATE, EMPTY } from './pages.js'
@@ -120,7 +121,7 @@ export class App {
         assetSettings.skinProxy = (url) => this.server.skin(url)
         assetSettings.gameFile = (file) => this.server.gameFile(file)
         services.server = this.server
-        forgetCatalog()
+        forgetCatalog(); this.known = null
         const info = await this.server.info()
         this.menuNames = info.menus
         this.serverInfo = info
@@ -153,7 +154,15 @@ export class App {
     this.draw()
     this.resolveItems()
     this.findCustomItems()
+    this.loadKnownItems()
     this.fetchElements()
+  }
+
+  /** Reads the list of items the checks look a material up in (once; the server's when there is one), and shows the problems it finds. */
+  async loadKnownItems() {
+    if (this.known) return
+    try { this.known = knownItems(await catalog()) } catch { return }
+    if (this.known && this.tab === 'Editor') this.draw()
   }
 
   /** Looks for items of plugins in the menu, and on the server: they come with a resource pack, so the glyph bar is shown for them. */
@@ -452,7 +461,7 @@ export class App {
   // ---- problems
 
   allProblems() {
-    const own = check(this.schema, this.store.value).map((p) => ({ path: p.path, where: p.path.join('.'), message: p.message }))
+    const own = check(this.schema, this.store.value, this.known).map((p) => ({ path: p.path, where: p.path.join('.'), message: p.message }))
     const server = this.serverProblems.map((m) => ({ path: null, where: 'server', message: m }))
     return [...own, ...server]
   }

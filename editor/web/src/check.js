@@ -19,10 +19,11 @@ export function slotCount(menu) {
  * @param {object} menu
  * @returns {{path: Array, message: string}[]}
  */
-export function check(schema, menu) {
+export function check(schema, menu, known = null) {
   const problems = []
   const walk = new Walker(schema, problems)
   walk.object(schema.root, menu, [])
+  if (known) materials(menu, known, problems)
   // The rest looks at the menu as the editor holds it, with what is written the easy way written the one way.
   slots(normalize(schema, menu), problems)
   return problems
@@ -136,5 +137,25 @@ function slots(menu, problems) {
   }
   if (menu.type === undefined || menu.type === 'chest') {
     if (count % 9 !== 0 || count < 9 || count > 54) problems.push({ path: ['size'], message: `size ${count} is not 9, 18, … 54` })
+  }
+}
+
+/**
+ * Items whose material is not an item that [known] (see `knownItems`) lists: a key of the game that does not exist, or an item that the server's plugin of that source does not have,
+ * with the one it was probably meant to be, as the plugin says it. A source the editor has no list of (heads, another plugin's items) and text with a placeholder are left alone.
+ */
+function materials(menu, known, problems) {
+  for (const [id, item] of Object.entries(menu.items ?? {})) {
+    const text = typeof item?.material === 'string' ? item.material.trim() : ''
+    if (!text || /[%{]/.test(text)) continue
+    const colon = text.indexOf(':')
+    const prefix = colon < 0 ? '' : text.slice(0, colon).toLowerCase()
+    const name = colon < 0 ? text : text.slice(colon + 1)
+    if (name.includes(':')) continue
+    let pool, what, word
+    if (prefix === '' || prefix === 'minecraft') { pool = known.vanilla; what = 'an item of the game'; word = name.toLowerCase() }
+    else if (known.custom.has(prefix)) { pool = known.custom.get(prefix); what = `an item of ${prefix}`; word = name }
+    else continue
+    if (!pool.has(word)) problems.push({ path: ['items', id, 'material'], message: `'${text}' isn't ${what}${hint(word, [...pool])}` })
   }
 }

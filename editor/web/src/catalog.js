@@ -48,6 +48,25 @@ export function search(list, query, limit = 60) {
   return scored.slice(0, limit).map((s) => s.entry)
 }
 
+/**
+ * The ids the checks look material up in: the items of the game and, by source, those of each plugin that listed its own. Null when the list of the game is too short to be
+ * the whole of it (a list that could not be read), so that no item is said to be missing for that.
+ * @param {Entry[]} list
+ */
+export function knownItems(list) {
+  const vanilla = new Set()
+  const custom = new Map()
+  for (const entry of list) {
+    if (entry.kind === 'vanilla') vanilla.add(entry.id)
+    else if (entry.source) {
+      const prefix = entry.source.toLowerCase()
+      if (!custom.has(prefix)) custom.set(prefix, new Set())
+      custom.get(prefix).add(entry.id.slice(entry.source.length + 1))
+    }
+  }
+  return vanilla.size >= 500 ? { vanilla, custom } : null
+}
+
 /** Loads the list once; [server] is the connected server, or null. @returns {Promise<Entry[]>} */
 export async function loadCatalog(server, assets) {
   const lang = (await assets.json('minecraft', 'lang', 'en_us')) ?? {}

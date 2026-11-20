@@ -279,7 +279,7 @@ The server side is in `menu/paper/.../editor`. Check it live with `menu/live/bot
 **Mistakes.** The problems list says what the plugin says, in the same words (`src/check.js` and `src/suggest.js` follow `ConfigChecker` and `Suggest` of the plugin): a key that nothing reads with
 the key it was probably meant to be, a word that is not one of an enum or of the types of an action, a number outside its limits (the boxes of numbers have the same `min` and `max`, which come from
 `@Within` in the model through `schema.json`), a time the plugin cannot read. A key the schema does not know is shown as JSON with a **Rename to …** button when it is close to one. A menu is written
-the one way when it comes in (`src/normalize.js`: one value for a list becomes a list, an enum gets its case, a number as text becomes a number), so the rest of the editor never meets the easy forms.
+the one way when it comes in (`src/normalize.js`: one value for a list becomes a list, an enum gets its case, a number as text becomes a number), so the rest of the editor never meets the easy forms. A `material` that is not an item of the game, or that the server's plugin (Nexo, ItemsAdder...) does not have, is a problem with the item it was probably meant to be, the same words the plugin writes in its log when it draws that item as a barrier; heads, placeholders and sources the editor has no list of are left alone, and so is everything when the list could not be read.
 
 **Values from the game's registries and from placeholders.**
 - A key that names something of the game is a dropdown of what the game has (the enchantments of `enchants` and `stored-enchants`, the effect of a potion effect, the

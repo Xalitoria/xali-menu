@@ -71,9 +71,29 @@ class ItemFactory(private val plugin: XaliMenu) {
 
     private val failed = ConcurrentHashMap.newKeySet<String>()
 
+    /**
+     * Says once why an item is shown as a barrier because [spec] names nothing: a key that is not an item of the game, or an item that its source (Nexo, ItemsAdder...) does not
+     * have, with the one it was probably meant to be. A head is not said: it is loading, which is not a mistake.
+     */
+    private fun noItem(item: Item, spec: String, ctx: Context) {
+        val prefix = spec.substringBefore(':', "")
+        if (prefix == "head" || prefix == "texture" || spec.isBlank() || !failed.add("no item: $spec")) return
+        val source = plugin.registry.sources[prefix]
+        val [what, candidates] = if (source != null) {
+            "an item of $prefix" to ((source as? mc.xalitoria.menu.paper.hook.ListsItems)?.let { runCatching { it.ids() }.getOrNull() }.orEmpty())
+        } else {
+            "an item of the game" to RegistryAccess.registryAccess().getRegistry(RegistryKey.ITEM).map { it.key().value() }
+        }
+        val word = if (source != null) spec.substringAfter(':') else spec.substringAfter(':').lowercase()
+        plugin.logger.warning("Item '${item.material}' of menu '${ctx.menu}' isn't $what${mc.xalitoria.menu.paper.format.Suggest.hint(word, candidates)}, so it is shown as a barrier")
+    }
+
     private fun construct(item: Item, ctx: Context, loaded: () -> Unit): ItemStack {
         val spec = ctx.parse(item.material)
-        var stack = base(spec, loaded) ?: ItemStack(Material.BARRIER)
+        var stack = base(spec, loaded) ?: run {
+            noItem(item, spec, ctx)
+            ItemStack(Material.BARRIER)
+        }
 
         val amount = item.amount.resolve(ctx::parse) ?: 1
         stack.amount = amount.coerceIn(1, 99)

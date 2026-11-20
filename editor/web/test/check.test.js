@@ -96,3 +96,15 @@ test('the numbers of an action or a condition have their limits too', () => {
     .includes('items.a.click.left.actions.0.amplifier: should be from 0 to 255, not 300'))
   assert.deepEqual(messagesOf({ click: { left: { actions: [{ type: 'delay', ticks: 20, action: { type: 'close' } }] } } }), [])
 })
+
+test('a material that the game or the server\'s plugin does not have is told, with the one it was meant to be; what the editor has no list of is left alone', async () => {
+  const { knownItems, entries } = await import('../src/catalog.js')
+  const vanilla = Array.from({ length: 600 }, (_, i) => `item_${i}`).concat(['diamond', 'diamond_sword'])
+  const known = knownItems(entries(vanilla, { nexo: ['earth_wand', 'dark_wand'] }))
+  const items = { a: { material: 'diamnd' }, b: { material: 'nexo:earth_wnd' }, c: { material: 'minecraft:DIAMOND_SWORD' }, d: { material: 'nexo:dark_wand' }, e: { material: 'head:Steve' },
+    f: { material: 'itemsadder:ruby' }, g: { material: '%player_item%' }, h: { material: 'nexo:wands:earth_wand' } }
+  const found = check(schema, { title: 'T', items }, known).filter((p) => p.path[2] === 'material').map((p) => `${p.path[1]}: ${p.message}`)
+  assert.deepEqual(found, ["a: 'diamnd' isn't an item of the game (did you mean 'diamond'?)", "b: 'nexo:earth_wnd' isn't an item of nexo (did you mean 'earth_wand'?)"])
+  assert.equal(knownItems(entries(['diamond'], {})), null, 'a short list is not taken for all the items')
+  assert.deepEqual(check(schema, { title: 'T', items }, null).filter((p) => p.path[2] === 'material'), [], 'with no list nothing is said')
+})
