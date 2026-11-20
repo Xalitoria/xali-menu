@@ -23,7 +23,7 @@ test('the registries are read from the names in the language file, sorted by nam
   assert.deepEqual(lists['trim-pattern'], [['coast', 'Coast Armor Trim']])
 })
 
-test('a key of the schema is given the registry it takes its values from', () => {
+test('a key of the schema is given its registry, which is the game\'s names when the language file has them and a text box when it has none', () => {
   loadRegistries(lang)
   assert.equal(registryOf({ owner: 'Item', key: 'potion-type' }), 'potion-type')
   assert.equal(registryOf({ owner: 'Item', key: 'enchants' }), 'enchantment')
@@ -31,12 +31,9 @@ test('a key of the schema is given the registry it takes its values from', () =>
   assert.equal(registryOf({ owner: 'Action:message', key: 'type' }), null)
   assert.deepEqual(registryChoices({ owner: 'PotionEffect', key: 'type' }), [['speed', 'Speed']])
   assert.equal(registryChoices({ owner: 'Item', key: 'nbt' }), null)
-})
-
-test('the lists that the language file does not have are always there, and a registry with no names is left out', () => {
   loadRegistries({})
   assert.ok(registries.get('attribute-slot').some(([v]) => v === 'mainhand'))
   assert.ok(registries.get('fish-pattern').some(([v]) => v === 'KOB'))
-  assert.equal(registryChoices({ owner: 'PotionEffect', key: 'type' }), null, 'with no names the box is a text box')
-  assert.ok(registries.get('color').length === 16, 'the dye colors are known without the file')
+  assert.equal(registryChoices({ owner: 'PotionEffect', key: 'type' }), null)
+  assert.equal(registries.get('color').length, 16, 'the dye colors are known without the file')
 })

@@ -22,13 +22,6 @@ test('an action is said as what it does', () => {
   assert.equal(action({ type: 'chance', percent: 5 }), 'With a 5% chance: …', 'an action not filled in yet')
 })
 
-test('a long text is cut and a type the page does not know is left as its name', () => {
-  assert.ok(action({ type: 'message', text: 'x'.repeat(100) }).includes('…'))
-  assert.equal(action({ type: 'addon-thing' }), 'addon-thing')
-  assert.equal(action({}), '')
-  assert.equal(condition(null), '')
-})
-
 test('a condition is said as what has to hold', () => {
   assert.equal(condition({ type: 'permission', node: 'shop.use' }), 'The player has the permission shop.use')
   assert.equal(condition({ type: 'compare', left: '%level%', op: 'GTE', right: '5' }), '%level% is at least 5')
@@ -36,12 +29,10 @@ test('a condition is said as what has to hold', () => {
   assert.equal(condition({ type: 'health', min: '5', max: '10' }), "The player's health is between 5 and 10")
   assert.equal(condition({ type: 'not', condition: { type: 'never' } }), 'Not: Never holds')
   assert.equal(condition({ type: 'gamemode', modes: ['CREATIVE', 'SPECTATOR'] }), 'The player is in creative, spectator mode')
-})
-
-test('a sentence is only made for actions and conditions', () => {
-  assert.equal(sentence('Action', { type: 'close' }), 'Closes the menu')
-  assert.equal(sentence('Condition', { type: 'never' }), 'Never holds')
-  assert.equal(sentence('Catalog', { type: 'players' }), '')
+  assert.ok(action({ type: 'message', text: 'x'.repeat(100) }).includes('…'), 'a long text is cut')
+  assert.equal(action({ type: 'addon-thing' }), 'addon-thing', 'a type the page does not know is left as its name')
+  assert.deepEqual([action({}), condition(null), sentence('Catalog', { type: 'players' })], ['', '', ''])
+  assert.deepEqual([sentence('Action', { type: 'close' }), sentence('Condition', { type: 'never' })], ['Closes the menu', 'Never holds'])
 })
 
 test('every action and condition of the schema has a sentence of its own', () => {

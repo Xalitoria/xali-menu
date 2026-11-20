@@ -6,15 +6,10 @@ import { icon } from './icons.js'
 import { registries } from './registry.js'
 import { numberOf } from './dynamic.js'
 import { potionEffects, attributeModifiers, bookPages } from './listeditors.js'
+import { foodEditor, toolEditor, fishEditor } from './itemeditors.js'
+import { DYES, label, dyes } from './dyes.js'
 
-/** The dye colors of the game as `#rrggbb`, in the order of the palette, with their names as the menu file writes them. */
-export const DYES = [
-  ['white', '#f9fffe'], ['light_gray', '#9d9d97'], ['gray', '#474f52'], ['black', '#1d1d21'], ['brown', '#835432'], ['red', '#b02e26'], ['orange', '#f9801d'], ['yellow', '#fed83d'],
-  ['lime', '#80c71f'], ['green', '#5e7c16'], ['cyan', '#169c9c'], ['light_blue', '#3ab3da'], ['blue', '#3c44aa'], ['purple', '#8932b8'], ['magenta', '#c74ebd'], ['pink', '#f38baa'],
-]
-
-/** A name for people: `light_gray` as `Light gray`. */
-export const label = (id) => id.replace(/_/g, ' ').replace(/^./, (c) => c.toUpperCase())
+export { DYES, label }
 
 /** The shapes of a firework burst, as the menu file names them. */
 export const SHAPES = [['BALL', 'Small ball'], ['BALL_LARGE', 'Large ball'], ['STAR', 'Star'], ['BURST', 'Burst'], ['CREEPER', 'Creeper']]
@@ -47,12 +42,6 @@ export function colorChips(values, set, { empty = 'No color yet.' } = {}) {
 }
 
 // ---- banners
-
-/** A row of the sixteen dye colors, the chosen one ringed. */
-function dyes(current, pick) {
-  return h('div', { class: 'dyes', role: 'radiogroup' }, DYES.map(([name, hex]) => h('button', {
-    class: `dye ${name === current ? 'on' : ''}`, style: `background:${hex}`, title: label(name), 'aria-label': label(name), 'aria-checked': name === current, role: 'radio', onclick: () => pick(name) })))
-}
 
 /** The patterns to offer: those of the language file, else the ones the game has. */
 const FALLBACK_PATTERNS = ['base', 'square_bottom_left', 'square_bottom_right', 'square_top_left', 'square_top_right', 'stripe_bottom', 'stripe_top', 'stripe_left', 'stripe_right',
@@ -150,6 +139,9 @@ const EDITORS = {
   'Item.attributes': Object.assign((store, path, value) => attributeModifiers(store, path, value), { block: true }),
   'Book.pages': Object.assign((store, path, value) => bookPages(store, path, value), { block: true }),
   'Action:book.pages': Object.assign((store, path, value) => bookPages(store, path, value), { block: true }),
+  'Item.food': Object.assign((store, path, value, item) => foodEditor(store, path, value, item), { block: true }),
+  'Item.tool': Object.assign((store, path, value) => toolEditor(store, path, value), { block: true }),
+  'Item.fish': Object.assign((store, path, value, item) => fishEditor(store, path, value, item), { block: true }),
   'Item.color': (store, path, value) => colorBox(value, (v) => (v === '' ? store.remove(path) : store.set(path, v, true))),
 }
 

@@ -7,31 +7,19 @@ import { Store } from '../src/store.js'
 
 const schema = new Schema(JSON.parse(readFileSync(new URL('../schema.json', import.meta.url))))
 
-test('a single value where a list is expected becomes a list, in any depth', () => {
-  const menu = normalize(schema, { title: 'T', items: { a: { material: 'stone', slots: 5, lore: 'one', click: { left: { actions: { type: 'close' } } } } } })
-  assert.deepEqual(menu.items.a.slots, [5])
-  assert.deepEqual(menu.items.a.lore, ['one'])
-  assert.deepEqual(menu.items.a.click.left.actions, [{ type: 'close' }])
+test('a single value becomes a list, an enum takes the model\'s case, text of a number is a number, and a placeholder is left as it is', () => {
+  const menu = normalize(schema, { title: 'T', items: { a: { material: 'stone', slots: 5, lore: 'one', rarity: 'epic', slot: '3', glow: 'true', amount: '%x%', click: { left: { actions: { type: 'close' } } } } } })
+  const { a } = menu.items
+  assert.deepEqual([a.slots, a.lore, a.click.left.actions], [[5], ['one'], [{ type: 'close' }]])
+  assert.deepEqual([a.rarity, a.slot, a.glow, a.amount], ['EPIC', 3, 'true', '%x%'])
 })
 
-test('an enum is written in the case the model has, and numbers and switches as text are what they say', () => {
-  const menu = normalize(schema, { title: 'T', items: { a: { material: 'stone', rarity: 'epic', slot: '3', glow: 'true', amount: '%x%' } } })
-  assert.equal(menu.items.a.rarity, 'EPIC')
-  assert.equal(menu.items.a.slot, 3)
-  assert.equal(menu.items.a.glow, 'true', 'a dynamic value is left as it is: it may be a placeholder')
-  assert.equal(menu.items.a.amount, '%x%')
-})
-
-test('what the schema does not know is left alone, and a menu that is fine is not changed', () => {
+test('what the schema does not know and a menu that is fine are left alone, and the store writes what it loads and changes the one way', () => {
   const menu = { title: 'T', size: 27, items: { a: { material: 'stone', slot: 1, mystery: 'x' } }, 'on-open': [{ type: 'myplugin:thing', n: '5' }] }
   assert.deepEqual(normalize(schema, menu), menu)
-})
-
-test('the store writes a menu that is loaded or changed the one way', () => {
   const store = new Store({})
   store.normalizer = (m) => normalize(schema, m)
   store.load({ title: 'T', items: { a: { material: 'stone', slots: 5 } } })
-  assert.deepEqual(store.value.items.a.slots, [5])
   store.set(['items', 'a', 'lore'], 'x')
-  assert.deepEqual(store.value.items.a.lore, ['x'])
+  assert.deepEqual([store.value.items.a.slots, store.value.items.a.lore], [[5], ['x']])
 })

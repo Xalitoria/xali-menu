@@ -252,3 +252,6 @@ input.power { width: 72px; }
 .book-page { min-height: 120px; padding: 10px 12px; background: #efe3bf; color: #1d1d1d; border: 1px solid #8a6b3c; border-radius: 3px; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 13px; line-height: 1.35; box-shadow: inset 0 0 0 3px #e2d3a6; }
 @media (max-width: 520px) { .book-row { grid-template-columns: 1fr; } }
 .sentence { margin: 4px 0 2px; padding: 3px 8px; border-left: 3px solid var(--accent); background: var(--panel); border-radius: 0 4px 4px 0; font-size: 13px; } .sentence:empty { display: none; }
+.shanks { display: flex; gap: 2px; align-items: center; } .shank { width: 14px; height: 14px; border-radius: 50%; border: 2px solid #5a2d12; background: #3a2a22; display: inline-block; }
+.shank.full { background: #c1642b; } .shank.half { background: linear-gradient(90deg, #c1642b 50%, #3a2a22 50%); }
+.chip .chip-label { padding: 2px 4px 2px 8px; }

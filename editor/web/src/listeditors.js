@@ -13,7 +13,7 @@ const words = (id) => String(id).replace(/_/g, ' ').replace(/^./, (c) => c.toUpp
 const bare = (id) => String(id ?? '').trim().toLowerCase().replace(/^minecraft:/, '')
 
 /** A choice among `[value, label]`; a value that is not among them stays as it is, and can be typed under "Other…". */
-function choose(choices, current, change, { placeholder = 'choose…', other = 'another key, such as mypack:thing', label: aria } = {}) {
+export function choose(choices, current, change, { placeholder = 'choose…', other = 'another key, such as mypack:thing', label: aria } = {}) {
   // With no list to choose from (the game's names are not loaded) the key is typed.
   if (choices.length === 0) {
     const input = h('input', { type: 'text', class: 'registry-other', value: current ?? '', placeholder: other, spellcheck: false, 'aria-label': aria, oninput: () => change(input.value.trim(), true) })
@@ -34,7 +34,7 @@ function choose(choices, current, change, { placeholder = 'choose…', other = '
 }
 
 /** A number box that changes the store while it is typed in without drawing the form again. */
-function numberBox(value, change, attributes) {
+export function numberBox(value, change, attributes) {
   const input = h('input', { type: 'number', value: value ?? '', ...attributes })
   input.addEventListener('input', () => { if (input.value !== '') change(Number(input.value)) })
   return input

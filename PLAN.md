@@ -294,7 +294,8 @@ Each step ends with tests, the README section, and a commit.
   store without a redraw, so a control reads the list as it is now (`store.get`) rather than the one it was drawn from; the firework's power box had the same fault and was fixed.
 - The pages of a book (`Book.pages` and the `book` action's) are a box beside the page as it is drawn. Add and remove read the list as it is now in the editors of this step, so a typed box is never undone.
 - Actions and conditions are said as sentences (`src/sentences.js`) under the type and in a folded row; `sentences.test.js` fails for an action or condition of the schema that has none. Only read, not yet edited as a sentence.
-- Not done: the same for `food`, `trim` (the armor with its trim), `tool` rules, `fish` (the bucket drawn with the fish),
+- `src/itemeditors.js`: `food` (the bar of drumsticks), `tool` (rules with chips and the usual tags), `fish` (pattern and dyes; `src/dyes.js` holds the dyes the banner uses too).
+- Not done: `trim` (the armor drawn with its trim; its pattern and material are lists already), the fish drawn in the bucket,
   the layout and the legend as a picture, and editing an action or condition by its sentence (the words are only read now).
 
 ### 14. A checked schema (done; tested without a server and in unit tests of the editor; not live on a server)

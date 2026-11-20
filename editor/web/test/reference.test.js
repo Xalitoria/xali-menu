@@ -10,20 +10,14 @@ test('REFERENCE.md is what the schema says (run `node editor/tools/reference.mjs
   assert.equal(file, reference(schema))
 })
 
-test('every type, action, condition, activator and catalog has a section', () => {
+test('every type, action, condition, activator and catalog has a section, and every link of the page goes to a heading', () => {
   const text = reference(schema)
   for (const name of Object.keys(schema.types)) {
     const [base, key] = name.split(':')
-    const heading = key ? `### ${base} \`${key}\`` : `## ${name}`
-    assert.ok(text.includes(`\n${heading}\n`), `${name} has no section`)
+    assert.ok(text.includes(`\n${key ? `### ${base} \`${key}\`` : `## ${name}`}\n`), `${name} has no section`)
   }
-})
-
-test('every link of the page goes to a heading of the page', () => {
-  const text = reference(schema)
   const headings = new Set([...text.matchAll(/^#{2,3} (.+)$/gm)].map((m) => slug(m[1])))
-  const broken = [...text.matchAll(/\]\(#([^)]+)\)/g)].map((m) => m[1]).filter((a) => !headings.has(a))
-  assert.deepEqual([...new Set(broken)], [])
+  assert.deepEqual([...new Set([...text.matchAll(/\]\(#([^)]+)\)/g)].map((m) => m[1]).filter((a) => !headings.has(a)))], [])
 })
 
 test('a key says its type, whether it is required, its default and its range', () => {
