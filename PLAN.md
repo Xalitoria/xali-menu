@@ -313,3 +313,10 @@ Each step ends with tests, the README section, and a commit.
 - Not done: limits on numbers that are not whole (`pitch`, `progress`, `distance`, which `@Within` cannot give), and on the text ones (`amount` of `money`, `level`: they are placeholders); a key that was renamed or removed told as such (nothing has been);
   the same checks for the plugin's `config.yml`.
 - A reference page of every key, `REFERENCE.md`, is written from the schema by `editor/tools/reference.mjs`; `reference.test.js` fails when it is stale.
+
+### 15. Typed JSON (done; unit tests, and every route of the editor's endpoint called on a live server)
+
+- The editor's endpoint and the relay no longer pass maps and read them back with casts: a request is read into a `@Serializable` class and a reply is written from one (`editor/Wire.kt`), so a request of the wrong shape is a `400` and not a `null` found further on. The menu itself still travels as a tree and is turned into the config object the plugin reads where it is read. The old `Json` helper (the config library used as a JSON parser) is gone, and Mojang's version manifest and asset index are read into classes too.
+- `schema.json` is written from `SchemaFile` (a sealed `FieldType` with `kind` as the discriminator) and read back into it by `SchemaTest`, which no longer walks `jsonObject["..."]!!`; the file did not change a byte.
+- Not typed, on purpose: `ConfigChecker` walks the file along the descriptors itself, because it has to say every problem with its path and line, which decoding stops at the first of; `HoconWriter` writes the file as a person writes it.
+- Live: `/v1/info`, `menus`, `check`, `colors`, `items`, `catalog`, `glyphs` and `elements` answered as before, a request of the wrong shape was refused with a message, and `live/setup.sh` now turns off the Velocity forwarding of the dev server it copies.

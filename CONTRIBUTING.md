@@ -34,6 +34,8 @@ Tests are in `paper/test`, `api/test` and `editor/test`; the page has its own in
 
 An action, a condition or a catalog:
 
+**JSON and HOCON go through kotlinx.serialization, never through maps.** A menu file is read into the model; what the editor and the plugin say to each other is the `@Serializable` classes of `paper/.../editor/Wire.kt` (a request is read into one, a reply is written from one); `schema.json` is `SchemaFile` in the editor module. A new route or field is a class there, not a `mapOf` or a cast of `unwrapped()`.
+
 1. Add a `@Serializable` class with a `@SerialName` to the file of its group. The `type` of the menu file is the serial name.
 2. Register it in the `register` function of that file.
 3. Add a test that reads it from HOCON and writes it back (see `paper/test/MoreActions.kt`).

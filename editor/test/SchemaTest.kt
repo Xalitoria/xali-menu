@@ -2,12 +2,15 @@ import com.xalitoria.menu.editor.SchemaBuilder
 import com.xalitoria.menu.editor.SourceDocs
 import com.xalitoria.menu.editor.builtIn
 import com.xalitoria.menu.editor.schema
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonArray
-import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.jsonArray
-import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
+import com.xalitoria.menu.editor.DynamicType
+import com.xalitoria.menu.editor.FieldType
+import com.xalitoria.menu.editor.ListType
+import com.xalitoria.menu.editor.MapType
+import com.xalitoria.menu.editor.ObjectType
+import com.xalitoria.menu.editor.PolyType
+import com.xalitoria.menu.editor.SchemaFile
+import com.xalitoria.menu.editor.schemaJson
+import kotlinx.serialization.json.JsonPrimitive
 import mc.xalitoria.menu.paper.format.MenuFormat
 import java.nio.file.Files
 import java.nio.file.Path
@@ -27,7 +30,9 @@ class SchemaTest {
         assertEquals(fresh, current, "web/schema.json is out of date: run ./gradlew :menu:editor:schema")
     }
 
-    private val schema: JsonObject = Json.parseToJsonElement(Files.readString(file)).jsonObject
+    private val schema: SchemaFile = schemaJson.decodeFromString(SchemaFile.serializer(), Files.readString(file))
+
+    private fun fields(type: String) = schema.types.getValue(type).fields.associateBy { it.key }
 
     @Test
     fun everyKeyOfAWrittenMenuIsInTheSchema() {
@@ -54,57 +59,65 @@ class SchemaTest {
         )
         val written = com.typesafe.config.ConfigFactory.parseString(format.encode(menu)).root().unwrapped()
         val problems = mutableListOf<String>()
-        check(written, "Menu", problems)
+        check(written, schema.root, problems)
         assertEquals(emptyList(), problems)
     }
 
     /** Walks [value] through the type [typeName], noting each key that the schema does not know. */
     private fun check(value: Any?, typeName: String, problems: MutableList<String>) {
         val map = value as? Map<*, *> ?: return
-        val type = schema["types"]!!.jsonObject[typeName]!!.jsonObject
-        val fields = type["fields"]!!.jsonArray.associateBy { it.jsonObject["key"]!!.jsonPrimitive.content }
+        val fields = fields(typeName)
         val discriminated = map["type"] as? String
         for (entry in map) {
             val key = entry.key as String
             if (key == "type" && discriminated != null && typeName.contains(':')) continue
-            val field = fields[key]?.jsonObject
+            val field = fields[key]
             if (field == null) { problems += "$typeName has no key '$key'"; continue }
-            walk(entry.value, field["type"]!!.jsonObject, problems)
+            walk(entry.value, field.type, problems)
         }
     }
 
-    private fun walk(value: Any?, type: JsonObject, problems: MutableList<String>) {
-        when (type["kind"]!!.jsonPrimitive.content) {
-            "object" -> check(value, type["type"]!!.jsonPrimitive.content, problems)
-            "list" -> (value as? List<*>)?.forEach { walk(it, type["of"]!!.jsonObject, problems) }
-            "map" -> (value as? Map<*, *>)?.values?.forEach { walk(it, type["of"]!!.jsonObject, problems) }
-            "poly" -> {
+    private fun walk(value: Any?, type: FieldType, problems: MutableList<String>) {
+        when (type) {
+            is ObjectType -> check(value, type.type, problems)
+            is ListType -> (value as? List<*>)?.forEach { walk(it, type.of, problems) }
+            is MapType -> (value as? Map<*, *>)?.values?.forEach { walk(it, type.of, problems) }
+            is PolyType -> {
                 val name = (value as? Map<*, *>)?.get("type") as? String ?: return
-                val variant = schema["poly"]!!.jsonObject[type["base"]!!.jsonPrimitive.content]!!.jsonObject[name]?.jsonPrimitive?.content
-                if (variant == null) problems += "no ${type["base"]} called '$name'" else check(value, variant, problems)
+                val variant = schema.poly.getValue(type.base)[name]
+                if (variant == null) problems += "no ${type.base} called '$name'" else check(value, variant, problems)
             }
+            else -> {}
         }
     }
 
     @Test
     fun aNumberThatMayBePlaceholderTextIsDynamic() {
-        val fields = schema["types"]!!.jsonObject["Item"]!!.jsonObject["fields"]!!.jsonArray.associateBy { it.jsonObject["key"]!!.jsonPrimitive.content }
-        val amount = fields.getValue("amount").jsonObject
-        assertEquals("dynamic", amount["type"]!!.jsonObject["kind"]!!.jsonPrimitive.content)
-        assertEquals("int", amount["type"]!!.jsonObject["of"]!!.jsonPrimitive.content)
-        assertEquals("1", amount["default"]!!.jsonPrimitive.content)
-        assertEquals("boolean", fields.getValue("glow").jsonObject["type"]!!.jsonObject["of"]!!.jsonPrimitive.content)
+        val fields = fields("Item")
+        assertEquals(DynamicType("int"), fields.getValue("amount").type)
+        assertEquals("1", (fields.getValue("amount").default as JsonPrimitive).content)
+        assertEquals(DynamicType("boolean"), fields.getValue("glow").type)
         assertEquals(null, fields["dynamic-amount"], "the amount is one key")
     }
 
     @Test
     fun theLimitsOfANumberComeFromTheModel() {
-        val fields = schema["types"]!!.jsonObject["Item"]!!.jsonObject["fields"]!!.jsonArray.associateBy { it.jsonObject["key"]!!.jsonPrimitive.content }
-        assertEquals("1", fields.getValue("amount").jsonObject["min"]!!.jsonPrimitive.content)
-        assertEquals("99", fields.getValue("amount").jsonObject["max"]!!.jsonPrimitive.content)
-        assertEquals("35", fields.getValue("inventory-slots").jsonObject["max"]!!.jsonPrimitive.content)
-        assertEquals(null, fields.getValue("slot").jsonObject["max"], "a limit that is not there is left out")
-        assertEquals("9", schema["types"]!!.jsonObject["Menu"]!!.jsonObject["fields"]!!.jsonArray.first { it.jsonObject["key"]!!.jsonPrimitive.content == "size" }.jsonObject["min"]!!.jsonPrimitive.content)
+        val fields = fields("Item")
+        assertEquals(1L to 99L, fields.getValue("amount").min to fields.getValue("amount").max)
+        assertEquals(35L, fields.getValue("inventory-slots").max)
+        assertEquals(null, fields.getValue("slot").max, "a limit that is not there is left out")
+        assertEquals(9L, fields("Menu").getValue("size").min)
+        // The numbers of actions and conditions have theirs too.
+        assertEquals(0L to 100L, fields("Action:chance").getValue("percent").let { it.min to it.max })
+        assertEquals(0L to 255L, fields("Action:potion").getValue("amplifier").let { it.min to it.max })
+    }
+
+    @Test
+    fun theFileIsWrittenAsTheModelAndReadBackAsIt() {
+        // What the editor reads is what the model says: the same text from the same classes, with a `kind` on every type and nothing written for what is null.
+        val text = Files.readString(file)
+        assertEquals(text.trimEnd(), schemaJson.encodeToString(SchemaFile.serializer(), schema))
+        assertTrue("\"kind\": \"string\"" in text && "\"fields\": []" in text && "null" !in text)
     }
 
     @Test
@@ -149,17 +162,15 @@ class SchemaTest {
 
     @Test
     fun theSchemaHasTheBasesAndTheirVariants() {
-        val poly = schema["poly"]!!.jsonObject
-        assertEquals(setOf("Action", "Activator", "Catalog", "Condition"), poly.keys)
-        assertTrue("close" in poly["Action"]!!.jsonObject && "permission" in poly["Condition"]!!.jsonObject)
-        assertTrue(JsonArray::class.isInstance(schema["types"]!!.jsonObject["Item"]!!.jsonObject["fields"]))
+        assertEquals(setOf("Action", "Activator", "Catalog", "Condition"), schema.poly.keys)
+        assertTrue("close" in schema.poly.getValue("Action") && "permission" in schema.poly.getValue("Condition"))
+        // Every variant a base names is a type of the schema.
+        for ([base, variants] in schema.poly) for (type in variants.values) assertTrue(type in schema.types, "$base: $type")
     }
 
     @Test
     fun theSchemaSaysWhatTheElementsOfEachCatalogHold() {
-        val catalogs = schema["catalogs"]!!.jsonObject
-        val poly = schema["poly"]!!.jsonObject["Catalog"]!!.jsonObject
-        assertEquals(poly.keys, catalogs.keys, "every catalog of the schema has its values listed")
-        assertEquals(setOf("name", "uuid"), catalogs["players"]!!.jsonObject.keys)
+        assertEquals(schema.poly.getValue("Catalog").keys, schema.catalogs.keys, "every catalog of the schema has its values listed")
+        assertEquals(setOf("name", "uuid"), schema.catalogs.getValue("players").keys)
     }
 }

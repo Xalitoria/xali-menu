@@ -3,7 +3,11 @@ import mc.xalitoria.menu.paper.editor.EditorLink
 import mc.xalitoria.menu.paper.editor.EditorMenus
 import mc.xalitoria.menu.paper.editor.EditorSessions
 import mc.xalitoria.menu.paper.editor.GameFiles
-import mc.xalitoria.menu.paper.editor.Json
+import mc.xalitoria.menu.paper.editor.ColorsRequest
+import mc.xalitoria.menu.paper.editor.ErrorReply
+import mc.xalitoria.menu.paper.editor.MenuRequest
+import mc.xalitoria.menu.paper.editor.Problems
+import mc.xalitoria.menu.paper.editor.Wire
 import mc.xalitoria.menu.paper.editor.fontImageIds
 import org.bukkit.configuration.file.YamlConfiguration
 import java.io.ByteArrayInputStream
@@ -100,11 +104,18 @@ class Editor {
     }
 
     @Test
-    fun jsonKeepsKeysThatLookLikePaths() {
-        val read = Json.read("""{"a.b":1,"list":[1,2.5,"x",null,true],"nested":{"k":"v"}}""").unwrapped()
-        assertEquals(setOf("a.b", "list", "nested"), read.keys)
-        assertEquals("""{"a.b":1,"nested":{"k":"v"}}""", Json.write(mapOf("a.b" to 1, "nested" to mapOf("k" to "v"))))
-        assertEquals("""{"problems":["x \"y\""]}""", Json.write(mapOf("problems" to listOf("x \"y\""))))
+    fun theWireIsTypedAndKeepsKeysThatLookLikePaths() {
+        // A menu travels as a tree and comes back as the config object the plugin reads, with a key such as `a.b` still one key.
+        val request = Wire.read<MenuRequest>("""{"menu":{"a.b":1,"nested":{"k":"v"}},"extra":true}""")!!
+        val config = Wire.config(request.menu!!)
+        assertEquals(setOf("a.b", "nested"), config.keys)
+        assertEquals(request.menu, Wire.tree(config), "the tree is what came in")
+        assertEquals("""{"problems":["x \"y\""]}""", Wire.write(Problems(listOf("x \"y\""))))
+        assertEquals("""{"error":"no"}""", Wire.write(ErrorReply("no")))
+        // A request of the wrong shape is not one, instead of a value that is null somewhere further on.
+        assertNull(Wire.read<MenuRequest>("not json"))
+        assertNull(Wire.read<ColorsRequest>("""{"potions":"x"}"""))
+        assertEquals(listOf("speed" to 1), Wire.read<ColorsRequest>("""{"potions":[{"type":"water","effects":[{"type":"speed","amplifier":1},{"amplifier":2}]}]}""")!!.potions.single().custom())
     }
 
     @Test

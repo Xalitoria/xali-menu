@@ -56,8 +56,8 @@ internal class EditorRelay(private val plugin: XaliMenu, private val api: Editor
                 .POST(HttpRequest.BodyPublishers.ofString("""{"ttl":${minutes * 60}}""")).build()
             val response = http.send(request, HttpResponse.BodyHandlers.ofString())
             if (response.statusCode() != 201) return Started.Failed("the relay answered ${response.statusCode()}: ${response.body().take(120)}")
-            val made = Json.read(response.body()).unwrapped()
-            Share(owner, made["id"] as String, made["secret"] as String, RelayCrypto.keyOf(keyText), now() + minutes * 60_000L, readOnly)
+            val made = Wire.read<RelaySession>(response.body()) ?: return Started.Failed("the relay did not answer with a session")
+            Share(owner, made.id, made.secret, RelayCrypto.keyOf(keyText), now() + minutes * 60_000L, readOnly)
         } catch (e: Exception) {
             return Started.Failed(e.message ?: e::class.simpleName.orEmpty())
         }
@@ -96,11 +96,9 @@ internal class EditorRelay(private val plugin: XaliMenu, private val api: Editor
                 when (response.statusCode()) {
                     200 -> {
                         failures = 0
-                        val calls = (Json.read("""{"calls":${response.body()}}""").unwrapped()["calls"] as? List<*>).orEmpty()
-                        for (call in calls) {
-                            val map = call as? Map<*, *> ?: continue
-                            val id = map["id"] as? String ?: continue
-                            val data = (map["data"] as? String)?.let { runCatching { Base64.getUrlDecoder().decode(it) }.getOrNull() } ?: continue
+                        for (call in Wire.read<List<RelayCall>>(response.body()).orEmpty()) {
+                            val id = call.id ?: continue
+                            val data = call.data?.let { runCatching { Base64.getUrlDecoder().decode(it) }.getOrNull() } ?: continue
                             workers.execute { answer(relay, share, id, data) }
                         }
                     }
@@ -122,7 +120,7 @@ internal class EditorRelay(private val plugin: XaliMenu, private val api: Editor
     /** Runs the request in [data] and posts the answer, if it is one that is to be answered. */
     private fun answer(relay: String, share: Share, callId: String, data: ByteArray) {
         val reply = handle(share, data) ?: return
-        val sealed = RelayCrypto.seal(share.key, share.id, "a", Json.write(reply).toByteArray())
+        val sealed = RelayCrypto.seal(share.key, share.id, "a", Wire.write(reply).toByteArray())
         runCatching {
             val request = HttpRequest.newBuilder(URI("$relay/s/${share.id}/answer/$callId")).timeout(Duration.ofSeconds(20))
                 .header("Authorization", "Bearer ${share.secret}").POST(HttpRequest.BodyPublishers.ofByteArray(sealed)).build()
@@ -131,36 +129,35 @@ internal class EditorRelay(private val plugin: XaliMenu, private val api: Editor
     }
 
     /** The answer for the request in [data], or null when it is to be ignored (not made with the key, old, or already answered). */
-    internal fun handle(share: Share, data: ByteArray): Map<String, Any?>? {
+    internal fun handle(share: Share, data: ByteArray): RelayReply? {
         val plain = RelayCrypto.open(share.key, share.id, "q", data) ?: return null
-        val request = runCatching { Json.read(plain.decodeToString()).unwrapped() }.getOrNull() ?: return null
-        val rid = request["rid"] as? String ?: return null
-        val time = (request["t"] as? Number)?.toLong() ?: return null
+        val request = Wire.read<RelayRequest>(plain.decodeToString()) ?: return null
+        val rid = request.rid ?: return null
+        val time = request.t ?: return null
         if (abs(now() - time) > FRESH) return null
         synchronized(share.seen) {
             if (!share.seen.add(rid)) return null
             while (share.seen.size > 2000) share.seen.remove(share.seen.first())
         }
-        val method = request["method"] as? String
-        val path = request["path"] as? String
-        if (method !in METHODS || path == null || !path.startsWith("/")) return mapOf("rid" to rid, "status" to 400, "type" to JSON, "body" to b64("""{"error":"Bad request"}"""))
-        val from = clean(request["from"] as? String)
-        val bodyText = (request["body"] as? String).orEmpty()
+        val method = request.method
+        val path = request.path
+        if (method !in METHODS || path == null || !path.startsWith("/")) return failure(rid, 400, "Bad request")
+        val from = clean(request.from)
         val query = path.substringAfter('?', "").ifEmpty { null }
-        val call = EditorApi.Call(method!!, path.substringBefore('?'), query, bodyText.toByteArray(), request["range"] as? String)
+        val call = EditorApi.Call(method!!, path.substringBefore('?'), query, request.body.orEmpty().toByteArray(), request.range)
         val reply = try {
             api.handle(call, EditorApi.Caller(share.owner, shared = true, from = from, readOnly = share.readOnly))
         } catch (e: Exception) {
             plugin.logger.warning("The editor failed on a shared request for $path: $e")
-            return mapOf("rid" to rid, "status" to 500, "type" to JSON, "body" to b64(Json.write(mapOf("error" to "The server could not answer"))))
+            return failure(rid, 500, "The server could not answer")
         }
         val bytes = reply.file?.let { if (Files.size(it) <= MAX_ANSWER) Files.readAllBytes(it) else null }
         val tooBig = (reply.file != null && bytes == null) || reply.body.size > MAX_ANSWER
-        if (tooBig) return mapOf("rid" to rid, "status" to 413, "type" to JSON, "body" to b64(Json.write(mapOf("error" to "That is too big to send at once: ask for a part with a Range"))))
-        return mapOf("rid" to rid, "status" to reply.status, "type" to reply.type, "body" to Base64.getEncoder().encodeToString(bytes ?: reply.body))
+        if (tooBig) return failure(rid, 413, "That is too big to send at once: ask for a part with a Range")
+        return RelayReply(rid, reply.status, reply.type, Base64.getEncoder().encodeToString(bytes ?: reply.body))
     }
 
-    private fun b64(text: String) = Base64.getEncoder().encodeToString(text.toByteArray())
+    private fun failure(rid: String, status: Int, message: String) = RelayReply(rid, status, JSON, Base64.getEncoder().encodeToString(Wire.write(ErrorReply(message)).toByteArray()))
 
     companion object {
         private const val FRESH = 10 * 60_000L

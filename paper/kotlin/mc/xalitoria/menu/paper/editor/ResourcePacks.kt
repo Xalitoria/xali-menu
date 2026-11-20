@@ -23,14 +23,14 @@ internal class ResourcePacks(private val plugin: XaliMenu) {
      * The items a menu can use: every item of the game, and the items of each source that lists them, by prefix (`nexo` to `ruby`...).
      * Ids are what follows the prefix.
      */
-    fun catalog(): Map<String, Any> {
+    fun catalog(): ItemCatalog {
         val vanilla = io.papermc.paper.registry.RegistryAccess.registryAccess().getRegistry(io.papermc.paper.registry.RegistryKey.ITEM)
             .map { it.key().value() }.sorted()
         val custom = plugin.registry.sources.entries.mapNotNull { entry ->
             val ids = (entry.value as? mc.xalitoria.menu.paper.hook.ListsItems)?.let { runCatching { it.ids() }.getOrNull() } ?: return@mapNotNull null
             entry.key to ids
         }.toMap()
-        return mapOf("vanilla" to vanilla, "custom" to custom)
+        return ItemCatalog(vanilla, custom)
     }
 
     /**
@@ -92,9 +92,9 @@ internal class ResourcePacks(private val plugin: XaliMenu) {
     }
 
     /** The glyphs the plugins define, as `{name, char, plugin}`. */
-    fun glyphs(): List<Map<String, String>> {
+    fun glyphs(): List<Glyph> {
         val plugins = plugin.server.pluginsFolder.toPath()
-        val found = mutableListOf<Map<String, String>>()
+        val found = mutableListOf<Glyph>()
         for (name in listOf("Nexo", "Oraxen")) {
             val folder = plugins.resolve("$name/glyphs")
             if (!Files.isDirectory(folder)) continue
@@ -103,7 +103,7 @@ internal class ResourcePacks(private val plugin: XaliMenu) {
                     val yaml = YamlConfiguration.loadConfiguration(file.toFile())
                     for (key in yaml.getKeys(false)) {
                         val character = yaml.getString("$key.char")?.takeIf { it.isNotEmpty() } ?: continue
-                        found += mapOf("name" to key, "char" to character, "plugin" to name)
+                        found += Glyph(key, character, name)
                     }
                 }
             }
@@ -113,7 +113,7 @@ internal class ResourcePacks(private val plugin: XaliMenu) {
     }
 
     /** The ids of the font images a plugin's content files declare, `namespace:id`, found by [fontImageIds]. */
-    private fun itemsAdder(): List<Map<String, String>> {
+    private fun itemsAdder(): List<Glyph> {
         val contents = plugin.server.pluginsFolder.toPath().resolve("ItemsAdder/contents")
         if (!Files.isDirectory(contents)) return emptyList()
         val ids = Files.walk(contents).use { files ->
@@ -123,7 +123,7 @@ internal class ResourcePacks(private val plugin: XaliMenu) {
         }
         return ids.distinct().mapNotNull { id ->
             val text = mc.xalitoria.menu.paper.hook.ItemsAdderHost.glyph(id) ?: return@mapNotNull null
-            mapOf("name" to id, "char" to text, "plugin" to "ItemsAdder")
+            Glyph(id, text, "ItemsAdder")
         }
     }
 
@@ -133,8 +133,8 @@ internal class ResourcePacks(private val plugin: XaliMenu) {
      * bar needs. Built on the global region's thread, which owns no world, since the plugins that make the items were not written
      * for any other.
      */
-    fun items(materials: List<String>): Map<String, Map<String, Any?>> {
-        val done = CompletableFuture<Map<String, Map<String, Any?>>>()
+    fun items(materials: List<String>): Map<String, ItemInfo> {
+        val done = CompletableFuture<Map<String, ItemInfo>>()
         plugin.server.globalRegionScheduler.run(plugin) {
             done.complete(materials.mapNotNull { material ->
                 val prefix = material.substringBefore(':', "")
@@ -145,13 +145,13 @@ internal class ResourcePacks(private val plugin: XaliMenu) {
                     ':' !in material || prefix == "minecraft" -> org.bukkit.Material.matchMaterial(material)?.takeIf { it.isItem && !it.isLegacy }?.let { org.bukkit.inventory.ItemStack(it) }
                     else -> null
                 } ?: return@mapNotNull null
-                material to mapOf(
-                    "material" to stack.type.key.key,
-                    "itemModel" to (stack.getData(DataComponentTypes.ITEM_MODEL)?.asString()
+                material to ItemInfo(
+                    material = stack.type.key.key,
+                    itemModel = (stack.getData(DataComponentTypes.ITEM_MODEL)?.asString()
                         ?: if (prefix.equals("itemsadder", true)) mc.xalitoria.menu.paper.hook.ItemsAdderHost.model(material.substringAfter(':')) else null)
                         .takeIf { source != null },
-                    "customModelData" to stack.getData(DataComponentTypes.CUSTOM_MODEL_DATA)?.floats()?.map { it.toDouble() },
-                    "maxDamage" to (stack.getData(DataComponentTypes.MAX_DAMAGE) ?: 0),
+                    customModelData = stack.getData(DataComponentTypes.CUSTOM_MODEL_DATA)?.floats()?.map { it.toDouble() },
+                    maxDamage = stack.getData(DataComponentTypes.MAX_DAMAGE) ?: 0,
                 )
             }.toMap())
         }

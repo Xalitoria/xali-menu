@@ -1,6 +1,7 @@
 package mc.xalitoria.menu.paper.editor
 
 import com.typesafe.config.ConfigObject
+import kotlinx.serialization.json.JsonObject
 import mc.xalitoria.menu.paper.XaliMenu
 import java.net.URI
 import java.nio.file.Files
@@ -34,28 +35,31 @@ internal class EditorApi(private val plugin: XaliMenu, val menus: EditorMenus, v
         val headers: Map<String, String> = emptyMap(),
     )
 
-    private fun json(status: Int, value: Any?) = Reply(status, "application/json; charset=utf-8", Json.write(value).toByteArray(), cache = "no-store")
+    private inline fun <reified T> json(status: Int, value: T) = Reply(status, JSON, Wire.write(value).toByteArray(), cache = "no-store")
 
-    private fun error(status: Int, message: String) = json(status, mapOf("error" to message))
+    private fun error(status: Int, message: String) = json(status, ErrorReply(message))
+
+    /** The body of [call] as a [T], or null when it is not one. */
+    private inline fun <reified T> body(call: Call): T? = Wire.read<T>(call.body.decodeToString())
 
     /** The catalogs for `/v1/info`: what their elements hold and, for those of other plugins that said, the keys of their settings. */
-    private fun catalogs(): Map<String, Map<String, Map<String, String>>> {
+    private fun catalogs(): Map<String, CatalogInfo> {
         val settings = plugin.registry.catalogSettings
-        return plugin.registry.catalogInfo.mapValues { [name, values] -> mapOf("values" to values, "settings" to settings[name].orEmpty()) }
+        return plugin.registry.catalogInfo.mapValues { [name, values] -> CatalogInfo(values, settings[name].orEmpty()) }
     }
 
     fun handle(call: Call, who: Caller): Reply {
         val path = call.path.trim('/').split('/')
         val method = call.method
         return when {
-            path == listOf("info") && method == "GET" -> json(200, mapOf(
-                "plugin" to "XaliMenu", "version" to plugin.pluginMeta.version, "owner" to who.owner, "shared" to who.shared, "readOnly" to who.readOnly,
-                "menus" to menus.names(), "pack" to (packs.pack() != null || packs.packUrl() != null), "catalogs" to catalogs(),
-                "packSize" to packs.pack()?.let { Files.size(it) }, "packUrl" to packs.packUrl(),
+            path == listOf("info") && method == "GET" -> json(200, Info(
+                plugin = "XaliMenu", version = plugin.pluginMeta.version, owner = who.owner, shared = who.shared, readOnly = who.readOnly,
+                menus = menus.names(), pack = packs.pack() != null || packs.packUrl() != null, catalogs = catalogs(),
+                packSize = packs.pack()?.let { Files.size(it) }, packUrl = packs.packUrl(),
             ))
             path.size == 2 && path[0] == "menus" && method == "GET" -> {
                 val menu = menus.read(path[1]) ?: return error(404, "There is no menu '${path[1]}'")
-                json(200, mapOf("name" to path[1], "menu" to menu.unwrapped()))
+                json(200, MenuReply(path[1], Wire.tree(menu)))
             }
             path.size == 2 && path[0] == "menus" && method == "PUT" -> {
                 val menu = menuOf(call) ?: return error(400, "The request has no 'menu' object")
@@ -73,7 +77,7 @@ internal class EditorApi(private val plugin: XaliMenu, val menus: EditorMenus, v
                 val size = Files.size(file)
                 // A part of the pack, for a pack too big to send at once: the editor reads the directory of the zip and then only what it draws.
                 val part = call.range?.let { byteRange(it, size) }
-                if (call.range != null && part == null) return Reply(416, "application/json; charset=utf-8", Json.write(mapOf("error" to "That part is not in the pack")).toByteArray(), headers = mapOf("Content-Range" to "bytes */$size"))
+                if (call.range != null && part == null) return Reply(416, JSON, Wire.write(ErrorReply("That part is not in the pack")).toByteArray(), headers = mapOf("Content-Range" to "bytes */$size"))
                 if (part == null) return Reply(200, "application/zip", file = file)
                 val bytes = Files.newByteChannel(file).use { channel ->
                     channel.position(part.first)
@@ -82,28 +86,19 @@ internal class EditorApi(private val plugin: XaliMenu, val menus: EditorMenus, v
                 Reply(206, "application/zip", bytes, headers = mapOf("Content-Range" to "bytes ${part.first}-${part.last}/$size"))
             }
             path == listOf("colors") && method == "POST" -> {
-                val request = Json.read(call.body.decodeToString()).unwrapped()
-                val specs = (request["potions"] as? List<*>).orEmpty().take(200).map { entry ->
-                    val map = entry as? Map<*, *>
-                    val effects = (map?.get("effects") as? List<*>).orEmpty().mapNotNull { e ->
-                        val m = e as? Map<*, *> ?: return@mapNotNull null
-                        (m["type"] as? String)?.let { it to ((m["amplifier"] as? Number)?.toInt() ?: 0) }
-                    }
-                    (map?.get("type") as? String) to effects
-                }
-                json(200, mapOf("colors" to packs.potionColors(specs)))
+                val request = body<ColorsRequest>(call) ?: return error(400, "The request is not a list of potions")
+                json(200, Colors(packs.potionColors(request.potions.take(200).map { it.type to it.custom() })))
             }
             path == listOf("elements") && method == "POST" -> {
-                val request = Json.read(call.body.decodeToString())
-                val catalog = request["catalog"] as? ConfigObject ?: return error(400, "The request has no 'catalog' object")
-                val plain = request.unwrapped()
-                when (val result = elements.list(who.owner, catalog, plain["sort"] as? String, plain["descending"] == true)) {
-                    is EditorElements.Result.Ok -> json(200, mapOf("elements" to result.elements, "total" to result.total))
+                val request = body<ElementsRequest>(call)
+                val catalog = request?.catalog ?: return error(400, "The request has no 'catalog' object")
+                when (val result = elements.list(who.owner, Wire.config(catalog), request.sort, request.descending)) {
+                    is EditorElements.Result.Ok -> json(200, ElementsReply(result.elements, result.total))
                     is EditorElements.Result.Refused -> error(422, result.reason)
                 }
             }
             path == listOf("catalog") && method == "GET" -> json(200, packs.catalog())
-            path == listOf("glyphs") && method == "GET" -> json(200, mapOf("glyphs" to packs.glyphs()))
+            path == listOf("glyphs") && method == "GET" -> json(200, Glyphs(packs.glyphs()))
             path == listOf("skin") && method == "GET" -> {
                 val address = call.query.orEmpty().split('&').firstOrNull { it.startsWith("url=") }
                     ?.removePrefix("url=")?.let { java.net.URLDecoder.decode(it, Charsets.UTF_8) }
@@ -119,9 +114,8 @@ internal class EditorApi(private val plugin: XaliMenu, val menus: EditorMenus, v
                 Reply(200, "application/zip", file = file, cache = "max-age=86400")
             }
             path == listOf("items") && method == "POST" -> {
-                val request = Json.read(call.body.decodeToString())
-                val materials = (request.unwrapped()["materials"] as? List<*>).orEmpty().filterIsInstance<String>().take(500)
-                json(200, mapOf("items" to packs.items(materials)))
+                val request = body<ItemsRequest>(call) ?: return error(400, "The request is not a list of materials")
+                json(200, ItemsReply(packs.items(request.materials.take(500))))
             }
             else -> error(404, "Unknown request")
         }
@@ -134,19 +128,17 @@ internal class EditorApi(private val plugin: XaliMenu, val menus: EditorMenus, v
             val edit = pending.add(who.from, name, menu, checked.problems)
             log(who.from, "sent an edit of menu '$name' (#${edit.id}) through a shared link")
             onHeld(edit)
-            json(200, mapOf("problems" to checked.problems, "held" to true, "id" to edit.id))
+            json(200, Held(checked.problems, held = true, id = edit.id))
         }
     }
 
     private fun answer(result: EditorMenus.Result) = when (result) {
-        is EditorMenus.Result.Ok -> json(200, mapOf("problems" to result.problems))
+        is EditorMenus.Result.Ok -> json(200, Problems(result.problems))
         is EditorMenus.Result.Refused -> error(422, result.reason)
     }
 
     /** The `menu` object of the request, or null if it is not there. */
-    private fun menuOf(call: Call): ConfigObject? = try {
-        Json.read(call.body.decodeToString())["menu"] as? ConfigObject
-    } catch (e: Exception) { null }
+    private fun menuOf(call: Call): ConfigObject? = body<MenuRequest>(call)?.menu?.let(Wire::config)
 
     private fun log(who: String, what: String) = plugin.logger.info("$who $what in the editor")
 
@@ -164,6 +156,7 @@ internal class EditorApi(private val plugin: XaliMenu, val menus: EditorMenus, v
     companion object {
         /** The largest menu or request the editor may send. */
         const val MAX_BODY = 2 * 1024 * 1024
+        private const val JSON = "application/json; charset=utf-8"
         private const val MAX_SKIN = 256 * 1024
 
         /** The most of a pack that one request returns; the editor asks again for the rest. */

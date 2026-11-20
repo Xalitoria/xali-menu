@@ -241,7 +241,7 @@ server, see `menu/live/README.md` (`XM_EDITOR=1`).
 
 | Where | Holds |
 |---|---|
-| `menu/editor/kotlin/com/xalitoria/menu/editor` | `DumpSchema.kt` (the entry of the `schema` task), `SchemaBuilder.kt` (walks the serializer descriptors of the model and the plugin) and `SourceDocs.kt` (reads the KDoc comments for the help texts). |
+| `menu/editor/kotlin/com/xalitoria/menu/editor` | `DumpSchema.kt` (the entry of the `schema` task), `SchemaBuilder.kt` (walks the serializer descriptors of the model and the plugin), `SchemaModel.kt` (the classes `schema.json` is written from and read back into, with `kind` as the discriminator of a type) and `SourceDocs.kt` (reads the KDoc comments for the help texts). |
 | `menu/editor/test/SchemaTest.kt` | Fails when `web/schema.json` is older than the code. |
 | `web/schema.json` | Written by the `schema` task. Do not edit it. It holds the plugin's version as well. |
 | `tools/reference.mjs`, `web/src/reference.js` | Write `../REFERENCE.md`, the page of every key, from `schema.json` (`node tools/reference.mjs`). `reference.test.js` fails when the page is out of date. |

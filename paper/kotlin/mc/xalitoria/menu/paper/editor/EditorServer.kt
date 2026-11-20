@@ -111,7 +111,7 @@ internal class EditorServer(private val plugin: XaliMenu, val sessions: EditorSe
         exchange.responseBody.write(bytes)
     }
 
-    private fun error(message: String) = Json.write(mapOf("error" to message))
+    private fun error(message: String) = Wire.write(ErrorReply(message))
 
     /** The editor's site, and the machine itself (for development); nothing else. */
     private fun allowed(origin: String): Boolean {

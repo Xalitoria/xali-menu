@@ -6,7 +6,7 @@ const bot = mineflayer.createBot({ host: '127.0.0.1', port: Number(process.env.X
 const wait = ms => new Promise(r => setTimeout(r, ms))
 bot.on('message', (m) => console.log('CHAT ' + m.toString()))
 bot.once('spawn', async () => {
-  await wait(2000)
+  await wait(5000)
   bot.chat('/xmenu edit')
   await wait(1500)
   console.log('READY')

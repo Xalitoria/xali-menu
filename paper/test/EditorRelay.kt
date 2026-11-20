@@ -1,5 +1,5 @@
 import mc.xalitoria.menu.paper.editor.EditorRelay
-import mc.xalitoria.menu.paper.editor.Json
+import com.typesafe.config.ConfigFactory
 import mc.xalitoria.menu.paper.editor.PendingEdits
 import mc.xalitoria.menu.paper.editor.RelayCrypto
 import java.util.Base64
@@ -59,7 +59,7 @@ class EditorRelayTest {
         assertEquals(32, EditorRelay.clean("x".repeat(100)).length)
     }
 
-    private fun menu() = Json.read("""{"title": "x"}""")
+    private fun menu() = ConfigFactory.parseString("""{"title": "x"}""").root()
 
     @Test
     fun heldEditsKeepTheirOrderAndAreTakenOnce() {

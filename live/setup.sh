@@ -56,6 +56,8 @@ else
 fi
 cp "$src"/server.properties "$server/server.properties"
 sed -i "s/^online-mode=.*/online-mode=false/; s/^server-port=.*/server-port=$port/" "$server/server.properties"
+# The dev server may sit behind Velocity; this copy is joined directly by a bot, so its forwarding is turned off.
+[ -f "$server/config/paper-global.yml" ] && sed -i '/^  velocity:/,/^    enabled:/ s/enabled: true/enabled: false/' "$server/config/paper-global.yml"
 echo "eula=true" > "$server/eula.txt"
 cp "$plugin" "$server/plugins/"
 ls "$src"/plugins/PlaceholderAPI-*.jar >/dev/null && cp "$src"/plugins/PlaceholderAPI-*.jar "$server/plugins/"

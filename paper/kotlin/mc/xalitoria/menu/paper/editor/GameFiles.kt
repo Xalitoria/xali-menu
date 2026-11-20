@@ -47,10 +47,10 @@ internal class GameFiles(private val plugin: XaliMenu, private val version: Stri
 
     /** The hash of [name] in the asset index of this version, which Mojang's version manifest leads to. */
     private fun hashOf(name: String): String? {
-        val manifest = Json.read(get(URI(MANIFEST))?.decodeToString() ?: return null).unwrapped()
-        val entry = (manifest["versions"] as? List<*>)?.filterIsInstance<Map<*, *>>()?.firstOrNull { it["id"] == version } ?: return null
-        val description = Json.read(get(URI(entry["url"] as? String ?: return null))?.decodeToString() ?: return null).unwrapped()
-        val index = ((description["assetIndex"] as? Map<*, *>)?.get("url") as? String)?.let { get(URI(it)) } ?: return null
+        val manifest = Wire.read<VersionManifest>(get(URI(MANIFEST))?.decodeToString() ?: return null) ?: return null
+        val entry = manifest.versions.firstOrNull { it.id == version } ?: return null
+        val description = Wire.read<VersionDescription>(get(URI(entry.url))?.decodeToString() ?: return null) ?: return null
+        val index = description.assetIndex?.let { get(URI(it.url)) } ?: return null
         return hashIn(index.decodeToString(), name)
     }
 
@@ -75,8 +75,7 @@ internal class GameFiles(private val plugin: XaliMenu, private val version: Stri
 
         /** The hash of `minecraft/<name>` in the text of an asset index, or null. */
         fun hashIn(index: String, name: String): String? {
-            val objects = Json.read(index).unwrapped()["objects"] as? Map<*, *> ?: return null
-            val hash = (objects["minecraft/$name"] as? Map<*, *>)?.get("hash") as? String ?: return null
+            val hash = Wire.read<AssetIndex>(index)?.objects?.get("minecraft/$name")?.hash ?: return null
             return hash.takeIf { Regex("[0-9a-f]{40}").matches(it) }
         }
 

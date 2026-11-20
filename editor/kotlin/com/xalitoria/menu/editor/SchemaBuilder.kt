@@ -12,11 +12,8 @@ import kotlinx.serialization.descriptors.elementNames
 import kotlinx.serialization.descriptors.getPolymorphicDescriptors
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
-import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
-import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.put
 import kotlinx.serialization.modules.SerializersModule
 import kotlinx.serialization.serializer
 import net.xalitoria.menu.Action
@@ -54,10 +51,10 @@ class SchemaBuilder(
     /** What the elements of each built-in catalog hold: name of each value to an example. */
     private val catalogs: Map<String, Map<String, String>> = emptyMap(),
 ) {
-    private val types = sortedMapOf<String, JsonElement>()
+    private val types = sortedMapOf<String, TypeDef>()
     private val bases = linkedMapOf<String, Map<String, String>>()
 
-    fun build(): JsonObject {
+    fun build(): SchemaFile {
         val root = describe(Menu.serializer().descriptor)
         val baseDescriptors = mapOf(
             "Action" to PolymorphicSerializer(Action::class).descriptor,
@@ -67,13 +64,13 @@ class SchemaBuilder(
         )
         // Walking a variant can reach more bases and more variants, so go on until nothing is new.
         for (entry in baseDescriptors) base(entry.key, entry.value)
-        return buildJsonObject {
-            put("version", version)
-            put("root", root)
-            put("types", JsonObject(types))
-            put("catalogs", JsonObject(catalogs.toSortedMap().mapValues { entry -> JsonObject(entry.value.mapValues { JsonPrimitive(it.value) }) }))
-            put("poly", JsonObject(bases.toSortedMap().mapValues { entry -> JsonObject(entry.value.toSortedMap().mapValues { JsonPrimitive(it.value) }) }))
-        }
+        return SchemaFile(
+            version = version,
+            root = root,
+            types = types,
+            catalogs = catalogs.toSortedMap().mapValues { it.value },
+            poly = bases.toSortedMap().mapValues { it.value.toSortedMap() },
+        )
     }
 
     /** Registers the base called [name] with its variants, and the variants as types called `Name:variant`. */
@@ -93,69 +90,53 @@ class SchemaBuilder(
 
     private fun define(id: String, descriptor: SerialDescriptor, base: String? = null): String {
         if (id in types) return id
-        types[id] = JsonNull // Breaks a cycle of classes that refer to each other.
+        types[id] = TypeDef(fields = emptyList()) // Breaks a cycle of classes that refer to each other.
         val source = docs.find(descriptor.serialName.removeSuffix("?"), base)
         val fields = (0 until descriptor.elementsCount).map { index ->
             val property = descriptor.getElementName(index)
             val documented = source?.fields?.get(property)
-            buildJsonObject {
-                put("key", kebab(property))
-                put("type", typeOf(descriptor.getElementDescriptor(index)))
-                put("required", !descriptor.isElementOptional(index))
-                documented?.default?.let { literal(it) }?.let { put("default", it) }
-                // The limits of a number (of each entry, for a list), from the model itself.
-                descriptor.getElementAnnotations(index).filterIsInstance<Within>().firstOrNull()?.let { within ->
-                    if (within.min != Long.MIN_VALUE) put("min", within.min)
-                    if (within.max != Long.MAX_VALUE) put("max", within.max)
-                }
-                documented?.doc?.takeIf { it.isNotEmpty() }?.let { put("doc", it) }
-            }
+            // The limits of a number (of each entry, for a list), from the model itself.
+            val within = descriptor.getElementAnnotations(index).filterIsInstance<Within>().firstOrNull()
+            FieldDef(
+                key = kebab(property),
+                type = typeOf(descriptor.getElementDescriptor(index)),
+                required = !descriptor.isElementOptional(index),
+                default = documented?.default?.let { literal(it) },
+                min = within?.min?.takeIf { it != Long.MIN_VALUE },
+                max = within?.max?.takeIf { it != Long.MAX_VALUE },
+                doc = documented?.doc?.takeIf { it.isNotEmpty() },
+            )
         }
-        types[id] = buildJsonObject {
-            source?.doc?.takeIf { it.isNotEmpty() }?.let { put("doc", it) }
-            put("fields", JsonArray(fields))
-        }
+        types[id] = TypeDef(doc = source?.doc?.takeIf { it.isNotEmpty() }, fields = fields)
         return id
     }
 
-    private fun typeOf(descriptor: SerialDescriptor): JsonObject = when {
-        descriptor.serialName.contains("Duration") -> kind("duration")
+    private fun typeOf(descriptor: SerialDescriptor): FieldType = when {
+        descriptor.serialName.contains("Duration") -> FieldType.Time
         // A number or a switch that may be written as text with placeholders: the editor offers a box that takes either.
-        descriptor.serialName.contains("DynamicInt") -> buildJsonObject { put("kind", "dynamic"); put("of", "int") }
-        descriptor.serialName.contains("DynamicBoolean") -> buildJsonObject { put("kind", "dynamic"); put("of", "boolean") }
-        descriptor.kind is PrimitiveKind -> kind(
-            when (descriptor.kind) {
-                PrimitiveKind.BOOLEAN -> "boolean"
-                PrimitiveKind.BYTE, PrimitiveKind.SHORT, PrimitiveKind.INT, PrimitiveKind.LONG -> "int"
-                PrimitiveKind.FLOAT, PrimitiveKind.DOUBLE -> "number"
-                else -> "string"
-            },
-        )
-        descriptor.kind == SerialKind.ENUM -> buildJsonObject {
-            put("kind", "enum")
-            put("values", JsonArray(descriptor.elementNames.map { JsonPrimitive(it) }))
+        descriptor.serialName.contains("DynamicInt") -> DynamicType("int")
+        descriptor.serialName.contains("DynamicBoolean") -> DynamicType("boolean")
+        descriptor.kind is PrimitiveKind -> when (descriptor.kind) {
+            PrimitiveKind.BOOLEAN -> FieldType.Switch
+            PrimitiveKind.BYTE, PrimitiveKind.SHORT, PrimitiveKind.INT, PrimitiveKind.LONG -> FieldType.Whole
+            PrimitiveKind.FLOAT, PrimitiveKind.DOUBLE -> FieldType.Decimal
+            else -> FieldType.Text
         }
-        descriptor.kind == StructureKind.LIST -> buildJsonObject {
-            put("kind", "list")
-            put("of", typeOf(descriptor.getElementDescriptor(0)))
-        }
-        descriptor.kind == StructureKind.MAP -> buildJsonObject {
-            put("kind", "map")
-            put("of", typeOf(descriptor.getElementDescriptor(1)))
-        }
+        descriptor.kind == SerialKind.ENUM -> EnumType(descriptor.elementNames.toList())
+        descriptor.kind == StructureKind.LIST -> ListType(typeOf(descriptor.getElementDescriptor(0)))
+        descriptor.kind == StructureKind.MAP -> MapType(typeOf(descriptor.getElementDescriptor(1)))
         descriptor.kind == PolymorphicKind.OPEN -> {
             val name = descriptor.serialName.substringAfter('<').substringBefore('>')
             base(name, PolymorphicSerializer(baseClass(name)).descriptor)
-            buildJsonObject { put("kind", "poly"); put("base", name) }
+            PolyType(name)
         }
         descriptor.kind == PolymorphicKind.SEALED -> {
             val name = typeId(descriptor)
             base(name, descriptor)
-            buildJsonObject { put("kind", "poly"); put("base", name) }
+            PolyType(name)
         }
-        descriptor.kind == StructureKind.CLASS || descriptor.kind == StructureKind.OBJECT ->
-            buildJsonObject { put("kind", "object"); put("type", describe(descriptor)) }
-        else -> kind("any")
+        descriptor.kind == StructureKind.CLASS || descriptor.kind == StructureKind.OBJECT -> ObjectType(describe(descriptor))
+        else -> FieldType.Anything
     }
 
     private fun baseClass(name: String) = when (name) {
@@ -164,8 +145,6 @@ class SchemaBuilder(
         "Catalog" -> Catalog::class
         else -> error("The editor does not know the base '$name'")
     }
-
-    private fun kind(name: String) = buildJsonObject { put("kind", name) }
 
     companion object {
         /** `dynamicAmount` is written `dynamic-amount` in menu files. */
