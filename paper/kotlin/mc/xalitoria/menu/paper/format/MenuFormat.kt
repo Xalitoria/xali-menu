@@ -32,7 +32,7 @@ class MenuFormat(private val module: SerializersModule, private val externals: S
     fun decodeChecked(text: String): Read {
         val root = ConfigFactory.parseString(text).resolve().root()
         val checked = ConfigChecker(module, externals, activators).check(root)
-        if (checked.errors.isNotEmpty()) throw MenuFormatException(checked.errors)
+        if (checked.errors.isNotEmpty()) throw MenuFormatException(checked.errors, checked.warnings)
         // Only a menu that uses something another plugin added is rewritten; any other is read as written.
         val packed = if ((externals + activators).none { it in text }) checked.config else checked.config.packExternals(externals, activators) as ConfigObject
         return Read(hocon.decodeFromConfig(packed.toConfig()), checked.warnings)

@@ -187,22 +187,17 @@ class ItemFactory(private val plugin: XaliMenu) {
             listOfNotNull(spec.model, spec.cameraOverlay).filter { namespaced(it) == null }.forEach { problems += "equippable key '$it' isn't a key" }
         }
         item.tool?.let { spec ->
-            if (spec.damagePerBlock < 0) problems += "tool damage-per-block can't be negative"
             spec.rules.forEach { rule ->
                 if (rule.blocks.isEmpty()) problems += "a tool rule needs blocks"
                 rule.blocks.filter { entry -> blocks(listOf(entry)).isEmpty() }.forEach { problems += "tool rule: '$it' isn't a block or a tag of blocks" }
             }
         }
+        // Numbers written in a file are limited by `@Within` on the model, which the file check tells with a path and a line; here only what a file cannot show.
         for (entry in listOf("amount" to item.amount, "model" to item.model, "damage" to item.damage, "max-stack-size" to item.maxStackSize)) {
             val value = entry.second
             if (value != null && value.fixed == null && !hasPlaceholder(value.text)) problems += "${entry.first} '${value.text}' isn't a number"
         }
-        item.amount.fixed?.let { if (it !in 1..99) problems += "amount $it isn't between 1 and 99, so it is shown as ${it.coerceIn(1, 99)}" }
-        item.maxStackSize?.fixed?.let { if (it !in 1..99) problems += "max-stack-size $it isn't between 1 and 99" }
-        item.damage?.fixed?.let { if (it < 0) problems += "damage can't be negative" }
-        item.food?.let { if (it.nutrition < 0) problems += "food nutrition can't be negative" }
         item.firework?.let { firework ->
-            if (firework.power !in 0..127) problems += "firework power ${firework.power} isn't between 0 and 127"
             firework.effects.flatMap { it.colors + it.fade }.filter { parseColor(it) == null }.forEach { problems += "firework color '$it' isn't #rrggbb" }
             firework.effects.filter { it.colors.isEmpty() }.forEach { _ -> problems += "a firework effect needs a color" }
         }

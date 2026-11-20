@@ -98,7 +98,7 @@ Menu 'shop': items.apple.slott (line 8): is not a key of an item, so it is ignor
 
 - A key that nothing reads (a typo, or the style of another config: `max_stack_size`) is a warning, with the key it was probably meant to be; the menu still loads.
 - A missing key, a value of the wrong kind, a word that is not one of an enum's or one of the types of an action, condition, catalog or activator, make the file unreadable, and all the reasons are given at once.
-- A number outside what the schema allows (`amount = 0`, `size = 100`, an `inventory-slots` past 35, a `chance` of 150 percent) is a warning, and an action or condition that can't be made with it (a `potion` with `amplifier = 300`, a `take-item` of 0) refuses the file, told with its path and line. The limits are the `@Within` of the property in the model, which the editor uses too.
+- A number outside what the schema allows (`amount = 0`, `size = 100`, an `inventory-slots` past 35, a `chance` of 150 percent) is a warning, and an action or condition that can't be made with it (a `potion` with `amplifier = 300`, a `take-item` of 0) refuses the file, told with its path and line, together with the warnings of the same file, so that all of it is fixed in one round. The limits are the `@Within` of the property in the model, which the editor uses too.
 - A few things may be written the easy way: one value where a list is expected (`slots = 5`, `actions = { type = close }`, `lore = "a line"`), an enum in any case (`rarity = epic`), and a number or switch as text (`slot = "3"`).
 - What another plugin's action or condition holds is checked by that plugin, not here.
 - `/xmenu validate` and `/xmenu reload` give the same words.

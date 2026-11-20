@@ -296,15 +296,16 @@ Each step ends with tests, the README section, and a commit.
 - Actions and conditions are said as sentences (`src/sentences.js`) under the type and in a folded row; `sentences.test.js` fails for an action or condition of the schema that has none. Only read, not yet edited as a sentence.
 - `src/itemeditors.js`: `food` (the bar of drumsticks), `tool` (rules with chips and the usual tags), `fish` (pattern and dyes; `src/dyes.js` holds the dyes the banner uses too).
 - Armor trims drawn as the game does (`trim_material` in `itemdef.js`, `paletted_permutations` of the item atlas in `assets.js` with `recolor`), which a resource pack changes as it does in the game; `trimEditor` shows the piece with each material. Checked in a browser against the game's files and a pack with another palette.
-- Not done: the armor drawn on a player (the pattern only shows there), the fish drawn in the bucket,
+- Not done: the armor drawn on a player (the pattern only shows there), (the fish in its bucket is not drawn by the game either: the icon is one texture),
   the layout and the legend as a picture, and editing an action or condition by its sentence (the words are only read now).
 
-### 14. A checked schema (done; tested without a server and in unit tests of the editor; not live on a server)
+### 14. A checked schema (done; unit tests, the editor in a browser, and the plugin on a live Folia server)
 
 - `ConfigChecker` (plugin, `format/`) walks a menu file along the descriptors of the model, which is also where the editor's `schema.json` comes from, so the two cannot drift: a key that nothing reads
   (a warning, with the key it was probably meant to be), a missing key, a value of the wrong kind, an unknown type of an action, condition, catalog or activator, and a word that is not one of an enum's
   are told with their path and line, all at once (`MenuFormatException`). The warnings reach `/xmenu validate`, `/xmenu reload`, the log and the editor's save answer through `problemsOf`.
 - The easy forms of a file are written the one way before it is read: one value for a list, an enum in any case. A number or switch as text was already read.
+- Checked live (Folia, 2026-11-20): a menu with a mistyped action, a `slott`, a `max_stack_size`, `amount = 0`, `size = 100`, a `chance` of 150 and an amplifier of 300 is refused with its two errors **and** its five warnings, each with path and line, and the shipped menus load as before. The warnings of a refused file are in its message (`MenuFormatException.warnings`), and `ItemFactory` no longer says again what the file check has said about a fixed number.
 - `@Within(min, max)` on the model gives a number its limits; they are in `schema.json` (`min`, `max`), in the editor's boxes and problems, and in the plugin's check.
 - The editor: the same words and suggestions (`suggest.js`), a **Rename to …** button for a mistyped key, `normalize.js` so that the rest of the editor only sees the one way.
 - Tests: `ConfigCheck` (and every menu that ships with the plugin or the live tests, except `i.conf` which has wrong items on purpose, reads with no warning), `SchemaTest`, `check.test.js`, `suggest.test.js`, `normalize.test.js`.

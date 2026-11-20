@@ -31,9 +31,13 @@ data class ConfigProblem(val path: String, val line: Int?, val message: String) 
 /** What [ConfigChecker.check] makes of a file: the file with its easy spellings written the one way the model reads, and what is wrong or doubtful in it. */
 class Checked(val config: ConfigObject, val errors: List<ConfigProblem>, val warnings: List<ConfigProblem>)
 
-/** A menu file that the model cannot read; [problems] is every reason, with where it is. */
-class MenuFormatException(val problems: List<ConfigProblem>) : RuntimeException(
-    if (problems.size == 1) problems.single().toString() else "${problems.size} problems:" + problems.joinToString("") { "\n  - $it" },
+/**
+ * A menu file that the model cannot read; [problems] is every reason, with where it is. The [warnings] would not have stopped it, and are in the message as well, so
+ * that the author meets them now and not one round of fixing later.
+ */
+class MenuFormatException(val problems: List<ConfigProblem>, val warnings: List<ConfigProblem> = []) : RuntimeException(
+    (if (problems.size == 1) problems.single().toString() else "${problems.size} problems:" + problems.joinToString("") { "\n  - $it" }) +
+        (if (warnings.isEmpty()) "" else "\nand, which would not stop it loading:" + warnings.joinToString("") { "\n  - $it" }),
 )
 
 /**

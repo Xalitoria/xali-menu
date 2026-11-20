@@ -131,4 +131,12 @@ class ConfigCheck {
         assertEquals(["items.a.click.left.actions[0].ticks (line 2): can't be below 0, not -5"], warnings(click("{ type = delay, ticks = -5, action = { type = close } }")))
         assertEquals([], warnings(click("{ type = delay, ticks = 20, action = { type = close } }")))
     }
+
+    @Test
+    fun aRefusedFileAlsoTellsTheWarningsSoTheyAreFixedInOneRound() {
+        val e = assertFailsWith<MenuFormatException> { read("items.a { material = stone, slott = 1, click.left.actions = [{ type = clse }] }") }
+        assertEquals(1, e.problems.size)
+        assertEquals(1, e.warnings.size)
+        assertTrue("'clse' is not an action" in e.message!! && "would not stop it loading" in e.message!! && "did you mean 'slot'?" in e.message!!, e.message)
+    }
 }
