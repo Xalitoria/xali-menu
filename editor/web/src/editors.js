@@ -5,6 +5,7 @@ import { h } from './dom.js'
 import { icon } from './icons.js'
 import { registries } from './registry.js'
 import { numberOf } from './dynamic.js'
+import { potionEffects, attributeModifiers } from './listeditors.js'
 
 /** The dye colors of the game as `#rrggbb`, in the order of the palette, with their names as the menu file writes them. */
 export const DYES = [
@@ -111,9 +112,9 @@ function banner(store, path, value, item) {
 function firework(store, path, value) {
   const effects = Array.isArray(value?.effects) ? value.effects : []
   const power = numberOf(value?.power, 1)
-  const set = (next, quiet = false) => store.set(path, { ...value, ...next }, quiet)
+  const set = (next, quiet = false) => store.set(path, { ...store.get(path), ...next }, quiet)
   const burst = (effect, index) => {
-    const put = (change, quiet = false) => set({ effects: effects.map((e, i) => (i === index ? { ...e, ...change } : e)) }, quiet)
+    const put = (change, quiet = false) => set({ effects: (store.get(path)?.effects ?? effects).map((e, i) => (i === index ? { ...e, ...change } : e)) }, quiet)
     const colors = Array.isArray(effect.colors) ? effect.colors : []
     const fade = Array.isArray(effect.fade) ? effect.fade : []
     return h('div', { class: 'burst' },
@@ -144,6 +145,8 @@ function firework(store, path, value) {
 const EDITORS = {
   'Item.banner': Object.assign((store, path, value, item) => banner(store, path, value, item), { block: true }),
   'Item.firework': Object.assign((store, path, value) => firework(store, path, value), { block: true }),
+  'Item.potion': Object.assign((store, path, value, item) => potionEffects(store, path, value, item), { block: true }),
+  'Item.attributes': Object.assign((store, path, value) => attributeModifiers(store, path, value), { block: true }),
   'Item.color': (store, path, value) => colorBox(value, (v) => (v === '' ? store.remove(path) : store.set(path, v, true))),
 }
 

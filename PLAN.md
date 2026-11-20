@@ -290,7 +290,9 @@ Each step ends with tests, the README section, and a commit.
 
 - `src/editors.js`: the form asks `editorFor(field)` before it draws its generic control, so a kind of value can have a control of its own: the layers of a banner (dye colors, a gallery of the
   patterns drawn as banners, order), the bursts of a firework, a color. The firework star is tinted by its first burst (`fireworkColor`, the `firework` tint of the item definition).
-- Not done: the same for `potion` (duration in seconds, level in roman), `attributes`, `book` pages, `food`, `trim` (the armor with its trim), `tool` rules, `fish` (the bucket drawn with the fish),
+- `src/listeditors.js` (with the words in `effects.js`): the effects of a potion (seconds, level in numerals, the effect from the game's list) and the modifiers of attributes (what the operation does to the amount, in words). A box typed in changes the
+  store without a redraw, so a control reads the list as it is now (`store.get`) rather than the one it was drawn from; the firework's power box had the same fault and was fixed.
+- Not done: the same for `book` pages, `food`, `trim` (the armor with its trim), `tool` rules, `fish` (the bucket drawn with the fish),
   the layout and the legend as a picture, and conditions and actions as sentences instead of keys.
 
 ### 14. A checked schema (done; tested without a server and in unit tests of the editor; not live on a server)

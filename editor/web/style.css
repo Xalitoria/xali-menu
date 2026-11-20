@@ -240,3 +240,10 @@ input[type=color] { width: 36px; height: 32px; padding: 2px; cursor: pointer; ba
 input.power { width: 72px; }
 
 .did-you-mean { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 6px; color: #d9b44a; font-size: 12px; }
+
+/* potion effects and attribute modifiers */
+.effects-editor { display: grid; gap: 10px; }
+.effect-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); }
+.effect-row .registry, .layer-head .registry { display: inline-flex; gap: 4px; }
+.effect-row input.short, .burst-row input.short { width: 76px; }
+.effect-note { min-width: 70px; }
