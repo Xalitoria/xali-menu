@@ -74,7 +74,7 @@ export class Assets {
   permutations() {
     return this.cached('permutations', async () => {
       const found = []
-      for (const name of ['items', 'blocks']) {
+      for (const name of ['items', 'blocks', 'armor_trims']) {
         const file = `assets/minecraft/atlases/${name}.json`
         const documents = []
         if (this.pack?.zip.has(file)) documents.push(await this.pack.zip.json(file))

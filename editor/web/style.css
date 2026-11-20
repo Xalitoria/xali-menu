@@ -256,3 +256,4 @@ input.power { width: 72px; }
 .shank.full { background: #c1642b; } .shank.half { background: linear-gradient(90deg, #c1642b 50%, #3a2a22 50%); }
 .chip .chip-label { padding: 2px 4px 2px 8px; }
 .trim-materials { display: grid; grid-template-columns: repeat(auto-fill, minmax(74px, 1fr)); gap: 6px; } .trim-materials .tile { width: auto; height: auto; }
+.trim-group { display: grid; gap: 6px; } .worn { display: inline-block; background: #8b8b8b; border-radius: 3px; image-rendering: pixelated; } .worn canvas { display: block; image-rendering: pixelated; }

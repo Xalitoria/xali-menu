@@ -7,6 +7,8 @@ import { registries } from './registry.js'
 import { numberOf } from './dynamic.js'
 import { dyes } from './dyes.js'
 import { choose, numberBox } from './listeditors.js'
+import { settings } from './icons.js'
+import { worn, slotOf } from './armor.js'
 
 /** Changes the keys of the object at [path] that are in [change]; a key whose value is undefined is taken out. */
 function patcher(store, path) {
@@ -107,21 +109,46 @@ export function fishEditor(store, path, value, item) {
 /** The trim materials of the game, for when the language file has not been read. */
 const TRIM_MATERIALS = ['quartz', 'iron', 'netherite', 'redstone', 'copper', 'gold', 'emerald', 'diamond', 'lapis', 'amethyst', 'resin']
 
+/** The trim patterns of the game, for when the language file has not been read. */
+const TRIM_PATTERNS = ['sentry', 'dune', 'coast', 'wild', 'ward', 'eye', 'vex', 'tide', 'snout', 'rib', 'spire', 'wayfinder', 'shaper', 'silence', 'raiser', 'host', 'flow', 'bolt']
+
+/** The armor [item] as it is worn, from the front, as a picture that fills in when its textures have come (the game's, or the pack's). */
+export function wornPicture(item, scale = 3) {
+  const box = h('span', { class: 'worn', style: `width:${16 * scale}px;height:${32 * scale}px` })
+  const assets = settings.renderer?.assets
+  if (assets) {
+    worn(assets, item, scale).then((texture) => {
+      if (!texture) return
+      const canvas = h('canvas', { class: 'pixel', width: texture.width, height: texture.height, style: `width:${texture.width}px;height:${texture.height}px` })
+      canvas.getContext('2d').putImageData(new ImageData(texture.data, texture.width, texture.height), 0, 0)
+      box.replaceChildren(canvas)
+    }).catch(() => {})
+  }
+  return box
+}
+
 /** Whether [material] is a piece of armor, the only item a trim is drawn on. */
 export const isArmor = (material) => /(^|:)(?:\w+_)?(helmet|chestplate|leggings|boots)$|(^|:)turtle_helmet$/.test(String(material ?? '').trim().toLowerCase())
 
-/** An armor trim: the piece drawn with each material (as the game and the resource pack draw it) to pick from, and the pattern from the game's list. */
+/**
+ * An armor trim: the armor as it is worn with each pattern (a gallery to pick from) and the piece in each material (another), both drawn from the game's textures and the
+ * pack's, and the patterns also as a list, which takes a key the game does not have.
+ */
 export function trimEditor(store, path, value, item) {
   const put = patcher(store, path)
   const materials = (registries.get('trim-material') ?? TRIM_MATERIALS.map((v) => [v, v])).map(([v, name]) => [v, name])
+  const patterns = (registries.get('trim-pattern') ?? TRIM_PATTERNS.map((v) => [v, v])).map(([v, name]) => [v, name])
   const current = String(value?.material ?? '').replace(/^minecraft:/, '').toLowerCase()
-  const armor = isArmor(item?.material)
+  const pattern = String(value?.pattern ?? '').replace(/^minecraft:/, '').toLowerCase()
+  const armor = slotOf(item?.material) !== null
+  const gallery = (title, entries, chosen, pick, make) => h('div', { class: 'trim-group' }, h('b', null, title),
+    h('div', { class: 'trim-materials', role: 'radiogroup' }, entries.map(([id, name]) => h('button', {
+      class: `tile ${id === chosen ? 'on' : ''}`, role: 'radio', 'aria-checked': id === chosen, title: name, onclick: () => pick(id) }, make(id), h('small', null, name)))))
   return h('div', { class: 'effects-editor' },
     !armor && h('small', { class: 'muted' }, 'A trim is only drawn on armor: pick a helmet, chestplate, leggings or boots as the material.'),
+    armor && gallery('Pattern', patterns, pattern, (id) => put({ pattern: id }), (id) => wornPicture({ ...item, trim: { pattern: id, material: current || 'quartz' } }, 2)),
+    gallery('Material', materials, current, (id) => put({ material: id }), (id) => icon({ ...item, trim: { pattern: pattern || 'coast', material: id } }, 3)),
     h('div', { class: 'burst-row' }, h('span', { class: 'muted' }, 'Pattern'),
       choose(registries.get('trim-pattern') ?? [], value?.pattern, (v, quiet) => put({ pattern: v }, quiet), { label: 'Pattern', other: 'a pattern, such as coast' }),
-      h('small', { class: 'muted' }, 'it shows on the worn armor; the icon in a window has the material only')),
-    h('div', { class: 'trim-materials', role: 'radiogroup' }, materials.map(([id, name]) => h('button', {
-      class: `tile ${id === current ? 'on' : ''}`, role: 'radio', 'aria-checked': id === current, title: name, onclick: () => put({ material: id }) },
-    icon({ ...item, trim: { pattern: value?.pattern ?? 'coast', material: id } }, 3), h('small', null, name)))))
+      h('small', { class: 'muted' }, 'the icon in a window has the material only; the pattern shows on the worn armor')))
 }
