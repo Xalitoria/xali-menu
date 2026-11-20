@@ -297,8 +297,9 @@ Each step ends with tests, the README section, and a commit.
 - `src/itemeditors.js`: `food` (the bar of drumsticks), `tool` (rules with chips and the usual tags), `fish` (pattern and dyes; `src/dyes.js` holds the dyes the banner uses too).
 - Armor trims drawn as the game does (`trim_material` in `itemdef.js`, `paletted_permutations` of the item atlas in `assets.js` with `recolor`), which a resource pack changes as it does in the game; `trimEditor` shows the piece with each material. Checked in a browser against the game's files and a pack with another palette.
 - The armor drawn as it is worn (`src/armor.js`: the equipment asset, the front of a figure, the trim texture made from the pattern and the palette; `armor_trims` is read with the item atlas), with every pattern and every material as a gallery in `trimEditor`. Checked in a browser for the five slots and a dyed leather.
+- The layout and the legend are a picture (`src/layouteditor.js`, `src/layout.js`): the grid of the window, a palette of the legend with the items drawn, painting by click or drag, erasing with a right click. A button that its own click takes out of the page is taken by the popover for a click outside and closes it, so the chosen tool is marked in place there; checked in a browser, with the window behind following the painting.
 - Not done: the armor seen from the side or the back, or on a player's own skin (the front of a plain figure is drawn), (the fish in its bucket is not drawn by the game either: the icon is one texture),
-  the layout and the legend as a picture, and a sentence for the actions and conditions that have none yet (`give-item`, `boss-bar`, `run-for`, the lists).
+  a sentence for the actions and conditions that have none yet (`give-item`, `boss-bar`, `run-for`, the lists).
 
 ### 14. A checked schema (done; unit tests, the editor in a browser, and the plugin on a live Folia server)
 
