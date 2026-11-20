@@ -244,6 +244,7 @@ server, see `menu/live/README.md` (`XM_EDITOR=1`).
 | `menu/editor/kotlin/com/xalitoria/menu/editor` | `DumpSchema.kt` (the entry of the `schema` task), `SchemaBuilder.kt` (walks the serializer descriptors of the model and the plugin) and `SourceDocs.kt` (reads the KDoc comments for the help texts). |
 | `menu/editor/test/SchemaTest.kt` | Fails when `web/schema.json` is older than the code. |
 | `web/schema.json` | Written by the `schema` task. Do not edit it. It holds the plugin's version as well. |
+| `tools/reference.mjs`, `web/src/reference.js` | Write `../REFERENCE.md`, the page of every key, from `schema.json` (`node tools/reference.mjs`). `reference.test.js` fails when the page is out of date. |
 | `web/src` | The page. Each file starts with a comment about what it does. |
 | `web/test` | The page's tests, run with `node --test`. |
 | `tools/named-colors.py` | Writes the table of named colors. |

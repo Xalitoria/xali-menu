@@ -26,7 +26,7 @@ The packages of `paper`, under `mc.xalitoria.menu.paper`:
 | `hook` | One class per other plugin that is used: Vault, SkinsRestorer, WorldGuard, FancyNpcs, HeadDatabase. |
 | `deluxemenus` | The importer for DeluxeMenus files. |
 
-The plugin side of the editor is in `paper/.../editor`. After a change to the menu model, a built-in action or condition, or a comment on either, run `./gradlew :menu:editor:schema`; `:menu:editor:test` fails when `editor/web/schema.json` is out of date.
+The plugin side of the editor is in `paper/.../editor`. After a change to the menu model, a built-in action or condition, or a comment on either, run `./gradlew :menu:editor:schema`; `:menu:editor:test` fails when `editor/web/schema.json` is out of date. Then run `node editor/tools/reference.mjs` (from `menu/`) to write `REFERENCE.md`, the page of every key; `node --test editor/web/test/` fails when it is out of date too. Commit both with the change.
 
 Tests are in `paper/test`, `api/test` and `editor/test`; the page has its own in `editor/web/test`, run with `node --test`. Menus and bots for testing on a real server are in `live/`.
 

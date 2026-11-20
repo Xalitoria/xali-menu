@@ -85,7 +85,7 @@ Messages and menu text accept `&` codes, `&#RRGGBB`, CMI gradients (`{#a0a>}text
 ### Menu files
 
 The schema is the classes in `net.xalitoria.menu.model`, with keys in kebab-case (`max-stack-size`, `shift-left`,
-`on-open`). It is XaliMenu's own schema and is **not** compatible with AbstractMenus' HOCON.
+`on-open`). It is XaliMenu's own schema and is **not** compatible with AbstractMenus' HOCON. [`REFERENCE.md`](REFERENCE.md) lists every key, action, condition, activator and catalog with its type, default and range; it is written from the schema, so it is never behind.
 
 **What the plugin says about a file.** A menu file is checked against the schema as it is read, and every problem is told with where it is (and the line of the file):
 

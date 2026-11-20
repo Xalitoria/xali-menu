@@ -303,4 +303,5 @@ Each step ends with tests, the README section, and a commit.
 - The editor: the same words and suggestions (`suggest.js`), a **Rename to …** button for a mistyped key, `normalize.js` so that the rest of the editor only sees the one way.
 - Tests: `ConfigCheck` (and every menu that ships with the plugin or the live tests, except `i.conf` which has wrong items on purpose, reads with no warning), `SchemaTest`, `check.test.js`, `suggest.test.js`, `normalize.test.js`.
 - Not done: limits on the numbers of actions and conditions (`give-item`, `level`...), which check themselves when they are made; a key that was renamed or removed told as such (nothing has been);
-  the same checks for the plugin's `config.yml`; a reference page of every key made from the schema.
+  the same checks for the plugin's `config.yml`.
+- A reference page of every key, `REFERENCE.md`, is written from the schema by `editor/tools/reference.mjs`; `reference.test.js` fails when it is stale.
