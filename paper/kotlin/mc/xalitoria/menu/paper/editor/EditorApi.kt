@@ -142,13 +142,9 @@ internal class EditorApi(private val plugin: XaliMenu, val menus: EditorMenus, v
 
     private fun log(who: String, what: String) = plugin.logger.info("$who $what in the editor")
 
-    private val client = java.net.http.HttpClient.newBuilder().connectTimeout(java.time.Duration.ofSeconds(5)).build()
-
     /** The skin at [url], or null if it cannot be had or is bigger than a skin can be. */
     private fun fetchSkin(url: URI): ByteArray? = try {
-        val request = java.net.http.HttpRequest.newBuilder(url).timeout(java.time.Duration.ofSeconds(8)).GET().build()
-        val response = client.send(request, java.net.http.HttpResponse.BodyHandlers.ofByteArray())
-        response.body().takeIf { response.statusCode() == 200 && it.size <= MAX_SKIN }
+        Http.get(url, java.time.Duration.ofSeconds(8), MAX_SKIN)
     } catch (e: Exception) {
         null
     }

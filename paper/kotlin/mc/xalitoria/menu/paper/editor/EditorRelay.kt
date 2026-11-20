@@ -3,7 +3,6 @@ package mc.xalitoria.menu.paper.editor
 import mc.xalitoria.menu.paper.XaliMenu
 import java.net.URI
 import java.net.URLEncoder
-import java.net.http.HttpClient
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
 import java.nio.file.Files
@@ -36,7 +35,6 @@ internal class EditorRelay(private val plugin: XaliMenu, private val api: Editor
     }
 
     private val shares = ConcurrentHashMap<String, Share>()
-    private val http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(8)).build()
     private val workers = Executors.newCachedThreadPool { task -> Thread(task, "XaliMenu-relay").also { it.isDaemon = true } }
 
     /** The shares that are running. */
@@ -54,7 +52,7 @@ internal class EditorRelay(private val plugin: XaliMenu, private val api: Editor
                 .header("Content-Type", "application/json")
                 .also { if (settings.relay.token.isNotBlank()) it.header("Authorization", "Bearer ${settings.relay.token}") }
                 .POST(HttpRequest.BodyPublishers.ofString("""{"ttl":${minutes * 60}}""")).build()
-            val response = http.send(request, HttpResponse.BodyHandlers.ofString())
+            val response = Http.send(request, HttpResponse.BodyHandlers.ofString())
             if (response.statusCode() != 201) return Started.Failed("the relay answered ${response.statusCode()}: ${response.body().take(120)}")
             val made = Wire.read<RelaySession>(response.body()) ?: return Started.Failed("the relay did not answer with a session")
             Share(owner, made.id, made.secret, RelayCrypto.keyOf(keyText), now() + minutes * 60_000L, readOnly)
@@ -80,7 +78,7 @@ internal class EditorRelay(private val plugin: XaliMenu, private val api: Editor
         if (!tell) return
         val relay = plugin.config.data.editor.relay.url.trim().trimEnd('/')
         runCatching {
-            http.send(HttpRequest.newBuilder(URI("$relay/s/${share.id}")).timeout(Duration.ofSeconds(5)).header("Authorization", "Bearer ${share.secret}").DELETE().build(), HttpResponse.BodyHandlers.discarding())
+            Http.send(HttpRequest.newBuilder(URI("$relay/s/${share.id}")).timeout(Duration.ofSeconds(5)).header("Authorization", "Bearer ${share.secret}").DELETE().build(), HttpResponse.BodyHandlers.discarding())
         }
     }
 
@@ -92,7 +90,7 @@ internal class EditorRelay(private val plugin: XaliMenu, private val api: Editor
             try {
                 val request = HttpRequest.newBuilder(URI("$relay/s/${share.id}/poll?wait=25")).timeout(Duration.ofSeconds(40))
                     .header("Authorization", "Bearer ${share.secret}").GET().build()
-                val response = http.send(request, HttpResponse.BodyHandlers.ofString())
+                val response = Http.send(request, HttpResponse.BodyHandlers.ofString())
                 when (response.statusCode()) {
                     200 -> {
                         failures = 0
@@ -124,7 +122,7 @@ internal class EditorRelay(private val plugin: XaliMenu, private val api: Editor
         runCatching {
             val request = HttpRequest.newBuilder(URI("$relay/s/${share.id}/answer/$callId")).timeout(Duration.ofSeconds(20))
                 .header("Authorization", "Bearer ${share.secret}").POST(HttpRequest.BodyPublishers.ofByteArray(sealed)).build()
-            http.send(request, HttpResponse.BodyHandlers.discarding())
+            Http.send(request, HttpResponse.BodyHandlers.discarding())
         }.onFailure { plugin.logger.warning("An answer could not be sent to the relay: ${it.message}") }
     }
 

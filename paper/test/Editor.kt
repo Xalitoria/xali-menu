@@ -3,6 +3,7 @@ import mc.xalitoria.menu.paper.editor.EditorLink
 import mc.xalitoria.menu.paper.editor.EditorMenus
 import mc.xalitoria.menu.paper.editor.EditorSessions
 import mc.xalitoria.menu.paper.editor.GameFiles
+import mc.xalitoria.menu.paper.editor.Http
 import mc.xalitoria.menu.paper.editor.ColorsRequest
 import mc.xalitoria.menu.paper.editor.ErrorReply
 import mc.xalitoria.menu.paper.editor.MenuRequest
@@ -116,6 +117,35 @@ class Editor {
         assertNull(Wire.read<MenuRequest>("not json"))
         assertNull(Wire.read<ColorsRequest>("""{"potions":"x"}"""))
         assertEquals(listOf("speed" to 1), Wire.read<ColorsRequest>("""{"potions":[{"type":"water","effects":[{"type":"speed","amplifier":1},{"amplifier":2}]}]}""")!!.potions.single().custom())
+    }
+
+    @Test
+    fun theSharedClientReadsOnlyAsMuchAsIsAllowedAndFollowsARedirectOnlyWhenAsked() {
+        val server = com.sun.net.httpserver.HttpServer.create(java.net.InetSocketAddress("127.0.0.1", 0), 0)
+        fun route(path: String, status: Int, body: ByteArray, location: String? = null) = server.createContext(path) { exchange ->
+            location?.let { exchange.responseHeaders.add("Location", it) }
+            exchange.sendResponseHeaders(status, if (body.isEmpty()) -1 else body.size.toLong())
+            if (body.isNotEmpty()) exchange.responseBody.use { it.write(body) }
+            exchange.close()
+        }
+        route("/ok", 200, ByteArray(10) { 1 })
+        route("/big", 200, ByteArray(100) { 1 })
+        route("/missing", 404, "no".toByteArray())
+        route("/moved", 302, ByteArray(0), location = "/ok")
+        server.start()
+        try {
+            val base = "http://127.0.0.1:${server.address.port}"
+            val wait = java.time.Duration.ofSeconds(5)
+            fun get(path: String, max: Int = 50, follow: Boolean = false) = Http.get(java.net.URI("$base$path"), wait, max, follow)
+            assertEquals(10, get("/ok")!!.size)
+            assertNull(get("/big"), "an answer longer than the limit is not returned")
+            assertEquals(100, get("/big", max = 100)!!.size, "and at the limit it is")
+            assertNull(get("/missing"))
+            assertNull(get("/moved"), "a redirect is not followed unless asked: a host that is allowed must not lead to another")
+            assertEquals(10, get("/moved", follow = true)!!.size)
+        } finally {
+            server.stop(0)
+        }
     }
 
     @Test

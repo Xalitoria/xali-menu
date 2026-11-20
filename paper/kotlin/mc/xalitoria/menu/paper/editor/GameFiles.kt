@@ -2,9 +2,6 @@ package mc.xalitoria.menu.paper.editor
 
 import mc.xalitoria.menu.paper.XaliMenu
 import java.net.URI
-import java.net.http.HttpClient
-import java.net.http.HttpRequest
-import java.net.http.HttpResponse
 import java.nio.file.Files
 import java.nio.file.Path
 import java.security.MessageDigest
@@ -18,7 +15,6 @@ import java.util.concurrent.ConcurrentHashMap
  * and kept in the plugin's folder. Nothing but a zip of the `font` folder is ever fetched.
  */
 internal class GameFiles(private val plugin: XaliMenu, private val version: String = plugin.server.minecraftVersion) {
-    private val client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(8)).followRedirects(HttpClient.Redirect.NORMAL).build()
     private val folder: Path get() = plugin.dataFolder.toPath().resolve("cache/game")
     private val hashes = ConcurrentHashMap<String, String>()
     private val lock = Any()
@@ -56,9 +52,7 @@ internal class GameFiles(private val plugin: XaliMenu, private val version: Stri
 
     private fun get(address: URI): ByteArray? {
         if (address.scheme != "https" || address.host !in HOSTS) return null
-        val request = HttpRequest.newBuilder(address).timeout(Duration.ofSeconds(60)).GET().build()
-        val response = client.send(request, HttpResponse.BodyHandlers.ofByteArray())
-        return response.body().takeIf { response.statusCode() == 200 && it.size <= MAX_FILE }
+        return Http.get(address, Duration.ofSeconds(60), MAX_FILE, follow = true)
     }
 
     companion object {
