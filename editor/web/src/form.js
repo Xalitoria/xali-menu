@@ -9,6 +9,7 @@ import { flagOf, parseDynamic, isDynamic } from './dynamic.js'
 import { editorFor } from './editors.js'
 import { closest } from './suggest.js'
 import { sentence } from './sentences.js'
+import { templateOf, tokens, keysOf } from './inline.js'
 
 /** Keys whose text is shown in the game with colors, so the form previews it. */
 const FORMATTED = new Set(['title', 'name', 'item-name', 'lore', 'text', 'subtitle', 'prompt', 'pages', 'invalid', 'message'])
@@ -284,14 +285,36 @@ export class Form {
       current !== undefined && !names.includes(current) && h('option', { value: current, selected: true }, `${current} (unknown)`),
       names.map((n) => h('option', { value: n, selected: n === current }, n)))
     const variantDoc = typeName ? this.schema.type(typeName).doc : null
-    const says = h('div', { class: 'sentence' }, sentence(base, value))
-    if (['Action', 'Condition'].includes(base)) this.sentences.set(says, { base, path })
+    // What the type says as a sentence with boxes in it, when it has one: the keys in the sentence are edited there, the others in the form below it.
+    const template = typeName ? templateOf(base, current) : null
+    const says = template ? this.inlineSentence(template, typeName, path) : h('div', { class: 'sentence' }, sentence(base, value))
+    if (!template && ['Action', 'Condition'].includes(base)) this.sentences.set(says, { base, path })
     return h('div', { class: 'poly' },
       select,
       says,
       variantDoc && h('div', { class: 'hint' }, doc(firstSentence(variantDoc))),
-      typeName ? this.object(typeName, path, { variant: true }) : current !== undefined && this.json(path, value, ['type']),
+      typeName ? this.object(typeName, path, { variant: true, hide: template ? keysOf(template) : [] }) : current !== undefined && this.json(path, value, ['type']),
     )
+  }
+
+  /** A sentence ([template], see inline.js) of the object of [typeName] at [path], with the controls of its keys where they are written. */
+  inlineSentence(template, typeName, path) {
+    const parts = tokens(template).map((token) => {
+      if (token.text !== undefined) return h('span', { class: 'words' }, token.text)
+      const field = this.schema.field(typeName, token.key)
+      if (!field) return h('span', { class: 'words' }, `{${token.key}}`)
+      const fieldPath = [...path, token.key]
+      const value = this.store.get(fieldPath)
+      if (token.on !== undefined && field.type.kind === 'boolean') {
+        // The default is not written: a file says only what differs.
+        const choose = () => { const on = select.value === 'on'; if (!field.required && on === (field.default ?? false)) this.store.remove(fieldPath); else this.store.set(fieldPath, on) }
+        const select = h('select', { class: 'inline-control', onchange: choose },
+          h('option', { value: 'off', selected: value !== true }, token.off), h('option', { value: 'on', selected: value === true }, token.on))
+        return select
+      }
+      return h('span', { class: `inline-control ${field.type.kind}` }, this.control(field.type, fieldPath, value, { ...field, compact: true }))
+    })
+    return h('div', { class: 'inline-sentence' }, parts)
   }
 
   list(of, path, items, field) {

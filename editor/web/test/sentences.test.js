@@ -46,3 +46,21 @@ test('every action and condition of the schema has a sentence of its own', () =>
     }
   }
 })
+
+test('a sentence to edit an action or condition through only holds keys the type has, in controls the form can make', async () => {
+  const { TEMPLATES, tokens, keysOf, templateOf } = await import('../src/inline.js')
+  assert.deepEqual(tokens('{take|Gives|Takes} {amount} money'), [{ key: 'take', off: 'Gives', on: 'Takes' }, { text: ' ' }, { key: 'amount', off: undefined, on: undefined }, { text: ' money' }])
+  assert.deepEqual(keysOf(templateOf('Action', 'message')), ['text'])
+  assert.equal(templateOf('Action', 'close'), null)
+  for (const [base, types] of Object.entries(TEMPLATES)) {
+    for (const [type, template] of Object.entries(types)) {
+      const fields = schema.fields(schema.variantType(base, type))
+      for (const token of tokens(template).filter((t) => t.key)) {
+        const field = fields.find((f) => f.key === token.key)
+        assert.ok(field, `${base} ${type} has no key ${token.key}`)
+        assert.ok(['string', 'int', 'number', 'enum', 'duration', 'dynamic', 'boolean'].includes(field.type.kind), `${base} ${type}.${token.key} is a ${field.type.kind}`)
+        if (token.on !== undefined) assert.equal(field.type.kind, 'boolean', `${type}.${token.key} is told as two words and must be a switch`)
+      }
+    }
+  }
+})

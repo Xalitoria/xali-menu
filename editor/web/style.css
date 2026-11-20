@@ -257,3 +257,7 @@ input.power { width: 72px; }
 .chip .chip-label { padding: 2px 4px 2px 8px; }
 .trim-materials { display: grid; grid-template-columns: repeat(auto-fill, minmax(74px, 1fr)); gap: 6px; } .trim-materials .tile { width: auto; height: auto; }
 .trim-group { display: grid; gap: 6px; } .worn { display: inline-block; background: #8b8b8b; border-radius: 3px; image-rendering: pixelated; } .worn canvas { display: block; image-rendering: pixelated; }
+.inline-sentence { display: flex; flex-wrap: wrap; gap: 4px 6px; align-items: center; margin: 6px 0 4px; padding: 6px 8px; border-left: 3px solid var(--accent); background: var(--panel); border-radius: 0 4px 4px 0; }
+.inline-sentence .inline-control input[type=text], .inline-sentence input.inline-control { min-width: 6ch; width: auto; field-sizing: content; max-width: 100%; }
+.inline-sentence .inline-control input[type=number] { width: 8ch; } .inline-sentence select { max-width: 100%; }
+.inline-sentence .registry { display: inline-flex; gap: 4px; }
