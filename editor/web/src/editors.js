@@ -6,7 +6,7 @@ import { icon } from './icons.js'
 import { registries } from './registry.js'
 import { numberOf } from './dynamic.js'
 import { potionEffects, attributeModifiers, bookPages } from './listeditors.js'
-import { foodEditor, toolEditor, fishEditor } from './itemeditors.js'
+import { foodEditor, toolEditor, fishEditor, trimEditor } from './itemeditors.js'
 import { DYES, label, dyes } from './dyes.js'
 
 export { DYES, label }
@@ -142,6 +142,7 @@ const EDITORS = {
   'Item.food': Object.assign((store, path, value, item) => foodEditor(store, path, value, item), { block: true }),
   'Item.tool': Object.assign((store, path, value) => toolEditor(store, path, value), { block: true }),
   'Item.fish': Object.assign((store, path, value, item) => fishEditor(store, path, value, item), { block: true }),
+  'Item.trim': Object.assign((store, path, value, item) => trimEditor(store, path, value, item), { block: true }),
   'Item.color': (store, path, value) => colorBox(value, (v) => (v === '' ? store.remove(path) : store.set(path, v, true))),
 }
 

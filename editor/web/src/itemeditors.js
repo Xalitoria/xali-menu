@@ -103,3 +103,25 @@ export function fishEditor(store, path, value, item) {
     h('div', { class: 'burst-row' }, h('span', { class: 'muted' }, 'Body'), dyes(value?.['body-color'] ?? 'WHITE', (c) => put({ 'body-color': c }), { upper: true })),
     h('div', { class: 'burst-row' }, h('span', { class: 'muted' }, 'Pattern color'), dyes(value?.['pattern-color'] ?? 'WHITE', (c) => put({ 'pattern-color': c }), { upper: true })))
 }
+
+/** The trim materials of the game, for when the language file has not been read. */
+const TRIM_MATERIALS = ['quartz', 'iron', 'netherite', 'redstone', 'copper', 'gold', 'emerald', 'diamond', 'lapis', 'amethyst', 'resin']
+
+/** Whether [material] is a piece of armor, the only item a trim is drawn on. */
+export const isArmor = (material) => /(^|:)(?:\w+_)?(helmet|chestplate|leggings|boots)$|(^|:)turtle_helmet$/.test(String(material ?? '').trim().toLowerCase())
+
+/** An armor trim: the piece drawn with each material (as the game and the resource pack draw it) to pick from, and the pattern from the game's list. */
+export function trimEditor(store, path, value, item) {
+  const put = patcher(store, path)
+  const materials = (registries.get('trim-material') ?? TRIM_MATERIALS.map((v) => [v, v])).map(([v, name]) => [v, name])
+  const current = String(value?.material ?? '').replace(/^minecraft:/, '').toLowerCase()
+  const armor = isArmor(item?.material)
+  return h('div', { class: 'effects-editor' },
+    !armor && h('small', { class: 'muted' }, 'A trim is only drawn on armor: pick a helmet, chestplate, leggings or boots as the material.'),
+    h('div', { class: 'burst-row' }, h('span', { class: 'muted' }, 'Pattern'),
+      choose(registries.get('trim-pattern') ?? [], value?.pattern, (v, quiet) => put({ pattern: v }, quiet), { label: 'Pattern', other: 'a pattern, such as coast' }),
+      h('small', { class: 'muted' }, 'it shows on the worn armor; the icon in a window has the material only')),
+    h('div', { class: 'trim-materials', role: 'radiogroup' }, materials.map(([id, name]) => h('button', {
+      class: `tile ${id === current ? 'on' : ''}`, role: 'radio', 'aria-checked': id === current, title: name, onclick: () => put({ material: id }) },
+    icon({ ...item, trim: { pattern: value?.pattern ?? 'coast', material: id } }, 3), h('small', null, name)))))
+}

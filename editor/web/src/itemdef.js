@@ -14,6 +14,7 @@ import { split } from './assets.js'
  * @property {number} [maxStack]
  * @property {number|null} [dyedColor] the `dyed_color` component, as 0xRRGGBB
  * @property {number|null} [potionColor] the color of the potion's effects, as 0xRRGGBB
+ * @property {string|null} [trimMaterial] the material of the armor trim, such as `gold`
  * @property {string[]} [components] the data components the item has
  * @property {{grass?: object, foliage?: object}} [colormaps] the pixels of the colormaps, for tints by climate
  */
@@ -105,6 +106,7 @@ function select(node, state) {
     case 'display_context': value = 'gui'; break
     case 'custom_model_data': value = state.customModelData?.strings?.[node.index ?? 0] ?? null; break
     case 'main_hand': value = 'right'; break
+    case 'trim_material': value = state.trimMaterial ?? null; break
     default: value = null
   }
   if (value !== null) {

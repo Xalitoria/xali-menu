@@ -64,9 +64,48 @@ export class Assets {
       const blob = this.pack?.zip.has(file)
         ? new Blob([await this.pack.zip.bytes(file)], { type: 'image/png' })
         : await this.fetchGame(ns, file, (response) => response.blob())
-      if (!blob) return null
+      // A texture the game makes when it loads (the trim of an armor in each material) is not a file.
+      if (!blob) return this.permuted(ns, path)
       return decode(blob, await this.meta(ns, path))
     })
+  }
+
+  /** The `paletted_permutations` of the atlases of the item textures: the pack's and the game's, as the game joins them. */
+  permutations() {
+    return this.cached('permutations', async () => {
+      const found = []
+      for (const name of ['items', 'blocks']) {
+        const file = `assets/minecraft/atlases/${name}.json`
+        const documents = []
+        if (this.pack?.zip.has(file)) documents.push(await this.pack.zip.json(file))
+        documents.push(await this.fetchGame('minecraft', file, async (response) => lenient(await response.text())))
+        for (const document of documents) for (const source of document?.sources ?? []) if (/paletted_permutations$/.test(source.type ?? '')) found.push(source)
+      }
+      return found
+    })
+  }
+
+  /**
+   * A texture made from a grayscale one and a palette, as the atlas `paletted_permutations` source does: `trims/items/chestplate_trim_gold` is `chestplate_trim`
+   * with the colors of the palette key (`trim_palette`) changed to those of `color_palettes/gold`. Null when no source makes [path].
+   */
+  async permuted(ns, path) {
+    for (const source of await this.permutations()) {
+      for (const texture of source.textures ?? []) {
+        const base = split(texture)
+        if (base.ns !== ns || !path.startsWith(`${base.path}_`)) continue
+        const palette = source.permutations?.[path.slice(base.path.length + 1)]
+        if (!palette) continue
+        const [grey, keys, colors] = await Promise.all([this.texture(base.ns, base.path), this.paletteOf(source.palette_key), this.paletteOf(palette)])
+        return grey && keys && colors ? recolor(grey, keys, colors) : null
+      }
+    }
+    return null
+  }
+
+  paletteOf(key) {
+    const { ns, path } = split(key)
+    return this.texture(ns, path)
   }
 
   /** The `.png.mcmeta` of a texture: whether and how it is animated. */
@@ -153,4 +192,23 @@ async function decode(blob, meta) {
   const height = animation ? Math.min(bitmap.height, animation.height ?? animation.width ?? bitmap.width) : bitmap.height
   const width = animation ? Math.min(bitmap.width, animation.width ?? bitmap.width) : bitmap.width
   return new Texture(width, height, ctx.getImageData(0, 0, width, height).data)
+}
+
+/**
+ * [texture] with each color of [keys] (read in order, left to right and down) replaced by the color at the same place of [colors]; a pixel that is not a key, and the
+ * transparency of every pixel, stay as they are.
+ */
+export function recolor(texture, keys, colors) {
+  const map = new Map()
+  for (let i = 0; i < keys.width * keys.height && i < colors.width * colors.height; i++) {
+    if (keys.data[i * 4 + 3] === 0) continue
+    map.set((keys.data[i * 4] << 16) | (keys.data[i * 4 + 1] << 8) | keys.data[i * 4 + 2], [colors.data[i * 4], colors.data[i * 4 + 1], colors.data[i * 4 + 2]])
+  }
+  const data = new Uint8ClampedArray(texture.data)
+  for (let i = 0; i < data.length; i += 4) {
+    if (data[i + 3] === 0) continue
+    const to = map.get((data[i] << 16) | (data[i + 1] << 8) | data[i + 2])
+    if (to) { data[i] = to[0]; data[i + 1] = to[1]; data[i + 2] = to[2] }
+  }
+  return new Texture(texture.width, texture.height, data)
 }

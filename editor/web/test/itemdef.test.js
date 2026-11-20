@@ -1,6 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { chooseModels, tintColor } from '../src/itemdef.js'
+import { Texture, recolor } from '../src/assets.js'
 
 const leaf = (model, tints) => ({ type: 'minecraft:model', model, tints })
 
@@ -77,4 +78,16 @@ test('a colormap is read by temperature across and downfall times temperature do
   assert.equal(colormap(texture, 0.5, 1), (127 << 16) | (127 << 8) | 7)
   assert.equal(colormap(texture, 1, 1), (0 << 16) | (0 << 8) | 7)
   assert.equal(colormap(null, 1, 1), null)
+})
+
+test('a trimmed armor picks its trim model by the material, and a texture the game builds from a palette is made from the grayscale one', async () => {
+  const definition = { model: { type: 'minecraft:select', property: 'minecraft:trim_material', cases: [{ when: 'minecraft:gold', model: { type: 'minecraft:model', model: 'minecraft:item/iron_chestplate_gold_trim' } }], fallback: { type: 'minecraft:model', model: 'minecraft:item/iron_chestplate' } } }
+  assert.equal(chooseModels(definition, { trimMaterial: 'gold' })[0].model, 'minecraft:item/iron_chestplate_gold_trim')
+  assert.equal(chooseModels(definition, { trimMaterial: 'ruby' })[0].model, 'minecraft:item/iron_chestplate')
+  assert.equal(chooseModels(definition, {})[0].model, 'minecraft:item/iron_chestplate')
+  // Two key colors, white and black, become two colors of the palette; a pixel that is not a key stays, and transparency is kept.
+  const key = new Texture(2, 1, new Uint8ClampedArray([255, 255, 255, 255, 0, 0, 0, 255]))
+  const gold = new Texture(2, 1, new Uint8ClampedArray([250, 238, 77, 255, 10, 20, 30, 255]))
+  const grey = new Texture(3, 1, new Uint8ClampedArray([255, 255, 255, 255, 0, 0, 0, 128, 7, 7, 7, 255]))
+  assert.deepEqual([...recolor(grey, key, gold).data], [250, 238, 77, 255, 10, 20, 30, 128, 7, 7, 7, 255])
 })

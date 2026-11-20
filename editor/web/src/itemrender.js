@@ -57,7 +57,8 @@ export function stateOf(item, known = {}) {
       dyedColor: color,
       potionColor: known.potionColor ?? null,
       fireworkColor: fireworkColor(item),
-      components: [],
+      trimMaterial: typeof item.trim?.material === 'string' && item.trim.material ? item.trim.material.replace(/^minecraft:/, '').toLowerCase() : null,
+      components: item.trim ? ['trim'] : [],
     },
   }
 }

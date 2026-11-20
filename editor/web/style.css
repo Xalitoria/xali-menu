@@ -255,3 +255,4 @@ input.power { width: 72px; }
 .shanks { display: flex; gap: 2px; align-items: center; } .shank { width: 14px; height: 14px; border-radius: 50%; border: 2px solid #5a2d12; background: #3a2a22; display: inline-block; }
 .shank.full { background: #c1642b; } .shank.half { background: linear-gradient(90deg, #c1642b 50%, #3a2a22 50%); }
 .chip .chip-label { padding: 2px 4px 2px 8px; }
+.trim-materials { display: grid; grid-template-columns: repeat(auto-fill, minmax(74px, 1fr)); gap: 6px; } .trim-materials .tile { width: auto; height: auto; }

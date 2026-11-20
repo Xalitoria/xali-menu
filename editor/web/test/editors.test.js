@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { hexOf, label, DYES, SHAPES, editorFor } from '../src/editors.js'
 import { fireworkColor } from '../src/itemrender.js'
 import { roman, levelOf, amplifierOf, secondsOf, ticksOf, clock, effectOf, OPERATIONS } from '../src/effects.js'
-import { shanks, TOOL_TAGS } from '../src/itemeditors.js'
+import { shanks, TOOL_TAGS, isArmor } from '../src/itemeditors.js'
 
 test('colors, dyes and shapes are the game\'s, written as the menu file writes them', () => {
   assert.deepEqual([hexOf('#FF8000'), hexOf('red'), hexOf(undefined, '#123456')], ['#ff8000', '#ff0000', '#123456'])
@@ -16,7 +16,7 @@ test('colors, dyes and shapes are the game\'s, written as the menu file writes t
 })
 
 test('the fields that have a control of their own are the ones the page makes, and others are not', () => {
-  const own = [['Item', 'banner'], ['Item', 'firework'], ['Item', 'color'], ['Item', 'potion'], ['Item', 'attributes'], ['Item', 'food'], ['Item', 'tool'], ['Item', 'fish'], ['Book', 'pages'], ['Action:book', 'pages']]
+  const own = [['Item', 'banner'], ['Item', 'firework'], ['Item', 'color'], ['Item', 'potion'], ['Item', 'attributes'], ['Item', 'food'], ['Item', 'tool'], ['Item', 'fish'], ['Item', 'trim'], ['Book', 'pages'], ['Action:book', 'pages']]
   for (const [owner, key] of own) assert.ok(editorFor({ owner, key }), `${owner}.${key}`)
   assert.ok(editorFor({ owner: 'Item', key: 'banner' }).block)
   for (const field of [{ owner: 'Item', key: 'nbt' }, { owner: 'Book', key: 'title' }, { key: 'banner' }]) assert.equal(editorFor(field), null)
@@ -32,4 +32,5 @@ test('levels, seconds, drumsticks and attribute amounts are said as people say t
   assert.deepEqual(shanks(5), { sticks: ['full', 'full', 'half', 'empty', 'empty', 'empty', 'empty', 'empty', 'empty', 'empty'], over: 0 })
   assert.equal(shanks(24).over, 4)
   assert.ok(TOOL_TAGS.every(([, tag]) => tag.startsWith('#minecraft:')))
+  assert.deepEqual(['iron_chestplate', 'minecraft:golden_helmet', 'leather_boots', 'turtle_helmet', 'stone', 'elytra'].map(isArmor), [true, true, true, true, false, false])
 })
