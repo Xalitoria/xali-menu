@@ -47,3 +47,9 @@ test('potion effects and attributes have a control of their own', () => {
   assert.ok(editorFor({ owner: 'Item', key: 'potion' }).block)
   assert.ok(editorFor({ owner: 'Item', key: 'attributes' }).block)
 })
+
+test('the pages of a book have a control of their own, in the item and in the action', () => {
+  assert.ok(editorFor({ owner: 'Book', key: 'pages' }).block)
+  assert.ok(editorFor({ owner: 'Action:book', key: 'pages' }).block)
+  assert.equal(editorFor({ owner: 'Book', key: 'title' }), null)
+})

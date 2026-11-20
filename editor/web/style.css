@@ -247,3 +247,7 @@ input.power { width: 72px; }
 .effect-row .registry, .layer-head .registry { display: inline-flex; gap: 4px; }
 .effect-row input.short, .burst-row input.short { width: 76px; }
 .effect-note { min-width: 70px; }
+.book-row { display: grid; grid-template-columns: minmax(0, 1fr) 190px; gap: 8px; align-items: start; }
+.book-row textarea { width: 100%; resize: vertical; font-family: ui-monospace, monospace; font-size: 13px; }
+.book-page { min-height: 120px; padding: 10px 12px; background: #efe3bf; color: #1d1d1d; border: 1px solid #8a6b3c; border-radius: 3px; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 13px; line-height: 1.35; box-shadow: inset 0 0 0 3px #e2d3a6; }
+@media (max-width: 520px) { .book-row { grid-template-columns: 1fr; } }

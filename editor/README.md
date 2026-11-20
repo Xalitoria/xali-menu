@@ -298,5 +298,6 @@ the one way when it comes in (`src/normalize.js`: one value for a list becomes a
   whether it twinkles or leaves a trail. A firework star in the window takes the average color of its first burst.
 - `potion` (custom effects): a row for each effect with the effect from the game's list, its length in **seconds** (the file has ticks; half a second is 10) and its **level** (the file has the level minus one),
   with the level in numerals and the length as the game's tooltip shows them (`III for 1:30`); the potion in the window changes its color as effects are added.
+- `book` pages (a written book, and the `book` action): each page is a box beside the page as the reader sees it, with its colors, a count of its characters, and buttons to move it and take it out.
 - `attributes`: for each modifier the attribute, what it does (add, add a share of the base, multiply the total) with the amount's effect in words (`+50% of the base`, `×1.5`), and the slot the item must be in.
 - `color` (leather armor and the like): the picker of the browser and the `#rrggbb` text.

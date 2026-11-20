@@ -6,6 +6,7 @@ import { icon } from './icons.js'
 import { registries } from './registry.js'
 import { EFFECT_COLORS } from './potions.js'
 import { numberOf } from './dynamic.js'
+import { render as renderText, plain } from './mctext.js'
 import { roman, levelOf, amplifierOf, secondsOf, ticksOf, clock, OPERATIONS, effectOf } from './effects.js'
 
 const words = (id) => String(id).replace(/_/g, ' ').replace(/^./, (c) => c.toUpperCase())
@@ -66,12 +67,12 @@ export function potionEffects(store, path, value, item) {
         numberBox(levelOf(amplifier), (n) => { amplifier = amplifierOf(n); put({ amplifier }, true); describe() }, { min: 1, max: 256, step: 1, class: 'short', 'aria-label': 'Level' })),
       note,
       h('span', { class: 'spacer' }),
-      h('button', { class: 'icon remove small', title: 'Remove this effect', 'aria-label': 'Remove this effect', onclick: () => set(effects.filter((_, i) => i !== index)) }, '×'))
+      h('button', { class: 'icon remove small', title: 'Remove this effect', 'aria-label': 'Remove this effect', onclick: () => set(liveList().filter((_, i) => i !== index)) }, '×'))
   })
   return h('div', { class: 'effects-editor' },
     h('div', { class: 'banner-preview' }, icon(item, 4), h('small', { class: 'muted' }, effects.length === 0 ? 'No custom effects: only what the potion type gives.' : `${effects.length} ${effects.length === 1 ? 'effect' : 'effects'} on top of the potion type`)),
     h('div', { class: 'layers' }, rows,
-      h('button', { class: 'add', onclick: () => set([...effects, { type: choices[0]?.[0] ?? 'speed', duration: 600, amplifier: 0 }]) }, '+ Add effect')))
+      h('button', { class: 'add', onclick: () => set([...liveList(), { type: choices[0]?.[0] ?? 'speed', duration: 600, amplifier: 0 }]) }, '+ Add effect')))
 }
 
 // ---- attributes
@@ -94,7 +95,7 @@ export function attributeModifiers(store, path, value) {
         h('span', { class: 'spacer' }),
         h('button', { class: 'icon small', title: 'Move it up', disabled: index === 0, onclick: () => store.move(path, index, -1) }, '↑'),
         h('button', { class: 'icon small', title: 'Move it down', disabled: index === list.length - 1, onclick: () => store.move(path, index, 1) }, '↓'),
-        h('button', { class: 'icon remove small', title: 'Remove this modifier', 'aria-label': 'Remove this modifier', onclick: () => set(list.filter((_, i) => i !== index)) }, '×')),
+        h('button', { class: 'icon remove small', title: 'Remove this modifier', 'aria-label': 'Remove this modifier', onclick: () => set(liveList().filter((_, i) => i !== index)) }, '×')),
       h('div', { class: 'burst-row' },
         h('select', { 'aria-label': 'What it does', title: OPERATIONS.find(([v]) => v === operation)?.[2], onchange: (e) => { operation = e.target.value; put({ operation }) } },
           OPERATIONS.map(([v, name]) => h('option', { value: v, title: name, selected: v === operation }, name))),
@@ -105,5 +106,35 @@ export function attributeModifiers(store, path, value) {
   })
   return h('div', { class: 'effects-editor' },
     h('div', { class: 'layers' }, rows,
-      h('button', { class: 'add', onclick: () => set([...list, { attribute: attributes[0]?.[0] ?? 'attack_damage', amount: 1 }]) }, '+ Add modifier')))
+      h('button', { class: 'add', onclick: () => set([...liveList(), { attribute: attributes[0]?.[0] ?? 'attack_damage', amount: 1 }]) }, '+ Add modifier')))
+}
+
+// ---- books
+
+/**
+ * The pages of a book, as the reader sees them: a text box and the page as it is drawn (colors and all) side by side, in order, with the buttons to move a page
+ * and take it out. Used for the pages of a written book item and of the `book` action. [pages] is what is stored at [path].
+ */
+export function bookPages(store, path, value) {
+  const pages = Array.isArray(value) ? value : []
+  const liveList = () => { const now = store.get(path); return Array.isArray(now) ? now : pages }
+  const set = (next, quiet = false) => store.set(path, next, quiet)
+  const rows = pages.map((text, index) => {
+    const sheet = h('div', { class: 'book-page' })
+    const count = h('small', { class: 'muted' })
+    const show = (now) => { sheet.replaceChildren(renderText(now)); count.textContent = `${plain(now).length} characters` }
+    show(String(text ?? ''))
+    const box = h('textarea', { rows: 6, spellcheck: false, 'aria-label': `Page ${index + 1}`, placeholder: 'The text of the page. &c gives color, a new line is a new line.' }, String(text ?? ''))
+    box.addEventListener('input', () => { set(liveList().map((p, i) => (i === index ? box.value : p)), true); show(box.value) })
+    return h('div', { class: 'layer' },
+      h('div', { class: 'layer-head' },
+        h('b', null, `Page ${index + 1}`), count, h('span', { class: 'spacer' }),
+        h('button', { class: 'icon small', title: 'Move it earlier', disabled: index === 0, onclick: () => store.move(path, index, -1) }, '↑'),
+        h('button', { class: 'icon small', title: 'Move it later', disabled: index === pages.length - 1, onclick: () => store.move(path, index, 1) }, '↓'),
+        h('button', { class: 'icon remove small', title: 'Remove this page', 'aria-label': 'Remove this page', onclick: () => set(liveList().filter((_, i) => i !== index)) }, '×')),
+      h('div', { class: 'book-row' }, box, sheet))
+  })
+  return h('div', { class: 'effects-editor' },
+    h('div', { class: 'layers' }, rows,
+      h('button', { class: 'add', onclick: () => set([...liveList(), '']) }, '+ Add page')))
 }

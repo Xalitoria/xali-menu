@@ -5,7 +5,7 @@ import { h } from './dom.js'
 import { icon } from './icons.js'
 import { registries } from './registry.js'
 import { numberOf } from './dynamic.js'
-import { potionEffects, attributeModifiers } from './listeditors.js'
+import { potionEffects, attributeModifiers, bookPages } from './listeditors.js'
 
 /** The dye colors of the game as `#rrggbb`, in the order of the palette, with their names as the menu file writes them. */
 export const DYES = [
@@ -112,9 +112,10 @@ function banner(store, path, value, item) {
 function firework(store, path, value) {
   const effects = Array.isArray(value?.effects) ? value.effects : []
   const power = numberOf(value?.power, 1)
+  const liveEffects = () => store.get(path)?.effects ?? effects
   const set = (next, quiet = false) => store.set(path, { ...store.get(path), ...next }, quiet)
   const burst = (effect, index) => {
-    const put = (change, quiet = false) => set({ effects: (store.get(path)?.effects ?? effects).map((e, i) => (i === index ? { ...e, ...change } : e)) }, quiet)
+    const put = (change, quiet = false) => set({ effects: liveEffects().map((e, i) => (i === index ? { ...e, ...change } : e)) }, quiet)
     const colors = Array.isArray(effect.colors) ? effect.colors : []
     const fade = Array.isArray(effect.fade) ? effect.fade : []
     return h('div', { class: 'burst' },
@@ -122,7 +123,7 @@ function firework(store, path, value) {
         h('b', null, `Burst ${index + 1}`),
         h('span', { class: 'burst-colors' }, colors.map((c) => h('i', { class: 'dot', style: `background:${hexOf(c, '#888')}` }))),
         h('span', { class: 'spacer' }),
-        h('button', { class: 'icon remove small', title: 'Remove this burst', 'aria-label': 'Remove this burst', onclick: () => set({ effects: effects.filter((_, i) => i !== index) }) }, '×')),
+        h('button', { class: 'icon remove small', title: 'Remove this burst', 'aria-label': 'Remove this burst', onclick: () => set({ effects: liveEffects().filter((_, i) => i !== index) }) }, '×')),
       h('div', { class: 'shapes', role: 'radiogroup' }, SHAPES.map(([shape, name]) => h('button', {
         class: `small ${(effect.type ?? 'BALL') === shape ? 'on' : ''}`, role: 'radio', 'aria-checked': (effect.type ?? 'BALL') === shape, onclick: () => put({ type: shape }) }, name))),
       h('div', { class: 'burst-row' }, h('span', { class: 'muted' }, 'Colors'), colorChips(colors, (next, quiet) => put({ colors: next }, quiet), { empty: 'It needs a color.' })),
@@ -136,7 +137,7 @@ function firework(store, path, value) {
   return h('div', { class: 'firework-editor' },
     h('div', { class: 'burst-row' }, h('label', { title: 'How long a rocket flies before it bursts, 1 to 3' }, h('span', { class: 'muted' }, 'Flight '), rocket), h('small', { class: 'muted' }, 'for a rocket; a star shows its first burst')),
     effects.map(burst),
-    h('button', { class: 'add', onclick: () => set({ effects: [...effects, { type: 'BALL', colors: ['#ff0000'] }] }) }, '+ Add burst'))
+    h('button', { class: 'add', onclick: () => set({ effects: [...liveEffects(), { type: 'BALL', colors: ['#ff0000'] }] }) }, '+ Add burst'))
 }
 
 // ---- colors of an item
@@ -147,6 +148,8 @@ const EDITORS = {
   'Item.firework': Object.assign((store, path, value) => firework(store, path, value), { block: true }),
   'Item.potion': Object.assign((store, path, value, item) => potionEffects(store, path, value, item), { block: true }),
   'Item.attributes': Object.assign((store, path, value) => attributeModifiers(store, path, value), { block: true }),
+  'Book.pages': Object.assign((store, path, value) => bookPages(store, path, value), { block: true }),
+  'Action:book.pages': Object.assign((store, path, value) => bookPages(store, path, value), { block: true }),
   'Item.color': (store, path, value) => colorBox(value, (v) => (v === '' ? store.remove(path) : store.set(path, v, true))),
 }
 
