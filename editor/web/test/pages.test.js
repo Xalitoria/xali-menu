@@ -2,11 +2,34 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { listedSlots, toggleSlot, interiorSlots, defaultPages, sampleValue, sampleElements, fillText, previewMenu, previewTotal, previewPages, isPaged, ELEMENT, EMPTY } from '../src/pages.js'
 
-test('the slots of the elements are the slots, or the cells of the layout', () => {
+test('the slots of the elements are the slots, the cells of the layout, or the cells of the matrix', () => {
   assert.deepEqual(listedSlots({ slots: [3, 1] }), [3, 1])
   assert.deepEqual(listedSlots({ layout: ['#########', '#xx   xx#', 'x'] }), [10, 11, 15, 16, 18])
   assert.deepEqual(listedSlots({ layout: ['ooo'], cell: 'o' }), [0, 1, 2])
+  assert.deepEqual(listedSlots({ matrix: { cells: ['#########', '#xx   yy#'], templates: { x: { material: 'paper' }, y: { material: 'map' } } } }), [10, 11, 15, 16])
   assert.deepEqual(listedSlots(undefined), [])
+})
+
+test('the preview of a paged menu with a matrix draws each cell with its matching template', () => {
+  const menu = {
+    title: 'Players {page}/{pages}',
+    pages: {
+      catalog: { type: 'players' },
+      matrix: {
+        cells: ['xy'],
+        templates: {
+          x: { material: 'paper', name: 'A {name}' },
+          y: { material: 'map', name: 'B {name}' },
+        },
+      },
+    },
+    items: {},
+  }
+  const shown = previewMenu(menu, { name: 'Notch' })
+  assert.equal(shown.items[`${ELEMENT}1`].material, 'paper')
+  assert.equal(shown.items[`${ELEMENT}1`].name, 'A Notch')
+  assert.equal(shown.items[`${ELEMENT}2`].material, 'map')
+  assert.equal(shown.items[`${ELEMENT}2`].name, 'B Notch2')
 })
 
 test('toggling a slot adds it in order or takes it out', () => {

@@ -218,7 +218,11 @@ class MenuManager(private val plugin: XaliMenu) {
         if (definition.type == "chest" && (definition.size !in 9..54 || definition.size % 9 != 0)) {
             problems += "size ${definition.size} isn't 9, 18, ... 54"
         }
-        if (definition.layout.size * 9 > definition.size && definition.type == "chest") problems += "layout has ${definition.layout.size} rows, more than the menu"
+        definition.matrix?.let { matrix ->
+            if (matrix.cells.size * 9 > definition.size && definition.type == "chest") {
+                problems += "matrix.cells has ${matrix.cells.size} rows, more than the menu"
+            }
+        }
         for ((key, value) in definition.placed()) {
             if (value.claimed().isEmpty() && value.inventorySlots.isEmpty()) problems += "item '$key' has no slot, so it is never shown"
             value.inventorySlots.filter { it !in Menu.INVENTORY_SLOTS }.forEach { problems += "item '$key' has inventory slot $it, outside the inventory (0 to 35)" }

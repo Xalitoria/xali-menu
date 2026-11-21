@@ -81,8 +81,10 @@ class MenuLayout {
         """
         title = "Hi"
         size = 27
-        layout = ["#########", "#  o    #", "##### ###"]
-        legend { "#" = border, o = ok }
+        matrix {
+          cells = ["#########", "#  o    #", "##### ###"]
+          map { "#" = border, o = ok }
+        }
         items {
           border { material = gray_stained_glass_pane, name = " " }
           ok { material = lime_wool, slot = 0 }
@@ -91,7 +93,7 @@ class MenuLayout {
     )
 
     @Test
-    fun theLegendPlacesItemsWhereTheirCharactersStand() {
+    fun theMatrixPlacesItemsWhereTheirCharactersStand() {
         val slots = menu.placed().getValue("border").slots
         assertEquals((0..8).toList() + listOf(9, 17) + (18..22).toList() + (24..26).toList(), slots)
     }
@@ -104,18 +106,18 @@ class MenuLayout {
     }
 
     @Test
-    fun aMenuWithoutALayoutIsLeftAlone() {
+    fun aMenuWithoutAMatrixIsLeftAlone() {
         val plain = Registry.format.decode("title = \"Hi\"\nitems.a { material = stone, slot = 3 }")
         assertTrue(plain.placed() === plain.items)
     }
 
     @Test
-    fun badLayoutsAreRefused() {
-        val long = runCatching { Menu(title = "x", layout = ["0123456789"]) }
+    fun badMatricesAreRefused() {
+        val long = runCatching { Menu(title = "x", matrix = net.xalitoria.menu.model.MenuMatrix(cells = ["0123456789"])) }
         assertTrue(long.exceptionOrNull() is IllegalArgumentException)
-        val word = runCatching { Menu(title = "x", legend = mapOf("ab" to "a"), items = mapOf("a" to Item(material = "stone"))) }
+        val word = runCatching { Menu(title = "x", matrix = net.xalitoria.menu.model.MenuMatrix(map = mapOf("ab" to "a")), items = mapOf("a" to Item(material = "stone"))) }
         assertTrue(word.exceptionOrNull() is IllegalArgumentException)
-        val unknown = runCatching { Menu(title = "x", legend = mapOf("a" to "gone")) }
+        val unknown = runCatching { Menu(title = "x", matrix = net.xalitoria.menu.model.MenuMatrix(map = mapOf("a" to "gone"))) }
         assertTrue(unknown.exceptionOrNull() is IllegalArgumentException)
     }
 }

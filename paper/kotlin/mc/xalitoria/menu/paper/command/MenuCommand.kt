@@ -199,7 +199,7 @@ object MenuCommand {
         line("commands", menu.commands.joinToString().ifEmpty { null })
         line("args", menu.args.joinToString().ifEmpty { null })
         line("items", "${menu.items.size} (${entry.bySlot.size} slots" + (if (entry.inventoryBySlot.isNotEmpty()) ", ${entry.inventoryBySlot.size} inventory slots" else "") + ")")
-        if (menu.layout.isNotEmpty()) line("layout", "${menu.layout.size} rows, ${menu.legend.size} legend keys")
+        menu.matrix?.let { if (it.cells.isNotEmpty() || it.map.isNotEmpty()) line("matrix", "${it.cells.size} rows, ${it.map.size} mapped keys") }
         line("refresh", menu.refresh)
         menu.pages?.let { line("pages", "${it.catalog::class.simpleName}, ${it.listed().size} slots") }
         line("animation", frames?.let { "$it frames" + if (menu.animation!!.loop) ", looping" else "" })

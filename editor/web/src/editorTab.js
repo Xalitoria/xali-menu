@@ -12,6 +12,7 @@ import { services } from './services.js'
 import { GlyphBar } from './glyphbar.js'
 import { TEMPLATE, EMPTY, isPaged, listedSlots } from './pages.js'
 import { pagesView, valuesBar } from './pagesPanel.js'
+import { matrixEditor } from './layouteditor.js'
 import { DEVICES, deviceById, presentationFor, titleForDevice } from './bedrock.js'
 import { bedrockBanner, bedrockFormView } from './bedrockPreview.js'
 
@@ -28,7 +29,7 @@ export const SIZES = [1, 2, 3, 4, 5, 6].map((rows) => [String(rows * 9), `${rows
 export const GROUPS = [
   { id: 'opening', label: 'Opening', keys: ['commands', 'register', 'args', 'args-usage', 'complete', 'open', 'open-with'], hint: 'How players open the menu, and who may.' },
   { id: 'events', label: 'Events', keys: ['on-open', 'on-close', 'refresh'], hint: 'What happens when the menu opens or closes, and how often it is drawn again.' },
-  { id: 'layout', label: 'Layout', keys: ['layout', 'legend'], hint: 'The menu as it looks, in rows of nine characters, for placing items by.' },
+  { id: 'matrix', label: 'Matrix', keys: ['matrix'], hint: 'Draw the whole menu as a single character grid mapped to items.' },
   { id: 'pages', label: 'Pages', keys: ['pages'], hint: 'List the elements of a catalog, a page at a time.' },
   { id: 'animation', label: 'Animation', keys: ['animation'], hint: 'Frames that play over the menu once it is open.' },
   { id: 'bedrock', label: 'Bedrock', keys: ['bedrock'], hint: 'Bedrock Edition forms, device targeting and touch/controller interaction overrides.' },
@@ -226,18 +227,25 @@ export class EditorTab {
   /** The number of the keys of the group that the menu sets. */
   count(group, known) {
     const menu = this.menu
+    if (group.id === 'matrix') {
+      const m = menu.matrix
+      return m && ((m.cells?.length ?? 0) > 0 || Object.keys(m.map ?? {}).length > 0) ? 1 : 0
+    }
     return Object.keys(menu).filter((k) => (group.keys ? group.keys.includes(k) : !known.has(k))).length
   }
 
   groupButton(group, known) {
     const open = this.popover === group.id
     const count = this.count(group, known)
+    const body = group.id === 'pages'
+      ? pagesView(this.app)
+      : group.id === 'matrix'
+        ? matrixEditor(this.app.store, ['matrix'], this.menu.matrix, this.menu)
+        : this.app.form.object(this.app.schema.root, [], group.keys ? { only: group.keys } : { hide: [...known] })
     const panel = open && h('div', { class: 'popover', role: 'dialog' },
       h('h3', null, group.label),
       h('p', { class: 'muted' }, group.hint),
-      group.id === 'pages' ? pagesView(this.app) : this.app.form.object(this.app.schema.root, [], group.keys
-        ? { only: group.keys }
-        : { hide: [...known] }))
+      body)
     return h('div', { class: 'pop-wrap' },
       h('button', { class: `pop-button ${open ? 'active' : ''} ${count ? 'set' : ''}`, 'aria-expanded': open, title: group.hint,
         onclick: () => { this.popover = open ? null : group.id; this.app.draw() } },
@@ -304,7 +312,7 @@ export class EditorTab {
   pagerView() {
     const { app } = this
     const listed = listedSlots(this.menu.pages).length
-    if (!this.menu.pages?.item || listed === 0 || app.painting || app.placing) return h('div', { class: 'pager', hidden: true })
+    if (!(this.menu.pages?.item || this.menu.pages?.matrix) || listed === 0 || app.painting || app.placing) return h('div', { class: 'pager', hidden: true })
     if (app.picked.item === EMPTY) {
       return h('div', { class: 'pager' }, h('span', { class: 'muted' }, 'The page of a catalog with nothing to list'),
         h('button', { class: 'small', title: 'Show the elements again', onclick: () => app.pickItem(TEMPLATE) }, 'Show elements'))
@@ -339,7 +347,7 @@ export class EditorTab {
   taken(area) {
     const menu = this.menu
     if (area === 'inventory') return new Set(inventoryEntries(menu).keys())
-    return new Set(Object.keys(menu.items ?? {}).flatMap((id) => { const p = placesOf(menu, id); return [...p.items, ...p.layout] }))
+    return new Set(Object.keys(menu.items ?? {}).flatMap((id) => { const p = placesOf(menu, id); return [...p.items, ...p.matrix] }))
   }
 
   /**
@@ -378,7 +386,7 @@ export class EditorTab {
       onkeydown: (e) => { if (e.key === 'Enter') name.blur() } })
     return h('aside', { class: 'sidebar props' },
       h('div', { class: 'side-head item-head' },
-        h('label', { class: 'tool grow', title: 'The id the item is known by: the legend and messages use it' }, h('span', null, 'Id'), name),
+        h('label', { class: 'tool grow', title: 'The id the item is known by: the matrix map and messages use it' }, h('span', null, 'Id'), name),
         h('button', { class: 'small', title: 'Copy the item', onclick: () => this.duplicate(id) }, 'Copy'),
         h('button', { class: 'danger small', title: 'Remove the item', onclick: () => this.remove(id) }, 'Delete')),
       own.length > 0 && h('ul', { class: 'item-problems' }, own.slice(0, 6).map((p) => h('li', null, h('code', null, p.path.slice(2).join('.') || 'item'), ' ', p.message))),
@@ -388,7 +396,7 @@ export class EditorTab {
 
   /**
    * Where the item [id] is drawn: a chip for each slot of the menu and of the player's inventory (click to see it, x to take the item out
-   * of it), a note for the slots the layout gives it, and the button that lets slots of the window be clicked to put it in them or take it out.
+   * of it), a note for the slots the menu matrix gives it, and the button that lets slots of the window be clicked to put it in them or take it out.
    */
   placement(id) {
     const { app } = this
@@ -397,7 +405,7 @@ export class EditorTab {
     const chip = (a, slot) => h('span', { class: `chip ${here(a, slot) ? 'active' : ''}` },
       h('button', { class: 'chip-label', title: 'Show this slot', onclick: () => this.showSlot(a, slot) }, `${a === 'items' ? 'Menu' : 'Inventory'} ${slot}`),
       h('button', { class: 'chip-x remove', title: `Do not draw ${id} in this slot`, 'aria-label': `Remove from slot ${slot}`, onclick: () => this.unplace(id, a, slot) }, '×'))
-    const none = places.items.length + places.inventory.length + places.layout.length === 0
+    const none = places.items.length + places.inventory.length + places.matrix.length === 0
     return h('div', { class: 'placement' },
       h('div', { class: 'placement-head' },
         h('b', null, 'Drawn in'),
@@ -406,7 +414,7 @@ export class EditorTab {
       h('div', { class: 'chips' },
         none && h('span', { class: 'muted' }, 'No slot yet: the item is never shown.'),
         places.items.map((slot) => chip('items', slot)),
-        places.layout.length > 0 && h('span', { class: 'chip layout', title: 'The slots of the layout that its character stands for. Change them in the Layout group.' }, `Layout ${places.layout.length === 1 ? 'slot' : 'slots'} ${places.layout.join(', ')}`),
+        places.matrix.length > 0 && h('span', { class: 'chip layout', title: 'The cells of the menu matrix that its character stands for. Change them in the Matrix group.' }, `Matrix ${places.matrix.length === 1 ? 'slot' : 'slots'} ${places.matrix.join(', ')}`),
         places.inventory.map((slot) => chip('inventory', slot))))
   }
 
@@ -513,9 +521,9 @@ export function slotText(slots) {
   return slots.length <= 3 ? `slots ${slots.join(', ')}` : `${slots.length} slots`
 }
 
-/** The same for the places of an item (`placesOf`): its slots of the menu, with those of the layout, and its slots of the player's inventory after them. */
-export function placeText({ items, layout, inventory }) {
-  const menu = [...new Set([...items, ...layout])].sort((a, b) => a - b)
+/** The same for the places of an item (`placesOf`): its slots of the menu, with those of the menu matrix, and its slots of the player's inventory after them. */
+export function placeText({ items, matrix, inventory }) {
+  const menu = [...new Set([...items, ...(matrix ?? [])])].sort((a, b) => a - b)
   const rows = [...inventory].sort((a, b) => a - b)
   if (menu.length === 0 && rows.length === 0) return 'no slot'
   return [menu.length && slotText(menu), rows.length && `inventory ${rows.length === 1 ? 'slot' : 'slots'} ${rows.length <= 3 ? rows.join(', ') : `×${rows.length}`}`].filter(Boolean).join(' · ')

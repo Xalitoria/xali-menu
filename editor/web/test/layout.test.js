@@ -14,5 +14,6 @@ test('a layout is a grid of nine columns, painting a cell changes one character,
   assert.deepEqual(rowsOf([['a', ' '], [' ', ' ']].map((r) => [...r, ...Array(7).fill(' ')])), ['a'])
   assert.deepEqual([...counts(['a b', 'a'])], [['a', 2], ['b', 1]])
   assert.deepEqual(strays(['a b', 'c'], { a: 'x', z: 'y' }), { unknown: ['b', 'c'], unused: ['z'] })
-  assert.ok(editorFor({ owner: 'Menu', key: 'layout' }).block && editorFor({ owner: 'Menu', key: 'legend' }).block)
+  assert.ok(editorFor({ owner: 'Menu', key: 'matrix' }).block)
+  assert.equal(editorFor({ owner: 'Menu', key: 'layout' }), null)
 })

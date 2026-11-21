@@ -5,7 +5,6 @@
 import { numberOf, flagOf } from './dynamic.js'
 import { closest, hint } from './suggest.js'
 import { normalize } from './normalize.js'
-import { matrixSlots } from './placement.js'
 
 const SIZES = { hopper: 5, dispenser: 9, dropper: 9, crafter: 9, shulker_box: 27 }
 
@@ -125,20 +124,42 @@ const DURATION = /^(?:(?:\d+(?:\.\d+)?(?:ns|us|ms|s|m|h|d)\s*)+|[-+]?P.+|[-+]?In
 
 function isObject(value) { return typeof value === 'object' && value !== null && !Array.isArray(value) }
 
-/** Slots outside the window, and layouts that name items that are not there. */
+/** Slots outside the window, and a menu matrix that breaks its rules or names missing items. */
 function slots(menu, problems) {
   const count = slotCount(menu)
+  const chest = menu.type === undefined || menu.type === 'chest'
+  const matrixByItem = new Map()
+  if (isObject(menu.matrix)) {
+    const cells = Array.isArray(menu.matrix.cells) ? menu.matrix.cells : []
+    const map = isObject(menu.matrix.map) ? menu.matrix.map : {}
+    cells.forEach((row, r) => {
+      const chars = [...String(row ?? '')]
+      if (chars.length > 9) problems.push({ path: ['matrix', 'cells', r], message: 'a row of matrix.cells has more than 9 characters' })
+      chars.forEach((c, column) => {
+        const target = map[c]
+        if (typeof target === 'string') {
+          if (!matrixByItem.has(target)) matrixByItem.set(target, [])
+          matrixByItem.get(target).push(r * 9 + column)
+        }
+      })
+    })
+    if (chest && cells.length * 9 > count) {
+      problems.push({ path: ['matrix', 'cells'], message: `matrix.cells has ${cells.length} rows, more than the menu` })
+    }
+    for (const [character, name] of Object.entries(map)) {
+      if ([...character].length !== 1) problems.push({ path: ['matrix', 'map', character], message: `matrix.map names single characters, not '${character}'` })
+      else if (!(name in (menu.items ?? {}))) problems.push({ path: ['matrix', 'map', character], message: `the item '${name}' is not in items` })
+    }
+  }
   for (const [name, item] of Object.entries(menu.items ?? {})) {
-    const claimed = [item.slot, ...(item.slots ?? []), ...(item.matrix ? matrixSlots(item.matrix) : [])].filter((n) => typeof n === 'number')
+    const claimed = [item.slot, ...(item.slots ?? [])].filter((n) => typeof n === 'number')
     // A negative slot is told by the limits the model gives; here is what the size of this menu adds.
     for (const slot of claimed) if (slot >= count) problems.push({ path: ['items', name, 'slot'], message: `slot ${slot} is outside the menu (0 to ${count - 1}); the slots after it are the player's inventory, which an item of the menu draws only with 'inventory-slots'` })
     const rows = (item['inventory-slots'] ?? []).filter((n) => typeof n === 'number')
-    if (claimed.length === 0 && rows.length === 0 && !Object.values(menu.legend ?? {}).includes(name)) problems.push({ path: ['items', name], message: 'has no slot, so it is never shown' })
+    const fromMatrix = matrixByItem.get(name) ?? []
+    if (claimed.length === 0 && rows.length === 0 && fromMatrix.length === 0) problems.push({ path: ['items', name], message: 'has no slot, so it is never shown' })
   }
-  for (const [character, name] of Object.entries(menu.legend ?? {})) {
-    if (!(name in (menu.items ?? {}))) problems.push({ path: ['legend', character], message: `the item '${name}' is not in items` })
-  }
-  if (menu.type === undefined || menu.type === 'chest') {
+  if (chest) {
     if (count % 9 !== 0 || count < 9 || count > 54) problems.push({ path: ['size'], message: `size ${count} is not 9, 18, … 54` })
   }
 }

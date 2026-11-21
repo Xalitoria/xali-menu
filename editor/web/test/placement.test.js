@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { claimsOf, setClaims, addClaim, removeClaim, moveClaim, placesOf, inventoryEntries } from '../src/placement.js'
 
 const menu = () => ({
-  title: 'T', size: 27, layout: ['#########'], legend: { '#': 'fill' },
+  title: 'T', size: 27, matrix: { cells: ['#########'], map: { '#': 'fill' } },
   items: { fill: { material: 'glass_pane', slot: 9, slots: [10, 11] }, ok: { material: 'lime_wool', slot: 13 } },
 })
 
@@ -72,8 +72,8 @@ test('an item dragged from a slot the layout gives it is only added', () => {
 test('every place of an item', () => {
   const m = menu()
   addClaim(m, 'fill', 'inventory', 5)
-  assert.deepEqual(placesOf(m, 'fill'), { items: [9, 10, 11], inventory: [5], layout: [0, 1, 2, 3, 4, 5, 6, 7, 8] })
-  assert.deepEqual(placesOf(m, 'ok'), { items: [13], inventory: [], layout: [] })
+  assert.deepEqual(placesOf(m, 'fill'), { items: [9, 10, 11], inventory: [5], matrix: [0, 1, 2, 3, 4, 5, 6, 7, 8] })
+  assert.deepEqual(placesOf(m, 'ok'), { items: [13], inventory: [], matrix: [] })
 })
 
 test('the player rows hold the items there by priority', () => {

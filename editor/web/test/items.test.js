@@ -2,7 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { freeId, idProblem, renameItem, removeItem, duplicateItem, firstFreeSlot, isCustomMaterial } from '../src/items.js'
 
-const menu = () => ({ items: { a: { material: 'stone', slot: 0 }, b: { material: 'dirt' }, c: { material: 'sand' } }, legend: { '#': 'b', x: 'c' } })
+const menu = () => ({ items: { a: { material: 'stone', slot: 0 }, b: { material: 'dirt' }, c: { material: 'sand' } }, matrix: { cells: ['#x'], map: { '#': 'b', x: 'c' } } })
 
 test('an id is free when no item has it', () => {
   assert.equal(freeId({}), 'item1')
@@ -18,11 +18,11 @@ test('an id has to be one word and not taken', () => {
   assert.equal(idProblem(m, 'a', 'a'), null, 'its own id is fine')
 })
 
-test('renaming keeps the order of the items and follows the legend', () => {
+test('renaming keeps the order of the items and follows the matrix map', () => {
   const m = renameItem(menu(), 'b', 'filler')
   assert.deepEqual(Object.keys(m.items), ['a', 'filler', 'c'])
-  assert.equal(m.legend['#'], 'filler')
-  assert.equal(m.legend.x, 'c')
+  assert.equal(m.matrix.map['#'], 'filler')
+  assert.equal(m.matrix.map.x, 'c')
 })
 
 test('a rename that is not allowed changes nothing', () => {
@@ -32,10 +32,10 @@ test('a rename that is not allowed changes nothing', () => {
   assert.equal(renameItem(menu(), 'b', ''), null)
 })
 
-test('removing an item takes its legend characters with it', () => {
+test('removing an item takes its matrix map characters with it', () => {
   const m = removeItem(menu(), 'b')
   assert.deepEqual(Object.keys(m.items), ['a', 'c'])
-  assert.deepEqual(m.legend, { x: 'c' })
+  assert.deepEqual(m.matrix.map, { x: 'c' })
   assert.equal(removeItem(menu(), 'zzz'), null)
 })
 

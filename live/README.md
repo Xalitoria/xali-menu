@@ -59,7 +59,7 @@ before `server.sh start`, and write a bot in `bot/`.
 | `bot/props.js` | `i` (`/xi`) | The item properties: it gives one item of every kind; then read the saved player data with `python3 bot/nbt.py <server>/world/players/data/<uuid>.dat` (Folia has no `/data` for entities). |
 | `bot/complete.js` | `a` (`/xa`) | Tab completion of a menu's `args` from its `complete` map: players, fixed words, the rest of the line. |
 | `bot/addon.js` | `e` (`/xe`) | An activator added by another plugin, `addon/XmDemo.java` (built with `XM_ADDON=1` at setup): `/xmwave` fires it with values; matching, a gate, `cancel`, and the keys it refuses. |
-| `bot/layout.js` | `l` (`/xl`) | A `layout` with a `legend`: the item in every slot of the window. |
+| `bot/layout.js` | `l` (`/xl`) | A menu `matrix` (`cells` + `map`): the item in every slot of the window. |
 | `bot/npc.js` | `n` (`/xn`) | FancyNpcs `npc` activators: creates an NPC and right- and left-clicks it (set up with `XM_PLUGINS=FancyNpcs`). |
 | `bot/skin.js` | `s` (`/xs`) | The `skin` and `skin-reset` actions with SkinsRestorer (`XM_PLUGINS=SkinsRestorer`): what it stores for the player after each, and a skin that does not exist. |
 | `bot/compare.js` | imported DeluxeMenus menus | Opens each menu with DeluxeMenus and with XaliMenu and prints what differs (items, names, lore, components, the chat from clicks). Needs `XM_PLUGINS=DeluxeMenus` on Paper (`XM_PAPER=<paper jar>`, DeluxeMenus does not support Folia) and `xmenu import deluxemenus` run first; `dm/compare_menu.yml` is a menu with most item options for it. |

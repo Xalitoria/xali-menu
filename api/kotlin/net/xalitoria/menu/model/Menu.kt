@@ -45,16 +45,13 @@ data class Menu(
     val onOpen: List<Action> = [],
     /** Run when the player closes the menu or it is replaced by another. */
     val onClose: List<Action> = [],
-    /** The items of the menu, by name. The name is only used to refer to an item from [legend] and in messages. */
+    /** The items of the menu, by name. The name is used to refer to an item from [matrix] and in messages. */
     val items: Map<String, Item> = emptyMap(),
     /**
-     * The menu as it looks, in rows of nine characters, for items to be placed by: each character of the [legend] puts the
-     * item it names in every slot where it stands, besides the item's own `slot` and `slots`. A row of fewer characters
-     * ends in blanks, and a character the legend does not know is a blank.
+     * The menu as a single character grid mapped to [items]: `cells` are rows of at most nine characters and `map` assigns
+     * each character to an item name, placing that item in every matching slot besides its own `slot` and `slots`.
      */
-    val layout: List<String> = [],
-    /** The character of the [layout] to the name of the item in [items] that goes where it stands. */
-    val legend: Map<String, String> = emptyMap(),
+    val matrix: MenuMatrix? = null,
     /** What a player can do to open the menu besides its [commands]. */
     val openWith: List<Activator> = [],
     /** Frames that play over the menu once it is open. */
@@ -65,17 +62,15 @@ data class Menu(
     val bedrock: BedrockMenu? = null,
 ) {
     init {
-        require(layout.all { it.length <= 9 }) { "a row of layout has more than 9 characters" }
-        require(legend.keys.all { it.length == 1 }) { "the legend names single characters, not '${legend.keys.first { it.length != 1 }}'" }
-        legend.forEach { [character, name] -> require(name in items) { "the legend gives '$character' the item '$name', which isn't in items" } }
+        matrix?.map?.forEach { [character, name] ->
+            require(name in items) { "matrix.map gives '$character' the item '$name', which isn't in items" }
+        }
     }
 
-    /** The [items] with the slots the [layout] gives them added to their own. */
+    /** The [items] with the slots the [matrix] gives them added to their own. */
     fun placed(): Map<String, Item> {
-        if (layout.isEmpty() || legend.isEmpty()) return items
-        val slots = layout.flatMapIndexed { row, text ->
-            text.mapIndexedNotNull { column, c -> legend[c.toString()]?.let { it to row * 9 + column } }
-        }.groupBy({ it.first }, { it.second })
+        val slots = matrix?.slotsByItem() ?: return items
+        if (slots.isEmpty()) return items
         return items.mapValues { [name, item] -> slots[name]?.let { item.copy(slots = (item.slots + it).distinct()) } ?: item }
     }
 

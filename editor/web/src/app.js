@@ -52,8 +52,8 @@ export class App {
       choices: (path) => {
         if (path.length === 1 && path[0] === 'type') return TYPES
         if (path.length === 1 && path[0] === 'size') return SIZES
-        // The legend says which item each character of the layout stands for: pick it from the ids of the items.
-        if (path.length === 2 && path[0] === 'legend') return Object.keys(this.store.value.items ?? {}).map((id) => [id, id])
+        // The menu matrix map says which item each character stands for: pick it from the ids of the items.
+        if (path.length === 3 && path[0] === 'matrix' && path[1] === 'map') return Object.keys(this.store.value.items ?? {}).map((id) => [id, id])
         // A paged menu is ordered by one of the values of its catalog.
         if (path.length === 2 && path[0] === 'pages' && path[1] === 'sort') return this.catalogValues().map((name) => [name, name])
         return null
@@ -320,7 +320,7 @@ export class App {
     if (isPaged(id)) slots = listedSlots(menu.pages).slice(0, 1)
     else {
       const places = placesOf(menu, id)
-      slots = [...new Set([...places.items, ...places.layout])].sort((a, b) => a - b)
+      slots = [...new Set([...places.items, ...places.matrix])].sort((a, b) => a - b)
       if (slots.length === 0) { slots = [...places.inventory].sort((a, b) => a - b); area = 'inventory' }
     }
     this.picked = { slot: slots[0] ?? null, item: id, area }

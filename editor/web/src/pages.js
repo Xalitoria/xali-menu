@@ -9,9 +9,20 @@ export const EMPTY = '@pages.empty'
 /** Whether [id] is one of the ids above: an item that the menu file does not have under that name. */
 export const isPaged = (id) => typeof id === 'string' && id.startsWith('@')
 
-/** The slots the elements go into, in order: `slots`, or the cell characters of `layout` (read left to right, top to bottom), as the plugin reads them. */
+/** The `[slot, template]` pairs of a `pages.matrix`, in reading order. */
+export function matrixCells(matrix) {
+  if (!matrix || !Array.isArray(matrix.cells) || !matrix.templates || typeof matrix.templates !== 'object') return []
+  const found = []
+  matrix.cells.forEach((row, r) => [...String(row ?? '')].forEach((c, column) => {
+    if (Object.hasOwn(matrix.templates, c)) found.push([r * 9 + column, matrix.templates[c]])
+  }))
+  return found
+}
+
+/** The slots the elements go into, in order: the cells of `matrix`, the cell characters of `layout`, or `slots`, as the plugin reads them. */
 export function listedSlots(pages) {
   if (!pages) return []
+  if (pages.matrix) return matrixCells(pages.matrix).map(([slot]) => slot)
   if (!(pages.layout?.length)) return [...(pages.slots ?? [])].filter((s) => Number.isInteger(s))
   const cell = pages.cell ?? 'x'
   return pages.layout.flatMap((row, r) => [...String(row)].flatMap((c, column) => (c === cell ? [r * 9 + column] : [])))
@@ -97,8 +108,9 @@ export const previewPages = (perPage, elements = null) => (elements?.length ? Ma
  */
 export function previewMenu(menu, fields, { page = 1, empty = false, elements = null } = {}) {
   const pages = menu.pages
+  const templates = pages?.matrix ? new Map(matrixCells(pages.matrix)) : null
   const listed = listedSlots(pages)
-  if (!pages?.item || listed.length === 0) return menu
+  if ((!pages?.item && !templates?.size) || listed.length === 0) return menu
   const perPage = listed.length
   const all = empty ? [] : elements?.length ? elements : sampleElements(fields, previewTotal(perPage))
   const total = all.length
@@ -108,7 +120,9 @@ export function previewMenu(menu, fields, { page = 1, empty = false, elements = 
   const onPage = all.slice((shown - 1) * perPage, shown * perPage)
   const items = Object.fromEntries(Object.entries(menu.items ?? {}).map(([id, item]) => [id, fillAll(item, tokens)]))
   onPage.forEach((element, i) => {
-    const { view, slots, ...template } = fillAll(pages.item, { ...tokens, ...element })
+    const raw = templates ? templates.get(listed[i]) : pages.item
+    if (!raw) return
+    const { view, slots, ...template } = fillAll(raw, { ...tokens, ...element })
     items[`${ELEMENT}${i + 1}`] = { ...template, slot: listed[i], priority: -1_000_000 }
   })
   if (empty && pages.empty) {

@@ -33,6 +33,7 @@ A value that is a list may be written as the one value, and an enum in any case 
 - [Handler](#handler)
 - [Item](#item)
 - [Matrix](#matrix)
+- [MenuMatrix](#menumatrix)
 - [Pages](#pages)
 - [PotionEffect](#potioneffect)
 - [Tool](#tool)
@@ -100,15 +101,11 @@ A menu, as stored in `menus/<name>.conf`; the file name is the menu's name.
 
 - `items`: map from a name to [Item](#item); default `[object Object]`
 
-  The items of the menu, by name. The name is only used to refer to an item from `legend` and in messages.
+  The items of the menu, by name. The name is used to refer to an item from `matrix` and in messages.
 
-- `layout`: list of text; default `[]`
+- `matrix`: [MenuMatrix](#menumatrix)
 
-  The menu as it looks, in rows of nine characters, for items to be placed by: each character of the `legend` puts the item it names in every slot where it stands, besides the item's own `slot` and `slots`. A row of fewer characters ends in blanks, and a character the legend does not know is a blank.
-
-- `legend`: map from a name to text; default `[object Object]`
-
-  The character of the `layout` to the name of the item in `items` that goes where it stands.
+  The menu as a single character grid mapped to `items`: `cells` are rows of at most nine characters and `map` assigns each character to an item name, placing that item in every matching slot besides its own `slot` and `slots`.
 
 - `open-with`: list of [an activator](#activators); default `[]`
 
@@ -712,13 +709,9 @@ An item of a menu.
 
   Optional display and click-label overrides for Bedrock Edition players.
 
-- `matrix`: list of text; default `[]`
-
-  Slots of the menu drawn as a picture, in addition to `slot` and `slots`: rows of at most nine characters, read left to right and top to bottom, where every character but `-` and a space is a slot of this item. `["---------", "-xxxxxxx-"]` is slots 10 to 16. It is the AbstractMenus way to write a slot as a matrix.
-
 ## Matrix
 
-A drawing of a menu's slots as rows of characters, with the item each character stands for written next to it, as in AbstractMenus' `matrix { cells, templates }`. It is used by `Pages.matrix`, where the elements of a catalog fill the cells.
+A drawing of a paged menu's slots as rows of characters, with the item template each character stands for written next to it, as in AbstractMenus' `matrix { cells, templates }`. It is used by `Pages.matrix`, where the elements of a catalog fill the cells.
 
 `cells` are rows of at most nine characters, read left to right and top to bottom, so the nth character of a row is the nth column of the window. `templates` name the characters that stand for something: a key is one character, and its value is the item drawn in every cell where that character stands. A character with no template is a blank, and a row of fewer characters ends in blanks. A character that HOCON reads as something else needs quotes (`"#"`).```hocon cells = ["#########", "#xxxxxxx#", "#xxxxxxx#", "####c####"] templates { x { material = "head:{name}", name = "&e{name}" } c { material = "barrier", name = "&cClose" } }```
 
@@ -729,6 +722,20 @@ A drawing of a menu's slots as rows of characters, with the item each character 
 - `templates`: map from a name to [Item](#item); required
 
   The item of each character that stands for something, by that character.
+
+## MenuMatrix
+
+A drawing of the whole menu's slots as rows of characters, with each character mapped to an item in `Menu.items`.
+
+`cells` are rows of at most nine characters, read left to right and top to bottom, so the nth character of a row is the nth column of the window. `map` names the item in `Menu.items` that each character stands for: the item goes in every slot where its character stands, besides its own `slot` and `slots`. Because each cell holds at most one character, items placed through the matrix cannot conflict with each other inside the grid. A character that `map` does not know is a blank, and a row of fewer characters ends in blanks. Quote a character that HOCON reads as something else (`"#"`).```hocon matrix { cells = [ "#########" "#  o   x#" "####c####" ] map { "#" = border o = ok x = extra c = close } }```
+
+- `cells`: list of text; default `[]`
+
+  The rows of the drawing, at most nine characters each.
+
+- `map`: map from a name to text; default `[object Object]`
+
+  The character of `cells` to the name of the item in `Menu.items` that goes where it stands.
 
 ## Pages
 

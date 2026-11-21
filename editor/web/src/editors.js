@@ -8,7 +8,7 @@ import { numberOf } from './dynamic.js'
 import { potionEffects, attributeModifiers, bookPages } from './listeditors.js'
 import { foodEditor, toolEditor, fishEditor, trimEditor } from './itemeditors.js'
 import { DYES, label, dyes } from './dyes.js'
-import { layoutEditor, legendNote } from './layouteditor.js'
+import { matrixEditor } from './layouteditor.js'
 
 export { DYES, label }
 
@@ -144,8 +144,7 @@ const EDITORS = {
   'Item.tool': Object.assign((store, path, value) => toolEditor(store, path, value), { block: true }),
   'Item.fish': Object.assign((store, path, value, item) => fishEditor(store, path, value, item), { block: true }),
   'Item.trim': Object.assign((store, path, value, item) => trimEditor(store, path, value, item), { block: true }),
-  'Menu.layout': Object.assign((store, path, value, menu) => layoutEditor(store, path, value, menu), { block: true }),
-  'Menu.legend': Object.assign(() => legendNote(), { block: true }),
+  'Menu.matrix': Object.assign((store, path, value, menu) => matrixEditor(store, path, value, menu), { block: true }),
   'Item.color': (store, path, value) => colorBox(value, (v) => (v === '' ? store.remove(path) : store.set(path, v, true))),
 }
 

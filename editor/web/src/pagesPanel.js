@@ -66,6 +66,7 @@ export function pagesView(app) {
   const help = typeName ? firstSentence(schema.type(typeName).doc) : null
   const slots = listedSlots(pages)
   const usesLayout = Boolean(pages.layout?.length)
+  const usesMatrix = Boolean(pages.matrix)
   const columns = geometry(menu).columns
   const pagesType = schema.field(schema.root, 'pages').type.type
   return h('div', { class: 'pages-panel' },
@@ -78,16 +79,18 @@ export function pagesView(app) {
       !typeName && type !== undefined && settingsFields(app, pages.catalog)),
     h('section', null,
       h('h4', null, 'Slots'),
-      h('p', { class: 'muted' }, usesLayout
-        ? `The elements go into the ${slots.length} cells of the layout of the pages. Pick the slots in the window to change them.`
-        : `The elements go into ${slots.length} ${slots.length === 1 ? 'slot' : 'slots'}, in this order.`),
+      h('p', { class: 'muted' }, usesMatrix
+        ? `The elements go into the ${slots.length} cells of pages.matrix (each character uses its own template).`
+        : usesLayout
+          ? `The elements go into the ${slots.length} cells of the layout of the pages. Pick the slots in the window to change them.`
+          : `The elements go into ${slots.length} ${slots.length === 1 ? 'slot' : 'slots'}, in this order.`),
       h('div', { class: 'row-buttons' },
-        h('button', { class: 'primary', onclick: () => app.paint(true) }, 'Pick the slots in the window'),
-        h('button', { title: 'All the slots between the border', onclick: () => app.store.change((draft) => { delete draft.pages.layout; draft.pages.slots = interiorSlots(slotCount(draft), columns); return draft }) }, 'Between the border'),
-        h('button', { class: 'danger', onclick: () => app.store.change((draft) => { draft.pages.slots = []; delete draft.pages.layout; return draft }) }, 'Clear'))),
+        !usesMatrix && h('button', { class: 'primary', onclick: () => app.paint(true) }, 'Pick the slots in the window'),
+        h('button', { title: 'All the slots between the border', onclick: () => app.store.change((draft) => { delete draft.pages.layout; delete draft.pages.matrix; draft.pages.item ??= { material: 'paper', name: '&e{name}' }; draft.pages.slots = interiorSlots(slotCount(draft), columns); return draft }) }, 'Between the border'),
+        h('button', { class: 'danger', onclick: () => app.store.change((draft) => { draft.pages.slots = []; delete draft.pages.layout; delete draft.pages.matrix; return draft }) }, 'Clear'))),
     h('section', null,
       h('h4', null, 'Order and layout'),
-      form.object(pagesType, ['pages'], { only: ['sort', 'descending', 'layout', 'cell'] })),
+      form.object(pagesType, ['pages'], { only: usesMatrix ? ['sort', 'descending', 'matrix'] : ['sort', 'descending', 'layout', 'cell', 'matrix'] })),
     h('section', null,
       h('h4', null, 'Items'),
       h('div', { class: 'row-buttons' },

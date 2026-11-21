@@ -2,7 +2,7 @@
 // The functions work on the menu as plain data. Those that change it do so in place and return the menu, or null for no change, so they can be
 // given to `Store.change`.
 
-/** The id of an item: its key in `items`. It is only used to refer to the item from the legend and in messages. */
+/** The id of an item: its key in `items`. It is used to refer to the item from the menu matrix map and in messages. */
 export const ID_PATTERN = /^[^\s{}%]+$/
 
 /** The first of `item1`, `item2`... that is not an id of [items]. */
@@ -20,19 +20,21 @@ export function idProblem(menu, id, own = null) {
   return null
 }
 
-/** Gives the item [from] the id [to], keeping its place in the list and the legend characters that stand for it. Null when nothing changes. */
+/** Gives the item [from] the id [to], keeping its place in the list and the matrix map characters that stand for it. Null when nothing changes. */
 export function renameItem(menu, from, to) {
   if (from === to || idProblem(menu, to, from) || !(from in (menu.items ?? {}))) return null
   menu.items = Object.fromEntries(Object.entries(menu.items).map(([id, item]) => [id === from ? to : id, item]))
-  if (menu.legend) for (const [character, id] of Object.entries(menu.legend)) if (id === from) menu.legend[character] = to
+  if (menu.matrix?.map) for (const [character, id] of Object.entries(menu.matrix.map)) if (id === from) menu.matrix.map[character] = to
   return menu
 }
 
-/** Removes the item [id] and the legend characters that stood for it. Null when there is no such item. */
+/** Removes the item [id] and the matrix map characters that stood for it. Null when there is no such item. */
 export function removeItem(menu, id) {
   if (!(id in (menu.items ?? {}))) return null
   delete menu.items[id]
-  if (menu.legend) for (const [character, name] of Object.entries(menu.legend)) if (name === id) delete menu.legend[character]
+  if (menu.matrix?.map) {
+    for (const [character, name] of Object.entries(menu.matrix.map)) if (name === id) delete menu.matrix.map[character]
+  }
   return menu
 }
 

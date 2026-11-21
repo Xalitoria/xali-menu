@@ -123,15 +123,18 @@ items {
 
 Enum values in menu files are upper case. HOCON objects have no key order.
 
-**Layout.** Instead of listing slot numbers, draw the menu: `layout` is rows of nine characters and `legend` names the item
-each character stands for. The item goes in every slot where its character stands, besides its own `slot` / `slots`. A
-character the legend doesn't know is a blank, and a short row ends in blanks. Quote a character that HOCON reads as
-something else, such as `"#"`.
+**Matrix.** Instead of listing slot numbers on every item, draw the entire menu as one global grid: `matrix.cells` is
+rows of up to nine characters and `matrix.map` names the item in `items` that each character stands for. Each item goes
+in every slot where its character stands, besides its own `slot` / `slots`. Because each cell holds one character, items
+placed through the matrix cannot conflict with each other. A character `matrix.map` doesn't know is a blank, and a short
+row ends in blanks. Quote a character that HOCON reads as something else, such as `"#"`.
 
 ```hocon
 size = 27
-layout = ["#########", "#  o   x#", "####c####"]
-legend { "#" = border, o = ok, x = extra, c = close }
+matrix {
+    cells = ["#########", "#  o   x#", "####c####"]
+    map { "#" = border, o = ok, x = extra, c = close }
+}
 items {
     border { material = "gray_stained_glass_pane", name = " " }
     ok { material = "lime_wool", name = "Ok" }
@@ -389,10 +392,12 @@ catalogs, see [Extending](#extending).
   element *before* the elements are cut into pages, so all pages but the last are full.
 - **Slots.** The nth element of the page goes into the nth of `slots`. The template's own `slot` is not used. An item of the
   menu that claims a listed slot is drawn there on pages that have no element left for it.
-- **Layout.** `layout` instead of `slots` draws the menu as it looks: rows of nine characters, where every `cell`
+- **Layout and matrix.** `layout` instead of `slots` draws the menu as it looks: rows of nine characters, where every `cell`
   character (`x` unless `cell` says otherwise) is a slot for an element, read left to right and top to bottom.
   `layout = ["#########", "#xxxxxxx#", "#xxxxxxx#", "####x####"]` lists the two rows between the border and the middle
-  slot of the last row. The other characters only help to draw; put the border's items in `items`.
+  slot of the last row. The other characters only help to draw; put the border's items in `items` (or the menu's `matrix`).
+  When different catalog slots need different item templates, use `matrix { cells = [...], templates { x { ... }, y { ... } } }`
+  instead of `slots`/`layout` and `item`.
 - **Opening another menu.** The element's values are in scope for every action of the template, so
   `click.left.actions = [{ type = "open", menu = "profile", args = ["{name}"] }]` opens the `profile` menu for the
   clicked element (its `args = ["who"]` then names the word).
@@ -592,7 +597,7 @@ All of these need `xalimenu.admin`. The command is `/xalimenu`, also `/xmenu` an
 | `/xmenu list` | List the menus. |
 | `/xmenu open <menu> [player] [args...]` | Open a menu for oneself or another player, optionally passing menu arguments. |
 | `/xmenu reload [menu]` | Read the configuration, language and menus again; with a name, only that menu's file (the others stay as they are, and a file that cannot be read leaves the menu as it was). |
-| `/xmenu info <menu>` | What a menu is: title, size, commands, args, items, layout, pages, animation, bedrock mode, activators. |
+| `/xmenu info <menu>` | What a menu is: title, size, commands, args, items, matrix, pages, animation, bedrock mode, activators. |
 | `/xmenu validate [menu]` | The problems of every menu (or one) and the files that could not be read, without opening any. The same problems are logged on every load. |
 | `/xmenu inspect [player]` | Why each slot of a player's open menu shows what it shows (or the active Bedrock form), including the viewer's detected client profile. The first lines are in chat, all in the console. |
 | `/xmenu client [player]` | Show a player's detected client edition, OS/device, input mode, UI profile and dialog/form support. |

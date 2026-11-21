@@ -8,6 +8,7 @@ import mc.xalitoria.menu.paper.runtime.slotted
 import net.xalitoria.menu.model.Item
 import net.xalitoria.menu.model.Matrix
 import net.xalitoria.menu.model.Menu
+import net.xalitoria.menu.model.MenuMatrix
 import net.xalitoria.menu.model.Pages
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -16,7 +17,7 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
-/** The AbstractMenus way of drawing slots: `matrix { cells, templates }` for paged menus, and a matrix as the `matrix` of an item. */
+/** Menu-global `matrix { cells, map }` and paged `pages.matrix { cells, templates }`. */
 class MatrixSlots {
     private val format = MenuFormat(TypeRegistry().apply {
         Actions.register(this)
@@ -65,27 +66,35 @@ class MatrixSlots {
     }
 
     @Test
-    fun anItemSlotMatrixClaimsEveryCharacterButTheDashAndTheSpace() {
-        val item = Item(material = "stone", slot = 4, slots = [5], matrix = ["---------", "-xx - xx-", "-"])
-        assertEquals([10, 11, 15, 16], item.matrixSlots())
-        assertEquals([4, 5, 10, 11, 15, 16], item.claimed())
-        assertEquals([4], Item(material = "stone", slot = 4, matrix = ["----x"]).claimed().take(1))
-        assertEquals(emptyList<Int>(), Item(material = "stone").claimed())
-        assertFailsWith<IllegalArgumentException> { Item(material = "stone", matrix = ["xxxxxxxxxx"]) }
+    fun aMenuMatrixPlacesAllItemsGloballyWithoutPerItemConflicts() {
+        val border = Item(material = "gray_stained_glass_pane")
+        val menu = Menu(
+            title = "Framed",
+            size = 27,
+            matrix = MenuMatrix(
+                cells = ["#########", "#   o   #", "#########"],
+                map = mapOf("#" to "border", "o" to "ok"),
+            ),
+            items = mapOf("border" to border, "ok" to stone),
+        )
+        val slots = slotted(menu.placed())
+        assertEquals((0..8).toList() + listOf(9, 13, 17) + (18..26).toList(), slots.keys.sorted())
+        assertEquals(["border"], slots.getValue(0).map { it.first })
+        assertEquals(["ok"], slots.getValue(13).map { it.first })
     }
 
     @Test
-    fun anItemWithAMatrixSitsInEachOfItsCells() {
-        val border = Item(material = "gray_stained_glass_pane", matrix = ["xxxxxxxxx", "x-------x", "xxxxxxxxx"])
-        val slots = slotted(mapOf("border" to border))
-        assertEquals((0..8).toList() + listOf(9, 17) + (18..26).toList(), slots.keys.sorted())
-    }
-
-    @Test
-    fun aMenuFileWritesAMatrixLikeAbstractMenus() {
+    fun aMenuFileWritesGlobalMatrixAndPagedMatrix() {
         val source = """
             title = "&8Players ({page}/{pages})"
             size = 54
+            matrix {
+                cells = [
+                    "#########"
+                    "#       #"
+                ]
+                map { "#" = frame }
+            }
             pages {
                 catalog { type = "worlds" }
                 matrix {
@@ -105,7 +114,7 @@ class MatrixSlots {
                 }
             }
             items {
-                frame { material = "gray_stained_glass_pane", name = " ", matrix = ["#########", "#       #"] }
+                frame { material = "gray_stained_glass_pane", name = " " }
             }
         """.trimIndent()
         val read = format.decodeChecked(source)
@@ -115,7 +124,7 @@ class MatrixSlots {
         assertEquals("paper", pages.templates().getValue(10).material)
         assertEquals("map", pages.templates().getValue(28).material)
         assertEquals("barrier", pages.templates().getValue(49).material)
-        assertEquals(listOf(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 17), read.menu.items.getValue("frame").claimed())
+        assertEquals(listOf(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 17), read.menu.placed().getValue("frame").claimed())
 
         val again = format.decodeChecked(format.encode(read.menu))
         assertEquals(emptyList<String>(), again.warnings.map { it.toString() })

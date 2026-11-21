@@ -1,5 +1,5 @@
-// The layout of a menu as a grid of characters, and what painting one does: pure functions on the rows as the file has them (`layout = ["#########", "#  a  b #"]`),
-// read the way the plugin reads them: row by row, nine characters to a row, a space or a character the legend does not know being nothing.
+// The menu matrix as a grid of characters, and what painting one does: pure functions on the rows as the file has them (`cells = ["#########", "#  a  b #"]`),
+// read the way the plugin reads them: row by row, nine characters to a row, a space or a character `matrix.map` does not know being nothing.
 
 /** The columns of a row of the layout: the plugin reads nine to a row. */
 export const COLUMNS = 9
@@ -30,8 +30,8 @@ export function counts(layout) {
   return out
 }
 
-/** The characters of the layout that the legend does not know (they are nothing in the menu), and the characters of the legend that stand nowhere. */
-export function strays(layout, legend) {
-  const used = counts(layout)
-  return { unknown: [...used.keys()].filter((c) => !(c in (legend ?? {}))), unused: Object.keys(legend ?? {}).filter((c) => !used.has(c)) }
+/** The characters of `cells` that `map` does not know (they are nothing in the menu), and the characters of `map` that stand nowhere. */
+export function strays(cells, map) {
+  const used = counts(cells)
+  return { unknown: [...used.keys()].filter((c) => !(c in (map ?? {}))), unused: Object.keys(map ?? {}).filter((c) => !used.has(c)) }
 }

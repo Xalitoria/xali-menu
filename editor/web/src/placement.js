@@ -7,24 +7,18 @@
 /** The two parts of the window the editor draws: the menu's slots and the slots of the player's inventory. */
 export const AREAS = ['items', 'inventory']
 
-/** The slots a matrix claims (an item's `matrix`): every character of its rows but `-` and a space, nine to a row, left to right and top to bottom. */
-export function matrixSlots(rows) {
-  return (Array.isArray(rows) ? rows : [rows]).flatMap((row, r) => [...String(row ?? '')].flatMap((c, column) => (c !== '-' && c !== ' ' ? [r * 9 + column] : [])))
-}
-
-/** The slots [item] claims in [area] by what it says itself (not by the layout), in the order it says them. A `matrix` counts as its slots. */
+/** The slots [item] claims in [area] by what it says itself (not by the menu matrix), in the order it says them. */
 export function claimsOf(item, area) {
   if (!item) return []
-  const list = area === 'items' ? [item.slot, ...(item.slots ?? []), ...(item.matrix ? matrixSlots(item.matrix) : [])] : (item['inventory-slots'] ?? [])
+  const list = area === 'items' ? [item.slot, ...(item.slots ?? [])] : (item['inventory-slots'] ?? [])
   return list.filter((n, i) => typeof n === 'number' && list.indexOf(n) === i)
 }
 
-/** Sets the slots [item] claims in [area] to [slots], writing a lone slot of the menu as `slot` and the rest as `slots`. A `matrix` is written out as slots, so it is not claimed twice. */
+/** Sets the slots [item] claims in [area] to [slots], writing a lone slot of the menu as `slot` and the rest as `slots`. */
 export function setClaims(item, area, slots) {
   if (area === 'items') {
     delete item.slot
     delete item.slots
-    delete item.matrix
     if (slots.length) item.slot = slots[0]
     if (slots.length > 1) item.slots = slots.slice(1)
   } else if (slots.length) item['inventory-slots'] = slots
@@ -42,7 +36,7 @@ export function addClaim(menu, id, area, slot) {
   return menu
 }
 
-/** Stops the item [id] being drawn in [slot] of [area]. Null when it was not (a slot the layout gives it is not its own to remove). */
+/** Stops the item [id] being drawn in [slot] of [area]. Null when it was not (a slot the menu matrix gives it is not its own to remove). */
 export function removeClaim(menu, id, area, slot) {
   const item = menu.items?.[id]
   const claimed = claimsOf(item, area)
@@ -67,13 +61,13 @@ export function moveClaim(menu, id, from, to, copy = false) {
   return menu
 }
 
-/** Every place the item [id] is drawn: its own slots of each area, and the cells of the layout that stand for it (the menu only). */
+/** Every place the item [id] is drawn: its own slots of each area, and the cells of the menu matrix that stand for it (the menu only). */
 export function placesOf(menu, id) {
-  const layout = []
-  const legend = menu.legend ?? {}
-  ;(menu.layout ?? []).forEach((row, r) => [...String(row)].forEach((c, column) => { if (legend[c] === id) layout.push(r * 9 + column) }))
+  const matrix = []
+  const map = menu.matrix?.map ?? {}
+  ;(menu.matrix?.cells ?? []).forEach((row, r) => [...String(row)].forEach((c, column) => { if (map[c] === id) matrix.push(r * 9 + column) }))
   const item = menu.items?.[id]
-  return { items: claimsOf(item, 'items'), inventory: claimsOf(item, 'inventory'), layout }
+  return { items: claimsOf(item, 'items'), inventory: claimsOf(item, 'inventory'), matrix }
 }
 
 /** For each slot of the player's inventory, the ids of the items drawn there, the one drawn first at the front. */

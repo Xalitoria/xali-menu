@@ -24,11 +24,20 @@ test('reports a type that does not exist, but lets an addon type through', () =>
   assert.deepEqual(found.filter((m) => m.startsWith('on-open')), ["on-open.0.type: 'warp' is not an action (see the list in the README)", "on-open.2.text: 'text' is required"])
 })
 
-test('reports slots outside the window and layouts that name missing items', () => {
-  const found = messages({ title: 'T', size: 9, items: { a: { material: 'stone', slot: 9 }, b: { material: 'stone' } }, legend: { '#': 'gone' } })
+test('reports slots outside the window and a matrix that breaks its rules or names missing items', () => {
+  const found = messages({ title: 'T', size: 9, items: { a: { material: 'stone', slot: 9 }, b: { material: 'stone' } }, matrix: { cells: ['0123456789', '#'], map: { '#': 'gone', ab: 'b' } } })
   assert.ok(found.some((m) => m.includes('slot 9 is outside')))
   assert.ok(found.some((m) => m.includes("items.b: has no slot")))
   assert.ok(found.some((m) => m.includes("'gone' is not in items")))
+  assert.ok(found.some((m) => m.includes('more than 9 characters')))
+  assert.ok(found.some((m) => m.includes('more than the menu')))
+  assert.ok(found.some((m) => m.includes("single characters, not 'ab'")))
+})
+
+test('an item placed through the global menu matrix needs no slot of its own, and item.matrix is rejected', () => {
+  assert.deepEqual(messages({ title: 'T', size: 9, matrix: { cells: ['#########'], map: { '#': 'border' } }, items: { border: { material: 'stone' } } }), [])
+  const bad = messages({ title: 'T', size: 9, items: { a: { material: 'stone', slot: 0, matrix: ['x'] } } })
+  assert.ok(bad.some((m) => m.includes("'matrix' is not a key of an item")))
 })
 
 test('other inventory types have a size of their own', () => {
