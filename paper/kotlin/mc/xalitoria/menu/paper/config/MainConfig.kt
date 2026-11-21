@@ -26,9 +26,10 @@ data class MainConfig(
     @YamlComment("Where each variable lives, and how the servers keep their copies of the shared ones current.")
     val variables: Variables = Variables(),
     @YamlComment(
-        "The web editor for menus, at the address of `site`. /xmenu edit prints a link that opens it. With `enabled` the plugin",
-        "also listens on `host` and `port` so the editor can read and save menus directly; see the README for how to make that",
-        "reachable. Off, the link carries the menu itself and the editor gives you a file to put in the menus folder.",
+        "The web editor for menus, at the address of `site`. By default `/xmenu edit` opens an end-to-end encrypted session",
+        "through `relay.url` (`https://menu.xali.to/relay`) and prints a short 12-character link (`https://menu.xali.to/#<code>`).",
+        "Saved menus write to disk and apply on `/xmenu reload` unless `--auto-reload` is passed. Turn `enabled` on instead",
+        "only if you want the plugin to listen directly on `host` and `port` without a relay.",
     )
     val editor: Editor = Editor(),
     @YamlComment(
@@ -102,16 +103,16 @@ data class MainConfig(
         @SerialName("pack-url")
         val packUrl: String = "",
         @YamlComment(
-            "A relay lets people open the editor on this server when it cannot be reached from outside: /xmenu share opens a session",
-            "there, and the plugin only connects out. What goes through is encrypted with a key that is only in the link.",
-            "See menu/relay in the repository to run one yourself.",
+            "The relay lets `/xmenu edit` and `/xmenu share` connect to the web editor with outbound connections only. Traffic",
+            "is encrypted end-to-end with a key derived from the 12-character link fragment, which the relay never sees.",
+            "Set `url` to empty to disable the relay.",
         )
         val relay: Relay = Relay(),
     ) {
         @Serializable
         data class Relay(
-            @YamlComment("The address of the relay, for example https://relay.example.com. Empty: sharing is off.")
-            val url: String = "",
+            @YamlComment("The address of the relay. Default `https://menu.xali.to/relay` produces short 12-character links.")
+            val url: String = "https://menu.xali.to/relay",
             @YamlComment("The token the relay asks for when it opens sessions, if it does.")
             val token: String = "",
         )

@@ -43,6 +43,29 @@ class EditorRelayTest {
     }
 
     @Test
+    fun aShortCodeIsTwelveBase64UrlCharsAndDerivesTheSameSessionAndKeyAsJs() {
+        val code = RelayCrypto.newCode()
+        assertEquals(RelayCrypto.CODE_LENGTH, code.length)
+        assertTrue(RelayCrypto.CODE_PATTERN.matches(code), code)
+        assertNotEquals(code, RelayCrypto.newCode())
+
+        // Made by relay.js: deriveCode('Ab9-_xK2pQ7m') + seal(key, session, 'q', {hello: 'short-code'}).
+        val derived = RelayCrypto.derive("Ab9-_xK2pQ7m")
+        assertEquals("MDOBu5MeKKxKUvcD8VhhAA", derived.sessionId)
+        val fromJs = Base64.getDecoder().decode("kPOxqsUkrsUSn5kElctJU4z5npgHv9A77fJwIoARkB1hN/7mKCi5bFPW7+EVtp5+HsA=")
+        assertEquals("""{"hello":"short-code"}""", RelayCrypto.open(derived.key, derived.sessionId, "q", fromJs)?.decodeToString())
+    }
+
+    @Test
+    fun theShortLinkOmitsTheRelayWhenUsingTheSitesDefaultRelay() {
+        assertEquals("https://menu.xali.to/#Ab9-_xK2pQ7m", EditorRelay.shortLink("https://menu.xali.to/", "https://menu.xali.to/relay/", "Ab9-_xK2pQ7m"))
+        assertEquals(
+            "https://menu.xali.to/#Ab9-_xK2pQ7m&relay=https%3A%2F%2Frelay.example.com",
+            EditorRelay.shortLink("https://menu.xali.to", "https://relay.example.com/", "Ab9-_xK2pQ7m"),
+        )
+    }
+
+    @Test
     fun theLinkCarriesTheRelayTheSessionAndTheKeyAfterTheHash() {
         val link = EditorRelay.link("https://menu.xali.to/", "https://relay.example.com", "abc", "KEY", "shop")
         assertEquals("https://menu.xali.to/#relay=https%3A%2F%2Frelay.example.com&session=abc&key=KEY&menu=shop", link)

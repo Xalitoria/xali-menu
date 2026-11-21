@@ -117,3 +117,23 @@ test('a call that timed out is not handed to the server later', async () => {
     assert.equal((await fetch(`${base}/s/${id}/poll`, { headers: bearer(secret) })).status, 204)
   } finally { await stop() }
 })
+
+test('relay accepts /relay prefix, health endpoint, and caller-chosen derived session ids', async () => {
+  const { base, stop } = await start()
+  try {
+    assert.equal((await fetch(`${base}/health`)).status, 200)
+    assert.equal((await fetch(`${base}/relay/health`)).status, 200)
+    const bad = await fetch(`${base}/relay/s`, { method: 'POST', body: JSON.stringify({ id: 'too-short' }) })
+    assert.equal(bad.status, 400)
+    const id = 'MDOBu5MeKKxKUvcD8VhhAA'
+    const made = await (await fetch(`${base}/relay/s`, { method: 'POST', body: JSON.stringify({ id, ttl: 300 }) })).json()
+    assert.equal(made.id, id)
+    const dup = await fetch(`${base}/relay/s`, { method: 'POST', body: JSON.stringify({ id, ttl: 300 }) })
+    assert.equal(dup.status, 409)
+    const call = fetch(`${base}/relay/s/${id}/call`, { method: 'POST', body: Buffer.from('hi') })
+    const polled = await (await fetch(`${base}/relay/s/${id}/poll?wait=5`, { headers: bearer(made.secret) })).json()
+    assert.equal(Buffer.from(polled[0].data, 'base64url').toString(), 'hi')
+    await fetch(`${base}/relay/s/${id}/answer/${polled[0].id}`, { method: 'POST', headers: bearer(made.secret), body: Buffer.from('ok') })
+    assert.equal(Buffer.from(await (await call).arrayBuffer()).toString(), 'ok')
+  } finally { await stop() }
+})

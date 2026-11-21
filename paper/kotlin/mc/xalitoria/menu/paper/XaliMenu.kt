@@ -191,6 +191,19 @@ class XaliMenu : JavaPlugin() {
             server.onlinePlayers.filter { it.hasPermission(Permissions.ADMIN) }.forEach { it info message }
             logger.info("${edit.from} sent an edit of '${edit.name}' (#${edit.id}); /xmenu edits lists it")
         }
+        editor.api.onSaved = { owner, name, reloaded, problems ->
+            val editMsg = messageConfig.data.commands.edit
+            val text = if (reloaded) editMsg.savedReloadedNotice(name.verbatim()) else editMsg.savedNotice(name.verbatim())
+            server.getPlayerExact(owner)?.let { player ->
+                player.scheduler.run(this, {
+                    player pass text
+                    if (problems.isNotEmpty()) {
+                        player warn messageConfig.data.commands.tools.problems(name.verbatim(), problems.size)
+                        problems.forEach { player info it.verbatim() }
+                    }
+                }, null)
+            }
+        }
         startEditor()
         server.globalRegionScheduler.runDelayed(this, { if (!menus.isLoaded) listener.loadMenus() }, 40)
 

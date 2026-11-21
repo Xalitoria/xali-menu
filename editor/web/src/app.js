@@ -8,7 +8,7 @@ import { Form } from './form.js'
 import { Inventory } from './inventory.js'
 import { claimsOf, addClaim, removeClaim, moveClaim, placesOf } from './placement.js'
 import { check } from './check.js'
-import { fromHash, decodeData, dataLink, Server, readFile, toFile, download } from './source.js'
+import { fromHash, decodeData, dataLink, defaultRelay, SHORT_CODE, Server, readFile, toFile, download } from './source.js'
 import { services, forgetCatalog, catalog } from './services.js'
 import { knownItems } from './catalog.js'
 import { materialPicker } from './picker.js'
@@ -126,18 +126,24 @@ export class App {
    */
   async loadHash(hash, { keepMenu = false } = {}) {
     try {
-      const hasServer = Boolean((hash.server && hash.token) || (hash.relay && hash.session && hash.key))
+      const hasServer = Boolean(hash.code || (hash.server && hash.token) || (hash.relay && hash.session && hash.key))
       if (hasServer) {
-        this.server = hash.relay ? new RelayServer(hash.relay, hash.session, hash.key, askName()) : new Server(hash.server, hash.token)
+        this.server = hash.code
+          ? RelayServer.fromCode(hash.relay || defaultRelay(), hash.code, '')
+          : hash.relay
+            ? new RelayServer(hash.relay, hash.session, hash.key, '')
+            : new Server(hash.server, hash.token)
         assetSettings.skinProxy = (url) => this.server.skin(url)
         assetSettings.playerSkinProxy = (name) => this.server.playerSkin(name)
         assetSettings.gameFile = (file) => this.server.gameFile(file)
         services.server = this.server
         forgetCatalog(); this.known = null
         const info = await this.server.info()
-        if (info.shared && !(this.server instanceof RelayServer)) this.server.from = askName()
+        if (info.shared && !info.readOnly && !this.server.from) this.server.from = askName()
+        if (info.config?.bedrock?.defaultMode) this.editor.bedrockDefault = info.config.bedrock.defaultMode
         this.menuNames = info.menus
         this.serverInfo = info
+        const requested = hash.menu || info.initialMenu
         if (hash.data) {
           await this.loadData(hash.data, hash.name, true)
         } else if (keepMenu && Object.keys(this.store.value).length > 0) {
@@ -147,10 +153,25 @@ export class App {
           this.findCustomItems()
           this.loadKnownItems()
           this.fetchElements()
+        } else if (requested && info.menus.includes(requested)) {
+          await this.open(requested)
+        } else if (requested && MENU_NAME.test(requested)) {
+          this.name = requested
+          this.centerStage = true
+          this.raw.discard()
+          this.store.load({ title: requested, size: 27, items: {} })
+          this.store.dirty = true
+          this.picked = { slot: null, item: null, area: 'items' }
+          this.placing = false
+          this.setStatus(`New menu '${requested}' (${info.menus.length} existing menus available in the dropdown).`)
+        } else if (info.menus.length > 0) {
+          await this.open(info.menus[0])
+          if (!info.shared && !info.readOnly) {
+            const syncNote = info.autoReload ? 'auto-reload on' : 'run /xmenu reload after saving'
+            this.setStatus(`Opened ${info.menus[0]} (${info.menus.length} menus available; ${syncNote}).`)
+          }
         } else {
-          const name = hash.menu && info.menus.includes(hash.menu) ? hash.menu : info.menus[0]
-          if (name) await this.open(name)
-          else this.setStatus(`Connected to server (${info.owner}). Click "+ New" to create a menu.`)
+          this.setStatus(`Connected to server (${info.owner}). Click "+ New" to create a menu.`)
         }
         this.pack.discover()
         this.loadServerRegistries()
@@ -592,13 +613,13 @@ export class App {
   }
 
   async promptLink() {
-    const raw = (prompt('Paste a XaliMenu link (#data=... to load a shared menu, or /xmenu edit / /xmenu share to connect to a server):') ?? '').trim()
+    const raw = (prompt('Paste a 12-character edit code, a /xmenu edit / /xmenu share link, or a #data=... menu link:') ?? '').trim()
     if (!raw) return
     const hashIndex = raw.indexOf('#')
     const fragment = hashIndex >= 0 ? raw.slice(hashIndex) : raw
     const parsed = fromHash(fragment)
-    if (!parsed.data && !parsed.server && !parsed.relay) {
-      this.setStatus('That does not look like a XaliMenu editor link.', true)
+    if (!parsed.code && !parsed.data && !parsed.server && !parsed.relay) {
+      this.setStatus('That does not look like a XaliMenu editor link or 12-character code.', true)
       return
     }
     await this.loadHash(parsed, { keepMenu: true })
@@ -628,7 +649,11 @@ export class App {
       if (!this.server.held && !this.menuNames.includes(this.name)) {
         this.menuNames = [...this.menuNames, this.name].sort()
       }
-      const note = this.server.held ? `Sent ${this.name} to the admin of the server, who has to approve it in game (/xmenu edits).` : `Saved ${this.name}.`
+      const note = this.server.held
+        ? `Sent ${this.name} to the admin of the server, who has to approve it in game (/xmenu edits).`
+        : this.server.reloaded
+          ? `Saved and reloaded ${this.name}.`
+          : `Saved ${this.name}. Run /xmenu reload ${this.name} (or /xmenu reload) to apply.`
       this.setStatus(this.serverProblems.length ? note.replace(/\.$/, ', with problems.') : note)
     } catch (error) { this.setStatus(error.message, true) }
     this.draw()

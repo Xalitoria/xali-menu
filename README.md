@@ -603,6 +603,9 @@ All of these need `xalimenu.admin`. The command is `/xalimenu`, also `/xmenu` an
 | `/xmenu validate [menu]` | The problems of every menu (or one) and the files that could not be read, without opening any. The same problems are logged on every load. |
 | `/xmenu inspect [player]` | Why each slot of a player's open menu shows what it shows (or the active Bedrock form), including the viewer's detected client profile. The first lines are in chat, all in the console. |
 | `/xmenu client [player]` | Show a player's detected client edition, OS/device, input mode, UI profile and dialog/form support. |
+| `/xmenu edit [menu] [--auto-reload] \| stop` | Open a short 12-character end-to-end encrypted web editor link (`https://menu.xali.to/#<code>`). Lists all menus when no menu is named; saves sync to disk and apply on `/xmenu reload` unless `--auto-reload` is passed. `stop` closes active edit links. |
+| `/xmenu share [readonly\|stop] [menu]` | Open a shared editor link whose saves wait in `/xmenu edits` for admin approval (or read-only). |
+| `/xmenu edits [apply\|drop <id>]` | List, apply or drop edits submitted through shared editor links. |
 | `/xmenu import deluxemenus` | Import DeluxeMenus menus, see [below](#importing-from-deluxemenus). |
 | `/xvar ...`, `/xvarp ...` | Variables, see [above](#variables). |
 
@@ -645,14 +648,15 @@ of opening or showing an item for everyone.
 
 ## Web editor
 
-`/xmenu edit [menu]` prints a link to the editor at <https://menu.xali.to>: a form for every key of the format (built from the plugin's own
+`/xmenu edit [menu] [--auto-reload]` prints a short 12-character base64url link (`https://menu.xali.to/#<code>`) to the editor at <https://menu.xali.to>: a form for every key of the format (built from the plugin's own
 classes, with the comments as help), the window with its items, a **View as** device switcher (`Java (PC)`, `Bedrock (PC)`,
-`Bedrock (Mobile)`, `Bedrock (Console)`) with live previews of Bedrock forms and device compatibility notes, problem checks while you type, and a view of the server's resource
-pack for custom items and for moving glyphs in titles. With `editor.enabled` in `config.yml` the editor reads and saves the menus
-on the server directly (the old file is kept as `<name>.conf.bak`); without it the link carries the menu and the editor gives a
-file back. `/xmenu share [menu]` (or `share readonly [menu]`, which cannot send edits back) makes a link that works through a relay (`relay/`, set as `editor.relay.url`): the plugin only connects out,
-everything is encrypted with a key that is only in the link, several people can use it, and what they save waits in `/xmenu edits` until an admin
-runs `/xmenu edits apply <id>` or `drop <id>`. How to host it and how to reach a server from it: `editor/README.md`.
+`Bedrock (Mobile)`, `Bedrock (Console)`) with live previews of Bedrock forms and device compatibility notes, problem checks while you type, and a view of the server's Nexo / Oraxen / ItemsAdder resource
+pack, glyphs, custom items and `config.yml` settings.
+
+- When no menu is named (`/xmenu edit`), **all menus** in `plugins/XaliMenu/menus/` are available in the editor's switcher (and you can create new ones with **+ New**).
+- By default, `/xmenu edit` connects out through `editor.relay.url` (default `https://menu.xali.to/relay`) using end-to-end AES-256-GCM encryption derived from the 12-character fragment via PBKDF2-HMAC-SHA256, so the relay never sees the code, key, menus, or pack data. Saved menus are validated and written atomically to disk (keeping `<name>.conf.bak`), and **do not apply live until `/xmenu reload` (or `/xmenu reload <menu>`)** unless `--auto-reload` was passed.
+- With `editor.enabled` on in `config.yml`, `/xmenu edit` connects directly to the plugin's HTTP endpoint instead; with both off, `/xmenu edit <menu>` falls back to an offline `#data=...` link.
+- `/xmenu share [readonly|stop] [menu]` creates a short shared link whose saves wait in `/xmenu edits` until an admin runs `/xmenu edits apply <id>` or `drop <id>`. How to host the site and `/relay/` endpoint: `editor/README.md` and `relay/README.md`.
 
 ## Extending
 

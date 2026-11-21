@@ -11,13 +11,17 @@ bot.on('message', (m) => { const text = m.toString(); chat.push(text); console.l
 const say = (line) => console.log('---- ' + line)
 bot.once('spawn', async () => {
   const { RelayServer } = await import(path.resolve(process.env.XM_WEB || path.join(__dirname, '../../editor/web'), 'src/relay.js'))
+  const { fromHash, defaultRelay } = await import(path.resolve(process.env.XM_WEB || path.join(__dirname, '../../editor/web'), 'src/source.js'))
   await wait(2000)
   bot.chat(process.env.XM_READONLY ? '/xmenu share readonly' : '/xmenu share')
   await wait(2500)
-  const line = chat.find((c) => c.includes('#relay='))
+  const line = chat.find((c) => c.includes('#'))
   if (!line) { say('NO LINK'); process.exit(1) }
-  const hash = new URLSearchParams(line.slice(line.indexOf('#relay=') + 1).split(/\s/)[0])
-  const server = new RelayServer(hash.get('relay'), hash.get('session'), hash.get('key'), 'Alex')
+  const fragment = line.slice(line.indexOf('#')).split(/\s/)[0]
+  const parsed = fromHash(fragment)
+  const server = parsed.code
+    ? RelayServer.fromCode(parsed.relay || defaultRelay(), parsed.code, 'Alex')
+    : new RelayServer(parsed.relay, parsed.session, parsed.key, 'Alex')
   const info = await server.info()
   say('INFO shared=' + info.shared + ' readOnly=' + info.readOnly + ' menus=' + info.menus.join(',') + ' catalogs=' + Object.keys(info.catalogs).length)
   const name = info.menus[0]

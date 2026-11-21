@@ -18,12 +18,22 @@ internal class EditorApi(private val plugin: XaliMenu, val menus: EditorMenus, v
     /** Told when an edit of a shared link has been put on hold, so that admins can be told. */
     var onHeld: (PendingEdits.Edit) -> Unit = {}
 
+    /** Told when an admin saves a menu through the web editor (`owner`, `name`, `reloaded`, `problems`). */
+    var onSaved: (String, String, Boolean, List<String>) -> Unit = { _, _, _, _ -> }
+
     private val elements = EditorElements(plugin)
     private val packs = ResourcePacks(plugin)
     private val gameFiles = GameFiles(plugin)
 
     /** Who asks: the owner of the link, and for a shared link the name the person gave. */
-    data class Caller(val owner: String, val shared: Boolean = false, val from: String = owner, val readOnly: Boolean = false)
+    data class Caller(
+        val owner: String,
+        val shared: Boolean = false,
+        val from: String = owner,
+        val readOnly: Boolean = false,
+        val autoReload: Boolean = false,
+        val initialMenu: String? = null,
+    )
 
     /** A question: [path] is the part after `/v1`, with no query. */
     class Call(val method: String, val path: String, val query: String?, val body: ByteArray, val range: String? = null)
@@ -48,6 +58,27 @@ internal class EditorApi(private val plugin: XaliMenu, val menus: EditorMenus, v
         return plugin.registry.catalogInfo.mapValues { [name, values] -> CatalogInfo(values, settings[name].orEmpty()) }
     }
 
+    /** Server configuration exposed to the web editor so previews match `config.yml`. */
+    private fun serverConfig(): ServerConfigInfo {
+        val cfg = plugin.config.data
+        val defaultMode = when (cfg.bedrock.defaultMode) {
+            mc.xalitoria.menu.paper.config.MainConfig.DefaultBedrockMode.INVENTORY -> "inventory"
+            mc.xalitoria.menu.paper.config.MainConfig.DefaultBedrockMode.TOUCH_FORM -> "touch-form"
+            mc.xalitoria.menu.paper.config.MainConfig.DefaultBedrockMode.ALWAYS_FORM -> "always-form"
+        }
+        return ServerConfigInfo(
+            clickCooldown = cfg.clickCooldown,
+            bedrock = BedrockConfigInfo(
+                defaultMode = defaultMode,
+                inputForms = cfg.bedrock.inputForms,
+                clickFallback = cfg.bedrock.clickFallback,
+                pocketInventoryOverlay = cfg.bedrock.pocketInventoryOverlay,
+                stripPrivateUseTitle = cfg.bedrock.stripPrivateUseTitle,
+                iconUrl = cfg.bedrock.iconUrl,
+            ),
+        )
+    }
+
     fun handle(call: Call, who: Caller): Reply {
         val path = call.path.trim('/').split('/')
         val method = call.method
@@ -56,6 +87,7 @@ internal class EditorApi(private val plugin: XaliMenu, val menus: EditorMenus, v
                 plugin = "XaliMenu", version = plugin.pluginMeta.version, owner = who.owner, shared = who.shared, readOnly = who.readOnly,
                 menus = menus.names(), pack = packs.pack() != null || packs.packUrl() != null, catalogs = catalogs(),
                 packSize = packs.pack()?.let { Files.size(it) }, packUrl = packs.packUrl(),
+                autoReload = who.autoReload, initialMenu = who.initialMenu, config = serverConfig(),
             ))
             path.size == 2 && path[0] == "menus" && method == "GET" -> {
                 val menu = menus.read(path[1]) ?: return error(404, "There is no menu '${path[1]}'")
@@ -65,8 +97,14 @@ internal class EditorApi(private val plugin: XaliMenu, val menus: EditorMenus, v
                 val menu = menuOf(call) ?: return error(400, "The request has no 'menu' object")
                 if (who.readOnly) return error(403, "This link is read-only")
                 if (who.shared) return hold(path[1], menu, who)
-                log(who.owner, "saves menu '${path[1]}'")
-                answer(menus.save(path[1], menu))
+                when (val result = menus.save(path[1], menu, reload = who.autoReload)) {
+                    is EditorMenus.Result.Refused -> error(422, result.reason)
+                    is EditorMenus.Result.Ok -> {
+                        log(who.owner, if (result.reloaded) "saves and reloads menu '${path[1]}'" else "saves menu '${path[1]}' (pending reload)")
+                        onSaved(who.owner, path[1], result.reloaded, result.problems)
+                        json(200, Saved(result.problems, result.reloaded))
+                    }
+                }
             }
             path.size == 3 && path[0] == "menus" && path[2] == "check" && method == "POST" -> {
                 val menu = menuOf(call) ?: return error(400, "The request has no 'menu' object")

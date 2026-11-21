@@ -11,16 +11,29 @@ import java.util.concurrent.ConcurrentHashMap
  * are only kept as hashes, and are found by hash, so a token cannot be guessed from how long a comparison takes.
  */
 internal class EditorSessions(private val minutes: () -> Int, private val now: () -> Long = System::currentTimeMillis) {
-    data class Session(val owner: String, var expires: Long, val shared: Boolean = false, val readOnly: Boolean = false)
+    data class Session(
+        val owner: String,
+        var expires: Long,
+        val shared: Boolean = false,
+        val readOnly: Boolean = false,
+        val autoReload: Boolean = false,
+        val initialMenu: String? = null,
+    )
 
     private val sessions = ConcurrentHashMap<String, Session>()
     private val random = SecureRandom()
 
     /** Makes a token for [owner]. A [shared] token holds saves for admin approval in [PendingEdits] instead of writing directly. */
-    fun create(owner: String, shared: Boolean = false, readOnly: Boolean = false): String {
+    fun create(
+        owner: String,
+        shared: Boolean = false,
+        readOnly: Boolean = false,
+        autoReload: Boolean = false,
+        initialMenu: String? = null,
+    ): String {
         val bytes = ByteArray(24).also(random::nextBytes)
         val token = Base64.getUrlEncoder().withoutPadding().encodeToString(bytes)
-        sessions[hash(token)] = Session(owner, now() + minutes() * 60_000L, shared = shared, readOnly = readOnly)
+        sessions[hash(token)] = Session(owner, now() + minutes() * 60_000L, shared = shared, readOnly = readOnly, autoReload = autoReload, initialMenu = initialMenu)
         purge()
         return token
     }
@@ -38,12 +51,17 @@ internal class EditorSessions(private val minutes: () -> Int, private val now: (
     fun owner(token: String?): String? = session(token)?.owner
 
     /** Ends shared sessions created by [owner], or all shared sessions when [owner] is null. @return how many ended */
-    fun clearShared(owner: String? = null): Int {
+    fun clearShared(owner: String? = null): Int = clearMatching(owner, shared = true)
+
+    /** Ends admin edit sessions created by [owner], or all edit sessions when [owner] is null. @return how many ended */
+    fun clearEdit(owner: String? = null): Int = clearMatching(owner, shared = false)
+
+    private fun clearMatching(owner: String?, shared: Boolean): Int {
         var removed = 0
         val it = sessions.entries.iterator()
         while (it.hasNext()) {
             val s = it.next().value
-            if (s.shared && (owner == null || s.owner == owner)) {
+            if (s.shared == shared && (owner == null || s.owner == owner)) {
                 it.remove()
                 removed++
             }

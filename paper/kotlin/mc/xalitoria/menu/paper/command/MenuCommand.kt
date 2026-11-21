@@ -122,8 +122,16 @@ object MenuCommand {
         )
         .then(Commands
             .literal("edit")
-            .executes { ctx -> edit(ctx, null) }
-            .then(menuArgument().executes { ctx -> edit(ctx, StringArgumentType.getString(ctx, "menu")) })
+            .executes { ctx -> edit(ctx, null, autoReload = false) }
+            .then(Commands.literal("stop").executes { ctx -> stopEditing(ctx) })
+            .then(Commands.literal("--auto-reload")
+                .executes { ctx -> edit(ctx, null, autoReload = true) }
+                .then(menuArgument().executes { ctx -> edit(ctx, StringArgumentType.getString(ctx, "menu"), autoReload = true) })
+            )
+            .then(menuArgument()
+                .executes { ctx -> edit(ctx, StringArgumentType.getString(ctx, "menu"), autoReload = false) }
+                .then(Commands.literal("--auto-reload").executes { ctx -> edit(ctx, StringArgumentType.getString(ctx, "menu"), autoReload = true) })
+            )
         )
         .then(Commands
             .literal("share")
@@ -305,19 +313,31 @@ object MenuCommand {
     }
 
     /**
-     * Prints the link to the web editor. With the endpoint on, the link carries a token for this server; without it, the link
-     * carries the menu itself, which needs a name.
+     * Prints the link to the web editor. Uses the direct HTTP endpoint if `editor.enabled` is on, otherwise opens a short
+     * 12-character end-to-end encrypted relay session (default: `https://menu.xali.to/relay`), falling back to an offline
+     * `#data=` link only when both are disabled. Saved menus write to disk without reloading until `/xmenu reload` unless
+     * [autoReload] (`--auto-reload`) is set.
      */
-    private fun edit(ctx: CommandContext<CommandSourceStack>, menu: String?): Int {
+    private fun edit(ctx: CommandContext<CommandSourceStack>, menu: String?, autoReload: Boolean): Int {
         val sender = ctx.source.sender
         if (!sender.allowed()) return Command.SINGLE_SUCCESS
         val messages = cmdMsg.edit
         val settings = plugin.config.data.editor
+        val template = if (autoReload) messages.linkServerAutoReload else messages.linkServer
         if (plugin.editor.running) {
-            val token = plugin.editor.sessions.create(sender.name)
+            val token = plugin.editor.sessions.create(sender.name, autoReload = autoReload, initialMenu = menu)
             val address = settings.publicUrl.ifBlank { "http://${settings.host}:${settings.port}" }
             val link = EditorLink.server(settings.site, address, token, menu)
-            sender.sendMessage(linkMessage(messages.linkServer.replace("{minutes}", settings.sessionMinutes.toString()), link))
+            sender.sendMessage(linkMessage(template.replace("{minutes}", settings.sessionMinutes.toString()), link))
+            return Command.SINGLE_SUCCESS
+        }
+        if (settings.relay.url.isNotBlank()) {
+            plugin.server.asyncScheduler.runNow(plugin) {
+                when (val started = plugin.relay.start(sender.name, menu, readOnly = false, shared = false, autoReload = autoReload)) {
+                    is EditorRelay.Started.Failed -> sender fail messages.shareFailed(started.reason)
+                    is EditorRelay.Started.Ok -> sender.sendMessage(linkMessage(template.replace("{minutes}", settings.sessionMinutes.toString()), started.link))
+                }
+            }
             return Command.SINGLE_SUCCESS
         }
         if (menu == null) {
@@ -339,6 +359,15 @@ object MenuCommand {
         return Command.SINGLE_SUCCESS
     }
 
+    private fun stopEditing(ctx: CommandContext<CommandSourceStack>): Int {
+        val sender = ctx.source.sender
+        if (!sender.allowed()) return Command.SINGLE_SUCCESS
+        val owner = sender.name.takeIf { sender is Player }
+        val direct = plugin.editor.sessions.clearEdit(owner)
+        plugin.server.asyncScheduler.runNow(plugin) { sender info cmdMsg.edit.editStopped(direct + plugin.relay.stop(owner, shared = false)) }
+        return Command.SINGLE_SUCCESS
+    }
+
     /** Prints a shared link to the editor (via relay if configured, otherwise via the direct HTTP endpoint). Saves require admin approval. */
     private fun share(ctx: CommandContext<CommandSourceStack>, menu: String?, readOnly: Boolean): Int {
         val sender = ctx.source.sender
@@ -349,7 +378,7 @@ object MenuCommand {
         if (settings.relay.url.isNotBlank()) {
             // Opening a session is a request to the relay, which waits for an answer, so it is not made on the server's thread.
             plugin.server.asyncScheduler.runNow(plugin) {
-                when (val started = plugin.relay.start(sender.name, menu, readOnly)) {
+                when (val started = plugin.relay.start(sender.name, menu, readOnly = readOnly, shared = true)) {
                     is EditorRelay.Started.Failed -> sender fail messages.shareFailed(started.reason)
                     is EditorRelay.Started.Ok -> sender.sendMessage(linkMessage(template.replace("{minutes}", settings.sessionMinutes.toString()), started.link))
                 }
@@ -357,7 +386,7 @@ object MenuCommand {
             return Command.SINGLE_SUCCESS
         }
         if (plugin.editor.running) {
-            val token = plugin.editor.sessions.create(sender.name, shared = true, readOnly = readOnly)
+            val token = plugin.editor.sessions.create(sender.name, shared = true, readOnly = readOnly, initialMenu = menu)
             val address = settings.publicUrl.ifBlank { "http://${settings.host}:${settings.port}" }
             val link = EditorLink.server(settings.site, address, token, menu)
             sender.sendMessage(linkMessage(template.replace("{minutes}", settings.sessionMinutes.toString()), link))
@@ -372,7 +401,7 @@ object MenuCommand {
         if (!sender.allowed()) return Command.SINGLE_SUCCESS
         val owner = sender.name.takeIf { sender is Player }
         val direct = plugin.editor.sessions.clearShared(owner)
-        plugin.server.asyncScheduler.runNow(plugin) { sender info cmdMsg.edit.shareStopped(direct + plugin.relay.stop(owner)) }
+        plugin.server.asyncScheduler.runNow(plugin) { sender info cmdMsg.edit.shareStopped(direct + plugin.relay.stop(owner, shared = true)) }
         return Command.SINGLE_SUCCESS
     }
 
@@ -396,7 +425,7 @@ object MenuCommand {
         val messages = cmdMsg.edit
         val edit = plugin.editor.pending.take(id)
         if (edit == null) { sender fail messages.editsUnknown(id); return Command.SINGLE_SUCCESS }
-        when (val result = plugin.editor.menus.save(edit.name, edit.menu)) {
+        when (val result = plugin.editor.menus.save(edit.name, edit.menu, reload = true)) {
             is EditorMenus.Result.Refused -> { sender fail messages.editsRefused(id, result.reason.verbatim()); return Command.SINGLE_SUCCESS }
             is EditorMenus.Result.Ok -> {
                 plugin.logger.info("${sender.name} applied edit #$id of '${edit.name}' by ${edit.from}")

@@ -99,8 +99,10 @@ export function createRelay(options = {}) {
     if (req.method === 'OPTIONS') {
       return reply(204, null, { 'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS', 'Access-Control-Allow-Headers': 'Authorization, Content-Type', 'Access-Control-Max-Age': '600' })
     }
-    const parts = new URL(req.url, 'http://relay').pathname.split('/').filter(Boolean)
+    const rawParts = new URL(req.url, 'http://relay').pathname.split('/').filter(Boolean)
+    const parts = rawParts[0] === 'relay' ? rawParts.slice(1) : rawParts
     const query = new URL(req.url, 'http://relay').searchParams
+    if (parts.length === 1 && parts[0] === 'health' && req.method === 'GET') return reply(200, { ok: true })
     if (parts[0] !== 's') return reply(404, { error: 'Unknown request' })
 
     if (parts.length === 1 && req.method === 'POST') {
@@ -111,10 +113,18 @@ export function createRelay(options = {}) {
       if (sessions.size >= maxSessions) return reply(503, { error: 'The relay is full' })
       const body = await readBody(req, res)
       if (body === null) return
-      let ttl = 3600
-      try { ttl = Number(JSON.parse(body.toString() || '{}').ttl) || ttl } catch { /* the default */ }
+      let parsed = {}
+      try { parsed = JSON.parse(body.toString() || '{}') } catch { /* the default */ }
+      let ttl = Number(parsed.ttl) || 3600
       ttl = Math.min(Math.max(ttl, 60), maxTtl)
-      const id = url64(randomBytes(16))
+      let id
+      if (parsed.id !== undefined && parsed.id !== null) {
+        if (typeof parsed.id !== 'string' || !/^[A-Za-z0-9_-]{16,43}$/.test(parsed.id)) return reply(400, { error: 'Invalid session id' })
+        if (sessions.has(parsed.id)) return reply(409, { error: 'That session id is already in use' })
+        id = parsed.id
+      } else {
+        id = url64(randomBytes(16))
+      }
       const secret = url64(randomBytes(24))
       sessions.set(id, { secret: Buffer.from(secret), expires: Date.now() + ttl * 1000, seen: Date.now(), queue: [], waiting: new Map(), poller: null })
       return reply(201, { id, secret, ttl })

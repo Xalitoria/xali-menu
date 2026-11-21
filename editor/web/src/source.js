@@ -3,10 +3,27 @@
 import { parse } from './hocon.js'
 import { write } from './hoconWriter.js'
 
-/** What the address after the `#` asks for. @returns {{server?: string, token?: string, menu?: string, data?: string, name?: string}} */
+/** Pattern of a short 12-character URL-safe base64 session code (`https://menu.xali.to/#<code>`). */
+export const SHORT_CODE = /^[A-Za-z0-9_-]{12}$/
+
+/** Default relay URL paired with the hosted editor (`https://menu.xali.to/relay`). */
+export function defaultRelay(base = globalThis.location?.href) {
+  if (typeof base === 'string' && /^https?:\/\//i.test(base)) {
+    return new URL('relay', base).href.replace(/\/+$/, '')
+  }
+  return 'https://menu.xali.to/relay'
+}
+
+/** What the address after the `#` asks for. @returns {{code?: string, relay?: string, session?: string, key?: string, server?: string, token?: string, menu?: string, data?: string, name?: string}} */
 export function fromHash(hash) {
-  const params = new URLSearchParams(hash.replace(/^#/, ''))
-  return Object.fromEntries([...params.entries()])
+  const clean = String(hash ?? '').replace(/^#/, '').trim()
+  if (!clean) return {}
+  const parts = clean.split('&')
+  if (!parts[0].includes('=') && SHORT_CODE.test(parts[0])) {
+    const rest = parts.length > 1 ? Object.fromEntries([...new URLSearchParams(parts.slice(1).join('&')).entries()]) : {}
+    return { code: parts[0], ...rest }
+  }
+  return Object.fromEntries([...new URLSearchParams(clean).entries()])
 }
 
 /** The link the plugin prints for a menu, read back: gzip and base64url of `{"menu": ...}`. */
@@ -36,6 +53,8 @@ export class Server {
     this.from = from
     /** True after a save that was held for admin approval (shared direct link). */
     this.held = false
+    /** True after a save that was also reloaded live on the server (`--auto-reload`). */
+    this.reloaded = false
   }
 
   async request(path, options = {}) {
@@ -67,6 +86,7 @@ export class Server {
   async save(name, menu) {
     const body = await (await this.request(`/menus/${encodeURIComponent(name)}`, { method: 'PUT', body: JSON.stringify({ menu }) })).json()
     this.held = body.held === true
+    this.reloaded = body.reloaded === true
     return body.problems ?? []
   }
 

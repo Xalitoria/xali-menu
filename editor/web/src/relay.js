@@ -11,9 +11,28 @@ import { RangeFile } from './remote.js'
 
 const subtle = globalThis.crypto.subtle
 const encoder = new TextEncoder()
+const PBKDF2_SALT = encoder.encode('xalimenu:session:v2')
+const PBKDF2_ITERATIONS = 100_000
 
 const bytesOf = (text) => Uint8Array.from(atob(text.replace(/-/g, '+').replace(/_/g, '/')), (c) => c.charCodeAt(0))
 const base64 = (bytes) => { let s = ''; for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode(...bytes.subarray(i, i + 0x8000)); return btoa(s) }
+const url64 = (bytes) => base64(bytes).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+
+/**
+ * Derives the opaque 22-character relay session id and 256-bit AES-GCM key from a short 12-character base64url link code.
+ * Matches `RelayCrypto.derive` in the plugin so the relay never learns the link code or encryption key.
+ */
+export async function deriveCode(code) {
+  const material = await subtle.importKey('raw', encoder.encode(code), 'PBKDF2', false, ['deriveBits'])
+  const raw = new Uint8Array(await subtle.deriveBits(
+    { name: 'PBKDF2', salt: PBKDF2_SALT, iterations: PBKDF2_ITERATIONS, hash: 'SHA-256' },
+    material,
+    48 * 8,
+  ))
+  const session = url64(raw.subarray(0, 16))
+  const key = await subtle.importKey('raw', raw.subarray(16, 48), 'AES-GCM', false, ['encrypt', 'decrypt'])
+  return { session, key }
+}
 
 /** Encrypts [value] (JSON) for the session. */
 export async function seal(key, session, direction, value) {
@@ -38,35 +57,45 @@ export const importKey = (text) => subtle.importKey('raw', bytesOf(text), 'AES-G
 export class RelayServer extends Server {
   /**
    * @param {string} relay the address of the relay
-   * @param {string} session the session of the link
-   * @param {string} key the key of the link, base64url
-   * @param {string} from the name the admin sees on the edits
+   * @param {string|null} session the session of the link (or null when [key] is a derived credentials promise)
+   * @param {string|Promise<{session: string, key: CryptoKey}>} key the key of the link (base64url), or a derived credentials promise
+   * @param {string} [from] the name the admin sees on shared edits
    */
-  constructor(relay, session, key, from) {
+  constructor(relay, session, key, from = '') {
     super(relay, '')
     this.session = session
     this.from = from
-    this.keyPromise = importKey(key)
+    this.credsPromise = typeof key === 'string'
+      ? importKey(key).then((cryptoKey) => ({ session, key: cryptoKey }))
+      : key
     /** True after a save the admin has yet to approve. */
     this.held = false
+    /** True after a save that was also reloaded live on the server (`--auto-reload`). */
+    this.reloaded = false
+  }
+
+  /** Connects to [relay] using a short 12-character base64url code from `/xmenu edit` or `/xmenu share`. */
+  static fromCode(relay, code, from = '') {
+    return new RelayServer(relay, null, deriveCode(code), from)
   }
 
   async request(path, options = {}) {
-    const key = await this.keyPromise
+    const { session, key } = await this.credsPromise
+    this.session = session
     const rid = base64(crypto.getRandomValues(new Uint8Array(12)))
     const payload = { rid, t: Date.now(), from: this.from, method: options.method ?? 'GET', path: path.startsWith('/') ? path : `/${path}`, body: options.body ?? null, range: options.headers?.Range ?? null }
     let response
     try {
-      response = await fetch(`${this.url}/s/${this.session}/call`, { method: 'POST', body: await seal(key, this.session, 'q', payload) })
+      response = await fetch(`${this.url}/s/${session}/call`, { method: 'POST', body: await seal(key, session, 'q', payload) })
     } catch (error) {
       throw new Error(`Cannot reach the relay at ${this.url} (${error.message}).`)
     }
-    if (response.status === 404) throw new Error('This link has ended. Ask for a new one with /xmenu edit share.')
-    if (response.status === 504) throw new Error('The server did not answer. It may be offline, or the share may have ended.')
+    if (response.status === 404) throw new Error('This link has ended. Run /xmenu edit again.')
+    if (response.status === 504) throw new Error('The server did not answer. It may be offline, or the session may have ended.')
     if (!response.ok) throw new Error(`The relay answered ${response.status}`)
     let answer
     try {
-      answer = await open(key, this.session, 'a', new Uint8Array(await response.arrayBuffer()))
+      answer = await open(key, session, 'a', new Uint8Array(await response.arrayBuffer()))
     } catch {
       throw new Error('The answer could not be read: the key of the link is wrong.')
     }
@@ -89,6 +118,7 @@ export class RelayServer extends Server {
   async save(name, menu) {
     const body = await (await this.request(`/menus/${encodeURIComponent(name)}`, { method: 'PUT', body: JSON.stringify({ menu }) })).json()
     this.held = body.held === true
+    this.reloaded = body.reloaded === true
     return body.problems ?? []
   }
 }

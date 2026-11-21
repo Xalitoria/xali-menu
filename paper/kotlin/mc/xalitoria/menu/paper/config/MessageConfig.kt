@@ -41,7 +41,7 @@ data class MessageConfig(
             &d/{0} &rinspect [player]
             &d/{0} &rclient [player]
             &d/{0} &ropen <menu> [player] [args...]
-            &d/{0} &redit [menu]
+            &d/{0} &redit [menu] [--auto-reload] | stop
             &d/{0} &rshare [readonly|stop] [menu]
             &d/{0} &redits [apply|drop <id>]
             &d/{0} &rimport deluxemenus [overwrite] [folder]
@@ -167,19 +167,27 @@ data class MessageConfig(
         @Serializable
         data class Edit(
             @SerialName("link-server")
-            val linkServer: String = "&aOpen the editor: {link} &7(works for {minutes} minutes)",
+            val linkServer: String = "&aOpen the editor: {link} &7(works for {minutes} minutes; saved changes apply after /xmenu reload)",
+            @SerialName("link-server-auto-reload")
+            val linkServerAutoReload: String = "&aOpen the editor (auto-reload): {link} &7(works for {minutes} minutes; saved menus reload automatically)",
             @SerialName("link-data")
             val linkData: String = "&aOpen the menu '{menu}' in the editor: {link}",
             @SerialName("data-hint")
             val dataHint: String = "&7The editor is not connected to this server. Download the file there and put it in the menus folder, then run /xmenu reload <menu>.",
             @SerialName("needs-menu")
-            val needsMenu: String = "&cName a menu: /xmenu edit <menu>. The editor is not turned on, so the link carries one menu.",
+            val needsMenu: String = "&cName a menu: /xmenu edit <menu>. Both the relay and direct editor endpoint are off, so the link carries one menu.",
             @SerialName("too-big")
-            private val tooBig: String = "&cThe menu '{0}' is too big for a link. Turn on `editor.enabled` in config.yml, or open the file in the editor yourself.",
+            private val tooBig: String = "&cThe menu '{0}' is too big for a link. Set `editor.relay.url` or turn on `editor.enabled` in config.yml, or open the file in the editor yourself.",
             @SerialName("click-to-open")
             val clickToOpen: String = "Click to open the editor",
             @SerialName("not-listening")
             private val notListening: String = "&cThe editor could not listen on {0}: {1}",
+            @SerialName("edit-stopped")
+            private val editStopped: String = "&7Ended {0} edit link(s).",
+            @SerialName("saved-notice")
+            private val savedNotice: String = "Saved menu '{0}' from the web editor. Run /xmenu reload {0} (or /xmenu reload) to apply it.",
+            @SerialName("saved-reloaded-notice")
+            private val savedReloadedNotice: String = "Saved and reloaded menu '{0}' from the web editor.",
             @SerialName("share-link")
             val shareLink: String = "&aShared editor: {link} &7(works for {minutes} minutes). Anyone with it can read the menus and send edits; nothing is written until you apply an edit with /xmenu edits.",
             @SerialName("share-link-readonly")
@@ -207,6 +215,9 @@ data class MessageConfig(
             @SerialName("held-notice")
             private val heldNotice: String = "&e{0} sent an edit of '{1}' (#{2}) through a shared link. /xmenu edits lists it.",
         ) {
+            fun editStopped(count: Int): String = editStopped.formatArgs(count)
+            fun savedNotice(menu: String): String = savedNotice.formatArgs(menu)
+            fun savedReloadedNotice(menu: String): String = savedReloadedNotice.formatArgs(menu)
             fun shareFailed(reason: String): String = shareFailed.formatArgs(reason)
             fun shareStopped(count: Int): String = shareStopped.formatArgs(count)
             fun editsHeader(count: Int): String = editsHeader.formatArgs(count)

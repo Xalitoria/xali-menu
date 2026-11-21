@@ -1,11 +1,10 @@
 # XaliMenu relay
 
-**The XaliMenu relay** is a small mailbox that lets the web editor at <https://menu.xali.to> reach a server that only makes outbound connections. It is for
-`/xmenu share`; see "Share through a relay" in `../editor/README.md`.
+**The XaliMenu relay** is a small mailbox that lets the web editor at <https://menu.xali.to> reach a server that only makes outbound connections. It is used by both `/xmenu edit` and `/xmenu share`; see "Relay setup" in `../editor/README.md`.
 
-The relay moves encrypted messages. The plugin and the page share a key that is only in the link's fragment, so the relay cannot read a
-menu, does not keep one, and writes nothing to a disk. A request waits in memory until the plugin has answered it (30 seconds at most), and
-a session is forgotten when the plugin stops asking for work or its time is up (at most four hours).
+The relay moves encrypted messages. Both the plugin and the browser derive a 22-character opaque session id and a 256-bit AES-GCM key from the 12-character link fragment (`https://menu.xali.to/#<code>`), so the relay never sees the link code, the encryption key, any menu, or any pack data, keeps nothing after a call is answered, and writes nothing to disk. A request waits in memory until the plugin has answered it (30 seconds at most), and a session is forgotten when the plugin stops polling or its time is up (at most four hours).
+
+Both `/s/...` and `/relay/s/...` paths (plus `/health` and `/relay/health`) are accepted out of the box, so reverse-proxying `https://menu.xali.to/relay/` to `relay.js` works with or without stripping the `/relay` prefix.
 
 ## Installation
 

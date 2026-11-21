@@ -8,6 +8,7 @@ import mc.xalitoria.menu.paper.editor.ColorsRequest
 import mc.xalitoria.menu.paper.editor.ErrorReply
 import mc.xalitoria.menu.paper.editor.MenuRequest
 import mc.xalitoria.menu.paper.editor.Problems
+import mc.xalitoria.menu.paper.editor.Saved
 import mc.xalitoria.menu.paper.editor.Wire
 import mc.xalitoria.menu.paper.editor.fontImageIds
 import org.bukkit.configuration.file.YamlConfiguration
@@ -55,15 +56,21 @@ class Editor {
     fun aTokenStandsForItsOwnerUntilItRunsOut() {
         var time = 0L
         val sessions = EditorSessions({ 10 }, { time })
-        val token = sessions.create("Steve")
+        val token = sessions.create("Steve", autoReload = true, initialMenu = "shop")
         assertEquals("Steve", sessions.owner(token))
         assertEquals(false, sessions.session(token)?.shared)
+        assertEquals(true, sessions.session(token)?.autoReload)
+        assertEquals("shop", sessions.session(token)?.initialMenu)
         val shared = sessions.create("Steve", shared = true, readOnly = true)
         assertEquals(true, sessions.session(shared)?.shared)
         assertEquals(true, sessions.session(shared)?.readOnly)
         assertEquals(1, sessions.clearShared("Steve"))
         assertNull(sessions.session(shared))
         assertEquals("Steve", sessions.owner(token), "clearing shared sessions keeps direct edit sessions")
+        val secondEdit = sessions.create("Alex")
+        assertEquals(1, sessions.clearEdit("Alex"))
+        assertNull(sessions.session(secondEdit))
+        assertEquals("Steve", sessions.owner(token))
         time = 9 * 60_000L
         assertEquals("Steve", sessions.owner(token))
         time = 10 * 60_000L + 1
@@ -119,6 +126,8 @@ class Editor {
         assertEquals(setOf("a.b", "nested"), config.keys)
         assertEquals(request.menu, Wire.tree(config), "the tree is what came in")
         assertEquals("""{"problems":["x \"y\""]}""", Wire.write(Problems(listOf("x \"y\""))))
+        assertEquals("""{"problems":[],"reloaded":false}""", Wire.write(Saved(emptyList(), reloaded = false)))
+        assertEquals("""{"problems":["warn"],"reloaded":true}""", Wire.write(Saved(listOf("warn"), reloaded = true)))
         assertEquals("""{"error":"no"}""", Wire.write(ErrorReply("no")))
         // A request of the wrong shape is not one, instead of a value that is null somewhere further on.
         assertNull(Wire.read<MenuRequest>("not json"))

@@ -23,12 +23,16 @@ else has to be hosted for it. A relay is there for servers that cannot be reache
 - **The form is generated from the plugin.** `web/schema.json` is written by `./gradlew :menu:editor:schema` from the serializer
   descriptors that read the menu files, and the comments of the Kotlin sources. `./gradlew :menu:editor:test` fails when the file
   is older than the code, so the editor cannot drift from the plugin.
-- **A menu reaches the editor in one of three ways.** With `editor.enabled` in `config.yml`, the plugin listens on a port and the
-  browser talks to it directly (the link from `/xmenu edit` holds a token). Without it, the link holds the menu itself, compressed,
-  after the `#`; the browser never sends that part to any server. The editor then gives a `.conf` file to put in the menus folder.
-  The third way is a relay, for a server that cannot be reached from outside: see "Sharing through a relay".
-- **Saving is checked twice.** The editor reports what it can see; the plugin reads the menu as it would at startup before it
-  replaces the file, and refuses one that would not load. The old file is kept as `<name>.conf.bak`.
+- **A menu reaches the editor in one of three ways.** By default, `/xmenu edit [menu] [--auto-reload]` opens an encrypted session
+  through `editor.relay.url` (`https://menu.xali.to/relay`) and prints a short 12-character base64url link
+  (`https://menu.xali.to/#<code>`). Both the plugin and browser derive an opaque relay session id and 256-bit AES-GCM key from the
+  fragment via PBKDF2-HMAC-SHA256, so neither the static host nor the relay ever sees the code, key, menus, or Nexo/pack data. With
+  `editor.enabled` in `config.yml`, the plugin listens on a port and the browser talks to it directly instead. With both off, the
+  link carries one menu compressed after `#` and the editor downloads a `.conf` file.
+- **Saving is checked twice and waits for reload by default.** The editor reports what it can see; the plugin reads the menu as it
+  would at startup before it replaces the file, and refuses one that would not load. The old file is kept as `<name>.conf.bak`. By
+  default, saved changes are written to disk and take effect when you run `/xmenu reload [menu]`; pass `--auto-reload` to
+  `/xmenu edit` to reload each changed menu immediately on save.
 - **The resource pack stays in the browser.** The server sends its pack (or you pick the zip), the page reads the fonts and
   textures out of it, and nothing is stored or uploaded.
 
@@ -77,8 +81,11 @@ The editor draws what a player sees, from the same files the game reads, with no
 
 ## Using it
 
-Run `/xmenu edit` in the game or the console, and open the link. `/xmenu edit <menu>` opens one menu first. Without the endpoint,
-`/xmenu edit <menu>` is needed, since the link carries that menu.
+Run `/xmenu edit` in the game or console, and click the 12-character link (`https://menu.xali.to/#<code>`). Every menu in
+`plugins/XaliMenu/menus/` is available in the top menu switcher; `/xmenu edit <menu>` opens that menu first while still letting you
+switch to any other menu. Saved changes sync securely to disk and apply after `/xmenu reload` (or pass `/xmenu edit --auto-reload`
+to reload changed menus automatically when saved). Run `/xmenu edit stop` to close active edit links early. Without a relay or
+direct HTTP endpoint, `/xmenu edit <menu>` is needed since the offline `#data=...` link carries one menu.
 
 The Editor tab is one screen and the window of the menu never leaves it:
 
@@ -170,34 +177,32 @@ link works like a password for that time: do not paste it into a channel that ot
   - **+ New** (when connected to a server) creates a new menu name to edit and save directly to `plugins/XaliMenu/menus/`.
   - `/xmenu share [readonly] [menu]` works through `editor.relay.url` when configured, or directly through the plugin's HTTP endpoint when `editor.enabled` is on (saves are held in `/xmenu edits` for admin approval).
 
-### 3. Share through a relay or the HTTP endpoint (optional)
+### 3. Relay setup (`https://menu.xali.to/relay/`)
 
-For a server that cannot be reached from the editor's page (no open port, behind a proxy you do not control, or a link to give to others),
-`/xmenu share [menu]` prints a link that works from anywhere. The plugin only connects out, to a relay such as the one in `menu/relay`
-(`node relay.js`, no dependencies; put it behind https, since the page is served over https). Set it in `config.yml`:
+`/xmenu edit` and `/xmenu share` use `editor.relay.url` (default `https://menu.xali.to/relay`) so servers never need to open an
+inbound port. Run `menu/relay/relay.js` (`node relay.js`, no dependencies) behind HTTPS and route `/relay/` on `menu.xali.to` (or
+your own domain) to it — `relay.js` accepts both `/s/...` and `/relay/s/...` paths automatically, plus `GET /relay/health`:
 
-  ```yaml
-  editor:
-    relay:
-      url: https://relay.example.com
-      token: ""   # only if the relay was started with XM_RELAY_TOKEN
-  ```
+```yaml
+editor:
+  relay:
+    url: https://menu.xali.to/relay
+    token: ""   # only if the relay was started with XM_RELAY_TOKEN
+```
 
 How it is kept safe:
 
-- The link is `#relay=<relay>&session=<id>&key=<key>`. The key (AES-256-GCM) is after the `#`, so it never reaches the relay or any
-  server; the plugin and the page encrypt every request and answer with it. The relay holds a request only until the plugin has answered
-  it, writes nothing to a disk, and forgets a session when the plugin stops asking for work or `editor.session-minutes` is over.
-- The plugin drops a request that was not made with the key, is more than ten minutes old, or has been seen before.
-- **Several people can use one link.** They all see the same menus. What they save is not written: it is checked, then held, and an admin
-  runs `/xmenu edits` to list the edits, `/xmenu edits apply <id>` to write one (as a save of the editor does, with the old file kept) or
-  `/xmenu edits drop <id>`. A person's name is whatever they typed, so it only helps you tell edits apart. A later save of the same menu
-  by the same name replaces the earlier one, and an edit applied over a menu that changed meanwhile replaces it as it is (last write wins).
-- A menu can run console commands, so a shared link must be treated as a way to ask for that: never apply an edit you have not looked at.
-  `/xmenu share stop` ends your links.
-- `/xmenu share readonly [menu]` makes a link that can only read: the plugin refuses a save from it (403) and the page hides its save button.
-- What the link can read: the menus, the catalogs the server lists (the preview of a catalog is made for the admin who made the link, so
-  an `inventory` catalog shows the admin's items), and the resource pack, which is read in parts (see below).
+- The short link is `https://menu.xali.to/#<code>` (12 URL-safe base64 characters = 72 bits; custom relays append `&relay=...`). The
+  fragment never leaves the browser. Both ends derive a 22-character opaque session id and a 256-bit AES-GCM key via
+  PBKDF2-HMAC-SHA256 (100,000 iterations), so the relay only sees an opaque session id and encrypted bytes, holds nothing on disk,
+  and drops sessions when the plugin stops polling or `editor.session-minutes` expires.
+- The plugin drops any request that was not encrypted with the session key, is more than ten minutes old, or has a repeated id.
+- **Admin edit links (`/xmenu edit [menu] [--auto-reload]`)** read all menus, Nexo/Oraxen/ItemsAdder packs, glyphs, custom items,
+  live registries and `config.yml` settings from the server. Saved menus validate and write atomically to `plugins/XaliMenu/menus/`
+  without applying live until `/xmenu reload`, unless `--auto-reload` was passed. `/xmenu edit stop` ends active edit links.
+- **Shared links (`/xmenu share [readonly|stop] [menu]`)** let collaborators read the same menus and packs, but every save is held
+  in `/xmenu edits` until an admin runs `/xmenu edits apply <id>` or `/xmenu edits drop <id>`. A menu can run console commands, so
+  never apply a shared edit you have not reviewed. `/xmenu share readonly [menu]` refuses saves (403) and hides the save button.
 
 ### 4. Show the resource pack (optional)
 

@@ -122,8 +122,11 @@ internal class ResourcePacks(private val plugin: XaliMenu) {
                 files.filter { it.extension == "yml" }.forEach { file ->
                     val yaml = YamlConfiguration.loadConfiguration(file.toFile())
                     for (key in yaml.getKeys(false)) {
-                        val character = yaml.getString("$key.char")?.takeIf { it.isNotEmpty() } ?: continue
-                        found += Glyph(key, character, name)
+                        val character = yaml.getString("$key.char")?.takeIf { it.isNotEmpty() }
+                            ?: yaml.getStringList("$key.chars").firstOrNull()?.takeIf { it.isNotEmpty() }
+                            ?: continue
+                        val font = yaml.getString("$key.font")?.takeIf { it.isNotBlank() }
+                        found += Glyph(key, character, name, font)
                     }
                 }
             }

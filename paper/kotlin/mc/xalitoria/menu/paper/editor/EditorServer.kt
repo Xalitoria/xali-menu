@@ -81,7 +81,7 @@ internal class EditorServer(private val plugin: XaliMenu, val sessions: EditorSe
             if (bytes.size > EditorApi.MAX_BODY) return reply(exchange, 413, error("The request is too big"))
             val path = exchange.requestURI.path.removePrefix("/v1")
             val from = if (session.shared) EditorRelay.clean(exchange.requestHeaders.getFirst("X-Editor-From") ?: session.owner) else session.owner
-            val caller = EditorApi.Caller(session.owner, shared = session.shared, from = from, readOnly = session.readOnly)
+            val caller = EditorApi.Caller(session.owner, shared = session.shared, from = from, readOnly = session.readOnly, autoReload = session.autoReload, initialMenu = session.initialMenu)
             send(exchange, api.handle(EditorApi.Call(exchange.requestMethod, path, exchange.requestURI.rawQuery, bytes, exchange.requestHeaders.getFirst("Range")), caller))
         } catch (e: Exception) {
             plugin.logger.warning("The editor endpoint failed on ${exchange.requestURI}: $e")

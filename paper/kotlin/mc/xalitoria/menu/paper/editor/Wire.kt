@@ -35,14 +35,34 @@ internal object Wire {
 
 @Serializable internal data class Problems(val problems: List<String>)
 
+/** The answer to saving a menu directly to disk: whether it was also reloaded live depends on the session's `--auto-reload` flag. */
+@Serializable internal data class Saved(val problems: List<String>, val reloaded: Boolean)
+
 /** The answer to the save of a shared link, which is kept for an admin and not written. */
 @Serializable internal data class Held(val problems: List<String>, val held: Boolean, val id: Int)
 
 @Serializable internal data class CatalogInfo(val values: Map<String, String>, val settings: Map<String, String>)
 
+/** Bedrock settings from the server's `config.yml`, so the editor preview matches what the server does. */
+@Serializable internal data class BedrockConfigInfo(
+    val defaultMode: String,
+    val inputForms: Boolean,
+    val clickFallback: Boolean,
+    val pocketInventoryOverlay: Boolean,
+    val stripPrivateUseTitle: Boolean,
+    val iconUrl: String,
+)
+
+/** Relevant settings from the server's `config.yml`, sent to the editor in `/v1/info`. */
+@Serializable internal data class ServerConfigInfo(
+    val clickCooldown: Long,
+    val bedrock: BedrockConfigInfo,
+)
+
 @Serializable internal data class Info(
     val plugin: String, val version: String, val owner: String, val shared: Boolean, val readOnly: Boolean, val menus: List<String>, val pack: Boolean,
     val catalogs: Map<String, CatalogInfo>, val packSize: Long?, val packUrl: String?,
+    val autoReload: Boolean = false, val initialMenu: String? = null, val config: ServerConfigInfo? = null,
 )
 
 @Serializable internal data class MenuReply(val name: String, val menu: JsonElement)
@@ -57,7 +77,7 @@ internal object Wire {
 /** Live server registry keys (sounds, particles, enchantments, effects, entity types, ...). */
 @Serializable internal data class RegistriesReply(val registries: Map<String, List<String>>)
 
-@Serializable internal data class Glyph(val name: String, val char: String, val plugin: String)
+@Serializable internal data class Glyph(val name: String, val char: String, val plugin: String, val font: String? = null)
 
 @Serializable internal data class Glyphs(val glyphs: List<Glyph>)
 
@@ -85,6 +105,9 @@ internal object Wire {
 @Serializable internal data class ItemsRequest(val materials: List<String> = [])
 
 // ---- the relay
+
+/** Request to open a session on the relay with a derived opaque [id] and [ttl] in seconds. */
+@Serializable internal data class RelayCreateRequest(val ttl: Int, val id: String? = null)
 
 /** What the relay says when a session is made. */
 @Serializable internal data class RelaySession(val id: String, val secret: String)

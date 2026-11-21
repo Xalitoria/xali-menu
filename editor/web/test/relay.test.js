@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { seal, open, importKey, RelayServer } from '../src/relay.js'
-import { Server, dataLink, decodeData, fromHash } from '../src/source.js'
+import { seal, open, importKey, deriveCode, RelayServer } from '../src/relay.js'
+import { Server, dataLink, decodeData, defaultRelay, fromHash, SHORT_CODE } from '../src/source.js'
 
 const KEY = Buffer.from(new Uint8Array(32).map((_, i) => i + 1)).toString('base64url')
 
@@ -124,4 +124,38 @@ test('direct Server sends X-Editor-From on shared sessions, tracks held saves, a
   const parsed = fromHash(url.slice(url.indexOf('#')))
   assert.equal(parsed.name, 'shop')
   assert.deepEqual((await decodeData(parsed.data)).menu, { title: 'Shop', size: 27 })
+})
+
+test('short 12-char base64url codes parse cleanly, derive the expected session/key, and track reloaded state', async () => {
+  const code = 'Ab9-_xK2pQ7m'
+  assert.equal(SHORT_CODE.test(code), true)
+  assert.deepEqual(fromHash(`#${code}`), { code })
+  assert.deepEqual(fromHash(code), { code })
+  assert.deepEqual(fromHash(`#${code}&relay=http%3A%2F%2F127.0.0.1%3A8787`), { code, relay: 'http://127.0.0.1:8787' })
+  assert.equal(defaultRelay('https://menu.xali.to/#Ab9-_xK2pQ7m'), 'https://menu.xali.to/relay')
+
+  const { session, key } = await deriveCode(code)
+  assert.equal(session, 'MDOBu5MeKKxKUvcD8VhhAA')
+
+  const real = globalThis.fetch
+  let reloadedReply = false
+  globalThis.fetch = async (url, init) => {
+    assert.equal(url, `https://menu.xali.to/relay/s/${session}/call`)
+    const req = await open(key, session, 'q', new Uint8Array(init.body))
+    const body = req.method === 'PUT'
+      ? JSON.stringify({ problems: [], reloaded: reloadedReply })
+      : JSON.stringify({ menus: ['a', 'b'], shared: false, readOnly: false, autoReload: reloadedReply })
+    return new Response(await seal(key, session, 'a', { rid: req.rid, status: 200, type: 'application/json', body: Buffer.from(body).toString('base64') }))
+  }
+  try {
+    const server = RelayServer.fromCode('https://menu.xali.to/relay', code)
+    const info = await server.info()
+    assert.deepEqual(info.menus, ['a', 'b'])
+    await server.save('a', { title: 'A' })
+    assert.equal(server.held, false)
+    assert.equal(server.reloaded, false)
+    reloadedReply = true
+    await server.save('b', { title: 'B' })
+    assert.equal(server.reloaded, true)
+  } finally { globalThis.fetch = real }
 })

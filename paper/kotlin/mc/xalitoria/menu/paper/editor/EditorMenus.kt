@@ -37,8 +37,8 @@ internal class EditorMenus(private val plugin: XaliMenu) {
 
     /** What reading and saving the menu came to. */
     sealed interface Result {
-        /** The menu is as the model reads it; [problems] are what the plugin finds in it. */
-        data class Ok(val problems: List<String>) : Result
+        /** The menu is as the model reads it; [problems] are what the plugin finds in it. [reloaded] is true when it was also reloaded live. */
+        data class Ok(val problems: List<String>, val reloaded: Boolean = false) : Result
 
         /** The menu cannot be read: [reason] is why. Nothing was written. */
         data class Refused(val reason: String) : Result
@@ -55,8 +55,11 @@ internal class EditorMenus(private val plugin: XaliMenu) {
         }
     }
 
-    /** Checks [menu], writes it to the file of [name] (keeping the old one as `<name>.conf.bak`), and loads it. */
-    fun save(name: String, menu: ConfigObject): Result {
+    /**
+     * Checks [menu] and writes it atomically to the file of [name] (keeping the old one as `<name>.conf.bak`).
+     * By default ([reload] = false) the file is written without changing the live loaded menus until `/xmenu reload` is run.
+     */
+    fun save(name: String, menu: ConfigObject, reload: Boolean = false): Result {
         val checked = check(name, menu)
         if (checked is Result.Refused) return checked
         val target = file(name) ?: return Result.Refused("'$name' is not a name for a menu")
@@ -70,8 +73,9 @@ internal class EditorMenus(private val plugin: XaliMenu) {
         } finally {
             Files.deleteIfExists(temporary)
         }
+        if (!reload) return Result.Ok((checked as Result.Ok).problems, reloaded = false)
         return when (val loaded = plugin.menus.reload(name)) {
-            is MenuManager.Reread.Done -> Result.Ok(loaded.problems)
+            is MenuManager.Reread.Done -> Result.Ok(loaded.problems, reloaded = true)
             is MenuManager.Reread.Failed -> Result.Refused(loaded.reason)
             MenuManager.Reread.NoFile -> Result.Refused("The file was written but could not be found again")
         }
