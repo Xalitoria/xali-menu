@@ -15,6 +15,11 @@ import net.xalitoria.menu.Action
 data class Item(
     /** The item key or prefixed source. May contain placeholders. */
     val material: String,
+    /**
+     * Player name, texture URL (`https://textures.minecraft.net/texture/...`), or base64 texture for a `player_head`
+     * (alternative to `head:<name>` / `texture:<base64>` in [material]). May contain placeholders.
+     */
+    val skull: String? = null,
     /** The slot the item occupies. Slots count from 0 at the top left. */
     @Within(min = 0)
     val slot: Int? = null,
@@ -92,7 +97,7 @@ data class Item(
     val equippable: Equippable? = null,
     /** Makes the item mine blocks. */
     val tool: Tool? = null,
-    /** Extra NBT as an SNBT compound, such as `{menu:"jobs",tier:3}`. */
+    /** Extra custom data SNBT (`{menu:"jobs",tier:3}`) or bracketed item data components (`[minecraft:profile={name:"Steve"}]`). */
     val nbt: String? = null,
     /** Draw this item again on every menu refresh, to keep its placeholders current. */
     val update: Boolean = false,

@@ -42,6 +42,8 @@ data class MessageConfig(
             &d/{0} &rclient [player]
             &d/{0} &ropen <menu> [player] [args...]
             &d/{0} &redit [menu]
+            &d/{0} &rshare [readonly|stop] [menu]
+            &d/{0} &redits [apply|drop <id>]
             &d/{0} &rimport deluxemenus [overwrite] [folder]
         """.trimIndent(),
         val reload: Reload = Reload(),
@@ -183,7 +185,7 @@ data class MessageConfig(
             @SerialName("share-link-readonly")
             val shareLinkReadOnly: String = "&aRead-only editor: {link} &7(works for {minutes} minutes). Anyone with it can read the menus; nothing can be sent back.",
             @SerialName("share-off")
-            val shareOff: String = "&cSharing is off: set `editor.relay.url` in config.yml to the address of a relay.",
+            val shareOff: String = "&cSharing is off: set `editor.relay.url` or enable `editor.enabled` in config.yml.",
             @SerialName("share-failed")
             private val shareFailed: String = "&cThe relay could not be reached: {0}",
             @SerialName("share-stopped")

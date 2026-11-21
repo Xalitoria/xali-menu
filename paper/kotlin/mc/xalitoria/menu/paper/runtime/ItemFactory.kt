@@ -180,9 +180,16 @@ class ItemFactory(private val plugin: XaliMenu) {
             )
         }
         item.food?.let { stack.setData(DataComponentTypes.FOOD, FoodProperties.food().nutrition(it.nutrition.coerceAtLeast(0)).saturation(it.saturation).canAlwaysEat(it.alwaysEdible).build()) }
-        // `nbt` is raw SNBT; UnsafeValues is the only API that applies it.
+        item.skull?.let { skull ->
+            val resolved = ctx.parse(skull).trim()
+            if (resolved.isNotEmpty() && stack.type == Material.PLAYER_HEAD) plugin.heads.apply(stack, resolved, loaded)
+        }
+        // `nbt` accepts either a `{...}` custom_data SNBT compound or bracketed data components such as `[minecraft:profile={name:"Steve"}]`.
         @Suppress("DEPRECATION")
-        item.nbt?.let { snbt -> stack = Bukkit.getUnsafe().modifyItemStack(stack, "[custom_data=$snbt]") }
+        item.nbt?.trim()?.takeIf { it.isNotEmpty() }?.let { snbt ->
+            val spec = if (snbt.startsWith("[") && snbt.endsWith("]")) snbt else "[custom_data=$snbt]"
+            stack = Bukkit.getUnsafe().modifyItemStack(stack, spec)
+        }
         return stack
     }
 

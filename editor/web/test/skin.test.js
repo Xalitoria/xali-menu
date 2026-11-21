@@ -1,6 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { skin, Texture } from '../src/assets.js'
+import { skinSpec } from '../src/itemrender.js'
 
 const sheet = (width, height, fill) => {
   const data = new Uint8ClampedArray(width * height * 4)
@@ -23,4 +24,18 @@ test('a hat with transparent pixels is kept, and the base head is made opaque', 
   assert.equal(alpha(made, 40, 8), 255)
   assert.equal(alpha(made, 5, 5), 255, 'the base layer of the head is never transparent')
   assert.equal(alpha(made, 50, 5), 0)
+})
+
+test('skinSpec resolves player names, texture URLs, base64, head: material, and profile NBT', () => {
+  const url = 'https://textures.minecraft.net/texture/292009a4925b58f02c77dadc3ecef07ea4c7472f64e0fdc32ce5522489362680'
+  const b64 = Buffer.from(JSON.stringify({ textures: { SKIN: { url } } })).toString('base64')
+  assert.equal(skinSpec({ material: 'player_head', skull: 'audizian' }), 'player:audizian')
+  assert.equal(skinSpec({ material: 'player_head', skull: url }), `url:${url}`)
+  assert.equal(skinSpec({ material: 'player_head', skull: b64 }), `url:${url}`)
+  assert.equal(skinSpec({ material: 'player_head', skull: `texture:${b64}` }), `url:${url}`)
+  assert.equal(skinSpec({ material: 'player_head', skull: '%player_name%' }), null)
+  assert.equal(skinSpec({ material: 'head:Notch' }), 'player:Notch')
+  assert.equal(skinSpec({ material: `texture:${b64}` }), `url:${url}`)
+  assert.equal(skinSpec({ material: 'player_head', nbt: '[minecraft:profile={name:"audizian"}]' }), 'player:audizian')
+  assert.equal(skinSpec({ material: 'stone', nbt: '[minecraft:profile={name:"audizian"}]' }), null)
 })

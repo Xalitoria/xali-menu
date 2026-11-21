@@ -68,7 +68,8 @@ The editor draws what a player sees, from the same files the game reads, with no
   and the durability bar are drawn as the game draws them, and the tooltip uses the game's own sprites, with the name, enchantments and lore.
 - **The game's files** are read from a public copy of Mojang's assets (`editor/web/src/assets.js` names it and the version) and are not
   part of this repository. Everything is fetched the first time it is needed, so the first draw of a menu takes a moment.
-- Not exact: the shimmer of an enchanted item (it moves in the game; one moment of it is shown), `head:<name>` heads (they use the default skin; only `texture:` skins are fetched).
+- **Player heads.** `skull` (`player_head` with a player name, `textures.minecraft.net` URL, or base64 texture), `material = "head:<player>"` / `texture:<base64>`, and bracketed `[minecraft:profile={name:"..."}]` in `nbt` render the real player skin in the preview: connected to a server they resolve through `/v1/skin?player=<name>` (including online players and SkinsRestorer), and standalone through `mc-heads.net`.
+- Not exact: the shimmer of an enchanted item (it moves in the game; one moment of it is shown).
 - Text the game's own pictures lack is drawn with its fallback font, Unifont (`src/unihex.js`: the `unihex` providers, half size, `size_overrides`), read
   once and only when such a character appears. The zip files come from the public copy when it has them, else (connected to a server) from
   `GET /v1/game-file?name=font/unifont.zip`, which downloads the file from Mojang's servers for the server's version, checks its hash, and keeps it in
@@ -164,7 +165,12 @@ Only requests that come from the editor's site (`editor.site`), `localhost` or `
 link made with `/xmenu edit` by someone with `xalimenu.admin`, and a token ends after `editor.session-minutes` (60). A token in a
 link works like a password for that time: do not paste it into a channel that others read.
 
-### 3. Share through a relay (optional)
+- **Shareable links and saving by other admins.**
+  - **Share link** copies a `#data=...&name=...` URL carrying the current menu (in the fragment, never sent to a static host). Another admin can open that link and either paste their `/xmenu edit` / `/xmenu share` link via **Load link** (keeping the shared menu loaded so they can save it straight to the server), or open their server session first and paste the `#data=...` link into **Load link** to review it with the server's resource pack, glyphs and custom items before clicking **Save to server**.
+  - **+ New** (when connected to a server) creates a new menu name to edit and save directly to `plugins/XaliMenu/menus/`.
+  - `/xmenu share [readonly] [menu]` works through `editor.relay.url` when configured, or directly through the plugin's HTTP endpoint when `editor.enabled` is on (saves are held in `/xmenu edits` for admin approval).
+
+### 3. Share through a relay or the HTTP endpoint (optional)
 
 For a server that cannot be reached from the editor's page (no open port, behind a proxy you do not control, or a link to give to others),
 `/xmenu share [menu]` prints a link that works from anywhere. The plugin only connects out, to a relay such as the one in `menu/relay`

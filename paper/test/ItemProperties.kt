@@ -28,6 +28,7 @@ class ItemProperties {
             items {
               a {
                 material = golden_apple
+                skull = "audizian"
                 slot = 0
                 damage = 5
                 item-name = "&6Apple"
@@ -55,6 +56,7 @@ class ItemProperties {
             """.trimIndent()
         )
         val item = menu.items.getValue("a")
+        assertEquals("audizian", item.skull)
         assertEquals(DynamicInt(5), item.damage)
         assertEquals("&6Apple", item.itemName)
         assertEquals(Rarity.EPIC, item.rarity)

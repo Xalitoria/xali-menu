@@ -17,7 +17,7 @@ import { DEVICES, deviceById, presentationFor, titleForDevice } from './bedrock.
 import { bedrockBanner, bedrockFormView } from './bedrockPreview.js'
 
 /** The first fields of an item's form. */
-const ITEM_FIRST = ['material', 'name', 'lore', 'amount', 'slot', 'slots', 'inventory-slots', 'view', 'click', 'bedrock']
+const ITEM_FIRST = ['material', 'skull', 'name', 'lore', 'amount', 'slot', 'slots', 'inventory-slots', 'view', 'click', 'bedrock']
 
 /** The inventory types the menu file accepts and the editor can draw. */
 export const TYPES = [['chest', 'Chest'], ['hopper', 'Hopper (5 slots)'], ['dispenser', 'Dispenser (9 slots)'], ['dropper', 'Dropper (9 slots)'], ['shulker_box', 'Shulker box (27 slots)']]

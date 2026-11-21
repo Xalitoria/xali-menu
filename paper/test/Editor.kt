@@ -57,6 +57,13 @@ class Editor {
         val sessions = EditorSessions({ 10 }, { time })
         val token = sessions.create("Steve")
         assertEquals("Steve", sessions.owner(token))
+        assertEquals(false, sessions.session(token)?.shared)
+        val shared = sessions.create("Steve", shared = true, readOnly = true)
+        assertEquals(true, sessions.session(shared)?.shared)
+        assertEquals(true, sessions.session(shared)?.readOnly)
+        assertEquals(1, sessions.clearShared("Steve"))
+        assertNull(sessions.session(shared))
+        assertEquals("Steve", sessions.owner(token), "clearing shared sessions keeps direct edit sessions")
         time = 9 * 60_000L
         assertEquals("Steve", sessions.owner(token))
         time = 10 * 60_000L + 1

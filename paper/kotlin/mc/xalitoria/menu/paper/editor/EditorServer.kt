@@ -70,17 +70,19 @@ internal class EditorServer(private val plugin: XaliMenu, val sessions: EditorSe
             }
             if (exchange.requestMethod == "OPTIONS") {
                 exchange.responseHeaders.add("Access-Control-Allow-Methods", "GET, PUT, POST, OPTIONS")
-                exchange.responseHeaders.add("Access-Control-Allow-Headers", "Authorization, Content-Type, Range")
+                exchange.responseHeaders.add("Access-Control-Allow-Headers", "Authorization, Content-Type, Range, X-Editor-From")
                 exchange.responseHeaders.add("Access-Control-Allow-Private-Network", "true")
                 exchange.responseHeaders.add("Access-Control-Max-Age", "600")
                 return reply(exchange, 204, null)
             }
             val token = exchange.requestHeaders.getFirst("Authorization")?.removePrefix("Bearer ")?.trim()
-            val owner = sessions.owner(token) ?: return reply(exchange, 401, error("The link has expired"))
+            val session = sessions.session(token) ?: return reply(exchange, 401, error("The link has expired"))
             val bytes = exchange.requestBody.readNBytes(EditorApi.MAX_BODY + 1)
             if (bytes.size > EditorApi.MAX_BODY) return reply(exchange, 413, error("The request is too big"))
             val path = exchange.requestURI.path.removePrefix("/v1")
-            send(exchange, api.handle(EditorApi.Call(exchange.requestMethod, path, exchange.requestURI.rawQuery, bytes, exchange.requestHeaders.getFirst("Range")), EditorApi.Caller(owner)))
+            val from = if (session.shared) EditorRelay.clean(exchange.requestHeaders.getFirst("X-Editor-From") ?: session.owner) else session.owner
+            val caller = EditorApi.Caller(session.owner, shared = session.shared, from = from, readOnly = session.readOnly)
+            send(exchange, api.handle(EditorApi.Call(exchange.requestMethod, path, exchange.requestURI.rawQuery, bytes, exchange.requestHeaders.getFirst("Range")), caller))
         } catch (e: Exception) {
             plugin.logger.warning("The editor endpoint failed on ${exchange.requestURI}: $e")
             runCatching { reply(exchange, 500, error("The server could not answer: ${e.message}")) }

@@ -218,6 +218,7 @@ work out to a number (or a switch) leaves the property at its default. There is 
 
 | Key | Does |
 |---|---|
+| `skull` | Player name, `textures.minecraft.net` URL, or base64 texture for a `player_head` (alternative to `head:<name>` / `texture:<base64>` in `material`). May contain placeholders. |
 | `item-name` | The base name, plain and not italic; `name` is the renamed one and wins. |
 | `damage` | Durability used up. |
 | `rarity` | `COMMON`, `UNCOMMON`, `RARE` or `EPIC`, the color of the name. |

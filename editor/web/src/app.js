@@ -8,7 +8,7 @@ import { Form } from './form.js'
 import { Inventory } from './inventory.js'
 import { claimsOf, addClaim, removeClaim, moveClaim, placesOf } from './placement.js'
 import { check } from './check.js'
-import { fromHash, decodeData, Server, readFile, toFile, download } from './source.js'
+import { fromHash, decodeData, dataLink, Server, readFile, toFile, download } from './source.js'
 import { services, forgetCatalog, catalog } from './services.js'
 import { knownItems } from './catalog.js'
 import { materialPicker } from './picker.js'
@@ -35,6 +35,7 @@ function askName() {
 }
 
 const TABS = ['Editor', 'Raw', 'Pack']
+const MENU_NAME = /^[A-Za-z0-9_-]{1,64}$/
 
 export class App {
   constructor(root, schema) {
@@ -114,31 +115,70 @@ export class App {
 
   /** Reads the address and loads what it points at. */
   async start() {
-    const hash = fromHash(location.hash)
+    await this.loadHash(fromHash(location.hash))
+    this.build()
+    this.draw()
+  }
+
+  /**
+   * Connects to a server/relay and/or loads a `#data=...` menu from parsed fragment parameters [hash].
+   * When [keepMenu] is true and a menu is already open, connecting to a server keeps that menu loaded so it can be saved straight to the server.
+   */
+  async loadHash(hash, { keepMenu = false } = {}) {
     try {
-      if ((hash.server && hash.token) || (hash.relay && hash.session && hash.key)) {
+      const hasServer = Boolean((hash.server && hash.token) || (hash.relay && hash.session && hash.key))
+      if (hasServer) {
         this.server = hash.relay ? new RelayServer(hash.relay, hash.session, hash.key, askName()) : new Server(hash.server, hash.token)
         assetSettings.skinProxy = (url) => this.server.skin(url)
+        assetSettings.playerSkinProxy = (name) => this.server.playerSkin(name)
         assetSettings.gameFile = (file) => this.server.gameFile(file)
         services.server = this.server
         forgetCatalog(); this.known = null
         const info = await this.server.info()
+        if (info.shared && !(this.server instanceof RelayServer)) this.server.from = askName()
         this.menuNames = info.menus
         this.serverInfo = info
-        const name = hash.menu && info.menus.includes(hash.menu) ? hash.menu : info.menus[0]
-        if (name) await this.open(name)
+        if (hash.data) {
+          await this.loadData(hash.data, hash.name, true)
+        } else if (keepMenu && Object.keys(this.store.value).length > 0) {
+          this.store.dirty = true
+          this.setStatus(`Connected to server (${info.owner}). Ready to ${info.shared ? 'send for approval' : 'save'} '${this.name}'.`)
+          this.resolveItems()
+          this.findCustomItems()
+          this.loadKnownItems()
+          this.fetchElements()
+        } else {
+          const name = hash.menu && info.menus.includes(hash.menu) ? hash.menu : info.menus[0]
+          if (name) await this.open(name)
+          else this.setStatus(`Connected to server (${info.owner}). Click "+ New" to create a menu.`)
+        }
         this.pack.discover()
       } else if (hash.data) {
-        const data = await decodeData(hash.data)
-        this.name = hash.name ?? 'menu'
-        this.store.load(data.menu ?? data)
-        this.setStatus('Loaded from the link. Download the file when done and put it in plugins/XaliMenu/menus/.')
+        await this.loadData(hash.data, hash.name, Boolean(this.server))
       }
     } catch (error) {
       this.setStatus(error.message, true)
     }
-    this.build()
-    this.draw()
+  }
+
+  async loadData(encoded, name, connected) {
+    const data = await decodeData(encoded)
+    this.name = name || 'menu'
+    this.centerStage = true
+    this.raw.discard()
+    this.store.load(data.menu ?? data)
+    this.picked = { slot: null, item: null, area: 'items' }
+    this.placing = false
+    if (connected) {
+      this.store.dirty = true
+      this.setStatus(`Loaded '${this.name}' from link while connected to the server. Click ${this.serverInfo?.shared ? 'Send for approval' : 'Save to server'} when ready.`)
+      this.resolveItems()
+      this.findCustomItems()
+      this.loadKnownItems()
+      this.fetchElements()
+    } else {
+      this.setStatus(`Loaded '${this.name}' from link. Paste a /xmenu edit link via "Load link" to save to a server, or download .conf.`)
+    }
   }
 
   async open(name) {
@@ -367,9 +407,12 @@ export class App {
     this.buttons = {
       undo: h('button', { onclick: () => this.store.undo(), title: 'Undo (Ctrl+Z)' }, '↶'),
       redo: h('button', { onclick: () => this.store.redo(), title: 'Redo (Ctrl+Y)' }, '↷'),
+      newMenu: h('button', { onclick: () => this.createMenu(), title: 'Create a new menu to edit and save to the server' }, '+ New'),
+      loadLink: h('button', { onclick: () => this.promptLink(), title: 'Paste a shared menu link (#data=...) or a /xmenu edit / /xmenu share server link' }, 'Load link'),
+      share: h('button', { onclick: () => this.copyShareLink(), title: 'Copy a shareable link carrying this menu so another admin can open and save it' }, 'Share link'),
       open: h('button', { onclick: () => this.pickFile() }, 'Open file'),
       download: h('button', { onclick: () => this.download() }, 'Download .conf'),
-      save: h('button', { class: 'primary', onclick: () => this.save() }, fromHash(location.hash).relay ? 'Send for approval' : 'Save to server'),
+      save: h('button', { class: 'primary', onclick: () => this.save() }, 'Save to server'),
     }
     this.tabs = h('nav', { class: 'tabs' }, TABS.map((t) => h('button', { 'data-tab': t, onclick: () => this.goTo(t) }, t)))
     this.problemsButton = h('button', { class: 'problems-button', onclick: () => { this.showProblems = !this.showProblems; this.drawProblems() } })
@@ -377,8 +420,8 @@ export class App {
     this.tabs.append(h('span', { class: 'spacer' }), h('div', { class: 'problems-wrap' }, this.problemsButton, this.problemsPanel))
     this.view = h('section', { class: 'view' })
     fill(this.root,
-      h('header', null, h('span', { class: 'brand' }, 'XaliMenu editor'), this.menuSelect, this.statusLine,
-        h('span', { class: 'spacer' }), this.buttons.undo, this.buttons.redo, this.buttons.open, this.buttons.download, this.buttons.save),
+      h('header', null, h('span', { class: 'brand' }, 'XaliMenu editor'), this.menuSelect, this.buttons.newMenu, this.statusLine,
+        h('span', { class: 'spacer' }), this.buttons.undo, this.buttons.redo, this.buttons.loadLink, this.buttons.share, this.buttons.open, this.buttons.download, this.buttons.save),
       this.tabs,
       h('main', null, this.view))
     this.refreshHeader()
@@ -403,11 +446,17 @@ export class App {
   }
 
   refreshHeader() {
-    fill(this.menuSelect, this.menuNames.map((n) => h('option', { value: n, selected: n === this.name }, n)))
-    this.menuSelect.hidden = this.menuNames.length === 0
+    const names = this.server && this.name && Object.keys(this.store.value).length > 0 && !this.menuNames.includes(this.name)
+      ? [...this.menuNames, this.name]
+      : this.menuNames
+    fill(this.menuSelect, names.map((n) => h('option', { value: n, selected: n === this.name }, n === this.name && !this.menuNames.includes(n) ? `${n} (unsaved)` : n)))
+    this.menuSelect.hidden = names.length === 0
+    this.buttons.newMenu.hidden = !this.server || this.serverInfo?.readOnly === true
+    this.buttons.share.hidden = Object.keys(this.store.value).length === 0
     this.statusLine.textContent = `${this.store.dirty ? '● ' : ''}${this.status}`
     this.statusLine.className = `status ${this.statusBad ? 'bad' : ''}`
     this.buttons.save.hidden = !this.server || this.serverInfo?.readOnly === true
+    this.buttons.save.textContent = this.serverInfo?.shared ? 'Send for approval' : 'Save to server'
     this.buttons.undo.disabled = this.store.undoStack.length === 0
     this.buttons.redo.disabled = this.store.redoStack.length === 0
   }
@@ -454,6 +503,7 @@ export class App {
       h('p', null, 'Run ', h('code', null, '/xmenu edit'), ' in the game and open the link it prints, or open a menu file from ', h('code', null, 'plugins/XaliMenu/menus/'), '.'),
       h('div', { class: 'row-buttons' },
         h('button', { class: 'primary', onclick: () => this.pickFile() }, 'Open a menu file'),
+        h('button', { onclick: () => this.promptLink() }, 'Paste an editor link'),
         h('button', { onclick: () => { this.name = 'new'; this.store.load({ title: 'New menu', size: 27, items: {} }); this.draw() } }, 'Start a new menu')),
       h('p', { class: 'muted' }, 'The file stays in your browser; nothing is uploaded unless you save to a server.'))
   }
@@ -513,11 +563,60 @@ export class App {
     this.setStatus(`Downloaded ${file.name}. Put it in plugins/XaliMenu/menus/ and run /xmenu reload ${this.name}.`)
   }
 
+  async createMenu() {
+    if (this.store.dirty && !confirm('Discard the unsaved changes to the current menu?')) return
+    const raw = (prompt('New menu name (letters, digits, - and _):', 'new-menu') ?? '').trim()
+    if (!raw) return
+    if (!MENU_NAME.test(raw)) { this.setStatus(`'${raw}' is not a valid menu name (use letters, digits, - and _).`, true); return }
+    if (this.menuNames.includes(raw)) { await this.open(raw); return }
+    this.name = raw
+    this.centerStage = true
+    this.raw.discard()
+    this.store.load({ title: raw, size: 27, items: {} })
+    this.store.dirty = true
+    this.picked = { slot: null, item: null, area: 'items' }
+    this.placing = false
+    this.setStatus(`Created '${raw}'. Click ${this.serverInfo?.shared ? 'Send for approval' : 'Save to server'} to write it.`)
+    this.draw()
+  }
+
+  async promptLink() {
+    const raw = (prompt('Paste a XaliMenu link (#data=... to load a shared menu, or /xmenu edit / /xmenu share to connect to a server):') ?? '').trim()
+    if (!raw) return
+    const hashIndex = raw.indexOf('#')
+    const fragment = hashIndex >= 0 ? raw.slice(hashIndex) : raw
+    const parsed = fromHash(fragment)
+    if (!parsed.data && !parsed.server && !parsed.relay) {
+      this.setStatus('That does not look like a XaliMenu editor link.', true)
+      return
+    }
+    await this.loadHash(parsed, { keepMenu: true })
+    this.draw()
+  }
+
+  async copyShareLink() {
+    if (Object.keys(this.store.value).length === 0) return
+    try {
+      const link = await dataLink(location.href, this.name, this.store.value)
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(link)
+        this.setStatus(`Copied shareable link for '${this.name}'. Another admin can open it or paste it into Load link to save to a server.`)
+      } else {
+        prompt('Copy this shareable menu link:', link)
+      }
+    } catch (error) {
+      this.setStatus(`Could not build shareable link: ${error.message}`, true)
+    }
+  }
+
   async save() {
     if (this.serverInfo?.readOnly) { this.setStatus('This link is read-only: download the menu instead.', true); return }
     try {
       this.serverProblems = await this.server.save(this.name, this.store.value)
       this.store.markSaved()
+      if (!this.server.held && !this.menuNames.includes(this.name)) {
+        this.menuNames = [...this.menuNames, this.name].sort()
+      }
       const note = this.server.held ? `Sent ${this.name} to the admin of the server, who has to approve it in game (/xmenu edits).` : `Saved ${this.name}.`
       this.setStatus(this.serverProblems.length ? note.replace(/\.$/, ', with problems.') : note)
     } catch (error) { this.setStatus(error.message, true) }

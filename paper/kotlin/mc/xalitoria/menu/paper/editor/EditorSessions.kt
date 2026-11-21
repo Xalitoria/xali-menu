@@ -6,31 +6,49 @@ import java.util.Base64
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * The links `/xmenu edit` hands out. A link holds a random token that stands for one person for a while; the editor sends it
- * with every request and nothing else gives access. Tokens are only kept as hashes, and are found by hash, so a token cannot be
- * guessed from how long a comparison takes.
+ * The links `/xmenu edit` and `/xmenu share` (when using the direct HTTP endpoint) hand out. A link holds a random token
+ * that stands for one session for a while; the editor sends it with every request and nothing else gives access. Tokens
+ * are only kept as hashes, and are found by hash, so a token cannot be guessed from how long a comparison takes.
  */
 internal class EditorSessions(private val minutes: () -> Int, private val now: () -> Long = System::currentTimeMillis) {
-    private class Session(val owner: String, var expires: Long)
+    data class Session(val owner: String, var expires: Long, val shared: Boolean = false, val readOnly: Boolean = false)
 
     private val sessions = ConcurrentHashMap<String, Session>()
     private val random = SecureRandom()
 
-    /** Makes a token for [owner]. */
-    fun create(owner: String): String {
+    /** Makes a token for [owner]. A [shared] token holds saves for admin approval in [PendingEdits] instead of writing directly. */
+    fun create(owner: String, shared: Boolean = false, readOnly: Boolean = false): String {
         val bytes = ByteArray(24).also(random::nextBytes)
         val token = Base64.getUrlEncoder().withoutPadding().encodeToString(bytes)
-        sessions[hash(token)] = Session(owner, now() + minutes() * 60_000L)
+        sessions[hash(token)] = Session(owner, now() + minutes() * 60_000L, shared = shared, readOnly = readOnly)
         purge()
         return token
     }
 
-    /** Whom [token] stands for, or null if it is not one or has run out. */
-    fun owner(token: String?): String? {
+    /** The active session [token] stands for, or null if it is not one or has run out. */
+    fun session(token: String?): Session? {
         if (token.isNullOrEmpty()) return null
-        val session = sessions[hash(token)] ?: return null
-        if (session.expires < now()) { sessions.remove(hash(token)); return null }
-        return session.owner
+        val key = hash(token)
+        val session = sessions[key] ?: return null
+        if (session.expires < now()) { sessions.remove(key); return null }
+        return session
+    }
+
+    /** Whom [token] stands for, or null if it is not one or has run out. */
+    fun owner(token: String?): String? = session(token)?.owner
+
+    /** Ends shared sessions created by [owner], or all shared sessions when [owner] is null. @return how many ended */
+    fun clearShared(owner: String? = null): Int {
+        var removed = 0
+        val it = sessions.entries.iterator()
+        while (it.hasNext()) {
+            val s = it.next().value
+            if (s.shared && (owner == null || s.owner == owner)) {
+                it.remove()
+                removed++
+            }
+        }
+        return removed
     }
 
     /** Ends every session (the editor is turned off). */

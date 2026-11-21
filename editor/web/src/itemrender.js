@@ -16,16 +16,75 @@ export const SCALE = 3
  * @param {object} item the item as the menu file writes it (`material`, `item-model`, `model`, `color`, `damage`, `amount`...)
  * @param {{material?: string, itemModel?: string, customModelData?: number[]}} [known] what a plugin says a custom item is
  */
-/** The address of the skin in a `texture:` value (base64 of the profile's JSON), or null. */
-export function skinUrl(material) {
-  const text = String(material ?? '')
-  if (!text.startsWith('texture:')) return null
+const PLAYER_NAME = /^[A-Za-z0-9_]{1,16}$/
+const TEXTURE_URL = /^https?:\/\/textures\.minecraft\.net\/texture\/[0-9a-f]{16,128}$/i
+
+/** Extracts the `textures.SKIN.url` from a base64-encoded Minecraft profile texture JSON, or null. */
+function decodeTextureBase64(b64) {
   try {
-    const json = JSON.parse(atob(text.slice(8)))
+    const json = JSON.parse(atob(String(b64 ?? '').trim()))
     return json?.textures?.SKIN?.url?.replace(/^http:/, 'https:') ?? null
   } catch {
     return null
   }
+}
+
+/** The address of the skin in a `texture:` value (base64 of the profile's JSON), or null. */
+export function skinUrl(material) {
+  const text = String(material ?? '')
+  if (!text.startsWith('texture:')) return null
+  return decodeTextureBase64(text.slice(8))
+}
+
+/**
+ * Resolves the skin texture key (`url:<https://...>` or `player:<name>`) for a player head item from:
+ * 1. `item.skull` (player name, `head:<name>`, `texture:<base64>`, raw base64, or `textures.minecraft.net` URL),
+ * 2. `item.material` (`texture:<base64>` or `head:<name>`),
+ * 3. `item.nbt` (`[minecraft:profile={name:"..."}]` or texture URL/base64 on a `player_head`).
+ */
+export function skinSpec(item) {
+  const fromValue = (raw) => {
+    const text = String(raw ?? '').trim()
+    if (!text || /[%{]/.test(text)) return null
+    if (TEXTURE_URL.test(text)) return `url:${text.replace(/^http:/, 'https:')}`
+    if (text.startsWith('texture:')) {
+      const url = decodeTextureBase64(text.slice(8))
+      return url ? `url:${url}` : null
+    }
+    if (text.startsWith('head:')) {
+      const name = text.slice(5).trim()
+      return PLAYER_NAME.test(name) ? `player:${name}` : null
+    }
+    if (text.length >= 40) {
+      const url = decodeTextureBase64(text)
+      if (url) return `url:${url}`
+    }
+    return PLAYER_NAME.test(text) ? `player:${text}` : null
+  }
+
+  if (typeof item?.skull === 'string' && item.skull.trim()) {
+    const found = fromValue(item.skull)
+    if (found) return found
+  }
+  const mat = String(item?.material ?? '').trim()
+  if (mat.startsWith('texture:') || mat.startsWith('head:')) {
+    const found = fromValue(mat)
+    if (found) return found
+  }
+  const cleanMat = mat.replace(/^minecraft:/, '').toLowerCase()
+  if ((cleanMat === 'player_head' || mat.startsWith('head:') || mat.startsWith('texture:')) && typeof item?.nbt === 'string' && item.nbt.trim()) {
+    const nbt = item.nbt
+    const urlMatch = nbt.match(/https?:\/\/textures\.minecraft\.net\/texture\/[0-9a-f]{16,128}/i)
+    if (urlMatch) return `url:${urlMatch[0].replace(/^http:/, 'https:')}`
+    const valueMatch = nbt.match(/\bvalue\s*[:=]\s*["']([A-Za-z0-9+/=]{40,})["']/)
+    if (valueMatch) {
+      const url = decodeTextureBase64(valueMatch[1])
+      if (url) return `url:${url}`
+    }
+    const nameMatch = nbt.match(/profile\s*[:=]\s*\{[^}]*\bname\s*[:=]\s*["']?([A-Za-z0-9_]{1,16})["']?/i)
+    if (nameMatch) return `player:${nameMatch[1]}`
+  }
+  return null
 }
 
 /** The color a firework star shows: the average of the colors of its first burst, as 0xRRGGBB, or null when it has none. */
@@ -44,7 +103,7 @@ export function stateOf(item, known = {}) {
   const head = text.startsWith('head:') || text.startsWith('texture:')
   return {
     material: head ? 'player_head' : (known.material ?? text.replace(/^minecraft:/, '')),
-    skin: skinUrl(text),
+    skin: skinSpec(item),
     banner: Array.isArray(item.banner) ? item.banner : [],
     baseColor: typeof item['base-color'] === 'string' ? item['base-color'] : null,
     glint: flagOf(item.glow, null) === true || (flagOf(item.glow, null) !== false && (Object.keys(item.enchants ?? {}).length > 0 || Object.keys(item['stored-enchants'] ?? {}).length > 0)),
@@ -102,11 +161,12 @@ export class ItemRenderer {
     const textures = new Map()
     await Promise.all([...needed].map(async (key) => {
       if (key.startsWith('url:')) { textures.set(key, await this.assets.fromUrl(key.slice(4))); return }
+      if (key.startsWith('player:')) { textures.set(key, await this.assets.fromPlayer(key.slice(7))); return }
       const { ns, path } = split(key)
       textures.set(key, await this.assets.texture(ns, path))
     }))
-    // A skin that cannot be read (the host does not allow other sites to) is drawn as the default one.
-    for (const layer of layers) for (const quad of layer.quads) if (quad.texture?.startsWith('url:') && !textures.get(quad.texture)) quad.texture = 'minecraft:entity/player/wide/steve'
+    // A skin that cannot be read (offline, unknown player, or blocked host) is drawn as the default Steve head.
+    for (const layer of layers) for (const quad of layer.quads) if ((quad.texture?.startsWith('url:') || quad.texture?.startsWith('player:')) && !textures.get(quad.texture)) quad.texture = 'minecraft:entity/player/wide/steve'
     if (layers.some((l) => l.quads.some((q) => q.texture === 'minecraft:entity/player/wide/steve')) && !textures.has('minecraft:entity/player/wide/steve')) {
       textures.set('minecraft:entity/player/wide/steve', await this.assets.texture('minecraft', 'entity/player/wide/steve'))
     }
@@ -154,7 +214,7 @@ export class ItemRenderer {
       return built.layers.map((l) => ({ quads: l.quads, display, guiLight: model.guiLight ?? 'side', tints: l.tints }))
     }
     if (entry.special) {
-      const built = specialQuads(entry.special, skin ? `url:${skin}` : null)
+      const built = specialQuads(entry.special, skin || null)
       if (!built) return null // drawn by code in the game and not built here: better no picture than half of one
       return { quads: built.quads, display: model.display.gui, guiLight: model.guiLight ?? 'side', tints: [], alpha: undefined }
     }

@@ -8,6 +8,8 @@ export const settings = {
   version: '26.2',
   /** Fetches a skin by its address through the server, since Mojang's texture server does not let other sites read it. Set when the editor is connected. */
   skinProxy: null,
+  /** Fetches a player's skin by username through the server (online/SkinsRestorer/Mojang). Falls back to mc-heads.net when standalone. */
+  playerSkinProxy: null,
   /** Fetches a big file of the game that is not in the public copy (the fallback font's zip) through the server, which can read Mojang's. Set when the editor is connected. */
   gameFile: null,
 }
@@ -127,6 +129,23 @@ export class Assets {
       } catch { /* not readable from here: try through the server */ }
       const blob = settings.skinProxy ? await settings.skinProxy(url).catch(() => null) : null
       return blob ? skin(await decode(blob, null)) : null
+    })
+  }
+
+  /** A player's skin texture by username: asks the connected server first (picking up SkinsRestorer/online skins), otherwise falls back to mc-heads.net. */
+  fromPlayer(name) {
+    const clean = String(name ?? '').trim()
+    if (!clean) return Promise.resolve(null)
+    return this.cached(`player:${clean.toLowerCase()}`, async () => {
+      if (settings.playerSkinProxy) {
+        const blob = await settings.playerSkinProxy(clean).catch(() => null)
+        if (blob) return skin(await decode(blob, null))
+      }
+      try {
+        const response = await fetch(`https://mc-heads.net/skin/${encodeURIComponent(clean)}`)
+        if (response.ok) return skin(await decode(await response.blob(), null))
+      } catch { /* offline or blocked */ }
+      return null
     })
   }
 

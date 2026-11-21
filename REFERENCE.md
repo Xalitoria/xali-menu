@@ -553,6 +553,10 @@ An item of a menu.
 
   The item key or prefixed source. May contain placeholders.
 
+- `skull`: text
+
+  Player name, texture URL (`https://textures.minecraft.net/texture/...`), or base64 texture for a `player_head` (alternative to `head:<name>` / `texture:<base64>` in `material`). May contain placeholders.
+
 - `slot`: whole number; at least 0
 
   The slot the item occupies. Slots count from 0 at the top left.
@@ -687,7 +691,7 @@ An item of a menu.
 
 - `nbt`: text
 
-  Extra NBT as an SNBT compound, such as `{menu:"jobs",tier:3}`.
+  Extra custom data SNBT (`{menu:"jobs",tier:3}`) or bracketed item data components (`[minecraft:profile={name:"Steve"}]`).
 
 - `update`: `true` or `false`; default `false`
 

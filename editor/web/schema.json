@@ -3819,6 +3819,14 @@
           "doc": "The item key or prefixed source. May contain placeholders."
         },
         {
+          "key": "skull",
+          "type": {
+            "kind": "string"
+          },
+          "required": false,
+          "doc": "Player name, texture URL (`https://textures.minecraft.net/texture/...`), or base64 texture for a `player_head` (alternative to `head:<name>` / `texture:<base64>` in `material`). May contain placeholders."
+        },
+        {
           "key": "slot",
           "type": {
             "kind": "int"
@@ -4161,7 +4169,7 @@
             "kind": "string"
           },
           "required": false,
-          "doc": "Extra NBT as an SNBT compound, such as `{menu:\"jobs\",tier:3}`."
+          "doc": "Extra custom data SNBT (`{menu:\"jobs\",tier:3}`) or bracketed item data components (`[minecraft:profile={name:\"Steve\"}]`)."
         },
         {
           "key": "update",

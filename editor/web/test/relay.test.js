@@ -1,6 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { seal, open, importKey, RelayServer } from '../src/relay.js'
+import { Server, dataLink, decodeData, fromHash } from '../src/source.js'
 
 const KEY = Buffer.from(new Uint8Array(32).map((_, i) => i + 1)).toString('base64url')
 
@@ -97,4 +98,30 @@ test('a pack is read through the relay in parts, with a Range for each', async (
     assert.deepEqual(new Uint8Array(await file.slice(10, 20).arrayBuffer()), pack.slice(10, 20))
     assert.deepEqual(asked, [['/pack', 'bytes=0-3000'.replace('3000', '2999')]])
   } finally { globalThis.fetch = real }
+})
+
+test('direct Server sends X-Editor-From on shared sessions, tracks held saves, and encodes shareable data links', async () => {
+  const real = globalThis.fetch
+  const calls = []
+  globalThis.fetch = async (url, init) => {
+    calls.push({ url, method: init.method ?? 'GET', headers: init.headers })
+    if (url.includes('/skin?player=')) return new Response(new Uint8Array([1, 2, 3]), { status: 200 })
+    return new Response(JSON.stringify({ problems: [], held: true }), { status: 200 })
+  }
+  try {
+    const server = new Server('https://srv.example/', 'tok', 'Alex')
+    await server.save('shop', { title: 'Shop' })
+    assert.equal(server.held, true)
+    assert.equal(calls[0].headers['X-Editor-From'], 'Alex')
+    assert.equal(calls[0].headers['Content-Type'], 'application/json')
+    await server.playerSkin('audizian')
+    assert.equal(calls[1].url, 'https://srv.example/v1/skin?player=audizian')
+    assert.equal(calls[1].headers['Content-Type'], undefined)
+  } finally { globalThis.fetch = real }
+
+  const url = await dataLink('https://menu.xali.to/#old=1', 'shop', { title: 'Shop', size: 27 })
+  assert.ok(url.startsWith('https://menu.xali.to/#data='))
+  const parsed = fromHash(url.slice(url.indexOf('#')))
+  assert.equal(parsed.name, 'shop')
+  assert.deepEqual((await decodeData(parsed.data)).menu, { title: 'Shop', size: 27 })
 })

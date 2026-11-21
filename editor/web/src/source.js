@@ -22,17 +22,32 @@ export async function encodeData(value) {
   return btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
 }
 
+/** Builds a shareable `#data=...&name=...` URL carrying [menu] under [name] (entirely in the fragment, never sent to a static host). */
+export async function dataLink(baseUrl, name, menu) {
+  const packed = await encodeData({ menu })
+  return `${String(baseUrl).split('#')[0]}#data=${packed}&name=${encodeURIComponent(name || 'menu')}`
+}
+
 /** A server with the editor endpoint turned on. */
 export class Server {
-  constructor(url, token) {
+  constructor(url, token, from = null) {
     this.url = url.replace(/\/+$/, '')
     this.token = token
+    this.from = from
+    /** True after a save that was held for admin approval (shared direct link). */
+    this.held = false
   }
 
   async request(path, options = {}) {
     let response
+    const headers = {
+      Authorization: `Bearer ${this.token}`,
+      ...(options.body !== undefined ? { 'Content-Type': 'application/json' } : {}),
+      ...(this.from ? { 'X-Editor-From': this.from } : {}),
+      ...options.headers,
+    }
     try {
-      response = await fetch(`${this.url}/v1${path}`, { ...options, headers: { Authorization: `Bearer ${this.token}`, 'Content-Type': 'application/json', ...options.headers } })
+      response = await fetch(`${this.url}/v1${path}`, { ...options, headers })
     } catch (error) {
       throw new Error(`Cannot reach ${this.url}. The page is served over https, so the server needs https too unless it is on this computer (${error.message}).`)
     }
@@ -48,9 +63,10 @@ export class Server {
 
   async menu(name) { return (await (await this.request(`/menus/${encodeURIComponent(name)}`)).json()).menu }
 
-  /** Writes the menu. @returns {Promise<string[]>} the problems the server found in it */
+  /** Writes the menu (or holds it for admin approval on a shared link). @returns {Promise<string[]>} the problems the server found in it */
   async save(name, menu) {
     const body = await (await this.request(`/menus/${encodeURIComponent(name)}`, { method: 'PUT', body: JSON.stringify({ menu }) })).json()
+    this.held = body.held === true
     return body.problems ?? []
   }
 
@@ -90,6 +106,11 @@ export class Server {
   /** A skin of Mojang's texture server, through the server of the plugin. */
   async skin(url) {
     return (await this.request(`/skin?url=${encodeURIComponent(url)}`, { headers: { Accept: 'image/png' } })).blob()
+  }
+
+  /** A player's skin by username, resolved by the server (online player, SkinsRestorer, or Mojang). */
+  async playerSkin(name) {
+    return (await this.request(`/skin?player=${encodeURIComponent(name)}`, { headers: { Accept: 'image/png' } })).blob()
   }
 
   /** Every item a menu can use: `{vanilla: [...], custom: {prefix: [...]}}`. */

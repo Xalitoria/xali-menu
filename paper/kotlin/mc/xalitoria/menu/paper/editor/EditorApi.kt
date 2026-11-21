@@ -100,8 +100,14 @@ internal class EditorApi(private val plugin: XaliMenu, val menus: EditorMenus, v
             path == listOf("catalog") && method == "GET" -> json(200, packs.catalog())
             path == listOf("glyphs") && method == "GET" -> json(200, Glyphs(packs.glyphs()))
             path == listOf("skin") && method == "GET" -> {
-                val address = call.query.orEmpty().split('&').firstOrNull { it.startsWith("url=") }
-                    ?.removePrefix("url=")?.let { java.net.URLDecoder.decode(it, Charsets.UTF_8) }
+                val params = call.query.orEmpty().split('&').mapNotNull { entry ->
+                    val eq = entry.indexOf('=').takeIf { it > 0 } ?: return@mapNotNull null
+                    entry.substring(0, eq) to java.net.URLDecoder.decode(entry.substring(eq + 1), Charsets.UTF_8)
+                }.toMap()
+                val address = params["url"] ?: params["player"]?.let { name ->
+                    if (!PLAYER_NAME.matches(name)) return error(400, "Not a valid player name")
+                    plugin.heads.skinUrl(name) ?: return error(404, "No skin found for '$name'")
+                }
                 val url = address?.let(::skinAddress) ?: return error(400, "Only skins on textures.minecraft.net can be fetched")
                 val bytes = fetchSkin(url) ?: return error(404, "The skin could not be fetched")
                 Reply(200, "image/png", bytes, cache = "max-age=86400")
@@ -170,6 +176,7 @@ internal class EditorApi(private val plugin: XaliMenu, val menus: EditorMenus, v
             return first..minOf(last, size - 1, first + MAX_PART - 1)
         }
         private val SKIN_PATH = Regex("/texture/[0-9a-f]{16,128}")
+        val PLAYER_NAME = Regex("[A-Za-z0-9_]{1,16}")
 
         /**
          * The address to fetch for [text] if it is a skin on Mojang's texture server, as https, otherwise null. The endpoint fetches

@@ -339,20 +339,31 @@ object MenuCommand {
         return Command.SINGLE_SUCCESS
     }
 
-    /** Prints a link to the editor through the relay, which works from anywhere and for anyone who is given it. */
+    /** Prints a shared link to the editor (via relay if configured, otherwise via the direct HTTP endpoint). Saves require admin approval. */
     private fun share(ctx: CommandContext<CommandSourceStack>, menu: String?, readOnly: Boolean): Int {
         val sender = ctx.source.sender
         if (!sender.allowed()) return Command.SINGLE_SUCCESS
         val messages = cmdMsg.edit
         val settings = plugin.config.data.editor
-        if (settings.relay.url.isBlank()) { sender fail messages.shareOff; return Command.SINGLE_SUCCESS }
-        // Opening a session is a request to the relay, which waits for an answer, so it is not made on the server's thread.
-        plugin.server.asyncScheduler.runNow(plugin) {
-            when (val started = plugin.relay.start(sender.name, menu, readOnly)) {
-                is EditorRelay.Started.Failed -> sender fail messages.shareFailed(started.reason)
-                is EditorRelay.Started.Ok -> sender.sendMessage(linkMessage((if (readOnly) messages.shareLinkReadOnly else messages.shareLink).replace("{minutes}", settings.sessionMinutes.toString()), started.link))
+        val template = if (readOnly) messages.shareLinkReadOnly else messages.shareLink
+        if (settings.relay.url.isNotBlank()) {
+            // Opening a session is a request to the relay, which waits for an answer, so it is not made on the server's thread.
+            plugin.server.asyncScheduler.runNow(plugin) {
+                when (val started = plugin.relay.start(sender.name, menu, readOnly)) {
+                    is EditorRelay.Started.Failed -> sender fail messages.shareFailed(started.reason)
+                    is EditorRelay.Started.Ok -> sender.sendMessage(linkMessage(template.replace("{minutes}", settings.sessionMinutes.toString()), started.link))
+                }
             }
+            return Command.SINGLE_SUCCESS
         }
+        if (plugin.editor.running) {
+            val token = plugin.editor.sessions.create(sender.name, shared = true, readOnly = readOnly)
+            val address = settings.publicUrl.ifBlank { "http://${settings.host}:${settings.port}" }
+            val link = EditorLink.server(settings.site, address, token, menu)
+            sender.sendMessage(linkMessage(template.replace("{minutes}", settings.sessionMinutes.toString()), link))
+            return Command.SINGLE_SUCCESS
+        }
+        sender fail messages.shareOff
         return Command.SINGLE_SUCCESS
     }
 
@@ -360,7 +371,8 @@ object MenuCommand {
         val sender = ctx.source.sender
         if (!sender.allowed()) return Command.SINGLE_SUCCESS
         val owner = sender.name.takeIf { sender is Player }
-        plugin.server.asyncScheduler.runNow(plugin) { sender info cmdMsg.edit.shareStopped(plugin.relay.stop(owner)) }
+        val direct = plugin.editor.sessions.clearShared(owner)
+        plugin.server.asyncScheduler.runNow(plugin) { sender info cmdMsg.edit.shareStopped(direct + plugin.relay.stop(owner)) }
         return Command.SINGLE_SUCCESS
     }
 
