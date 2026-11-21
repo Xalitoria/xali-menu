@@ -171,7 +171,9 @@
           "type": {
             "kind": "number"
           },
-          "required": false
+          "required": false,
+          "min": 0.0,
+          "max": 1.0
         },
         {
           "key": "duration",
@@ -773,7 +775,8 @@
             "kind": "number"
           },
           "required": false,
-          "default": 0.5
+          "default": 0.5,
+          "min": 0.0
         },
         {
           "key": "speed",
@@ -781,7 +784,8 @@
             "kind": "number"
           },
           "required": false,
-          "default": 0.0
+          "default": 0.0,
+          "min": 0.0
         },
         {
           "key": "dx",
@@ -997,14 +1001,16 @@
             "kind": "number"
           },
           "required": false,
-          "min": 0
+          "min": 0.0
         },
         {
           "key": "pitch",
           "type": {
             "kind": "number"
           },
-          "required": false
+          "required": false,
+          "min": 0.5,
+          "max": 2.0
         },
         {
           "key": "scope",
@@ -2543,6 +2549,52 @@
         }
       ]
     },
+    "Catalog:entities": {
+      "doc": "Entities near the viewer within `radius` blocks (0.5 to 128, bounded so it stays safe on Folia's region threads): `type` (entity key such as `villager`), `name` (custom name if set, otherwise the entity name), `uuid`, `distance` (in blocks, rounded to one decimal), `x`, `y`, `z`, and `world`. Ordered closest first.",
+      "fields": [
+        {
+          "key": "radius",
+          "type": {
+            "kind": "number"
+          },
+          "required": false,
+          "default": 32.0,
+          "min": 0.5,
+          "max": 128.0,
+          "doc": "Search radius in blocks around the viewer (0.5 to 128)."
+        },
+        {
+          "key": "types",
+          "type": {
+            "kind": "list",
+            "of": {
+              "kind": "string"
+            }
+          },
+          "required": false,
+          "default": [],
+          "doc": "Entity type keys to include (for example `villager`, `zombie`); any entity when empty."
+        },
+        {
+          "key": "named-only",
+          "type": {
+            "kind": "boolean"
+          },
+          "required": false,
+          "default": false,
+          "doc": "Only list entities that have a custom name."
+        },
+        {
+          "key": "include-players",
+          "type": {
+            "kind": "boolean"
+          },
+          "required": false,
+          "default": false,
+          "doc": "Include other players in the results."
+        }
+      ]
+    },
     "Catalog:inventory": {
       "doc": "The items in the viewer's inventory, by slot: `slot` (0 to 35, the hotbar first, then `armor` and `offhand` if `armor` is on), `material` (`diamond_sword`), `amount` and `name` (the custom name as plain text, or nothing). An element is drawn like any other, so `material = \"{material}\"` and `amount = \"{amount}\"` show the item; what else it holds (enchantments, lore) stays on the item.",
       "fields": [
@@ -3249,7 +3301,8 @@
           "type": {
             "kind": "number"
           },
-          "required": true
+          "required": true,
+          "min": 0.0
         }
       ]
     },
@@ -3636,7 +3689,8 @@
           "type": {
             "kind": "number"
           },
-          "required": false
+          "required": false,
+          "min": 0.0
         },
         {
           "key": "always-edible",
@@ -4601,7 +4655,8 @@
           "type": {
             "kind": "number"
           },
-          "required": false
+          "required": false,
+          "min": 0.0
         },
         {
           "key": "damage-per-block",
@@ -4685,6 +4740,16 @@
     }
   },
   "catalogs": {
+    "entities": {
+      "type": "villager",
+      "name": "Villager",
+      "uuid": "8667ba71-b85a-4004-af54-457a9734eed7",
+      "distance": "4.5",
+      "x": "10",
+      "y": "64",
+      "z": "-20",
+      "world": "world"
+    },
     "inventory": {
       "slot": "0",
       "material": "diamond_sword",
@@ -4777,6 +4842,7 @@
       "toggle": "BedrockField:toggle"
     },
     "Catalog": {
+      "entities": "Catalog:entities",
       "inventory": "Catalog:inventory",
       "menus": "Catalog:menus",
       "players": "Catalog:players",

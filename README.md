@@ -378,6 +378,7 @@ text, which is all Paper can change on an open menu, so a font or a click event 
 | `range` | The whole numbers `from` to `to` (numbers or placeholders), `step` apart, backwards with `descending`. | `value` |
 | `inventory` | The items in the viewer's inventory, by slot; `armor = true` adds the armor and the off hand, `empty = true` lists empty slots too (as `air`). | `slot`, `material`, `amount`, `name` |
 | `menus` | The menus that are loaded, by name, without the one that lists them unless `include-self = true`. A menu of menus: `open { menu = "{name}" }` in the template. | `name`, `title` |
+| `entities` | Entities near the viewer within `radius` blocks (0.5 to 128, Folia-safe), ordered closest first; optional `types`, `named-only`, `include-players`. | `type`, `name`, `uuid`, `distance`, `x`, `y`, `z`, `world` |
 
 Every element also has `index`, its place in the list from 1. A catalog gives at most 10 000 elements. Other plugins add
 catalogs, see [Extending](#extending).

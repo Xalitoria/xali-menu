@@ -54,6 +54,9 @@ internal object Wire {
 /** The items of the game, and of each source that lists its own, by prefix. */
 @Serializable internal data class ItemCatalog(val vanilla: List<String>, val custom: Map<String, List<String>>)
 
+/** Live server registry keys (sounds, particles, enchantments, effects, entity types, ...). */
+@Serializable internal data class RegistriesReply(val registries: Map<String, List<String>>)
+
 @Serializable internal data class Glyph(val name: String, val char: String, val plugin: String)
 
 @Serializable internal data class Glyphs(val glyphs: List<Glyph>)

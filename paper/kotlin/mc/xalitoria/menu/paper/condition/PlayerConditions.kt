@@ -1,6 +1,7 @@
 package mc.xalitoria.menu.paper.condition
 
 import net.xalitoria.menu.model.Within
+import net.xalitoria.menu.model.WithinRange
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import mc.xalitoria.menu.paper.XaliMenu
@@ -126,7 +127,14 @@ object PlayerConditions {
 
     /** The viewer is less than [distance] blocks from the point [x], [y], [z] of the world [world]. */
     @Serializable @SerialName("near")
-    data class Near(val world: String, val x: Double, val y: Double, val z: Double, val distance: Double) : Condition {
+    data class Near(
+        val world: String,
+        val x: Double,
+        val y: Double,
+        val z: Double,
+        @WithinRange(min = 0.0, strict = true)
+        val distance: Double,
+    ) : Condition {
         init {
             require(distance > 0) { "near needs a distance above 0" }
         }

@@ -1,6 +1,7 @@
 package mc.xalitoria.menu.paper.action
 
 import net.xalitoria.menu.model.Within
+import net.xalitoria.menu.model.WithinRange
 import com.xalitoria.util.message.fail
 import com.xalitoria.util.message.verbatim
 import kotlinx.serialization.SerialName
@@ -207,8 +208,9 @@ object Actions {
     @Serializable @SerialName("sound")
     data class Sound(
         val sound: String,
-        @Within(min = 0)
+        @WithinRange(min = 0.0)
         val volume: Float = 1f,
+        @WithinRange(0.5, 2.0)
         val pitch: Float = 1f,
         val scope: Scope = Scope.PLAYER,
     ) : Action {

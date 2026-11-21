@@ -34,10 +34,20 @@ test('reports slots outside the window and a matrix that breaks its rules or nam
   assert.ok(found.some((m) => m.includes("single characters, not 'ab'")))
 })
 
-test('an item placed through the global menu matrix needs no slot of its own, and item.matrix is rejected', () => {
+test('an item placed through the global menu matrix needs no slot of its own, and renamed/moved keys say what replaced them', () => {
   assert.deepEqual(messages({ title: 'T', size: 9, matrix: { cells: ['#########'], map: { '#': 'border' } }, items: { border: { material: 'stone' } } }), [])
-  const bad = messages({ title: 'T', size: 9, items: { a: { material: 'stone', slot: 0, matrix: ['x'] } } })
-  assert.ok(bad.some((m) => m.includes("'matrix' is not a key of an item")))
+  const bad = messages({ title: 'T', size: 9, layout: ['x'], legend: { x: 'a' }, items: { a: { material: 'stone', slot: 0, matrix: ['x'], 'dynamic-amount': '2' } } })
+  assert.ok(bad.some((m) => m.includes("'matrix' was moved to the menu-level 'matrix { cells, map }'")))
+  assert.ok(bad.some((m) => m.includes("'layout' was replaced by 'matrix.cells'")))
+  assert.ok(bad.some((m) => m.includes("'legend' was replaced by 'matrix.map'")))
+  assert.ok(bad.some((m) => m.includes("'dynamic-amount' was merged into 'amount'")))
+})
+
+test('decimal limits from @WithinRange are checked in actions and catalogs', () => {
+  const sound = messages({ title: 'T', items: { a: { material: 'stone', slot: 0, click: { any: { actions: [{ type: 'sound', sound: 'ui.button.click', pitch: 5 }] } } } } })
+  assert.ok(sound.some((m) => m.includes('should be from 0.5 to 2, not 5')), sound.join('; '))
+  const bar = messages({ title: 'T', items: { a: { material: 'stone', slot: 0, click: { any: { actions: [{ type: 'boss-bar', text: 'hi', progress: 1.5 }] } } } } })
+  assert.ok(bar.some((m) => m.includes('should be from 0 to 1, not 1.5')), bar.join('; '))
 })
 
 test('other inventory types have a size of their own', () => {

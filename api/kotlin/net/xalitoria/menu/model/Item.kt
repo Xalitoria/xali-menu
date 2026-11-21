@@ -164,6 +164,7 @@ data class Food(
     /** The food points restored, in half drumsticks. */
     @Within(min = 0)
     val nutrition: Int,
+    @WithinRange(min = 0.0)
     val saturation: Float = 0f,
     /** Whether the item can be eaten with a full food bar. */
     val alwaysEdible: Boolean = false,
@@ -233,6 +234,7 @@ data class Equippable(
  */
 @Serializable
 data class Tool(
+    @WithinRange(min = 0.0)
     val miningSpeed: Float = 1f,
     @Within(min = 0)
     val damagePerBlock: Int = 1,

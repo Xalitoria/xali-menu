@@ -25,6 +25,17 @@ class ConfigCheck {
     }
 
     @Test
+    fun renamedOrMovedKeysTellWhatReplacedThemAndDecimalRangesAreChecked() {
+        assertTrue("matrix.cells" in warnings("layout = [\"###\"]").single())
+        assertTrue("matrix.map" in warnings("legend { \"#\" = a }\nitems.a { material = stone, slot = 0 }").single())
+        assertTrue("menu-level 'matrix" in warnings("items.a { material = stone, slot = 0, matrix = [\"x\"] }").single())
+        assertTrue("merged into 'amount'" in warnings("items.a { material = stone, slot = 0, dynamic-amount = \"%x%\" }").single())
+        assertTrue("0.5 to 2" in warnings("items.a { material = stone, slot = 0, click.any.actions = [{ type = sound, sound = entity.player.levelup, pitch = 5.0 }] }").single())
+        assertTrue("0 to 1" in problems("items.a { material = stone, slot = 0, click.any.actions = [{ type = boss-bar, text = hi, progress = 1.5 }] }").single())
+        assertTrue("0.5 to 128" in problems("pages { catalog { type = entities, radius = 500 }, slots = [0], item { material = stone } }").single())
+    }
+
+    @Test
     fun theFileStillLoadsWithAWarning() {
         assertEquals("stone", read("items.a { material = stone, slot = 1, slott = 2 }").menu.items.getValue("a").material)
     }

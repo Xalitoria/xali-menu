@@ -103,13 +103,16 @@ class SchemaTest {
     @Test
     fun theLimitsOfANumberComeFromTheModel() {
         val fields = fields("Item")
-        assertEquals(1L to 99L, fields.getValue("amount").min to fields.getValue("amount").max)
-        assertEquals(35L, fields.getValue("inventory-slots").max)
+        assertEquals(JsonPrimitive(1L) to JsonPrimitive(99L), fields.getValue("amount").min to fields.getValue("amount").max)
+        assertEquals(JsonPrimitive(35L), fields.getValue("inventory-slots").max)
         assertEquals(null, fields.getValue("slot").max, "a limit that is not there is left out")
-        assertEquals(9L, fields("Menu").getValue("size").min)
-        // The numbers of actions and conditions have theirs too.
-        assertEquals(0L to 100L, fields("Action:chance").getValue("percent").let { it.min to it.max })
-        assertEquals(0L to 255L, fields("Action:potion").getValue("amplifier").let { it.min to it.max })
+        assertEquals(JsonPrimitive(9L), fields("Menu").getValue("size").min)
+        // The numbers of actions and conditions have theirs too, including decimal ranges.
+        assertEquals(JsonPrimitive(0L) to JsonPrimitive(100L), fields("Action:chance").getValue("percent").let { it.min to it.max })
+        assertEquals(JsonPrimitive(0L) to JsonPrimitive(255L), fields("Action:potion").getValue("amplifier").let { it.min to it.max })
+        assertEquals(JsonPrimitive(0.5) to JsonPrimitive(2.0), fields("Action:sound").getValue("pitch").let { it.min to it.max })
+        assertEquals(JsonPrimitive(0.0) to JsonPrimitive(1.0), fields("Action:boss-bar").getValue("progress").let { it.min to it.max })
+        assertEquals(JsonPrimitive(0.5) to JsonPrimitive(128.0), fields("Catalog:entities").getValue("radius").let { it.min to it.max })
     }
 
     @Test

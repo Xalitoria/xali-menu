@@ -8,6 +8,15 @@ import { normalize } from './normalize.js'
 
 const SIZES = { hopper: 5, dispenser: 9, dropper: 9, crafter: 9, shulker_box: 27 }
 
+/** Keys that were renamed or moved in the schema, mirroring `ConfigChecker.RENAMED`. */
+const RENAMED = {
+  'Menu.layout': "was replaced by 'matrix.cells' inside 'matrix { cells, map }'",
+  'Menu.legend': "was replaced by 'matrix.map' inside 'matrix { cells, map }'",
+  'Menu.inventory': "was replaced by 'inventory-slots' on each item",
+  'Item.matrix': "was moved to the menu-level 'matrix { cells, map }'",
+  'Item.dynamic-amount': "was merged into 'amount' (which accepts numbers or placeholders)",
+}
+
 /** The number of slots of a menu, from its size or its inventory type. */
 export function slotCount(menu) {
   const type = String(menu.type ?? 'chest').toLowerCase()
@@ -48,8 +57,13 @@ class Walker {
       const field = fields.find((f) => f.key === key)
       if (!field) {
         if (!(variant && key === 'type')) {
-          const names = fields.map((f) => f.key).filter((k) => !(k in value))
-          this.add([...path, key], `'${key}' is not a key of ${what(typeName)}, so it is ignored${hint(key, names)}`, closest(key, names))
+          const moved = RENAMED[`${typeName}.${key}`]
+          if (moved) {
+            this.add([...path, key], `'${key}' ${moved}`)
+          } else {
+            const names = fields.map((f) => f.key).filter((k) => !(k in value))
+            this.add([...path, key], `'${key}' is not a key of ${what(typeName)}, so it is ignored${hint(key, names)}`, closest(key, names))
+          }
         }
         continue
       }

@@ -475,7 +475,7 @@ An item that can be eaten, whatever it is made of. `saturation` is what is added
 
   The food points restored, in half drumsticks.
 
-- `saturation`: number
+- `saturation`: number; at least 0
 
 - `always-edible`: `true` or `false`; default `false`
 
@@ -809,7 +809,7 @@ One effect of a potion.
 
 Makes an item mine blocks, whatever it is made of. `miningSpeed` is the speed for blocks no rule covers (1 is the speed of a hand) and `damagePerBlock` the durability it loses for each block mined.
 
-- `mining-speed`: number
+- `mining-speed`: number; at least 0
 
 - `damage-per-block`: whole number; default `1`; at least 0
 
@@ -875,7 +875,7 @@ Shows the viewer a boss bar with `text` for `duration`, then takes it away.
 
 - `style`: one of `PROGRESS`, `NOTCHED_6`, `NOTCHED_10`, `NOTCHED_12`, `NOTCHED_20`
 
-- `progress`: number
+- `progress`: number; 0 to 1
 
 - `duration`: time, such as `5s`, `500ms` or `1m`; default `"5s"`
 
@@ -1093,9 +1093,9 @@ Shows a particle at the viewer's feet, moved by `dx`, `dy`, `dz`. `count` of the
 
 - `count`: whole number; default `10`; 1 to 1000
 
-- `spread`: number; default `0.5`
+- `spread`: number; default `0.5`; at least 0
 
-- `speed`: number; default `0`
+- `speed`: number; default `0`; at least 0
 
 - `dx`: number; default `0`
 
@@ -1179,7 +1179,7 @@ Plays `sound` to the viewer, a sound key such as `entity.experience_orb.pickup`.
 
 - `volume`: number; at least 0
 
-- `pitch`: number
+- `pitch`: number; 0.5 to 2
 
 - `scope`: one of `PLAYER`, `WORLD`, `SERVER`; default `"PLAYER"`
 
@@ -1403,7 +1403,7 @@ The viewer is less than `distance` blocks from the point `x`, `y`, `z` of the wo
 
 - `z`: number; required
 
-- `distance`: number; required
+- `distance`: number; required; at least 0
 
 ### Condition `never`
 
@@ -1649,7 +1649,27 @@ The player presses the key that swaps the hands.
 
 A list of things a menu draws from, such as the players or the menus, with `type` naming the catalog.
 
-[`inventory`](#catalog-inventory), [`menus`](#catalog-menus), [`players`](#catalog-players), [`range`](#catalog-range), [`values`](#catalog-values), [`worlds`](#catalog-worlds)
+[`entities`](#catalog-entities), [`inventory`](#catalog-inventory), [`menus`](#catalog-menus), [`players`](#catalog-players), [`range`](#catalog-range), [`values`](#catalog-values), [`worlds`](#catalog-worlds)
+
+### Catalog `entities`
+
+Entities near the viewer within `radius` blocks (0.5 to 128, bounded so it stays safe on Folia's region threads): `type` (entity key such as `villager`), `name` (custom name if set, otherwise the entity name), `uuid`, `distance` (in blocks, rounded to one decimal), `x`, `y`, `z`, and `world`. Ordered closest first.
+
+- `radius`: number; default `32`; 0.5 to 128
+
+  Search radius in blocks around the viewer (0.5 to 128).
+
+- `types`: list of text; default `[]`
+
+  Entity type keys to include (for example `villager`, `zombie`); any entity when empty.
+
+- `named-only`: `true` or `false`; default `false`
+
+  Only list entities that have a custom name.
+
+- `include-players`: `true` or `false`; default `false`
+
+  Include other players in the results.
 
 ### Catalog `inventory`
 

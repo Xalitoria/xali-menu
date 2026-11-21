@@ -1,6 +1,7 @@
 package mc.xalitoria.menu.paper.action
 
 import net.xalitoria.menu.model.Within
+import net.xalitoria.menu.model.WithinRange
 import io.papermc.paper.registry.RegistryAccess
 import io.papermc.paper.registry.RegistryKey
 import kotlinx.serialization.SerialName
@@ -202,6 +203,7 @@ object Effects {
         val text: String,
         val color: BossBar.Color = BossBar.Color.PURPLE,
         val style: BossBar.Overlay = BossBar.Overlay.PROGRESS,
+        @WithinRange(0.0, 1.0, strict = true)
         val progress: Float = 1f,
         @Serializable(with = DurationAsString::class)
         val duration: Duration = 5.seconds,
@@ -239,7 +241,9 @@ object Effects {
         val particle: String,
         @Within(1, 1000, strict = true)
         val count: Int = 10,
+        @WithinRange(min = 0.0)
         val spread: Double = 0.5,
+        @WithinRange(min = 0.0)
         val speed: Double = 0.0,
         val dx: Double = 0.0,
         val dy: Double = 1.0,

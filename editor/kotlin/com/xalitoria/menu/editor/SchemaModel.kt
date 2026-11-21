@@ -4,6 +4,7 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonPrimitive
 
 /**
  * The shape of `schema.json`, which the editor's form and its checks are built from. The file is written from these classes and the tests read it back into
@@ -34,9 +35,9 @@ data class FieldDef(
     val required: Boolean,
     /** The default, when the source shows it as a literal. */
     val default: JsonElement? = null,
-    /** The limits of a number, or of each number in a list, from `@Within` on the model. */
-    val min: Long? = null,
-    val max: Long? = null,
+    /** The limits of a number, or of each number in a list, from `@Within` or `@WithinRange` on the model. */
+    val min: JsonPrimitive? = null,
+    val max: JsonPrimitive? = null,
     val doc: String? = null,
 )
 

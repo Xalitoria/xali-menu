@@ -341,8 +341,19 @@ class Paging {
         assertEquals(setOf("test:warps"), registry.catalogSettings.keys, "only a catalog that described its settings is listed")
 
         registry.removeAll(owner)
-        assertEquals(setOf("players", "worlds", "values", "range", "menus", "inventory"), registry.catalogInfo.keys, "what a plugin said goes with it")
+        assertEquals(setOf("players", "worlds", "values", "range", "menus", "inventory", "entities"), registry.catalogInfo.keys, "what a plugin said goes with it")
         assertEquals(emptyMap(), registry.catalogSettings)
+    }
+
+    @Test
+    fun entitiesIsReadWithItsSettings() {
+        val catalog = Registry.format.decode(
+            "title = x\npages { catalog { type = entities, radius = 16.5, types = [villager, zombie], named-only = true, include-players = true }, slots = [0], item { material = paper, name = \"{name} ({distance}m)\" } }"
+        ).pages!!.catalog
+        assertEquals(Catalogs.Entities(radius = 16.5, types = ["villager", "zombie"], namedOnly = true, includePlayers = true), catalog)
+        assertEquals(setOf("type", "name", "uuid", "distance", "x", "y", "z", "world"), Registry.registry.catalogInfo.getValue("entities").keys)
+        assertFailsWith<IllegalArgumentException> { Catalogs.Entities(radius = 0.0) }
+        assertFailsWith<IllegalArgumentException> { Catalogs.Entities(radius = 200.0) }
     }
 
     @Test

@@ -8,7 +8,29 @@ export const registries = new Map()
 /** The dye colors of the game, in the order of the palette of the game. */
 const DYES = ['white', 'light_gray', 'gray', 'black', 'brown', 'red', 'orange', 'yellow', 'lime', 'green', 'cyan', 'light_blue', 'blue', 'purple', 'magenta', 'pink']
 
-const words = (id) => id.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
+const words = (id) => id.replace(/[._]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
+
+/** Common sounds, particles and entity types used standalone; replaced by the server's live registries via `/v1/registries` when connected. */
+const COMMON_SOUNDS = [
+  'block.anvil.land', 'block.anvil.use', 'block.chest.close', 'block.chest.open', 'block.ender_chest.open',
+  'block.note_block.bass', 'block.note_block.bell', 'block.note_block.chime', 'block.note_block.harp', 'block.note_block.pling',
+  'entity.enderman.teleport', 'entity.experience_orb.pickup', 'entity.firework_rocket.blast', 'entity.firework_rocket.launch',
+  'entity.item.pickup', 'entity.player.burp', 'entity.player.levelup', 'entity.villager.no', 'entity.villager.trade', 'entity.villager.yes',
+  'item.book.page_turn', 'item.totem.use', 'ui.button.click', 'ui.toast.challenge_complete', 'ui.toast.in',
+]
+const COMMON_PARTICLES = [
+  'angry_villager', 'ash', 'bubble', 'campfire_cosy_smoke', 'cherry_leaves', 'cloud', 'composter', 'crit', 'damage_indicator',
+  'dragon_breath', 'electric_spark', 'enchant', 'enchanted_hit', 'end_rod', 'explosion', 'firework', 'flame', 'glow',
+  'happy_villager', 'heart', 'instant_effect', 'lava', 'mycelium', 'note', 'poof', 'portal', 'rain', 'scrape',
+  'smoke', 'snowflake', 'soul', 'soul_fire_flame', 'spark', 'splash', 'totem_of_undying', 'wax_off', 'wax_on', 'witch',
+]
+const COMMON_ENTITIES = [
+  'allay', 'armor_stand', 'axolotl', 'bat', 'bee', 'blaze', 'camel', 'cat', 'chicken', 'cow', 'creeper', 'dolphin',
+  'donkey', 'drowned', 'enderman', 'evoker', 'fox', 'frog', 'ghast', 'goat', 'guardian', 'hoglin', 'horse', 'iron_golem',
+  'llama', 'magma_cube', 'mooshroom', 'mule', 'ocelot', 'panda', 'parrot', 'phantom', 'pig', 'piglin', 'pillager', 'player',
+  'polar_bear', 'rabbit', 'ravager', 'sheep', 'shulker', 'skeleton', 'slime', 'sniffer', 'snow_golem', 'spider', 'squid',
+  'strider', 'turtle', 'vex', 'villager', 'vindicator', 'wandering_trader', 'warden', 'witch', 'wither_skeleton', 'wolf', 'zombie',
+]
 
 /** Lists that the game does not name in its language file. */
 const FIXED = {
@@ -18,6 +40,9 @@ const FIXED = {
   'dye-upper': DYES.map((v) => [v.toUpperCase(), words(v)]),
   component: ['enchantments', 'stored_enchantments', 'attribute_modifiers', 'unbreakable', 'can_break', 'can_place_on', 'dyed_color', 'trim', 'jukebox_playable',
     'potion_contents', 'banner_patterns', 'firework_explosion', 'fireworks', 'written_book_content', 'tool'].map((v) => [v, words(v)]),
+  sound: COMMON_SOUNDS.map((v) => [v, v]),
+  particle: COMMON_PARTICLES.map((v) => [v, words(v)]),
+  'entity-type': COMMON_ENTITIES.map((v) => [v, words(v)]),
 }
 
 /** The ids that [lang] names with keys of the form `prefix.<id>`, as `[id, name]`, in the order of the file. */
@@ -63,6 +88,16 @@ export function loadRegistries(lang = {}) {
   for (const [name, list] of Object.entries({ ...FIXED, ...fromLang(lang) })) if (list.length) registries.set(name, list)
 }
 
+/** Merges live registry key lists returned by `/v1/registries` from a connected server, keeping human labels from the language file where known. */
+export function mergeServerRegistries(serverRegistries = {}) {
+  for (const [name, ids] of Object.entries(serverRegistries ?? {})) {
+    if (!Array.isArray(ids) || ids.length === 0) continue
+    const labels = new Map(registries.get(name) ?? [])
+    const entries = ids.map((id) => [id, labels.get(id) ?? (name === 'sound' ? id : words(id))])
+    registries.set(name, sorted(entries))
+  }
+}
+
 /** Which registry the key [key] of the type [owner] takes its values from. The keys are those of the schema. */
 const KEYS = {
   'Item.potion-type': 'potion-type', 'Item.base-color': 'color', 'Item.hide': 'component', 'Item.enchants': 'enchantment', 'Item.stored-enchants': 'enchantment',
@@ -72,6 +107,8 @@ const KEYS = {
   'Equippable.slot': 'equippable-slot',
   'Trim.pattern': 'trim-pattern', 'Trim.material': 'trim-material',
   'Fish.pattern': 'fish-pattern', 'Fish.body-color': 'dye-upper', 'Fish.pattern-color': 'dye-upper',
+  'Action:sound.sound': 'sound', 'Action:particle.particle': 'particle', 'Action:potion.effect': 'effect',
+  'Catalog:entities.types': 'entity-type', 'Activator:entity.types': 'entity-type',
 }
 
 /** The name of the registry that the field [field] (as the schema has it, with its `owner`) takes values from, or null. */

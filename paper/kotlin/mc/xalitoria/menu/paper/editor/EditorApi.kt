@@ -98,6 +98,7 @@ internal class EditorApi(private val plugin: XaliMenu, val menus: EditorMenus, v
                 }
             }
             path == listOf("catalog") && method == "GET" -> json(200, packs.catalog())
+            path == listOf("registries") && method == "GET" -> json(200, RegistriesReply(packs.registries()))
             path == listOf("glyphs") && method == "GET" -> json(200, Glyphs(packs.glyphs()))
             path == listOf("skin") && method == "GET" -> {
                 val params = call.query.orEmpty().split('&').mapNotNull { entry ->

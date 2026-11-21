@@ -17,6 +17,7 @@ import kotlinx.serialization.descriptors.getPolymorphicDescriptors
 import kotlinx.serialization.modules.SerializersModule
 import net.xalitoria.menu.model.Menu
 import net.xalitoria.menu.model.Within
+import net.xalitoria.menu.model.WithinRange
 import kotlin.time.Duration
 
 /** A thing found in a menu file: where ([path] and, when the file has it, [line]), and what. */
@@ -70,19 +71,41 @@ class ConfigChecker(
 
     private fun warn(path: String, value: ConfigValue?, message: String) { warnings += ConfigProblem(path, value?.origin()?.lineNumber(), message) }
 
+    private data class Bounds(val min: Double?, val max: Double?, val strict: Boolean, val whole: Boolean)
+
+    private fun boundsOf(annotations: List<Annotation>): Bounds? {
+        annotations.filterIsInstance<Within>().firstOrNull()?.let { w ->
+            return Bounds(
+                min = w.min.takeIf { it != Long.MIN_VALUE }?.toDouble(),
+                max = w.max.takeIf { it != Long.MAX_VALUE }?.toDouble(),
+                strict = w.strict,
+                whole = true,
+            )
+        }
+        annotations.filterIsInstance<WithinRange>().firstOrNull()?.let { w ->
+            return Bounds(
+                min = w.min.takeIf { it.isFinite() },
+                max = w.max.takeIf { it.isFinite() },
+                strict = w.strict,
+                whole = false,
+            )
+        }
+        return null
+    }
+
     /** [value] as the model reads it: plain maps, lists and scalars, with the easy forms written out. */
-    private fun walk(descriptor: SerialDescriptor, value: ConfigValue, path: String, within: Within? = null): Any? {
+    private fun walk(descriptor: SerialDescriptor, value: ConfigValue, path: String, bounds: Bounds? = null): Any? {
         if (value.valueType() == ConfigValueType.NULL) {
             if (!descriptor.isNullable) error(path, value, "is empty")
             return null
         }
         return when {
             descriptor.serialName.contains("Duration") -> scalar(value, path, "a time such as 5s, 500ms or 1m") { text -> runCatching { Duration.parse(text) }.isSuccess }
-            descriptor.serialName.contains("DynamicInt") -> scalar(value, path, "a number or text with placeholders") { true }.also { range(value, path, within) }
+            descriptor.serialName.contains("DynamicInt") -> scalar(value, path, "a number or text with placeholders") { true }.also { range(value, path, bounds) }
             descriptor.serialName.contains("DynamicBoolean") -> scalar(value, path, "a switch or text with placeholders") { true }
-            descriptor.kind is PrimitiveKind -> primitive(descriptor, value, path).also { range(value, path, within) }
+            descriptor.kind is PrimitiveKind -> primitive(descriptor, value, path).also { range(value, path, bounds) }
             descriptor.kind == SerialKind.ENUM -> enumValue(descriptor, value, path)
-            descriptor.kind == StructureKind.LIST -> list(descriptor, value, path, within)
+            descriptor.kind == StructureKind.LIST -> list(descriptor, value, path, bounds)
             descriptor.kind == StructureKind.MAP -> map(descriptor, value, path)
             descriptor.kind == PolymorphicKind.OPEN || descriptor.kind == PolymorphicKind.SEALED -> polymorphic(descriptor, value, path)
             descriptor.kind == StructureKind.CLASS || descriptor.kind == StructureKind.OBJECT -> structure(descriptor, value, path, skip = null)
@@ -107,18 +130,19 @@ class ConfigChecker(
         else -> scalar(value, path, "text") { true }
     }
 
-    /** A number written in the file that is outside what the model takes for it (see [Within]). Text with placeholders is only known when the item is drawn. */
-    private fun range(value: ConfigValue, path: String, within: Within?) {
-        if (within == null) return
+    /** A number written in the file that is outside what the model takes for it ([Within] or [WithinRange]). Text with placeholders is only known when the item is drawn. */
+    private fun range(value: ConfigValue, path: String, bounds: Bounds?) {
+        if (bounds == null) return
         val number = value.takeIf { it.valueType() == ConfigValueType.NUMBER || it.valueType() == ConfigValueType.STRING }?.unwrapped()?.toString()?.trim()?.toDoubleOrNull() ?: return
-        if (number >= within.min && number <= within.max) return
+        if ((bounds.min == null || number >= bounds.min) && (bounds.max == null || number <= bounds.max)) return
+        fun fmt(n: Double) = if (bounds.whole || n == n.toLong().toDouble()) n.toLong().toString() else n.toString()
         val text = when {
-            within.min != Long.MIN_VALUE && within.max != Long.MAX_VALUE -> "should be from ${within.min} to ${within.max}"
-            within.min != Long.MIN_VALUE -> "can't be below ${within.min}"
-            else -> "can't be above ${within.max}"
+            bounds.min != null && bounds.max != null -> "should be from ${fmt(bounds.min)} to ${fmt(bounds.max)}"
+            bounds.min != null -> "can't be below ${fmt(bounds.min)}"
+            else -> "can't be above ${fmt(bounds.max!!)}"
         }
         val shown = value.unwrapped().toString()
-        if (within.strict) error(path, value, "$text, not $shown") else warn(path, value, "$text, not $shown")
+        if (bounds.strict) error(path, value, "$text, not $shown") else warn(path, value, "$text, not $shown")
     }
 
     private fun enumValue(descriptor: SerialDescriptor, value: ConfigValue, path: String): Any? {
@@ -131,11 +155,11 @@ class ConfigChecker(
         return written
     }
 
-    private fun list(descriptor: SerialDescriptor, value: ConfigValue, path: String, within: Within?): Any? {
+    private fun list(descriptor: SerialDescriptor, value: ConfigValue, path: String, bounds: Bounds?): Any? {
         val element = descriptor.getElementDescriptor(0)
         // One entry may be written without the brackets: `slots = 5`, `actions = { type = close }`.
         val entries = if (value is ConfigList) value.toList() else listOf(value)
-        return entries.mapIndexed { index, entry -> walk(element, entry, "$path[$index]", within) }
+        return entries.mapIndexed { index, entry -> walk(element, entry, "$path[$index]", bounds) }
     }
 
     private fun map(descriptor: SerialDescriptor, value: ConfigValue, path: String): Any? {
@@ -188,14 +212,17 @@ class ConfigChecker(
         }
         val names = (0 until descriptor.elementsCount).map { kebab(descriptor.getElementName(it)) }
         val out = LinkedHashMap<String, Any?>()
+        val owner = descriptor.serialName.removeSuffix("?").substringAfterLast('.')
         for (entry in value.entries) {
             if (entry.key == skip) continue
             val index = names.indexOf(entry.key)
             if (index < 0) {
-                warn(join(path, entry.key), entry.value, "is not a key of ${what(descriptor)}, so it is ignored${Suggest.hint(entry.key, names.filter { it !in value.keys })}")
+                val moved = RENAMED["$owner.${entry.key}"]
+                val note = moved ?: "is not a key of ${what(descriptor)}, so it is ignored${Suggest.hint(entry.key, names.filter { it !in value.keys })}"
+                warn(join(path, entry.key), entry.value, note)
                 continue
             }
-            out[entry.key] = walk(descriptor.getElementDescriptor(index), entry.value, join(path, entry.key), descriptor.getElementAnnotations(index).filterIsInstance<Within>().firstOrNull())
+            out[entry.key] = walk(descriptor.getElementDescriptor(index), entry.value, join(path, entry.key), boundsOf(descriptor.getElementAnnotations(index)))
         }
         for (index in 0 until descriptor.elementsCount) {
             if (!descriptor.isElementOptional(index) && names[index] !in value.keys) error(join(path, names[index]), value, "is required")
@@ -216,6 +243,15 @@ class ConfigChecker(
     private fun join(path: String, key: String) = if (path.isEmpty()) key else "$path.$key"
 
     companion object {
+        /** Keys that were renamed or moved in the schema, so older files are told directly what replaced them. */
+        val RENAMED = mapOf(
+            "Menu.layout" to "was replaced by 'matrix.cells' inside 'matrix { cells, map }'",
+            "Menu.legend" to "was replaced by 'matrix.map' inside 'matrix { cells, map }'",
+            "Menu.inventory" to "was replaced by 'inventory-slots' on each item",
+            "Item.matrix" to "was moved to the menu-level 'matrix { cells, map }'",
+            "Item.dynamic-amount" to "was merged into 'amount' (which accepts numbers or placeholders)",
+        )
+
         /** `maxStackSize` as the file writes it, `max-stack-size`. */
         fun kebab(property: String): String = buildString {
             for ([i, c] in property.withIndex()) if (c.isUpperCase()) { if (i > 0) append('-'); append(c.lowercaseChar()) } else append(c)

@@ -33,6 +33,26 @@ internal class ResourcePacks(private val plugin: XaliMenu) {
         return ItemCatalog(vanilla, custom)
     }
 
+    /** Live game registries directly from the running server (including datapack entries), for the editor's dropdowns. */
+    fun registries(): Map<String, List<String>> {
+        val access = io.papermc.paper.registry.RegistryAccess.registryAccess()
+        fun <T : org.bukkit.Keyed> keys(key: io.papermc.paper.registry.RegistryKey<T>): List<String> =
+            runCatching { access.getRegistry(key).map { it.key().value() }.sorted() }.getOrDefault(emptyList())
+        val particles = runCatching { org.bukkit.Registry.PARTICLE_TYPE.map { it.key.key }.sorted() }.getOrDefault(emptyList())
+        return mapOf(
+            "sound" to keys(io.papermc.paper.registry.RegistryKey.SOUND_EVENT),
+            "particle" to particles,
+            "enchantment" to keys(io.papermc.paper.registry.RegistryKey.ENCHANTMENT),
+            "effect" to keys(io.papermc.paper.registry.RegistryKey.MOB_EFFECT),
+            "attribute" to keys(io.papermc.paper.registry.RegistryKey.ATTRIBUTE),
+            "banner-pattern" to keys(io.papermc.paper.registry.RegistryKey.BANNER_PATTERN),
+            "potion-type" to keys(io.papermc.paper.registry.RegistryKey.POTION),
+            "trim-pattern" to keys(io.papermc.paper.registry.RegistryKey.TRIM_PATTERN),
+            "trim-material" to keys(io.papermc.paper.registry.RegistryKey.TRIM_MATERIAL),
+            "entity-type" to keys(io.papermc.paper.registry.RegistryKey.ENTITY_TYPE),
+        ).filterValues { it.isNotEmpty() }
+    }
+
     /**
      * The color a potion shows, for each of [specs] (a base potion type, and custom effects): the average of the colors of its effects, each
      * as often as its level, as the game works it out; the color of water when there are no effects. Null for a spec that names nothing.

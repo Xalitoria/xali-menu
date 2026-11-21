@@ -1,6 +1,7 @@
 package mc.xalitoria.menu.paper.catalog
 
 import net.xalitoria.menu.model.Within
+import net.xalitoria.menu.model.WithinRange
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import mc.xalitoria.menu.paper.XaliMenu
@@ -10,6 +11,8 @@ import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer
 import net.xalitoria.menu.Catalog
 import net.xalitoria.menu.MenuContext
 import org.bukkit.Bukkit
+import org.bukkit.entity.Player
+import java.util.Locale
 
 /** The catalogs XaliMenu comes with. Text may hold placeholders: PlaceholderAPI's, and `{name}` for the menu's arguments. */
 object Catalogs {
@@ -25,6 +28,10 @@ object Catalogs {
         registry.catalog<Range>("value" to "1")
         registry.catalog<Menus>("name" to "shop", "title" to "Shop")
         registry.catalog<Inventory>("slot" to "0", "material" to "diamond_sword", "amount" to "1", "name" to "Excalibur")
+        registry.catalog<Entities>(
+            "type" to "villager", "name" to "Villager", "uuid" to "8667ba71-b85a-4004-af54-457a9734eed7",
+            "distance" to "4.5", "x" to "10", "y" to "64", "z" to "-20", "world" to "world",
+        )
     }
 
     /** The players who are online, by name: `name` and `uuid`. */
@@ -115,5 +122,61 @@ object Catalogs {
 
         private fun number(ctx: MenuContext, text: String): Long? =
             ctx.parse(text).trim().toBigDecimalOrNull()?.toLong().also { if (it == null) debug("'{0}' isn't a number in a range", text) }
+    }
+
+    /**
+     * Entities near the viewer within [radius] blocks (0.5 to 128, bounded so it stays safe on Folia's region threads):
+     * `type` (entity key such as `villager`), `name` (custom name if set, otherwise the entity name), `uuid`,
+     * `distance` (in blocks, rounded to one decimal), `x`, `y`, `z`, and `world`. Ordered closest first.
+     */
+    @Serializable @SerialName("entities")
+    data class Entities(
+        /** Search radius in blocks around the viewer (0.5 to 128). */
+        @WithinRange(0.5, 128.0, strict = true)
+        val radius: Double = 32.0,
+        /** Entity type keys to include (for example `villager`, `zombie`); any entity when empty. */
+        val types: List<String> = [],
+        /** Only list entities that have a custom name. */
+        val namedOnly: Boolean = false,
+        /** Include other players in the results. */
+        val includePlayers: Boolean = false,
+    ) : Catalog {
+        init {
+            require(radius in 0.5..128.0) { "entities radius must be between 0.5 and 128" }
+        }
+
+        override fun elements(ctx: MenuContext): List<Map<String, String>> {
+            val viewer = ctx.player
+            val origin = viewer.location
+            val maxDistSq = radius * radius
+            val allowed = types.map { it.trim().lowercase().removePrefix("minecraft:") }.filter { it.isNotEmpty() }.toSet()
+            return viewer.getNearbyEntities(radius, radius, radius)
+                .asSequence()
+                .filter { includePlayers || it !is Player }
+                .filter { entity -> allowed.isEmpty() || entity.type.key.key in allowed }
+                .filter { entity -> !namedOnly || entity.customName() != null }
+                .mapNotNull { entity ->
+                    val loc = entity.location
+                    if (loc.world != origin.world) return@mapNotNull null
+                    val distSq = loc.distanceSquared(origin)
+                    if (distSq > maxDistSq) return@mapNotNull null
+                    val dist = kotlin.math.sqrt(distSq)
+                    val custom = entity.customName()?.let(PLAIN::serialize)
+                    dist to mapOf(
+                        "type" to entity.type.key.key,
+                        "name" to (custom?.takeIf { it.isNotBlank() } ?: entity.name),
+                        "uuid" to entity.uniqueId.toString(),
+                        "distance" to String.format(Locale.US, "%.1f", dist),
+                        "x" to loc.blockX.toString(),
+                        "y" to loc.blockY.toString(),
+                        "z" to loc.blockZ.toString(),
+                        "world" to loc.world.name,
+                    )
+                }
+                .sortedBy { it.first }
+                .take(LIMIT)
+                .map { it.second }
+                .toList()
+        }
     }
 }

@@ -22,6 +22,7 @@ import net.xalitoria.menu.Condition
 import net.xalitoria.menu.model.Activator
 import net.xalitoria.menu.model.Menu
 import net.xalitoria.menu.model.Within
+import net.xalitoria.menu.model.WithinRange
 
 /**
  * Describes the menu format as JSON for the editor: every class that a menu file can contain, with the keys it takes, the
@@ -95,15 +96,21 @@ class SchemaBuilder(
         val fields = (0 until descriptor.elementsCount).map { index ->
             val property = descriptor.getElementName(index)
             val documented = source?.fields?.get(property)
-            // The limits of a number (of each entry, for a list), from the model itself.
-            val within = descriptor.getElementAnnotations(index).filterIsInstance<Within>().firstOrNull()
+            // The limits of a number (of each entry, for a list), from `@Within` or `@WithinRange` on the model.
+            val annotations = descriptor.getElementAnnotations(index)
+            val within = annotations.filterIsInstance<Within>().firstOrNull()
+            val withinRange = annotations.filterIsInstance<WithinRange>().firstOrNull()
+            val min = within?.min?.takeIf { it != Long.MIN_VALUE }?.let(::JsonPrimitive)
+                ?: withinRange?.min?.takeIf { it.isFinite() }?.let(::JsonPrimitive)
+            val max = within?.max?.takeIf { it != Long.MAX_VALUE }?.let(::JsonPrimitive)
+                ?: withinRange?.max?.takeIf { it.isFinite() }?.let(::JsonPrimitive)
             FieldDef(
                 key = kebab(property),
                 type = typeOf(descriptor.getElementDescriptor(index)),
                 required = !descriptor.isElementOptional(index),
                 default = documented?.default?.let { literal(it) },
-                min = within?.min?.takeIf { it != Long.MIN_VALUE },
-                max = within?.max?.takeIf { it != Long.MAX_VALUE },
+                min = min,
+                max = max,
                 doc = documented?.doc?.takeIf { it.isNotEmpty() },
             )
         }

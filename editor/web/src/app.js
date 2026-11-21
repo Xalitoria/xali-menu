@@ -22,7 +22,7 @@ import { PackPanel } from './panel.js'
 import { EditorTab, TYPES, SIZES } from './editorTab.js'
 import { RawTab } from './rawTab.js'
 import { RelayServer } from './relay.js'
-import { registryChoices } from './registry.js'
+import { registryChoices, mergeServerRegistries } from './registry.js'
 
 /** The name that the admin sees on the edits sent through a shared link; asked once for the tab. */
 function askName() {
@@ -153,6 +153,7 @@ export class App {
           else this.setStatus(`Connected to server (${info.owner}). Click "+ New" to create a menu.`)
         }
         this.pack.discover()
+        this.loadServerRegistries()
       } else if (hash.data) {
         await this.loadData(hash.data, hash.name, Boolean(this.server))
       }
@@ -196,6 +197,16 @@ export class App {
     this.findCustomItems()
     this.loadKnownItems()
     this.fetchElements()
+  }
+
+  /** Fetches live sound, particle, entity and other registries from the connected server. */
+  async loadServerRegistries() {
+    if (!this.server) return
+    try {
+      const live = await this.server.registries()
+      mergeServerRegistries(live)
+      if (this.tab === 'Editor') this.draw()
+    } catch { /* older server without /v1/registries */ }
   }
 
   /** Reads the list of items the checks look a material up in (once; the server's when there is one), and shows the problems it finds. */

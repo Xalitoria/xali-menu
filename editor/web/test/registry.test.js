@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { fromLang, loadRegistries, registries, registryChoices, registryOf } from '../src/registry.js'
+import { fromLang, loadRegistries, mergeServerRegistries, registries, registryChoices, registryOf } from '../src/registry.js'
 
 const lang = {
   'enchantment.minecraft.sharpness': 'Sharpness', 'enchantment.minecraft.fire_aspect': 'Fire Aspect',
@@ -36,4 +36,12 @@ test('a key of the schema is given its registry, which is the game\'s names when
   assert.ok(registries.get('fish-pattern').some(([v]) => v === 'KOB'))
   assert.equal(registryChoices({ owner: 'PotionEffect', key: 'type' }), null)
   assert.equal(registries.get('color').length, 16, 'the dye colors are known without the file')
+  assert.equal(registryOf({ owner: 'Action:sound', key: 'sound' }), 'sound')
+  assert.equal(registryOf({ owner: 'Action:particle', key: 'particle' }), 'particle')
+  assert.equal(registryOf({ owner: 'Catalog:entities', key: 'types' }), 'entity-type')
+  assert.ok(registryChoices({ owner: 'Action:sound', key: 'sound' }).some(([v]) => v === 'entity.player.levelup'))
+  assert.ok(registryChoices({ owner: 'Action:particle', key: 'particle' }).some(([v]) => v === 'heart'))
+  mergeServerRegistries({ sound: ['custom.ding', 'entity.player.levelup'], particle: ['flame'] })
+  assert.ok(registries.get('sound').some(([v]) => v === 'custom.ding'))
+  assert.deepEqual(registries.get('particle'), [['flame', 'Flame']])
 })

@@ -290,7 +290,7 @@ the one way when it comes in (`src/normalize.js`: one value for a list becomes a
 **Values from the game's registries and from placeholders.**
 - A key that names something of the game is a dropdown of what the game has (the enchantments of `enchants` and `stored-enchants`, the effect of a potion effect, the
   attribute and its slot, the dye color and pattern of a banner, `potion-type`, the pattern and material of a trim, the slot of `equippable`, the fish, `hide`),
-  with **Other…** for a value that is not in the list (another plugin's, a datapack's). The names are those of the language file of the assets in use (`src/registry.js`).
+  with **Other…** for a value that is not in the list (another plugin's, a datapack's). Standalone lists come from the language file and curated defaults (`sound`, `particle`, `entity-type`); connected to a server, `GET /v1/registries` upgrades them with the server's live registries (`src/registry.js`).
 - A number or a switch that may follow a placeholder (`amount`, `model`, `damage`, `max-stack-size`, `unbreakable`, `glow`, `hide-tooltip`) is one box that takes a number or a
   `%placeholder%`, shown in blue when it is text; a switch is a checkbox with a **%** button that turns it into that box. The picture of an item with a placeholder there is drawn with the default.
 - A tipped arrow, potion or splash potion takes the color of its `potion-type` and `potion` effects as it is typed, from the colors of the game's effects (`src/potions.js`);
