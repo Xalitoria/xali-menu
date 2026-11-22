@@ -370,7 +370,8 @@ changed on a refresh, the open menu gets the new title (Paper sends the window a
 in the middle; this is done only when the text differs). Titles without a font are handed over as legacy text so they
 can change while the menu is open; a title that names a font (such as `<white><font:nexo:default>...</font></white>` for
 a resource-pack background) opens as an Adventure component on Java and stays as it opened, while Bedrock uses
-`bedrock.title`.
+`bedrock.title`. With Nexo loaded, its tags work in any text: `<glyph:id>` and `<shift:n>` (the glyph or the space, as Nexo makes
+them, in Nexo's fonts), so a title can be `<white><shift:-18><glyph:friends></white>`.
 
 | Catalog | Elements | Values |
 |---|---|---|

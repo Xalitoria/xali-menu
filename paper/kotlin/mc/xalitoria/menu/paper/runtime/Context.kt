@@ -2,6 +2,7 @@ package mc.xalitoria.menu.paper.runtime
 
 import com.xalitoria.util.message.toComponent
 import com.xalitoria.util.message.verbatim
+import mc.xalitoria.menu.paper.hook.NexoTags
 import me.clip.placeholderapi.PlaceholderAPI
 import net.kyori.adventure.text.Component
 import net.xalitoria.menu.Action
@@ -67,7 +68,8 @@ class Context(
 
     /** The result of a text that cannot change (no placeholder, no argument) is kept. */
     override fun component(text: String): Component =
-        if ('%' in text || values.isNotEmpty() && '{' in text) parse(text, UnaryOperator<String> { it.verbatim() }).toComponent()
+        if (NexoTags.has(text)) NexoTags.expand(text, player).let { if ('%' in it || values.isNotEmpty() && '{' in it) parse(it, UnaryOperator<String> { v -> v.verbatim() }) else it }.toComponent()
+        else if ('%' in text || values.isNotEmpty() && '{' in text) parse(text, UnaryOperator<String> { it.verbatim() }).toComponent()
         else STATIC.computeIfAbsent(text) { it.toComponent() }
 
     /** An argument is typed by a player: it must not be able to start a placeholder, or put a line break in a command. */
