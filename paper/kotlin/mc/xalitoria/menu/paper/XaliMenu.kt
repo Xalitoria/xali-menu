@@ -239,7 +239,7 @@ class XaliMenu : JavaPlugin() {
         loadMessages()
         applyDebug()
         heads.clear()
-        server.onlinePlayers.forEach(heads::remember)
+        server.onlinePlayers.forEach { player -> player.scheduler.run(this, { heads.remember(player) }, null) }
         startEditor()
         val before = OpenCommands.registered
         logger pass messageConfig.data.commands.menu.loaded(menus.load())

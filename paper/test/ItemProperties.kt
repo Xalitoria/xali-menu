@@ -284,4 +284,107 @@ class ItemProperties {
         assertEquals("SIG", properties.single().signature)
         assertEquals(true, heads.named("audizign") {} != null, "subsequent calls hit the cache immediately")
     }
+
+    @Test
+    fun headsPreservesRememberedSnapshotsAndIgnoresStaleClearedWorkers() {
+        val queued = mutableListOf<() -> Unit>()
+        val scheduler = java.lang.reflect.Proxy.newProxyInstance(
+            io.papermc.paper.threadedregions.scheduler.AsyncScheduler::class.java.classLoader,
+            arrayOf(io.papermc.paper.threadedregions.scheduler.AsyncScheduler::class.java),
+        ) { _, method, args ->
+            if (method.name == "runNow") {
+                @Suppress("UNCHECKED_CAST")
+                val consumer = args[1] as java.util.function.Consumer<Any?>
+                queued += { consumer.accept(null) }
+            }
+            null
+        } as io.papermc.paper.threadedregions.scheduler.AsyncScheduler
+
+        fun profile(id: String, hasTex: Boolean) = java.lang.reflect.Proxy.newProxyInstance(
+            com.destroystokyo.paper.profile.PlayerProfile::class.java.classLoader,
+            arrayOf(com.destroystokyo.paper.profile.PlayerProfile::class.java),
+        ) { proxy, method, args ->
+            when (method.name) {
+                "complete" -> hasTex
+                "hasTextures" -> hasTex
+                "getName" -> id
+                "equals" -> proxy === args?.firstOrNull()
+                "hashCode" -> System.identityHashCode(proxy)
+                "toString" -> "FakeProfile($id)"
+                else -> null
+            }
+        } as com.destroystokyo.paper.profile.PlayerProfile
+
+        var lookupResult: com.destroystokyo.paper.profile.PlayerProfile = profile("missing", hasTex = false)
+        val server = java.lang.reflect.Proxy.newProxyInstance(
+            org.bukkit.Server::class.java.classLoader,
+            arrayOf(org.bukkit.Server::class.java),
+        ) { _, method, _ ->
+            when (method.name) {
+                "getPlayerExact", "getPlayer", "getOfflinePlayerIfCached" -> null
+                "getAsyncScheduler" -> scheduler
+                "createProfile" -> lookupResult
+                else -> null
+            }
+        } as org.bukkit.Server
+        val plugin = java.lang.reflect.Proxy.newProxyInstance(
+            org.bukkit.plugin.Plugin::class.java.classLoader,
+            arrayOf(org.bukkit.plugin.Plugin::class.java),
+        ) { _, method, _ ->
+            when (method.name) {
+                "getServer" -> server
+                "getLogger" -> java.util.logging.Logger.getAnonymousLogger()
+                else -> null
+            }
+        } as org.bukkit.plugin.Plugin
+
+        val rememberedProfile = profile("live-custom", hasTex = true)
+        val livePlayer = java.lang.reflect.Proxy.newProxyInstance(
+            org.bukkit.entity.Player::class.java.classLoader,
+            arrayOf(org.bukkit.entity.Player::class.java),
+        ) { _, method, _ ->
+            when (method.name) {
+                "getName" -> "Alex"
+                "getUniqueId" -> java.util.UUID.fromString("00000000-0000-0000-0000-000000000001")
+                "getPlayerProfile" -> rememberedProfile
+                else -> null
+            }
+        } as org.bukkit.entity.Player
+
+        val heads = mc.xalitoria.menu.paper.hook.Heads(plugin, skinsRestorer = false, fetchUrl = { null })
+
+        // 1. Offline lookup starts, then Alex joins and remember() caches their custom skin before the lookup finishes.
+        var waiterA = 0
+        assertNull(heads.named("Alex") { waiterA++ })
+        assertEquals(1, queued.size)
+        heads.remember(livePlayer)
+        assertEquals(1, waiterA, "remember() notifies pending waiters immediately")
+        // Stale offline lookup finishes with Missing: must NOT overwrite the remembered profile.
+        queued.removeFirst().invoke()
+        assertEquals(rememberedProfile, heads.named("Alex") {})
+        assertEquals(1, waiterA, "stale worker must not notify waiters a second time")
+
+        // 2. clear() while lookup A is in flight; lookup B starts; stale A finishes first and must not steal B's waiters or overwrite B.
+        heads.clear()
+        var staleWaiter = 0
+        var freshWaiter = 0
+        assertNull(heads.named("Sam") { staleWaiter++ })
+        assertEquals(1, queued.size)
+        val workerA = queued.removeFirst()
+
+        heads.clear()
+        assertNull(heads.named("Sam") { freshWaiter++ })
+        assertEquals(1, queued.size)
+        val workerB = queued.removeFirst()
+
+        // Worker A fails with Missing after clear(): must not touch B's waiter or publish Missing.
+        workerA.invoke()
+        assertEquals(0, freshWaiter)
+
+        // Worker B succeeds with a textured profile: B's waiter gets notified and profile is cached.
+        lookupResult = profile("sam-skin", hasTex = true)
+        workerB.invoke()
+        assertEquals(1, freshWaiter)
+        assertEquals(lookupResult, heads.named("Sam") {})
+    }
 }

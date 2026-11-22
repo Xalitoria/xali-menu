@@ -21,12 +21,13 @@ import java.time.Duration
 import java.util.Base64
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicLong
 
 /**
- * Player heads. `head:<name>` (or `skull = "<name>"` on a `player_head`) shows an online player's own skin, which already
- * includes what SkinsRestorer applied; for a name that is not online the skin is looked up off the main threads, from
- * SkinsRestorer when it is installed (so a skin set for that name wins), then Paper's profile lookup, and finally Mojang's
- * API directly. `texture:<base64>`, raw base64 texture payloads, and `textures.minecraft.net` URLs need no lookup, and
+ * Player heads. `head:<name>` (or `skull = "<name>"` on a `player_head`) shows an online player's own skin, captured on
+ * their owning Folia scheduler and cached for when they go offline; for a name that is not cached the skin is looked up
+ * off the region threads, from SkinsRestorer when installed, then Paper's profile lookup, and finally Mojang's API
+ * directly. `texture:<base64>`, raw base64 texture payloads, and `textures.minecraft.net` URLs need no lookup, and
  * neither does `hdb:<id>`, which takes the texture HeadDatabase already holds.
  */
 class Heads(
@@ -38,27 +39,53 @@ class Heads(
     private val now: () -> Long = System::currentTimeMillis,
 ) {
     private sealed interface Cached {
-        data class Found(val profile: PlayerProfile) : Cached
+        class Found(val profile: PlayerProfile) : Cached
 
         /** A name nothing could be found for, kept for [MISSING_FOR_MS] so that a temporary lookup failure is retried. */
-        data class Missing(val since: Long) : Cached
+        class Missing(val since: Long) : Cached
+    }
+
+    /** One in-flight lookup for a key; compared by identity so a stale worker never removes a newer request's waiters. */
+    private class Request(first: () -> Unit) {
+        private val waiters = mutableListOf(first)
+        private var closed = false
+
+        @Synchronized
+        fun add(callback: () -> Unit): Boolean {
+            if (closed) return false
+            waiters.add(callback)
+            return true
+        }
+
+        @Synchronized
+        fun drain(): List<() -> Unit> {
+            closed = true
+            val snapshot = waiters.toList()
+            waiters.clear()
+            return snapshot
+        }
     }
 
     private val profiles = ConcurrentHashMap<String, Cached>()
-    private val pending = ConcurrentHashMap<String, MutableList<() -> Unit>>()
+    private val pending = ConcurrentHashMap<String, Request>()
+    private val generation = AtomicLong(0)
     @Volatile
     private var skinsRestorerWarned = false
 
     /**
-     * Remembers [player]'s current textured profile so that after they log off (including with a Velocity/SkinsRestorer
-     * custom skin or a Bedrock/Floodgate skin), their head renders immediately without an external lookup.
+     * Remembers [player]'s current textured profile so that menus (and offline lookups after they log off, including
+     * Velocity/SkinsRestorer custom skins and Bedrock/Floodgate skins) read a safe cached snapshot without touching the
+     * live player off-scheduler. Must be called on [player]'s owning Folia scheduler.
      */
     fun remember(player: Player) {
         val profile = runCatching { player.playerProfile }.getOrNull() ?: return
         if (!profile.hasTextures()) return
         val entry = Cached.Found(profile)
-        profiles[player.name.lowercase()] = entry
-        profiles[player.uniqueId.toString().lowercase()] = entry
+        val keys = listOf(player.name.lowercase(), player.uniqueId.toString().lowercase())
+        for (key in keys) {
+            profiles[key] = entry
+            pending.remove(key)?.let { notifyWaiters(player.name, it.drain()) }
+        }
     }
 
     /**
@@ -86,34 +113,25 @@ class Heads(
     }
 
     /**
-     * Synchronously resolves the `textures.minecraft.net` skin URL for player [name] (online player, cache, SkinsRestorer,
-     * Paper, or Mojang). Call off the server's region threads (for example from the web editor endpoint).
+     * Synchronously resolves the `textures.minecraft.net` skin URL for player [name] using cached player snapshots first
+     * (never reading a live online [Player.getPlayerProfile] off its Folia region thread), then SkinsRestorer, Paper,
+     * and Mojang. Call off the server's region threads (for example from the web editor endpoint).
      */
     fun skinUrl(name: String): String? {
         val clean = name.trim()
         if (clean.isEmpty()) return null
-        val profile = onlineProfile(clean) ?: run {
-            val key = clean.lowercase()
-            val entry = fresh(profiles[key]) ?: run {
-                val found = runCatching { lookup(clean) }.getOrNull()
-                (if (found != null) Cached.Found(found) else Cached.Missing(now())).also { profiles[key] = it }
-            }
-            (entry as? Cached.Found)?.profile
-        } ?: return null
+        val key = clean.lowercase()
+        val existing = profiles[key]
+        val entry = fresh(existing) ?: run {
+            val startedGen = generation.get()
+            val found = runCatching { lookup(clean) }.getOrNull()
+            val candidate: Cached = if (found != null) Cached.Found(found) else Cached.Missing(now())
+            publish(key, existing, startedGen, candidate)
+        }
+        val profile = (entry as? Cached.Found)?.profile ?: return null
         profile.textures.skin?.toString()?.let { return it }
         val encoded = profile.properties.firstOrNull { it.name == "textures" }?.value ?: return null
         return extractTextureUrl(encoded)
-    }
-
-    private fun onlineProfile(name: String): PlayerProfile? {
-        val player = plugin.server.getPlayerExact(name) ?: parseUuid(name)?.let { plugin.server.getPlayer(it) } ?: return null
-        val profile = player.playerProfile
-        if (profile.hasTextures()) {
-            val entry = Cached.Found(profile)
-            profiles[player.name.lowercase()] = entry
-            profiles[player.uniqueId.toString().lowercase()] = entry
-        }
-        return profile
     }
 
     private fun texture(base64: String): PlayerProfile = (profiles.computeIfAbsent("texture:$base64") {
@@ -124,39 +142,97 @@ class Heads(
 
     internal fun named(name: String, loaded: () -> Unit): PlayerProfile? {
         if (name.isEmpty()) return null
-        onlineProfile(name)?.let { return it }
         val key = name.lowercase()
-        fresh(profiles[key])?.let { return (it as? Cached.Found)?.profile }
-        var started = false
-        pending.compute(key) { _, waiters ->
-            if (waiters == null) {
-                started = true
-                mutableListOf(loaded)
-            } else {
-                waiters.add(loaded)
-                waiters
-            }
+        val existing = profiles[key]
+        fresh(existing)?.let { return (it as? Cached.Found)?.profile }
+
+        val startedGen = generation.get()
+        val request = enqueue(key, loaded) ?: return null
+
+        // If the target is online without a cached snapshot yet (e.g. just after reload), read their profile on their
+        // own Folia region scheduler without blocking; fall through to async lookup if missing textures or retired.
+        val online = plugin.server.getPlayerExact(name) ?: parseUuid(name)?.let { plugin.server.getPlayer(it) }
+        if (online != null) {
+            val scheduled = runCatching {
+                online.scheduler.run(plugin, {
+                    val live = runCatching { online.playerProfile }.getOrNull()
+                    if (live != null && live.hasTextures()) {
+                        remember(online)
+                        finish(key, name, request, existing, startedGen, Cached.Found(live))
+                    } else {
+                        startAsyncLookup(key, name, request, existing, startedGen)
+                    }
+                }, {
+                    startAsyncLookup(key, name, request, existing, startedGen)
+                })
+            }.getOrNull()
+            if (scheduled != null) return null
         }
-        if (started) plugin.server.asyncScheduler.runNow(plugin) {
-            val waiters = try {
+
+        startAsyncLookup(key, name, request, existing, startedGen)
+        return null
+    }
+
+    /** Joins an existing in-flight [Request] for [key] (returning null) or registers and returns a new one to execute. */
+    private fun enqueue(key: String, loaded: () -> Unit): Request? {
+        while (true) {
+            val current = pending[key]
+            if (current != null) {
+                if (current.add(loaded)) return null
+                continue
+            }
+            val created = Request(loaded)
+            if (pending.putIfAbsent(key, created) == null) return created
+        }
+    }
+
+    private fun startAsyncLookup(key: String, name: String, request: Request, startedEntry: Cached?, startedGen: Long) {
+        plugin.server.asyncScheduler.runNow(plugin) {
+            val result: Cached = try {
                 val found = runCatching { lookup(name) }
                     .onFailure { plugin.logger.warning("Looking up the skin of $name failed: ${it.message}") }
                     .getOrNull()
                 if (found == null) {
                     plugin.logger.info("No skin found for '$name'; retrying in ${MISSING_FOR_MS / 60_000} minutes.")
                 }
-                profiles[key] = if (found != null) Cached.Found(found) else Cached.Missing(now())
-                pending.remove(key).orEmpty()
+                if (found != null) Cached.Found(found) else Cached.Missing(now())
             } catch (e: Throwable) {
-                val remaining = pending.remove(key).orEmpty()
                 plugin.logger.warning("Unexpected error looking up skin of $name: ${e.message}")
-                remaining
+                Cached.Missing(now())
             }
-            for (callback in waiters) {
-                runCatching(callback).onFailure { plugin.logger.warning("Redrawing a menu after loading the skin of $name failed: ${it.message}") }
+            finish(key, name, request, startedEntry, startedGen, result)
+        }
+    }
+
+    /** Publishes [result] only if no newer snapshot or [clear] superseded [startedEntry], and wakes only [request]'s waiters. */
+    private fun finish(key: String, name: String, request: Request, startedEntry: Cached?, startedGen: Long, result: Cached) {
+        if (generation.get() == startedGen) {
+            publish(key, startedEntry, startedGen, result)
+        }
+        if (pending.remove(key, request)) {
+            notifyWaiters(name, request.drain())
+        }
+    }
+
+    /** Stores [candidate] at [key] only if [generation] still matches [startedGen] and [profiles]`[key]` is still [startedEntry]. */
+    private fun publish(key: String, startedEntry: Cached?, startedGen: Long, candidate: Cached): Cached {
+        var result: Cached = candidate
+        profiles.compute(key) { _, current ->
+            if (generation.get() != startedGen || current !== startedEntry) {
+                result = current ?: candidate
+                current
+            } else {
+                result = candidate
+                candidate
             }
         }
-        return null
+        return result
+    }
+
+    private fun notifyWaiters(name: String, waiters: List<() -> Unit>) {
+        for (callback in waiters) {
+            runCatching(callback).onFailure { plugin.logger.warning("Redrawing a menu after loading the skin of $name failed: ${it.message}") }
+        }
     }
 
     private fun lookup(name: String): PlayerProfile? {
@@ -220,6 +296,7 @@ class Heads(
         if (entry is Cached.Missing && now() - entry.since >= MISSING_FOR_MS) null else entry
 
     fun clear() {
+        generation.incrementAndGet()
         profiles.clear()
         pending.clear()
     }
