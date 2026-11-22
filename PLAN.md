@@ -13,7 +13,7 @@ Goal: meet, and where cheap to, exceed AbstractMenus in capability while keeping
 
 ### Web editor & relay
 
-- **Hosted `/relay/` deployment**: route `https://menu.xali.to/relay/*` to a running `menu/relay/relay.js` instance behind HTTPS (Cloudflare / Caddy / nginx) so short 12-character links (`https://menu.xali.to/#<code>`) work out of the box on the public site.
+- **Hosted `/relay/` deployment**: deploy `menu/relay/worker.js` (`npx wrangler deploy` or add `CLOUDFLARE_API_TOKEN` + `CLOUDFLARE_ACCOUNT_ID` secrets for `.github/workflows/relay.yml`) so `https://menu.xali.to/relay/*` is live.
 - **Real-time collaborative editing**: live presence and synced edits when multiple editors open the same shared session (currently each viewer works on their own copy until saving).
 - **Visual polish**:
   - Animated enchantment glint (currently a single static frame).

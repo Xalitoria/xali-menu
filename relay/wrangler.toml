@@ -1,0 +1,26 @@
+# Cloudflare Worker + Durable Object configuration for https://menu.xali.to/relay/
+# Deploy once (or via .github/workflows/relay.yml):
+#   cd menu/relay && npx wrangler deploy
+# Optional secret (restricts who may open sessions; match editor.relay.token in config.yml):
+#   npx wrangler secret put XM_RELAY_TOKEN
+
+name = "xalimenu-relay"
+main = "worker.js"
+compatibility_date = "2026-01-01"
+
+routes = [
+  { pattern = "menu.xali.to/relay/*", zone_name = "xali.to" }
+]
+
+[durable_objects]
+bindings = [
+  { name = "SESSIONS", class_name = "RelaySession" }
+]
+
+# SQLite-backed migration works on both Cloudflare Workers Free and Paid plans; RelaySession stores nothing on disk.
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["RelaySession"]
+
+[vars]
+XM_RELAY_ORIGINS = "https://menu.xali.to"

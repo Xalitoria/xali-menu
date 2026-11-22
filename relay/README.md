@@ -6,7 +6,36 @@ The relay moves encrypted messages. Both the plugin and the browser derive a 22-
 
 Both `/s/...` and `/relay/s/...` paths (plus `/health` and `/relay/health`) are accepted out of the box, so reverse-proxying `https://menu.xali.to/relay/` to `relay.js` works with or without stripping the `/relay` prefix.
 
-## Installation
+## Deployment
+
+### Cloudflare Workers (recommended, serverless)
+
+`worker.js` + `wrangler.toml` deploy the relay as a Cloudflare Worker with in-memory SQLite-backed Durable Objects (works on Cloudflare's Free plan) mounted at `https://menu.xali.to/relay/*`, while `https://menu.xali.to/*` continues serving static files from GitHub Pages.
+
+1. In Cloudflare DNS for `xali.to`, make sure the `menu` CNAME (`xalitoria.github.io`) is **Proxied** (orange cloud) with SSL/TLS mode **Full**.
+2. Deploy once from `menu/relay`:
+
+```console
+user $ cd menu/relay
+user $ npx wrangler login
+user $ npx wrangler deploy
+```
+
+3. Optional: restrict who may open sessions by setting a token secret (put the same value in `config.yml` under `editor.relay.token`):
+
+```console
+user $ npx wrangler secret put XM_RELAY_TOKEN
+```
+
+4. Optional auto-deploy from GitHub Actions: add `CLOUDFLARE_API_TOKEN` (Workers Scripts: Edit, Workers Routes: Edit) and `CLOUDFLARE_ACCOUNT_ID` to the repository's Actions secrets; `.github/workflows/relay.yml` will test and deploy updates on every push to `main`.
+
+Verify with:
+
+```console
+user $ curl -i https://menu.xali.to/relay/health
+```
+
+### Self-hosted Node.js
 
 Node.js 20 or later, no dependencies and nothing to build. Copy `relay.js` to the host and run it:
 
