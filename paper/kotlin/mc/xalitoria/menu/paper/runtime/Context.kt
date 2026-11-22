@@ -68,7 +68,7 @@ class Context(
 
     /** The result of a text that cannot change (no placeholder, no argument) is kept. */
     override fun component(text: String): Component =
-        if (NexoTags.has(text)) NexoTags.expand(text, player).let { if ('%' in it || values.isNotEmpty() && '{' in it) parse(it, UnaryOperator<String> { v -> v.verbatim() }) else it }.toComponent()
+        if (NexoTags.has(text)) NexoTags.expand(text).let { if ('%' in it || values.isNotEmpty() && '{' in it) parse(it, UnaryOperator<String> { v -> v.verbatim() }) else it }.toComponent()
         else if ('%' in text || values.isNotEmpty() && '{' in text) parse(text, UnaryOperator<String> { it.verbatim() }).toComponent()
         else STATIC.computeIfAbsent(text) { it.toComponent() }
 
