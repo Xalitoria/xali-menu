@@ -5,7 +5,9 @@ import mc.xalitoria.menu.paper.XaliMenu
 import mc.xalitoria.menu.paper.bedrock.BedrockPlanner
 import mc.xalitoria.menu.paper.bedrock.ClientProfile
 import mc.xalitoria.menu.paper.util.bedrockText
+import mc.xalitoria.menu.paper.util.hasFont
 import mc.xalitoria.menu.paper.util.legacy
+import net.kyori.adventure.text.Component
 import net.xalitoria.menu.model.Animation
 import net.xalitoria.menu.model.Item
 import net.xalitoria.menu.model.Menu
@@ -72,6 +74,14 @@ class MenuView(
     /** The title the player's client has; null until [title] is asked for. */
     private var shownTitle: String? = null
 
+    /**
+     * The title as a component when it holds a font (a resource pack's glyph is drawn with one), null otherwise. Legacy text
+     * cannot carry a font, so such a title is given to the inventory as the component, and Paper has no way to change it
+     * afterwards: it stays as it was opened.
+     */
+    var fontTitle: Component? = null
+        private set
+
     /** When the player last clicked, in nanoseconds of [System.nanoTime]. */
     var lastClick = 0L
 
@@ -92,6 +102,7 @@ class MenuView(
      */
     fun title(): String {
         menu.pages?.let { layout(it) }
+        if (!profile.isBedrock) fontTitle = ctx.component(titleTemplate).takeIf { it.hasFont() }
         return renderTitle().also { shownTitle = it }
     }
 
@@ -240,6 +251,7 @@ class MenuView(
      */
     @Suppress("DEPRECATION")
     private fun retitle() {
+        if (fontTitle != null) return
         val wanted = renderTitle()
         if (wanted == shownTitle) return
         val open = player.openInventory

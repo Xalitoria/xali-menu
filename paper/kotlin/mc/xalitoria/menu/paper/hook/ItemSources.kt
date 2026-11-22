@@ -56,6 +56,9 @@ class HeadDatabaseSource : ItemSource {
     override val prefix = "hdb"
     private val api = HeadDatabaseAPI()
     override fun item(id: String): ItemStack? = api.getItemHead(id)
+
+    /** The texture HeadDatabase holds for [id], for a `head:`/`skull` that names `hdb:<id>`; null when it has none. */
+    fun texture(id: String): String? = runCatching { if (api.isHead(id)) api.getBase64(id) else null }.getOrNull()
 }
 
 /** The address Nexo sends its resource pack from (an S3 or LobFile address, a Polymath or self-hosted one), as the players get it. */

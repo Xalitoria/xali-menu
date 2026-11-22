@@ -133,4 +133,59 @@ class ItemProperties {
         assertEquals(false, DynamicBoolean("off").resolve(fill))
         assertNull(DynamicBoolean("%level%").resolve(fill))
     }
+
+    @Test
+    fun headsCachesMissingOfflineSkinsWithoutThrowingNpe() {
+        var lookups = 0
+        var redrawn = 0
+        val scheduler = java.lang.reflect.Proxy.newProxyInstance(
+            io.papermc.paper.threadedregions.scheduler.AsyncScheduler::class.java.classLoader,
+            arrayOf(io.papermc.paper.threadedregions.scheduler.AsyncScheduler::class.java),
+        ) { _, method, args ->
+            if (method.name == "runNow") {
+                @Suppress("UNCHECKED_CAST")
+                (args[1] as java.util.function.Consumer<Any?>).accept(null)
+            }
+            null
+        } as io.papermc.paper.threadedregions.scheduler.AsyncScheduler
+        val emptyProfile = java.lang.reflect.Proxy.newProxyInstance(
+            com.destroystokyo.paper.profile.PlayerProfile::class.java.classLoader,
+            arrayOf(com.destroystokyo.paper.profile.PlayerProfile::class.java),
+        ) { _, method, _ -> if (method.name == "complete") false else null } as com.destroystokyo.paper.profile.PlayerProfile
+        val server = java.lang.reflect.Proxy.newProxyInstance(
+            org.bukkit.Server::class.java.classLoader,
+            arrayOf(org.bukkit.Server::class.java),
+        ) { _, method, _ ->
+            when (method.name) {
+                "getPlayerExact" -> null
+                "getAsyncScheduler" -> scheduler
+                "createProfile" -> {
+                    lookups++
+                    if (lookups == 1) emptyProfile else throw RuntimeException("mojang down")
+                }
+                else -> null
+            }
+        } as org.bukkit.Server
+        val plugin = java.lang.reflect.Proxy.newProxyInstance(
+            org.bukkit.plugin.Plugin::class.java.classLoader,
+            arrayOf(org.bukkit.plugin.Plugin::class.java),
+        ) { _, method, _ ->
+            when (method.name) {
+                "getServer" -> server
+                "getLogger" -> java.util.logging.Logger.getAnonymousLogger()
+                else -> null
+            }
+        } as org.bukkit.plugin.Plugin
+
+        val heads = mc.xalitoria.menu.paper.hook.Heads(plugin, skinsRestorer = false)
+        assertNull(heads.skinUrl("NoSuchPlayer"))
+        assertNull(heads.skinUrl("NoSuchPlayer"), "cached missing entry does not re-query")
+        assertEquals(1, lookups)
+
+        // Trigger the throwing branch via async lookup too (no NPE in ConcurrentHashMap).
+        assertNull(heads.named("BrokenLookup") { redrawn++ })
+        assertNull(heads.named("BrokenLookup") { redrawn++ })
+        assertEquals(2, lookups)
+        assertEquals(1, redrawn)
+    }
 }

@@ -1,5 +1,6 @@
 package mc.xalitoria.menu.paper.util
 
+import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer
 import net.xalitoria.menu.MenuContext
 
@@ -19,7 +20,7 @@ fun stripPrivateUse(text: String): String = buildString(text.length) {
 /**
  * [text] for the title of an open menu: the component the chat makes of it (`&` codes, hex, CMI gradients and MiniMessage,
  * with the colors of the menu's arguments taken out) as legacy text, which is all Paper can change on an open menu
- * (`InventoryView.setTitle`). Fonts and events are lost, which a title does not use.
+ * (`InventoryView.setTitle`). Titles that use a font open as a component instead (see [hasFont]).
  */
 fun MenuContext.legacy(text: String): String = LEGACY.serialize(component(text))
 
@@ -31,3 +32,6 @@ fun MenuContext.bedrockText(text: String, stripPrivateUse: Boolean = true): Stri
     val serialized = BEDROCK.serialize(component(text))
     return if (stripPrivateUse) stripPrivateUse(serialized) else serialized
 }
+
+/** Whether this or any part of it is written in a font, which legacy text cannot say. */
+fun Component.hasFont(): Boolean = font() != null || children().any { it.hasFont() }

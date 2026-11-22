@@ -31,8 +31,8 @@ sources through an [addon API](#extending).
 | VaultUnlocked (or Vault) | No | Money conditions and actions (several currencies), permission actions. |
 | ItemsAdder | No | The `itemsadder:<id>` item source. Runs on **Paper only**, see [Troubleshooting](#troubleshooting). |
 | Nexo | No | The `nexo:<id>` item source. |
-| SkinsRestorer | No | Skins for `head:<player>`; the `skin` and `skin-reset` actions. |
-| HeadDatabase | No | The `hdb:<id>` item source. |
+| SkinsRestorer | No | Skins for `head:<player>` (the skin the player chose, then one stored under the name); the `skin` and `skin-reset` actions. |
+| HeadDatabase | No | The `hdb:<id>` item source, and `head:hdb:<id>` or `skull = "hdb:<id>"`, which use the texture it already holds. |
 | FancyNpcs | No | The `npc` activator. Citizens is not supported. |
 | WorldGuard | No | The `region-enter` and `region-leave` activators and the `region` condition. |
 | PacketEvents or ProtocolLib | No | Drawing in the player's inventory (`inventory`); PacketEvents is used if both are installed. |
@@ -367,8 +367,10 @@ items {
 
 The title may hold placeholders and the page values. When its text changes, because the page turned or a placeholder
 changed on a refresh, the open menu gets the new title (Paper sends the window again, so the client puts the mouse back
-in the middle; this is done only when the text differs). Titles are colored like all text and handed over as legacy
-text, which is all Paper can change on an open menu, so a font or a click event in a title is lost.
+in the middle; this is done only when the text differs). Titles without a font are handed over as legacy text so they
+can change while the menu is open; a title that names a font (such as `<white><font:nexo:default>...</font></white>` for
+a resource-pack background) opens as an Adventure component on Java and stays as it opened, while Bedrock uses
+`bedrock.title`.
 
 | Catalog | Elements | Values |
 |---|---|---|

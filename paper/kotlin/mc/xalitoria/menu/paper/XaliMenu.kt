@@ -150,8 +150,8 @@ class XaliMenu : JavaPlugin() {
         // Each is only made when its plugin is here, since making one loads that plugin's classes.
         if (pm.isPluginEnabled("ItemsAdder")) registry.addSource(null, ItemsAdderSource())
         if (pm.isPluginEnabled("Nexo")) registry.addSource(null, NexoSource())
-        if (pm.isPluginEnabled("HeadDatabase")) registry.addSource(null, HeadDatabaseSource())
-        heads = Heads(this, pm.isPluginEnabled("SkinsRestorer"))
+        val hdb = if (pm.isPluginEnabled("HeadDatabase")) HeadDatabaseSource().also { registry.addSource(null, it) } else null
+        heads = Heads(this, pm.isPluginEnabled("SkinsRestorer"), { hdb?.texture(it) })
         if (pm.isPluginEnabled("SkinsRestorer")) skins = Skins(this)
         if (pm.isPluginEnabled("WorldGuard")) regions = Regions()
         items = ItemFactory(this)
