@@ -238,6 +238,8 @@ class XaliMenu : JavaPlugin() {
         config.save()
         loadMessages()
         applyDebug()
+        heads.clear()
+        server.onlinePlayers.forEach(heads::remember)
         startEditor()
         val before = OpenCommands.registered
         logger pass messageConfig.data.commands.menu.loaded(menus.load())

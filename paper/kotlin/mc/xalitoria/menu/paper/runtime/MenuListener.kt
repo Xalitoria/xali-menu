@@ -13,6 +13,7 @@ import org.bukkit.event.inventory.InventoryClickEvent
 import org.bukkit.event.inventory.InventoryCloseEvent
 import org.bukkit.event.inventory.InventoryDragEvent
 import org.bukkit.event.player.PlayerCommandPreprocessEvent
+import org.bukkit.event.player.PlayerJoinEvent
 import org.bukkit.event.player.PlayerQuitEvent
 
 class MenuListener(private val plugin: XaliMenu) : Listener {
@@ -115,7 +116,13 @@ class MenuListener(private val plugin: XaliMenu) : Listener {
     }
 
     @EventHandler
+    fun onJoin(event: PlayerJoinEvent) {
+        plugin.heads.remember(event.player)
+    }
+
+    @EventHandler
     fun onQuit(event: PlayerQuitEvent) {
+        plugin.heads.remember(event.player)
         plugin.menus.left(event.player)
     }
 

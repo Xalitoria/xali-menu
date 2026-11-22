@@ -138,6 +138,7 @@ class ItemProperties {
     fun headsCachesMissingOfflineSkinsWithoutThrowingNpe() {
         var lookups = 0
         var redrawn = 0
+        var clock = 1_000L
         val scheduler = java.lang.reflect.Proxy.newProxyInstance(
             io.papermc.paper.threadedregions.scheduler.AsyncScheduler::class.java.classLoader,
             arrayOf(io.papermc.paper.threadedregions.scheduler.AsyncScheduler::class.java),
@@ -151,7 +152,13 @@ class ItemProperties {
         val emptyProfile = java.lang.reflect.Proxy.newProxyInstance(
             com.destroystokyo.paper.profile.PlayerProfile::class.java.classLoader,
             arrayOf(com.destroystokyo.paper.profile.PlayerProfile::class.java),
-        ) { _, method, _ -> if (method.name == "complete") false else null } as com.destroystokyo.paper.profile.PlayerProfile
+        ) { _, method, _ ->
+            when (method.name) {
+                "complete" -> false
+                "hasTextures" -> false
+                else -> null
+            }
+        } as com.destroystokyo.paper.profile.PlayerProfile
         val server = java.lang.reflect.Proxy.newProxyInstance(
             org.bukkit.Server::class.java.classLoader,
             arrayOf(org.bukkit.Server::class.java),
@@ -177,7 +184,7 @@ class ItemProperties {
             }
         } as org.bukkit.plugin.Plugin
 
-        val heads = mc.xalitoria.menu.paper.hook.Heads(plugin, skinsRestorer = false)
+        val heads = mc.xalitoria.menu.paper.hook.Heads(plugin, skinsRestorer = false, fetchUrl = { null }, now = { clock })
         assertNull(heads.skinUrl("NoSuchPlayer"))
         assertNull(heads.skinUrl("NoSuchPlayer"), "cached missing entry does not re-query")
         assertEquals(1, lookups)
@@ -187,5 +194,94 @@ class ItemProperties {
         assertNull(heads.named("BrokenLookup") { redrawn++ })
         assertEquals(2, lookups)
         assertEquals(1, redrawn)
+
+        // Missing entries expire after MISSING_FOR_MS so temporary lookup failures recover automatically.
+        clock += mc.xalitoria.menu.paper.hook.Heads.MISSING_FOR_MS
+        assertNull(heads.skinUrl("NoSuchPlayer"))
+        assertEquals(3, lookups)
+    }
+
+    @Test
+    fun headsFallsBackToMojangWhenPaperReturnsTexturelessProfileAndNotifiesAllConcurrentWaiters() {
+        val queued = mutableListOf<() -> Unit>()
+        val properties = mutableListOf<com.destroystokyo.paper.profile.ProfileProperty>()
+        val scheduler = java.lang.reflect.Proxy.newProxyInstance(
+            io.papermc.paper.threadedregions.scheduler.AsyncScheduler::class.java.classLoader,
+            arrayOf(io.papermc.paper.threadedregions.scheduler.AsyncScheduler::class.java),
+        ) { _, method, args ->
+            if (method.name == "runNow") {
+                @Suppress("UNCHECKED_CAST")
+                val consumer = args[1] as java.util.function.Consumer<Any?>
+                queued += { consumer.accept(null) }
+            }
+            null
+        } as io.papermc.paper.threadedregions.scheduler.AsyncScheduler
+
+        fun fakeProfile(hasTex: Boolean, collectProps: Boolean = false) = java.lang.reflect.Proxy.newProxyInstance(
+            com.destroystokyo.paper.profile.PlayerProfile::class.java.classLoader,
+            arrayOf(com.destroystokyo.paper.profile.PlayerProfile::class.java),
+        ) { _, method, args ->
+            when (method.name) {
+                "complete" -> true // Paper returned true, but without textures!
+                "hasTextures" -> hasTex || properties.isNotEmpty()
+                "setProperty" -> {
+                    if (collectProps) properties += args[0] as com.destroystokyo.paper.profile.ProfileProperty
+                    null
+                }
+                "getProperties" -> properties.toSet()
+                else -> null
+            }
+        } as com.destroystokyo.paper.profile.PlayerProfile
+
+        val server = java.lang.reflect.Proxy.newProxyInstance(
+            org.bukkit.Server::class.java.classLoader,
+            arrayOf(org.bukkit.Server::class.java),
+        ) { _, method, args ->
+            when (method.name) {
+                "getPlayerExact", "getPlayer", "getOfflinePlayerIfCached" -> null
+                "getAsyncScheduler" -> scheduler
+                "createProfile" -> if (args.size == 1) fakeProfile(hasTex = false) else fakeProfile(hasTex = true, collectProps = true)
+                else -> null
+            }
+        } as org.bukkit.Server
+        val plugin = java.lang.reflect.Proxy.newProxyInstance(
+            org.bukkit.plugin.Plugin::class.java.classLoader,
+            arrayOf(org.bukkit.plugin.Plugin::class.java),
+        ) { _, method, _ ->
+            when (method.name) {
+                "getServer" -> server
+                "getLogger" -> java.util.logging.Logger.getAnonymousLogger()
+                else -> null
+            }
+        } as org.bukkit.plugin.Plugin
+
+        val texturePayload = mc.xalitoria.menu.paper.hook.Heads.encodeUrl("https://textures.minecraft.net/texture/5d889b727be593e570df5d5f3deb6bdf957b14816758d6a63d06b2ca7d100126")
+        val heads = mc.xalitoria.menu.paper.hook.Heads(
+            plugin,
+            skinsRestorer = true, // SkinsRestorerProvider.get() will fail in unit test, verifying graceful fallback
+            fetchUrl = { url ->
+                when {
+                    url.endsWith("/audizign") -> """{"name":"audizign","id":"39b5a89899e24a9892b9ffcb625a59e7"}"""
+                    url.contains("/39b5a89899e24a9892b9ffcb625a59e7") ->
+                        """{"id":"39b5a89899e24a9892b9ffcb625a59e7","name":"audizign","properties":[{"signature":"SIG","value":"$texturePayload","name":"textures"}]}"""
+                    else -> null
+                }
+            },
+        )
+
+        var firstRedraw = 0
+        var secondRedraw = 0
+        assertNull(heads.named("audizign") { firstRedraw++ })
+        assertNull(heads.named("audizign") { secondRedraw++ })
+        assertEquals(1, queued.size, "only one async lookup runs for concurrent callers")
+
+        queued.single().invoke()
+        assertEquals(1, firstRedraw)
+        assertEquals(1, secondRedraw, "every concurrent menu slot waiting on the same head is redrawn")
+        assertEquals(1, properties.size)
+        assertEquals("textures", properties.single().name)
+        assertEquals(texturePayload, properties.single().value)
+        assertEquals("SIG", properties.single().signature)
+        assertEquals(true, heads.named("audizign") {} != null, "subsequent calls hit the cache immediately")
     }
 }
