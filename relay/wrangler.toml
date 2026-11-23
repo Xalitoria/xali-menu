@@ -1,7 +1,7 @@
-# Cloudflare Worker + Durable Object configuration for https://menu.xali.to/relay/
+# Cloudflare Worker + Hibernatable Durable Object configuration for https://menu.xali.to/relay/
 # Deploy once (or via .github/workflows/relay.yml):
 #   cd menu/relay && npx wrangler deploy
-# Optional secret (restricts who may open sessions; match editor.relay.token in config.yml):
+# Optional secret (leave unset for a public relay; set to restrict who may open sessions):
 #   npx wrangler secret put XM_RELAY_TOKEN
 
 name = "xalimenu-relay"
@@ -24,3 +24,5 @@ new_sqlite_classes = ["RelaySession"]
 
 [vars]
 XM_RELAY_ORIGINS = "https://menu.xali.to"
+XM_RELAY_MAX_TTL = "7200"
+XM_RELAY_IDLE = "900"

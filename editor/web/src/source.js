@@ -104,8 +104,9 @@ export class Server {
   /**
    * The pack to read for the editor: a Blob, or a file read by parts when the server cannot send it at once. Null if there is none.
    * @param {number|null} size the size of the pack, from `info`
+   * @param {string|null} [hash] SHA-256 hash of the pack, for persistent browser chunk caching
    */
-  async packFile(size) { return this.pack() }
+  async packFile(size, hash = null) { return this.pack() }
 
   /** What the plugins that own custom items (`nexo:ruby`) say they are: material, item model and custom model data. */
   async resolve(materials) {

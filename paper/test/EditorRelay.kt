@@ -63,6 +63,10 @@ class EditorRelayTest {
             "https://menu.xali.to/#Ab9-_xK2pQ7m&relay=https%3A%2F%2Frelay.example.com",
             EditorRelay.shortLink("https://menu.xali.to", "https://relay.example.com/", "Ab9-_xK2pQ7m"),
         )
+        assertEquals("wss://menu.xali.to/relay/s/abc/ws", EditorRelay.wsUri("https://menu.xali.to/relay/", "abc").toString())
+        assertEquals("ws://127.0.0.1:8787/relay/s/abc/ws", EditorRelay.wsUri("http://127.0.0.1:8787/relay", "abc").toString())
+        assertEquals(true, mc.xalitoria.menu.paper.editor.Wire.read<mc.xalitoria.menu.paper.editor.RelaySession>("""{"id":"a","secret":"b","ws":true}""")?.ws)
+        assertEquals(false, mc.xalitoria.menu.paper.editor.Wire.read<mc.xalitoria.menu.paper.editor.RelaySession>("""{"id":"a","secret":"b"}""")?.ws)
     }
 
     @Test

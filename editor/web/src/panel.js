@@ -78,7 +78,7 @@ export class PackPanel {
       }
     }
     try {
-      const file = await server.packFile(info.packSize ?? null)
+      const file = await server.packFile(info.packSize ?? null, info.packHash ?? null)
       if (file) await this.setPack(file, 'the server pack')
       else if (this.hostNote) { this.message = this.hostNote; this.app.draw() }
     } catch { /* the server has no pack */ }

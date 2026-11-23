@@ -79,11 +79,38 @@ internal class ResourcePacks(private val plugin: XaliMenu) {
         if (weight == 0L) 0x385DC6 else ((red / weight).toInt() shl 16) or ((green / weight).toInt() shl 8) or (blue / weight).toInt()
     }
 
+    @Volatile
+    private var cachedHash: Triple<Path, Long, String>? = null
+
     /** The pack file: the configured one, otherwise the first of the supported plugins that has one. */
     fun pack(): Path? {
         val configured = plugin.config.data.editor.pack
         if (configured.isNotBlank()) return Path.of(configured).takeIf { it.exists() }
         return candidates().firstOrNull { it.exists() }
+    }
+
+    /**
+     * SHA-256 hex digest of the local [pack] file (cached by path + mtime + size) so the browser can reuse cached
+     * resource-pack chunks across `/xmenu edit` sessions without re-downloading unchanged packs through the relay.
+     */
+    fun packHash(): String? {
+        val file = pack() ?: return null
+        val stamp = runCatching { Files.getLastModifiedTime(file).toMillis() xor Files.size(file) }.getOrNull() ?: return null
+        cachedHash?.let { if (it.first == file && it.second == stamp) return it.third }
+        val digest = runCatching {
+            val md = java.security.MessageDigest.getInstance("SHA-256")
+            Files.newInputStream(file).use { input ->
+                val buf = ByteArray(64 * 1024)
+                while (true) {
+                    val read = input.read(buf)
+                    if (read <= 0) break
+                    md.update(buf, 0, read)
+                }
+            }
+            md.digest().joinToString("") { "%02x".format(it) }
+        }.getOrNull() ?: return null
+        cachedHash = Triple(file, stamp, digest)
+        return digest
     }
 
     /**

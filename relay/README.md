@@ -8,9 +8,12 @@ Both `/s/...` and `/relay/s/...` paths (plus `/health` and `/relay/health`) are 
 
 ## Deployment
 
-### Cloudflare Workers (recommended, serverless)
+### Cloudflare Workers (recommended, public-scale serverless)
 
-`worker.js` + `wrangler.toml` deploy the relay as a Cloudflare Worker with in-memory SQLite-backed Durable Objects (works on Cloudflare's Free plan) mounted at `https://menu.xali.to/relay/*`, while `https://menu.xali.to/*` continues serving static files from GitHub Pages.
+`worker.js` + `wrangler.toml` deploy the relay as a Cloudflare Worker with **Hibernatable Durable Objects** (works on Cloudflare's Free and Paid plans) mounted at `https://menu.xali.to/relay/*`, while `https://menu.xali.to/*` continues serving static files from GitHub Pages.
+
+- **Public-scale cost & efficiency:** the plugin connects over a Hibernatable WebSocket (`wss://menu.xali.to/relay/s/<id>/ws`), so idle editing sessions bill **0 Durable Object GB-seconds** while Cloudflare holds the socket open at the edge. Heartbeat `"ping"` frames are answered with `"pong"` by Cloudflare's auto-response without waking the object. Small encrypted replies travel over the WebSocket; large pack chunks (> 512 KB, up to 8 MB) post over HTTP and are cached in the browser's IndexedDB by `packHash`.
+- **Zero storage:** session metadata lives only on the in-memory WebSocket attachment and vanishes when the session ends.
 
 1. In Cloudflare DNS for `xali.to`, make sure the `menu` CNAME (`xalitoria.github.io`) is **Proxied** (orange cloud) with SSL/TLS mode **Full**.
 2. Deploy once from `menu/relay`:
@@ -21,18 +24,22 @@ user $ npx wrangler login
 user $ npx wrangler deploy
 ```
 
-3. Optional: restrict who may open sessions by setting a token secret (put the same value in `config.yml` under `editor.relay.token`):
+3. Recommended for an open public relay — add two **Cloudflare WAF Rate Limiting** rules on `xali.to` (included on the Free plan):
+   - `POST https://menu.xali.to/relay/s` — limit to **10 requests / minute per IP** (prevents session-creation floods).
+   - `POST https://menu.xali.to/relay/s/*/call` — limit to **120 requests / minute per IP**.
+4. Optional: for a private relay, restrict who may open sessions with a bearer token (put the same value in `config.yml` under `editor.relay.token`):
 
 ```console
 user $ npx wrangler secret put XM_RELAY_TOKEN
 ```
 
-4. Optional auto-deploy from GitHub Actions: add `CLOUDFLARE_API_TOKEN` (Workers Scripts: Edit, Workers Routes: Edit) and `CLOUDFLARE_ACCOUNT_ID` to the repository's Actions secrets; `.github/workflows/relay.yml` will test and deploy updates on every push to `main`.
+5. Optional auto-deploy from GitHub Actions: add `CLOUDFLARE_API_TOKEN` (Workers Scripts: Edit, Workers Routes: Edit) and `CLOUDFLARE_ACCOUNT_ID` to the repository's Actions secrets; `.github/workflows/relay.yml` will test and deploy updates on every push to `main`.
 
 Verify with:
 
 ```console
 user $ curl -i https://menu.xali.to/relay/health
+# -> {"ok":true,"ws":true}
 ```
 
 ### Self-hosted Node.js

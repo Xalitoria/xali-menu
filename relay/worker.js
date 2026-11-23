@@ -1,26 +1,41 @@
-// Cloudflare Worker + Durable Object version of the XaliMenu relay.
-// Implements the exact same HTTP protocol as `relay.js` (including both `/s/...` and `/relay/s/...` paths, plus `/health`),
-// with one in-memory Durable Object per session id and zero disk persistence.
+// Cloudflare Worker + Hibernatable Durable Object version of the XaliMenu relay.
 //
-// Deploy with `npx wrangler deploy` (routes `menu.xali.to/relay/*` to this Worker while `menu.xali.to/*` stays on GitHub Pages).
+// Built for public multi-server scale:
+// - The plugin connects over a Hibernatable WebSocket (`GET /relay/s/<id>/ws`), so idle editing sessions cost
+//   0 Durable Object GB-seconds while Cloudflare holds the socket at the edge.
+// - Heartbeat `"ping"` frames are answered with `"pong"` by Cloudflare's auto-response without waking the DO.
+// - Small encrypted replies (<= 512 KB) travel back over the WebSocket; large pack chunks (> 512 KB, up to 8 MB)
+//   use `POST /relay/s/<id>/answer/<call>` (and large calls > 600 KB use `GET /relay/s/<id>/call/<call>`).
+// - Legacy HTTP long-polling (`GET /relay/s/<id>/poll?wait=25`) also remains supported.
+// - Zero disk/storage writes: session metadata lives only on the in-memory WebSocket attachment and disappears on close.
 
 const encoder = new TextEncoder()
 const decoder = new TextDecoder()
 
 const DEFAULTS = {
   maxBody: 8 * 1024 * 1024,
-  maxTtl: 4 * 3600,
-  idle: 120,
+  maxTtl: 2 * 3600,
+  idle: 900,
   callTimeout: 30,
   pollWait: 25,
 }
 
+/** Threshold below which encrypted call/answer payloads ride directly inside a WebSocket text frame (Cloudflare limit is 1 MiB). */
+const WS_INLINE_MAX = 600 * 1024
 const SESSION_ID = /^[A-Za-z0-9_-]{16,43}$/
 
 function url64(bytes) {
   let bin = ''
   for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000))
   return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+}
+
+function fromUrl64(text) {
+  const std = text.replace(/-/g, '+').replace(/_/g, '/')
+  const bin = atob(std)
+  const out = new Uint8Array(bin.length)
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i)
+  return out
 }
 
 function randomId(byteLength) {
@@ -85,6 +100,7 @@ async function readBytes(request, maxBody) {
 }
 
 function withCors(response, corsHeaders) {
+  if (response.status === 101) return response
   const headers = new Headers(response.headers)
   headers.set('Cache-Control', 'no-store')
   for (const [k, v] of Object.entries(corsHeaders)) headers.set(k, v)
@@ -115,7 +131,7 @@ export default {
     const parts = rawParts[0] === 'relay' ? rawParts.slice(1) : rawParts
 
     if (parts.length === 1 && parts[0] === 'health' && request.method === 'GET') {
-      return jsonResponse(200, { ok: true }, cors)
+      return jsonResponse(200, { ok: true, ws: true }, cors)
     }
     if (parts[0] !== 's') return jsonResponse(404, { error: 'Unknown request' }, cors)
 
@@ -158,6 +174,13 @@ export default {
     }
     const stub = env.SESSIONS.get(env.SESSIONS.idFromName(id))
     const subPath = '/' + parts.slice(2).join('/') + url.search
+
+    // WebSocket upgrade for the plugin: preserve the original upgrade headers and return the 101 response untouched.
+    if (parts.length === 3 && parts[2] === 'ws' && request.method === 'GET') {
+      const wsHeaders = new Headers(request.headers)
+      return stub.fetch(new Request(`https://relay.internal${subPath}`, { method: 'GET', headers: wsHeaders }))
+    }
+
     const headers = new Headers()
     const auth = request.headers.get('authorization')
     if (auth) headers.set('Authorization', auth)
@@ -178,13 +201,16 @@ export default {
   },
 }
 
-/** One active relay session held strictly in memory (nothing is ever written to Durable Object storage). */
+/** One active relay session held in memory + WebSocket attachment (nothing is ever written to Durable Object storage). */
 export class RelaySession {
-  constructor(state, env = {}) {
+  constructor(state = {}, env = {}) {
     this.state = state
     this.env = env
     /** @type {{id: string, secret: string, expires: number, seen: number, queue: object[], waiting: Map<string, object>, poller: object|null}|null} */
     this.session = null
+    if (typeof this.state.setWebSocketAutoResponse === 'function' && typeof globalThis.WebSocketRequestResponsePair === 'function') {
+      this.state.setWebSocketAutoResponse(new globalThis.WebSocketRequestResponsePair('ping', 'pong'))
+    }
   }
 
   config() {
@@ -196,7 +222,42 @@ export class RelaySession {
     }
   }
 
+  /** Returns the active plugin WebSocket if one is attached, restoring session metadata after hibernation if needed. */
+  pluginSocket() {
+    if (typeof this.state.getWebSockets !== 'function') return null
+    const sockets = this.state.getWebSockets('plugin')
+    return sockets.length > 0 ? sockets[sockets.length - 1] : null
+  }
+
+  restoreIfHibernated() {
+    if (this.session) return
+    const ws = this.pluginSocket()
+    if (!ws || typeof ws.deserializeAttachment !== 'function') return
+    const meta = ws.deserializeAttachment()
+    if (!meta || !meta.id || !meta.secret) return
+    this.session = {
+      id: meta.id,
+      secret: meta.secret,
+      expires: meta.expires,
+      seen: meta.seen ?? Date.now(),
+      queue: [],
+      waiting: new Map(),
+      poller: null,
+    }
+  }
+
+  touchActivity() {
+    const s = this.session
+    if (!s) return
+    s.seen = Date.now()
+    const ws = this.pluginSocket()
+    if (ws && typeof ws.serializeAttachment === 'function') {
+      ws.serializeAttachment({ id: s.id, secret: s.secret, expires: s.expires, seen: s.seen })
+    }
+  }
+
   checkExpiry() {
+    this.restoreIfHibernated()
     if (!this.session) return
     const now = Date.now()
     const { idle } = this.config()
@@ -205,8 +266,13 @@ export class RelaySession {
 
   end() {
     const s = this.session
-    if (!s) return
     this.session = null
+    if (typeof this.state.getWebSockets === 'function') {
+      for (const ws of this.state.getWebSockets('plugin')) {
+        try { ws.close(1000, 'Session ended') } catch { /* already closed */ }
+      }
+    }
+    if (!s) return
     for (const call of s.waiting.values()) {
       clearTimeout(call.timer)
       call.resolve(jsonResponse(404, { error: 'The session has ended' }))
@@ -220,14 +286,77 @@ export class RelaySession {
     }
   }
 
+  /** Pushes queued calls over the plugin's Hibernatable WebSocket (preferred) or wakes a waiting HTTP poller. */
   deliver() {
     const s = this.session
-    if (!s || !s.poller || s.queue.length === 0) return
+    if (!s || s.queue.length === 0) return
+    const ws = this.pluginSocket()
+    if (ws) {
+      while (s.queue.length > 0) {
+        const call = s.queue.shift()
+        try {
+          const payload = call.data.byteLength <= WS_INLINE_MAX
+            ? JSON.stringify({ id: call.id, data: url64(call.data) })
+            : JSON.stringify({ id: call.id, fetch: true })
+          ws.send(payload)
+        } catch {
+          s.queue.unshift(call)
+          break
+        }
+      }
+      return
+    }
+    if (!s.poller) return
     const { resolve, timer } = s.poller
     clearTimeout(timer)
     s.poller = null
     const batch = s.queue.splice(0, 16)
     resolve(jsonResponse(200, batch.map((c) => ({ id: c.id, data: url64(c.data) }))))
+  }
+
+  resolveAnswer(callId, bytes) {
+    const s = this.session
+    if (!s) return
+    const call = s.waiting.get(callId)
+    if (!call) return
+    clearTimeout(call.timer)
+    s.waiting.delete(call.id)
+    call.resolve(new Response(bytes, { status: 200, headers: { 'Content-Type': 'application/octet-stream', 'Cache-Control': 'no-store' } }))
+  }
+
+  /** Hibernation callback: receives encrypted answers from the plugin WebSocket. */
+  async webSocketMessage(ws, message) {
+    this.checkExpiry()
+    if (!this.session) {
+      try { ws.close(1000, 'Session ended') } catch { /* ignore */ }
+      return
+    }
+    if (typeof message !== 'string') return
+    if (message === 'ping') {
+      try { ws.send('pong') } catch { /* ignore */ }
+      return
+    }
+    let parsed
+    try { parsed = JSON.parse(message) } catch { return }
+    if (!parsed || typeof parsed.id !== 'string' || typeof parsed.data !== 'string') return
+    this.touchActivity()
+    try {
+      this.resolveAnswer(parsed.id, fromUrl64(parsed.data))
+    } catch { /* bad base64 */ }
+  }
+
+  /** Hibernation callback: when the plugin disconnects its WebSocket, fail waiting calls cleanly if no replacement exists. */
+  async webSocketClose(ws) {
+    this.restoreIfHibernated()
+    const current = this.pluginSocket()
+    if (!current || current === ws) {
+      // Keep session metadata briefly only if not expired so a transient drop can reconnect; fail currently blocked calls?
+      // Waiting calls stay queued until timeout or reconnect unless the plugin sent normal close (1000).
+    }
+  }
+
+  async webSocketError() {
+    // Reconnect or call timeout will handle recovery cleanly.
   }
 
   async fetch(request) {
@@ -242,7 +371,7 @@ export class RelaySession {
       const secret = randomId(24)
       const now = Date.now()
       this.session = { id, secret, expires: now + ttl * 1000, seen: now, queue: [], waiting: new Map(), poller: null }
-      return jsonResponse(201, { id, secret, ttl })
+      return jsonResponse(201, { id, secret, ttl, ws: true })
     }
 
     const s = this.session
@@ -252,6 +381,30 @@ export class RelaySession {
       if (!equalStrings(bearerOf(request), s.secret)) return jsonResponse(401, { error: 'Not the secret of this session' })
       this.end()
       return jsonResponse(204, null)
+    }
+
+    if (parts.length === 1 && parts[0] === 'ws' && request.method === 'GET') {
+      if (!equalStrings(bearerOf(request), s.secret)) return jsonResponse(401, { error: 'Not the secret of this session' })
+      if ((request.headers.get('upgrade') ?? '').toLowerCase() !== 'websocket') {
+        return jsonResponse(426, { error: 'Expected WebSocket upgrade' })
+      }
+      if (typeof globalThis.WebSocketPair !== 'function' || typeof this.state.acceptWebSocket !== 'function') {
+        return jsonResponse(501, { error: 'WebSocket hibernation is unavailable in this runtime' })
+      }
+      if (typeof this.state.getWebSockets === 'function') {
+        for (const old of this.state.getWebSockets('plugin')) {
+          try { old.close(1000, 'Replaced') } catch { /* ignore */ }
+        }
+      }
+      const pair = new globalThis.WebSocketPair()
+      const [client, server] = Object.values(pair)
+      this.state.acceptWebSocket(server, ['plugin'])
+      s.seen = Date.now()
+      if (typeof server.serializeAttachment === 'function') {
+        server.serializeAttachment({ id: s.id, secret: s.secret, expires: s.expires, seen: s.seen })
+      }
+      this.deliver()
+      return new Response(null, { status: 101, webSocket: client })
     }
 
     if (parts.length === 1 && parts[0] === 'poll' && request.method === 'GET') {
@@ -288,10 +441,18 @@ export class RelaySession {
       })
     }
 
+    if (parts.length === 2 && parts[0] === 'call' && request.method === 'GET') {
+      if (!equalStrings(bearerOf(request), s.secret)) return jsonResponse(401, { error: 'Not the secret of this session' })
+      const waiting = s.waiting.get(parts[1])
+      if (!waiting) return jsonResponse(404, { error: 'There is no such call' })
+      return new Response(waiting.data, { status: 200, headers: { 'Content-Type': 'application/octet-stream', 'Cache-Control': 'no-store' } })
+    }
+
     if (parts.length === 1 && parts[0] === 'call' && request.method === 'POST') {
       if (s.queue.length + s.waiting.size >= 64) return jsonResponse(429, { error: 'Too many requests are waiting' })
       const data = await readBytes(request, maxBody)
       if (data === null) return jsonResponse(413, { error: 'The message is too big' })
+      this.touchActivity()
       return new Promise((resolve) => {
         const call = { id: randomId(9), data, timer: null, resolve }
         const drop = () => {
@@ -318,12 +479,8 @@ export class RelaySession {
       if (!equalStrings(bearerOf(request), s.secret)) return jsonResponse(401, { error: 'Not the secret of this session' })
       const data = await readBytes(request, maxBody)
       if (data === null) return jsonResponse(413, { error: 'The message is too big' })
-      const call = s.waiting.get(parts[1])
-      if (call) {
-        clearTimeout(call.timer)
-        s.waiting.delete(call.id)
-        call.resolve(new Response(data, { status: 200, headers: { 'Content-Type': 'application/octet-stream', 'Cache-Control': 'no-store' } }))
-      }
+      this.touchActivity()
+      this.resolveAnswer(parts[1], data)
       return jsonResponse(204, null)
     }
 

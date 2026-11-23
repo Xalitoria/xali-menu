@@ -62,7 +62,7 @@ internal object Wire {
 @Serializable internal data class Info(
     val plugin: String, val version: String, val owner: String, val shared: Boolean, val readOnly: Boolean, val menus: List<String>, val pack: Boolean,
     val catalogs: Map<String, CatalogInfo>, val packSize: Long?, val packUrl: String?,
-    val autoReload: Boolean = false, val initialMenu: String? = null, val config: ServerConfigInfo? = null,
+    val autoReload: Boolean = false, val initialMenu: String? = null, val config: ServerConfigInfo? = null, val packHash: String? = null,
 )
 
 @Serializable internal data class MenuReply(val name: String, val menu: JsonElement)
@@ -109,11 +109,14 @@ internal object Wire {
 /** Request to open a session on the relay with a derived opaque [id] and [ttl] in seconds. */
 @Serializable internal data class RelayCreateRequest(val ttl: Int, val id: String? = null)
 
-/** What the relay says when a session is made. */
-@Serializable internal data class RelaySession(val id: String, val secret: String)
+/** What the relay says when a session is made. [ws] is true when the relay accepts Hibernatable WebSockets at `/s/<id>/ws`. */
+@Serializable internal data class RelaySession(val id: String, val secret: String, val ws: Boolean = false)
 
-/** One question the relay holds for the plugin: [data] is sealed, and base64 of a [RelayRequest] once opened. */
-@Serializable internal data class RelayCall(val id: String? = null, val data: String? = null)
+/** One question the relay holds for the plugin: [data] is sealed, and base64url of a [RelayRequest] once opened. [fetch] asks the plugin to pull a large body over HTTP. */
+@Serializable internal data class RelayCall(val id: String? = null, val data: String? = null, val fetch: Boolean = false)
+
+/** One encrypted answer sent back over the plugin's WebSocket. */
+@Serializable internal data class RelayWsAnswer(val id: String, val data: String)
 
 @Serializable internal data class RelayRequest(
     val rid: String? = null, val t: Long? = null, val method: String? = null, val path: String? = null, val from: String? = null, val body: String? = null, val range: String? = null,

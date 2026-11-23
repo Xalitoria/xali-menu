@@ -79,3 +79,23 @@ test('a zip is read through a RangeFile, fetching only the parts it needs', asyn
   const fetched = ranges.reduce((sum, [s, e]) => sum + (e - s), 0)
   assert.ok(fetched < zip.length / 2, `the big entry that was not read stays unread (${fetched} of ${zip.length} bytes)`)
 })
+
+test('RangeFile reuses persisted blocks from cache across sessions with zero network calls', async () => {
+  const store = new Map()
+  const cache = {
+    async get(blockSize, index) { return store.get(`${blockSize}:${index}`) ?? null },
+    async put(blockSize, index, bytes) { store.set(`${blockSize}:${index}`, bytes.slice()) },
+  }
+  let fetches = 0
+  const fetcher = async (start, end) => { fetches++; return data.slice(start, end) }
+
+  const first = new RangeFile(data.length, fetcher, 200, cache)
+  assert.deepEqual(new Uint8Array(await first.slice(50, 250).arrayBuffer()), data.slice(50, 250))
+  assert.equal(fetches, 2)
+  await new Promise((r) => setTimeout(r, 10))
+
+  // Second RangeFile instance (simulating reopening /xmenu edit) reads entirely from the cache.
+  const second = new RangeFile(data.length, fetcher, 200, cache)
+  assert.deepEqual(new Uint8Array(await second.slice(50, 250).arrayBuffer()), data.slice(50, 250))
+  assert.equal(fetches, 2, 'zero network calls on cached blocks')
+})

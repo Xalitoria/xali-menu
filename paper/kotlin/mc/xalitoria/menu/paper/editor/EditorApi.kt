@@ -87,7 +87,7 @@ internal class EditorApi(private val plugin: XaliMenu, val menus: EditorMenus, v
                 plugin = "XaliMenu", version = plugin.pluginMeta.version, owner = who.owner, shared = who.shared, readOnly = who.readOnly,
                 menus = menus.names(), pack = packs.pack() != null || packs.packUrl() != null, catalogs = catalogs(),
                 packSize = packs.pack()?.let { Files.size(it) }, packUrl = packs.packUrl(),
-                autoReload = who.autoReload, initialMenu = who.initialMenu, config = serverConfig(),
+                autoReload = who.autoReload, initialMenu = who.initialMenu, config = serverConfig(), packHash = packs.packHash(),
             ))
             path.size == 2 && path[0] == "menus" && method == "GET" -> {
                 val menu = menus.read(path[1]) ?: return error(404, "There is no menu '${path[1]}'")

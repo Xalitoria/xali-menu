@@ -19,6 +19,9 @@ internal object Http {
     fun <T> send(request: HttpRequest, handler: HttpResponse.BodyHandler<T>, follow: Boolean = false): HttpResponse<T> =
         (if (follow) following else direct).send(request, handler)
 
+    /** A WebSocket builder sharing the client's connection pool and connect timeout. */
+    fun newWebSocket(): java.net.http.WebSocket.Builder = direct.newWebSocketBuilder().connectTimeout(CONNECT)
+
     /**
      * The body of the answer at [address] when it is `200` and not longer than [maxBytes], else null. The body is read only as far as [maxBytes] and one byte more, so an
      * answer that is too big is never held in memory whole.

@@ -7,7 +7,7 @@
 //   message  12 bytes of iv, then the AES-GCM output
 
 import { Server } from './source.js'
-import { RangeFile } from './remote.js'
+import { RangeFile, BlockCache } from './remote.js'
 
 const subtle = globalThis.crypto.subtle
 const encoder = new TextEncoder()
@@ -109,10 +109,11 @@ export class RelayServer extends Server {
     return new Response(body, { status: answer.status, headers: { 'Content-Type': answer.type ?? 'application/json' } })
   }
 
-  /** The pack is read in parts of a few megabytes, as the zip asks for them, since a pack is often too big for one message. */
-  async packFile(size) {
-    if (!size) return super.packFile(size)
-    return new RangeFile(size, async (start, end) => new Uint8Array(await (await this.request('/pack', { headers: { Range: `bytes=${start}-${end - 1}` } })).arrayBuffer()))
+  /** The pack is read in parts of 1 MB as the zip asks for them, cached in IndexedDB by [hash] so unchanged packs transfer zero bytes. */
+  async packFile(size, hash = null) {
+    if (!size) return super.packFile(size, hash)
+    const cache = BlockCache.forHash(hash)
+    return new RangeFile(size, async (start, end) => new Uint8Array(await (await this.request('/pack', { headers: { Range: `bytes=${start}-${end - 1}` } })).arrayBuffer()), 1024 * 1024, cache)
   }
 
   async save(name, menu) {

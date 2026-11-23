@@ -5,17 +5,24 @@ import java.net.URI
 import java.net.URLEncoder
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
+import java.net.http.WebSocket
+import java.net.http.WebSocketHandshakeException
 import java.nio.file.Files
 import java.time.Duration
 import java.util.Base64
+import java.util.concurrent.CompletableFuture
+import java.util.concurrent.CompletionStage
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 import javax.crypto.spec.SecretKeySpec
 import kotlin.math.abs
 
 /**
  * Connects the web editor through a relay (`menu/relay`), for a server that only makes outbound connections. The plugin opens a
- * session at the relay, polls for work, and posts encrypted answers.
+ * session at the relay and receives encrypted requests over a Hibernatable WebSocket (when the relay advertises `ws: true`,
+ * such as the Cloudflare Worker) or HTTP long-polling (for self-hosted `relay.js`).
  *
  * Each session starts from a 12-character base64url code ([RelayCrypto.newCode]) carried only in the URL fragment (`#<code>`). Both
  * ends derive an opaque 22-character session id and a 256-bit AES-GCM key via PBKDF2-HMAC-SHA256 ([RelayCrypto.derive]), so the relay
@@ -38,6 +45,9 @@ internal class EditorRelay(private val plugin: XaliMenu, private val api: Editor
         val initialMenu: String? = null,
     ) {
         @Volatile var running = true
+        @Volatile var ws: WebSocket? = null
+        val wsSendLock = Any()
+        val stopSignal = CountDownLatch(1)
 
         /** The requests answered lately, so that a copy sent again is not run twice. */
         val seen: MutableSet<String> = java.util.Collections.synchronizedSet(LinkedHashSet())
@@ -96,7 +106,11 @@ internal class EditorRelay(private val plugin: XaliMenu, private val api: Editor
                 initialMenu = menu,
             )
             shares[share.id] = share
-            workers.execute { poll(relay, share) }
+            if (created.ws) {
+                workers.execute { runWebSocket(relay, share) }
+            } else {
+                workers.execute { poll(relay, share) }
+            }
             val link = shortLink(settings.site, relay, code)
             return Started.Ok(link, share)
         }
@@ -112,7 +126,12 @@ internal class EditorRelay(private val plugin: XaliMenu, private val api: Editor
 
     private fun end(share: Share, tell: Boolean) {
         share.running = false
+        share.stopSignal.countDown()
         shares.remove(share.id)
+        share.ws?.let { socket ->
+            share.ws = null
+            runCatching { synchronized(share.wsSendLock) { socket.sendClose(WebSocket.NORMAL_CLOSURE, "ended").get(2, TimeUnit.SECONDS) } }
+        }
         if (!tell) return
         val relay = plugin.config.data.editor.relay.url.trim().trimEnd('/')
         runCatching {
@@ -120,7 +139,105 @@ internal class EditorRelay(private val plugin: XaliMenu, private val api: Editor
         }
     }
 
-    // ---- the loop
+    // ---- Hibernatable WebSocket loop (Cloudflare Workers)
+
+    private fun runWebSocket(relay: String, share: Share) {
+        val endpoint = wsUri(relay, share.id)
+        var failures = 0
+        while (share.running && now() < share.expires) {
+            val closed = CountDownLatch(1)
+            val listener = object : WebSocket.Listener {
+                private val buffer = StringBuilder()
+
+                override fun onOpen(webSocket: WebSocket) {
+                    failures = 0
+                    webSocket.request(1)
+                }
+
+                override fun onText(webSocket: WebSocket, data: CharSequence, last: Boolean): CompletionStage<*>? {
+                    buffer.append(data)
+                    if (last) {
+                        val text = buffer.toString()
+                        buffer.setLength(0)
+                        if (text != "pong") {
+                            Wire.read<RelayCall>(text)?.let { call ->
+                                val id = call.id
+                                if (id != null) workers.execute { dispatchWsCall(relay, share, id, call, webSocket) }
+                            }
+                        }
+                    }
+                    webSocket.request(1)
+                    return null
+                }
+
+                override fun onClose(webSocket: WebSocket, statusCode: Int, reason: String?): CompletionStage<*> {
+                    closed.countDown()
+                    return CompletableFuture.completedFuture(null)
+                }
+
+                override fun onError(webSocket: WebSocket, error: Throwable) {
+                    closed.countDown()
+                }
+            }
+
+            val socket = try {
+                Http.newWebSocket()
+                    .header("Authorization", "Bearer ${share.secret}")
+                    .buildAsync(endpoint, listener)
+                    .get(15, TimeUnit.SECONDS)
+            } catch (e: Exception) {
+                val handshake = generateSequence<Throwable>(e) { it.cause }.filterIsInstance<WebSocketHandshakeException>().firstOrNull()
+                val status = handshake?.response?.statusCode()
+                if (status == 404 || status == 401) break
+                if (status == 426 || status == 501) {
+                    poll(relay, share)
+                    return
+                }
+                if (++failures >= 10) {
+                    plugin.logger.warning("The relay session of ${share.owner} ended: WebSocket could not connect (${e.message})")
+                    break
+                }
+                val delayMs = minOf(10_000L, 1_000L shl (failures - 1).coerceAtMost(3))
+                if (share.stopSignal.await(delayMs, TimeUnit.MILLISECONDS)) break
+                continue
+            }
+
+            share.ws = socket
+            // Keep the socket alive across NATs; Cloudflare answers "ping" with "pong" without waking the Durable Object.
+            while (share.running && now() < share.expires) {
+                if (closed.await(WS_PING_SECONDS, TimeUnit.SECONDS)) break
+                if (!share.running || now() >= share.expires) break
+                val pingOk = runCatching {
+                    synchronized(share.wsSendLock) { socket.sendText("ping", true).get(10, TimeUnit.SECONDS) }
+                }.isSuccess
+                if (!pingOk) break
+            }
+            if (share.ws === socket) share.ws = null
+            runCatching { socket.abort() }
+            if (share.running && now() < share.expires) {
+                if (++failures >= 10) break
+                if (share.stopSignal.await(minOf(10_000L, 1_000L * failures), TimeUnit.MILLISECONDS)) break
+            }
+        }
+        if (shares[share.id] === share) end(share, tell = share.running)
+        share.running = false
+    }
+
+    private fun dispatchWsCall(relay: String, share: Share, callId: String, call: RelayCall, ws: WebSocket) {
+        val data = if (call.fetch) {
+            runCatching {
+                val req = HttpRequest.newBuilder(URI("$relay/s/${share.id}/call/$callId")).timeout(Duration.ofSeconds(15))
+                    .header("Authorization", "Bearer ${share.secret}").GET().build()
+                val res = Http.send(req, HttpResponse.BodyHandlers.ofByteArray())
+                if (res.statusCode() == 200) res.body() else null
+            }.getOrNull() ?: return
+        } else {
+            call.data?.let { runCatching { Base64.getUrlDecoder().decode(it) }.getOrNull() } ?: return
+        }
+        answer(relay, share, callId, data, ws)
+    }
+
+    // ---- HTTP long-polling loop (self-hosted relay.js fallback)
 
     private fun poll(relay: String, share: Share) {
         var failures = 0
@@ -135,7 +252,7 @@ internal class EditorRelay(private val plugin: XaliMenu, private val api: Editor
                         for (call in Wire.read<List<RelayCall>>(response.body()).orEmpty()) {
                             val id = call.id ?: continue
                             val data = call.data?.let { runCatching { Base64.getUrlDecoder().decode(it) }.getOrNull() } ?: continue
-                            workers.execute { answer(relay, share, id, data) }
+                            workers.execute { answer(relay, share, id, data, null) }
                         }
                     }
                     204 -> failures = 0
@@ -153,10 +270,17 @@ internal class EditorRelay(private val plugin: XaliMenu, private val api: Editor
         share.running = false
     }
 
-    /** Runs the request in [data] and posts the answer, if it is one that is to be answered. */
-    private fun answer(relay: String, share: Share, callId: String, data: ByteArray) {
+    /** Runs the request in [data] and returns the encrypted answer over [ws] (when small enough) or via HTTP POST. */
+    private fun answer(relay: String, share: Share, callId: String, data: ByteArray, ws: WebSocket?) {
         val reply = handle(share, data) ?: return
         val sealed = RelayCrypto.seal(share.key, share.id, "a", Wire.write(reply).toByteArray())
+        if (ws != null && sealed.size <= WS_ANSWER_MAX) {
+            val frame = Wire.write(RelayWsAnswer(callId, Base64.getUrlEncoder().withoutPadding().encodeToString(sealed)))
+            val sent = runCatching {
+                synchronized(share.wsSendLock) { ws.sendText(frame, true).get(15, TimeUnit.SECONDS) }
+            }.isSuccess
+            if (sent) return
+        }
         runCatching {
             val request = HttpRequest.newBuilder(URI("$relay/s/${share.id}/answer/$callId")).timeout(Duration.ofSeconds(20))
                 .header("Authorization", "Bearer ${share.secret}").POST(HttpRequest.BodyPublishers.ofByteArray(sealed)).build()
@@ -208,8 +332,21 @@ internal class EditorRelay(private val plugin: XaliMenu, private val api: Editor
     companion object {
         private const val FRESH = 10 * 60_000L
         private const val MAX_ANSWER = 5 * 1024 * 1024
+        private const val WS_ANSWER_MAX = 512 * 1024
+        private const val WS_PING_SECONDS = 55L
         private const val JSON = "application/json; charset=utf-8"
         private val METHODS = setOf("GET", "PUT", "POST")
+
+        /** Converts an HTTP(S) relay base URL into its WebSocket session endpoint (`wss://.../s/<id>/ws`). */
+        fun wsUri(relay: String, sessionId: String): URI {
+            val base = relay.trimEnd('/')
+            val wsBase = when {
+                base.startsWith("https://") -> "wss://" + base.removePrefix("https://")
+                base.startsWith("http://") -> "ws://" + base.removePrefix("http://")
+                else -> base
+            }
+            return URI("$wsBase/s/$sessionId/ws")
+        }
 
         /** The name a person gave, as plain text: no control characters, at most 32 long. */
         fun clean(name: String?): String = name.orEmpty().filter { !it.isISOControl() && it != '§' && it != '&' }.trim().take(32).ifEmpty { "guest" }
