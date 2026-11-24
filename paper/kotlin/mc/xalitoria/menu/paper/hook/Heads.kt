@@ -20,24 +20,33 @@ import java.net.http.HttpResponse
 import java.time.Duration
 import java.util.Base64
 import java.util.UUID
+import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicLong
 
 /**
  * Player heads. `head:<name>` (or `skull = "<name>"` on a `player_head`) shows an online player's own skin, captured on
  * their owning Folia scheduler and cached for when they go offline; for a name that is not cached the skin is looked up
- * off the region threads, from SkinsRestorer when installed, then Paper's profile lookup, and finally Mojang's API
- * directly. `texture:<base64>`, raw base64 texture payloads, and `textures.minecraft.net` URLs need no lookup, and
- * neither does `hdb:<id>`, which takes the texture HeadDatabase already holds.
+ * off the region threads, from SkinsRestorer when installed, then Paper's local profile cache, and finally Mojang's API
+ * directly (falling back to Crafthead when Mojang rate-limits with HTTP 429). `texture:<base64>`, raw base64 texture
+ * payloads, and `textures.minecraft.net` URLs need no lookup, and neither does `hdb:<id>`, which takes the texture
+ * HeadDatabase already holds.
  */
-class Heads(
+class Heads internal constructor(
     private val plugin: Plugin,
     private val skinsRestorer: Boolean,
     /** HeadDatabase's texture (base64) of a head id, or null when it is not installed or the id is not a head. */
     private val hdbTexture: (String) -> String? = { null },
-    private val fetchUrl: (String) -> String? = ::httpGet,
+    private val fetch: (String) -> HttpReply = ::httpGet,
     private val now: () -> Long = System::currentTimeMillis,
 ) {
+    constructor(
+        plugin: Plugin,
+        skinsRestorer: Boolean,
+        hdbTexture: (String) -> String? = { null },
+    ) : this(plugin, skinsRestorer, hdbTexture, ::httpGet, System::currentTimeMillis)
+
+    internal data class HttpReply(val status: Int, val body: String?)
     private sealed interface Cached {
         class Found(val profile: PlayerProfile) : Cached
 
@@ -68,7 +77,9 @@ class Heads(
 
     private val profiles = ConcurrentHashMap<String, Cached>()
     private val pending = ConcurrentHashMap<String, Request>()
+    private val syncPending = ConcurrentHashMap<String, CompletableFuture<Cached>>()
     private val generation = AtomicLong(0)
+    private val mojangBackoffUntil = AtomicLong(0)
     @Volatile
     private var skinsRestorerWarned = false
 
@@ -122,16 +133,39 @@ class Heads(
         if (clean.isEmpty()) return null
         val key = clean.lowercase()
         val existing = profiles[key]
-        val entry = fresh(existing) ?: run {
-            val startedGen = generation.get()
-            val found = runCatching { lookup(clean) }.getOrNull()
-            val candidate: Cached = if (found != null) Cached.Found(found) else Cached.Missing(now())
-            publish(key, existing, startedGen, candidate)
-        }
+        val entry = fresh(existing) ?: resolveSync(key, clean, existing)
         val profile = (entry as? Cached.Found)?.profile ?: return null
         profile.textures.skin?.toString()?.let { return it }
         val encoded = profile.properties.firstOrNull { it.name == "textures" }?.value ?: return null
         return extractTextureUrl(encoded)
+    }
+
+    /** Coalesces concurrent synchronous lookups (e.g. parallel web-editor `/skin` calls) so each name hits upstream once. */
+    private fun resolveSync(key: String, name: String, startedEntry: Cached?): Cached {
+        val mine = CompletableFuture<Cached>()
+        val existingFuture = syncPending.putIfAbsent(key, mine)
+        if (existingFuture != null) {
+            return runCatching { existingFuture.join() }.getOrElse { Cached.Missing(now()) }
+        }
+        return try {
+            val startedGen = generation.get()
+            val cached = fresh(profiles[key])
+            val resolved = if (cached != null) {
+                cached
+            } else {
+                val found = runCatching { lookup(name) }.getOrNull()
+                val candidate: Cached = if (found != null) Cached.Found(found) else Cached.Missing(now())
+                publish(key, startedEntry, startedGen, candidate)
+            }
+            mine.complete(resolved)
+            resolved
+        } catch (_: Throwable) {
+            val fallback = Cached.Missing(now())
+            mine.complete(fallback)
+            fallback
+        } finally {
+            syncPending.remove(key, mine)
+        }
     }
 
     private fun texture(base64: String): PlayerProfile = (profiles.computeIfAbsent("texture:$base64") {
@@ -239,10 +273,11 @@ class Heads(
         if (skinsRestorer) {
             fromSkinsRestorer(name)?.let { return it }
         }
-        // Paper's own lookup first; on offline-mode servers or without a cached texture, fall back directly to Mojang.
+        // Paper's local cache first (zero network calls and no noisy authlib 429 stack traces), then Mojang directly
+        // with automatic Crafthead fallback when Mojang rate-limits.
         val uuid = parseUuid(name)
         val profile = if (uuid != null) plugin.server.createProfile(uuid) else plugin.server.createProfile(name)
-        if (runCatching { profile.complete(true) }.getOrDefault(false) && profile.hasTextures()) return profile
+        if (runCatching { profile.completeFromCache(true) }.getOrDefault(false) && profile.hasTextures()) return profile
         return mojang(name, uuid)
     }
 
@@ -270,22 +305,54 @@ class Heads(
         }
     }
 
-    /** The profile Mojang's API has for [name] or [knownUuid] (the uuid, then its signed textures), or null. Blocks: call off region threads. */
+    /**
+     * Resolves [name] or [knownUuid] from Mojang's API directly (without Paper's noisy authlib stack traces on 429),
+     * backing off Mojang for [MOJANG_BACKOFF_MS] on HTTP 429 and falling back to Crafthead's cached Mojang-signed
+     * profile endpoint. Blocks: call off region threads.
+     */
     private fun mojang(name: String, knownUuid: UUID? = null): PlayerProfile? {
-        val compactId = knownUuid?.toString()?.replace("-", "") ?: run {
-            if (!VALID_NAME.matches(name)) return null
-            val lookupBody = fetchUrl("https://api.mojang.com/users/profiles/minecraft/$name") ?: return null
-            runCatching { Json.parseToJsonElement(lookupBody).jsonObject["id"]?.jsonPrimitive?.content }.getOrNull()
-                ?.takeIf { COMPACT_UUID.matches(it) } ?: return null
+        if (knownUuid == null && !VALID_NAME.matches(name)) return null
+        var compactId = knownUuid?.toString()?.replace("-", "")
+        if (now() >= mojangBackoffUntil.get()) {
+            if (compactId == null) {
+                val idReply = fetch("https://api.mojang.com/users/profiles/minecraft/$name")
+                when (idReply.status) {
+                    200 -> compactId = idReply.body?.let { body ->
+                        runCatching { Json.parseToJsonElement(body).jsonObject["id"]?.jsonPrimitive?.content }.getOrNull()
+                            ?.takeIf { COMPACT_UUID.matches(it) }
+                    }
+                    204, 404 -> return null
+                    429 -> mojangBackoffUntil.set(now() + MOJANG_BACKOFF_MS)
+                }
+            }
+            if (compactId != null && now() >= mojangBackoffUntil.get()) {
+                val profileReply = fetch("https://sessionserver.mojang.com/session/minecraft/profile/$compactId?unsigned=false")
+                when (profileReply.status) {
+                    200 -> profileReply.body?.let { parseProfileJson(it, name, knownUuid) }?.let { return it }
+                    204, 404 -> return null
+                    429 -> mojangBackoffUntil.set(now() + MOJANG_BACKOFF_MS)
+                }
+            }
         }
-        val body = fetchUrl("https://sessionserver.mojang.com/session/minecraft/profile/$compactId?unsigned=false") ?: return null
+        val fallbackQuery = compactId ?: name
+        val craftheadReply = fetch("https://crafthead.net/profile/$fallbackQuery")
+        if (craftheadReply.status == 200) {
+            craftheadReply.body?.let { parseProfileJson(it, name, knownUuid) }?.let { return it }
+        }
+        return null
+    }
+
+    private fun parseProfileJson(body: String, fallbackName: String, knownUuid: UUID?): PlayerProfile? {
         val root = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull() ?: return null
-        val resolvedName = root["name"]?.jsonPrimitive?.content?.takeIf { it.isNotBlank() } ?: name
+        val compactId = root["id"]?.jsonPrimitive?.content?.takeIf { COMPACT_UUID.matches(it) }
+        val resolvedName = root["name"]?.jsonPrimitive?.content?.takeIf { it.isNotBlank() } ?: fallbackName
         val properties = root["properties"]?.jsonArray ?: return null
         val textures = properties.firstOrNull { it.jsonObject["name"]?.jsonPrimitive?.content == "textures" }?.jsonObject ?: return null
         val value = textures["value"]?.jsonPrimitive?.content?.takeIf { it.isNotBlank() } ?: return null
         val signature = textures["signature"]?.jsonPrimitive?.content?.takeIf { it.isNotBlank() }
-        val uuid = knownUuid ?: UUID.fromString(compactId.replaceFirst(UUID_DASHES, "$1-$2-$3-$4-$5"))
+        val uuid = knownUuid
+            ?: compactId?.let { runCatching { UUID.fromString(it.replaceFirst(UUID_DASHES, "$1-$2-$3-$4-$5")) }.getOrNull() }
+            ?: return null
         return plugin.server.createProfile(uuid, resolvedName).apply {
             setProperty(ProfileProperty("textures", value, signature))
         }
@@ -299,10 +366,12 @@ class Heads(
         generation.incrementAndGet()
         profiles.clear()
         pending.clear()
+        syncPending.clear()
     }
 
     companion object {
         internal const val MISSING_FOR_MS = 5 * 60_000L
+        internal const val MOJANG_BACKOFF_MS = 60_000L
         private val VALID_NAME = Regex("[A-Za-z0-9_.]{1,16}")
         private val COMPACT_UUID = Regex("[0-9a-fA-F]{32}")
         private val UUID_DASHES = Regex("(.{8})(.{4})(.{4})(.{4})(.{12})")
@@ -311,14 +380,19 @@ class Heads(
 
         private fun parseUuid(text: String): UUID? = runCatching { UUID.fromString(text) }.getOrNull()
 
-        private fun httpGet(url: String): String? {
+        private fun httpGet(url: String): HttpReply = try {
             val request = HttpRequest.newBuilder(URI.create(url))
                 .timeout(Duration.ofSeconds(5))
                 .header("User-Agent", "XaliMenu")
                 .GET()
                 .build()
             val response = HTTP.send(request, HttpResponse.BodyHandlers.ofString())
-            return if (response.statusCode() == 200) response.body() else null
+            HttpReply(response.statusCode(), if (response.statusCode() == 200) response.body() else null)
+        } catch (e: InterruptedException) {
+            Thread.currentThread().interrupt()
+            HttpReply(0, null)
+        } catch (_: Exception) {
+            HttpReply(0, null)
         }
 
         /** Encodes a `textures.minecraft.net` skin URL into the base64 JSON payload Minecraft expects in `textures`. */

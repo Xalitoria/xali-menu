@@ -161,7 +161,6 @@ class MenuManager(private val plugin: XaliMenu) {
             }
         }
         clearTextCache()
-        plugin.heads.clear()
         failures = failed
         loaded = found
         activators = ActivatorIndex(found.mapValues { it.value.menu.openWith }, ::filterOf)

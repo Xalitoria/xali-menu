@@ -185,8 +185,14 @@ class XaliMenu : JavaPlugin() {
         deposits = Deposits(this)
         dialogs = Dialogs(this).also { pm.registerEvents(it, this) }
         anvils = Anvils(this).also { pm.registerEvents(it, this) }
-        // A paper of an anvil left in somebody's hands by a window that was cut off before this start (a reload) is taken away.
-        server.onlinePlayers.forEach { player -> player.scheduler.run(this, { anvils.sweep(player) }, null) }
+        // A paper of an anvil left in somebody's hands by a window that was cut off before this start (a reload) is taken away,
+        // and any players already online have their textured profiles cached for heads without hitting Mojang.
+        server.onlinePlayers.forEach { player ->
+            player.scheduler.run(this, {
+                anvils.sweep(player)
+                heads.remember(player)
+            }, null)
+        }
         editor = EditorServer(this, EditorSessions({ config.data.editor.sessionMinutes }))
         relay = EditorRelay(this, editor.api)
         editor.api.onHeld = { edit ->

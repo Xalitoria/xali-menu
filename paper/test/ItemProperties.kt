@@ -154,7 +154,7 @@ class ItemProperties {
             arrayOf(com.destroystokyo.paper.profile.PlayerProfile::class.java),
         ) { _, method, _ ->
             when (method.name) {
-                "complete" -> false
+                "completeFromCache" -> false
                 "hasTextures" -> false
                 else -> null
             }
@@ -184,7 +184,7 @@ class ItemProperties {
             }
         } as org.bukkit.plugin.Plugin
 
-        val heads = mc.xalitoria.menu.paper.hook.Heads(plugin, skinsRestorer = false, fetchUrl = { null }, now = { clock })
+        val heads = mc.xalitoria.menu.paper.hook.Heads(plugin, skinsRestorer = false, fetch = { mc.xalitoria.menu.paper.hook.Heads.HttpReply(404, null) }, now = { clock })
         assertNull(heads.skinUrl("NoSuchPlayer"))
         assertNull(heads.skinUrl("NoSuchPlayer"), "cached missing entry does not re-query")
         assertEquals(1, lookups)
@@ -222,7 +222,7 @@ class ItemProperties {
             arrayOf(com.destroystokyo.paper.profile.PlayerProfile::class.java),
         ) { _, method, args ->
             when (method.name) {
-                "complete" -> true // Paper returned true, but without textures!
+                "completeFromCache" -> true // Paper cache returned true, but without textures!
                 "hasTextures" -> hasTex || properties.isNotEmpty()
                 "setProperty" -> {
                     if (collectProps) properties += args[0] as com.destroystokyo.paper.profile.ProfileProperty
@@ -259,12 +259,12 @@ class ItemProperties {
         val heads = mc.xalitoria.menu.paper.hook.Heads(
             plugin,
             skinsRestorer = true, // SkinsRestorerProvider.get() will fail in unit test, verifying graceful fallback
-            fetchUrl = { url ->
+            fetch = { url ->
                 when {
-                    url.endsWith("/audizign") -> """{"name":"audizign","id":"39b5a89899e24a9892b9ffcb625a59e7"}"""
+                    url.endsWith("/audizign") -> mc.xalitoria.menu.paper.hook.Heads.HttpReply(200, """{"name":"audizign","id":"39b5a89899e24a9892b9ffcb625a59e7"}""")
                     url.contains("/39b5a89899e24a9892b9ffcb625a59e7") ->
-                        """{"id":"39b5a89899e24a9892b9ffcb625a59e7","name":"audizign","properties":[{"signature":"SIG","value":"$texturePayload","name":"textures"}]}"""
-                    else -> null
+                        mc.xalitoria.menu.paper.hook.Heads.HttpReply(200, """{"id":"39b5a89899e24a9892b9ffcb625a59e7","name":"audizign","properties":[{"signature":"SIG","value":"$texturePayload","name":"textures"}]}""")
+                    else -> mc.xalitoria.menu.paper.hook.Heads.HttpReply(404, null)
                 }
             },
         )
@@ -305,7 +305,7 @@ class ItemProperties {
             arrayOf(com.destroystokyo.paper.profile.PlayerProfile::class.java),
         ) { proxy, method, args ->
             when (method.name) {
-                "complete" -> hasTex
+                "completeFromCache" -> hasTex
                 "hasTextures" -> hasTex
                 "getName" -> id
                 "equals" -> proxy === args?.firstOrNull()
@@ -351,7 +351,7 @@ class ItemProperties {
             }
         } as org.bukkit.entity.Player
 
-        val heads = mc.xalitoria.menu.paper.hook.Heads(plugin, skinsRestorer = false, fetchUrl = { null })
+        val heads = mc.xalitoria.menu.paper.hook.Heads(plugin, skinsRestorer = false, fetch = { mc.xalitoria.menu.paper.hook.Heads.HttpReply(404, null) })
 
         // 1. Offline lookup starts, then Alex joins and remember() caches their custom skin before the lookup finishes.
         var waiterA = 0
@@ -386,5 +386,114 @@ class ItemProperties {
         workerB.invoke()
         assertEquals(1, freshWaiter)
         assertEquals(lookupResult, heads.named("Sam") {})
+    }
+
+    @Test
+    fun headsFallsBackToCraftheadBacksOffMojangOn429AndCoalescesConcurrentSyncLookups() {
+        var clock = 10_000L
+        val requestedUrls = java.util.Collections.synchronizedList(mutableListOf<String>())
+        val skinUrl = "https://textures.minecraft.net/texture/e5cdc3243b2153ab28a159861be643a4fc1e3c17d291cdd3e57a7f370ad676f3"
+        val texturePayload = mc.xalitoria.menu.paper.hook.Heads.encodeUrl(skinUrl)
+
+        fun profileWithProps(): com.destroystokyo.paper.profile.PlayerProfile {
+            val props = mutableListOf<com.destroystokyo.paper.profile.ProfileProperty>()
+            val textures = java.lang.reflect.Proxy.newProxyInstance(
+                org.bukkit.profile.PlayerTextures::class.java.classLoader,
+                arrayOf(org.bukkit.profile.PlayerTextures::class.java),
+            ) { _, method, _ ->
+                if (method.name == "getSkin") null else null
+            } as org.bukkit.profile.PlayerTextures
+            return java.lang.reflect.Proxy.newProxyInstance(
+                com.destroystokyo.paper.profile.PlayerProfile::class.java.classLoader,
+                arrayOf(com.destroystokyo.paper.profile.PlayerProfile::class.java),
+            ) { _, method, args ->
+                when (method.name) {
+                    "completeFromCache" -> false
+                    "hasTextures" -> props.isNotEmpty()
+                    "getTextures" -> textures
+                    "setProperty" -> {
+                        props += args[0] as com.destroystokyo.paper.profile.ProfileProperty
+                        null
+                    }
+                    "getProperties" -> props.toSet()
+                    else -> null
+                }
+            } as com.destroystokyo.paper.profile.PlayerProfile
+        }
+
+        val server = java.lang.reflect.Proxy.newProxyInstance(
+            org.bukkit.Server::class.java.classLoader,
+            arrayOf(org.bukkit.Server::class.java),
+        ) { _, method, _ ->
+            when (method.name) {
+                "createProfile" -> profileWithProps()
+                else -> null
+            }
+        } as org.bukkit.Server
+        val plugin = java.lang.reflect.Proxy.newProxyInstance(
+            org.bukkit.plugin.Plugin::class.java.classLoader,
+            arrayOf(org.bukkit.plugin.Plugin::class.java),
+        ) { _, method, _ ->
+            when (method.name) {
+                "getServer" -> server
+                "getLogger" -> java.util.logging.Logger.getAnonymousLogger()
+                else -> null
+            }
+        } as org.bukkit.plugin.Plugin
+
+        val releaseFirst = java.util.concurrent.CountDownLatch(1)
+        val firstEntered = java.util.concurrent.CountDownLatch(1)
+        val heads = mc.xalitoria.menu.paper.hook.Heads(
+            plugin,
+            skinsRestorer = false,
+            fetch = { url ->
+                requestedUrls.add(url)
+                when {
+                    url.startsWith("https://api.mojang.com/users/profiles/minecraft/Notch10") -> {
+                        firstEntered.countDown()
+                        releaseFirst.await(5, java.util.concurrent.TimeUnit.SECONDS)
+                        mc.xalitoria.menu.paper.hook.Heads.HttpReply(200, """{"name":"Notch10","id":"3fc5d9c87aeb4b9da2c7994072ffa70d"}""")
+                    }
+                    url.startsWith("https://sessionserver.mojang.com/") ->
+                        mc.xalitoria.menu.paper.hook.Heads.HttpReply(429, null)
+                    url.startsWith("https://crafthead.net/profile/") ->
+                        mc.xalitoria.menu.paper.hook.Heads.HttpReply(
+                            200,
+                            """{"id":"3fc5d9c87aeb4b9da2c7994072ffa70d","name":"Notch10","properties":[{"name":"textures","value":"$texturePayload","signature":"SIG"}]}""",
+                        )
+                    else -> mc.xalitoria.menu.paper.hook.Heads.HttpReply(404, null)
+                }
+            },
+            now = { clock },
+        )
+
+        // Two concurrent skinUrl("Notch10") calls coalesce into one lookup, fall back to Crafthead on Mojang 429.
+        val first = java.util.concurrent.CompletableFuture.supplyAsync { heads.skinUrl("Notch10") }
+        assertEquals(true, firstEntered.await(5, java.util.concurrent.TimeUnit.SECONDS))
+        val second = java.util.concurrent.CompletableFuture.supplyAsync { heads.skinUrl("Notch10") }
+        Thread.sleep(50)
+        releaseFirst.countDown()
+        assertEquals(skinUrl, first.get(5, java.util.concurrent.TimeUnit.SECONDS))
+        assertEquals(skinUrl, second.get(5, java.util.concurrent.TimeUnit.SECONDS))
+        assertEquals(
+            listOf(
+                "https://api.mojang.com/users/profiles/minecraft/Notch10",
+                "https://sessionserver.mojang.com/session/minecraft/profile/3fc5d9c87aeb4b9da2c7994072ffa70d?unsigned=false",
+                "https://crafthead.net/profile/3fc5d9c87aeb4b9da2c7994072ffa70d",
+            ),
+            requestedUrls,
+            "concurrent callers only hit upstream once and fall back cleanly to Crafthead on 429",
+        )
+
+        // During MOJANG_BACKOFF_MS, a second player skips Mojang completely and goes straight to Crafthead.
+        requestedUrls.clear()
+        assertEquals(skinUrl, heads.skinUrl("OtherPlayer"))
+        assertEquals(listOf("https://crafthead.net/profile/OtherPlayer"), requestedUrls)
+
+        // After MOJANG_BACKOFF_MS elapses, Mojang is tried again.
+        clock += mc.xalitoria.menu.paper.hook.Heads.MOJANG_BACKOFF_MS
+        requestedUrls.clear()
+        heads.skinUrl("ThirdPlayer")
+        assertEquals(true, requestedUrls.first().startsWith("https://api.mojang.com/"))
     }
 }
