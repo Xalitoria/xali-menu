@@ -8,50 +8,14 @@
 
 import { Server } from './source.js'
 import { RangeFile, BlockCache } from './remote.js'
+import { createRelayCrypto, bytesOf, base64 } from './relayCore.js'
 
-const subtle = globalThis.crypto.subtle
-const encoder = new TextEncoder()
-const PBKDF2_SALT = encoder.encode('xalimenu:session:v2')
-const PBKDF2_ITERATIONS = 100_000
+const { deriveCode, seal, open, importKey } = createRelayCrypto({
+  salt: 'xalimenu:session:v2',
+  aadPrefix: 'xm1',
+})
 
-const bytesOf = (text) => Uint8Array.from(atob(text.replace(/-/g, '+').replace(/_/g, '/')), (c) => c.charCodeAt(0))
-const base64 = (bytes) => { let s = ''; for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode(...bytes.subarray(i, i + 0x8000)); return btoa(s) }
-const url64 = (bytes) => base64(bytes).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
-
-/**
- * Derives the opaque 22-character relay session id and 256-bit AES-GCM key from a short 12-character base64url link code.
- * Matches `RelayCrypto.derive` in the plugin so the relay never learns the link code or encryption key.
- */
-export async function deriveCode(code) {
-  const material = await subtle.importKey('raw', encoder.encode(code), 'PBKDF2', false, ['deriveBits'])
-  const raw = new Uint8Array(await subtle.deriveBits(
-    { name: 'PBKDF2', salt: PBKDF2_SALT, iterations: PBKDF2_ITERATIONS, hash: 'SHA-256' },
-    material,
-    48 * 8,
-  ))
-  const session = url64(raw.subarray(0, 16))
-  const key = await subtle.importKey('raw', raw.subarray(16, 48), 'AES-GCM', false, ['encrypt', 'decrypt'])
-  return { session, key }
-}
-
-/** Encrypts [value] (JSON) for the session. */
-export async function seal(key, session, direction, value) {
-  const iv = crypto.getRandomValues(new Uint8Array(12))
-  const data = await subtle.encrypt({ name: 'AES-GCM', iv, additionalData: encoder.encode(`xm1:${session}:${direction}`) }, key, encoder.encode(JSON.stringify(value)))
-  const out = new Uint8Array(12 + data.byteLength)
-  out.set(iv)
-  out.set(new Uint8Array(data), 12)
-  return out
-}
-
-/** Reads what [seal] made. Throws when the key or the session is not the one it was made with. */
-export async function open(key, session, direction, bytes) {
-  if (bytes.length < 28) throw new Error('The message is too short')
-  const plain = await subtle.decrypt({ name: 'AES-GCM', iv: bytes.subarray(0, 12), additionalData: encoder.encode(`xm1:${session}:${direction}`) }, key, bytes.subarray(12))
-  return JSON.parse(new TextDecoder().decode(plain))
-}
-
-export const importKey = (text) => subtle.importKey('raw', bytesOf(text), 'AES-GCM', false, ['encrypt', 'decrypt'])
+export { deriveCode, seal, open, importKey }
 
 /** The editor's server when it is reached through a relay. */
 export class RelayServer extends Server {

@@ -1,30 +1,33 @@
-// Moving a picture glyph in a title. A menu title is text: to draw a window background glyph at the right place, the title
-// starts with space characters that push the cursor, then the glyph, then space characters that pull the cursor back. This
-// finds that structure in a title and writes it again with another offset, leaving the text after it where it was.
-//
-// A glyph that is not in the default font (most plugin glyphs are in their own, such as `nexo:default`) is wrapped in
-// `<font:key>...</font>`. The space characters stay outside it, in the default font, where the shift characters are.
+// Moving a picture glyph in a title: supports both raw space characters and Nexo `<shift:N>` tags.
 
 import { shift, DEFAULT_FONT } from './fonts.js'
 
-/** The glyph as it is written in a title: plain in the default font, otherwise in a font tag. */
 export function wrap(glyph, font) {
   return font && font !== DEFAULT_FONT ? `<font:${font}>${glyph}</font>` : glyph
 }
 
 /**
- * Reads the start of [text]: the space characters, the first picture glyph, the space characters after it.
- * @param {string} text
- * @param {Map<string, number>} spaces advance of each space character of the default font
- * @param {(character: string, font: string|null) => number|null} widthOf the advance of a picture glyph (in [font], null for the default), null for a character that is not one
- * @returns {{glyph: string, font: string|null, offset: number, width: number, net: number, rest: string}|null}
- *   [offset] is the push before the glyph, [net] how far the cursor has moved when the rest starts (the glyph's width included)
+ * Reads the start of [text]: space characters or `<shift:N>` tags, the first picture glyph, and trailing shifts.
  */
 export function parseHead(text, spaces, widthOf) {
-  const characters = [...text]
+  const characters = [...String(text ?? '')]
   let i = 0
   let offset = 0
-  while (i < characters.length && spaces.has(characters[i])) offset += spaces.get(characters[i++])
+
+  const readShiftTag = () => {
+    const rest = characters.slice(i).join('')
+    const match = rest.match(/^<(?:shift|s):(-?\d+)>/i)
+    if (!match) return null
+    i += [...match[0]].length
+    return parseInt(match[1], 10)
+  }
+
+  while (i < characters.length) {
+    if (spaces.has(characters[i])) { offset += spaces.get(characters[i++]); continue }
+    const tagShift = readShiftTag()
+    if (tagShift !== null) { offset += tagShift; continue }
+    break
+  }
   if (i >= characters.length) return null
   let font = null
   if (characters.slice(i, i + 6).join('') === '<font:') {
@@ -42,21 +45,21 @@ export function parseHead(text, spaces, widthOf) {
     i += 7
   }
   let net = offset + width
-  while (i < characters.length && spaces.has(characters[i])) net += spaces.get(characters[i++])
+  while (i < characters.length) {
+    if (spaces.has(characters[i])) { net += spaces.get(characters[i++]); continue }
+    const tagShift = readShiftTag()
+    if (tagShift !== null) { net += tagShift; continue }
+    break
+  }
   return { glyph, font, offset, width, net, rest: characters.slice(i).join('') }
 }
 
-/**
- * The title for [head] moved to [offset]. The text after it keeps the place it had. [rest] in the answer is what the space
- * characters could not make up, in pixels (0 when they could).
- */
 export function realign(head, offset, spaces) {
   const before = shift(offset, spaces)
   const after = shift(head.net - (offset + head.width), spaces)
   return { text: before.text + wrap(head.glyph, head.font) + after.text + head.rest, rest: before.rest + after.rest }
 }
 
-/** A glyph put in front of [text] at [offset], with the text left at the start of the line, where it would have been. */
 export function insert(glyph, font, width, offset, text, spaces) {
   return realign({ glyph, font, offset: 0, width, net: 0, rest: text }, offset, spaces)
 }

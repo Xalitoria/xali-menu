@@ -1,17 +1,31 @@
-// Where the files of the game come from. The resource pack of the server is asked first, then the game's own files, which are
-// read from a public copy of Mojang's assets for the version of the server (they are not part of this editor). Each file is
-// fetched once, and a file that is not there is remembered as not there.
+// Version- and overlay-aware Asset Manager shared by XaliMenu and XaliCrates web editors.
+// Resolves files in Minecraft's exact resource-pack layering order:
+//   1. Pack overlays matching the active server `packFormat` (highest priority first)
+//   2. Pack root `assets/...`
+//   3. Vanilla Minecraft assets for the active server version branch
+//
+// Explicit `vanillaJson` / `vanillaTexture` / `vanillaBytes` methods bypass the pack so systems that
+// MERGE pack + vanilla definitions (like `font/*.json`) never get shadowed by a pack's `default.json`!
 
-/** The copy of the game's assets, one branch per version. The page can change both. */
+import { LATEST_VERSION, resolveVersion } from './versions.js'
+
+/** Global asset source configuration; updated automatically when connected to a server. */
 export const settings = {
   base: 'https://raw.githubusercontent.com/InventivetalentDev/minecraft-assets',
-  version: '26.2',
-  /** Fetches a skin by its address through the server, since Mojang's texture server does not let other sites read it. Set when the editor is connected. */
+  version: LATEST_VERSION,
+  /** Fetches a skin by its address through the server (Mojang's texture host lacks CORS). */
   skinProxy: null,
-  /** Fetches a player's skin by username through the server (online/SkinsRestorer/Mojang). Falls back to mc-heads.net when standalone. */
+  /** Fetches a player's skin by username through the server (online / SkinsRestorer / Mojang). */
   playerSkinProxy: null,
-  /** Fetches a big file of the game that is not in the public copy (the fallback font's zip) through the server, which can read Mojang's. Set when the editor is connected. */
+  /** Fetches a game font zip (e.g. `font/unifont.zip`) through the server. */
   gameFile: null,
+}
+
+/** Updates the active Minecraft version for vanilla asset fetches and returns the resolved version info. */
+export function setMinecraftVersion(versionOrFormat) {
+  const info = resolveVersion(versionOrFormat)
+  settings.version = info.branch
+  return info
 }
 
 /** The pixels of a texture: RGBA, row by row. */
@@ -23,7 +37,7 @@ export class Texture {
   }
 }
 
-/** Parses [text] as JSON, forgiving commas before a closing bracket. */
+/** Parses [text] as JSON, forgiving trailing commas before a closing bracket. */
 export function lenient(text) {
   try { return JSON.parse(text) } catch (error) {
     const repaired = text.replace(/,(\s*[\]}])/g, '$1')
@@ -32,54 +46,123 @@ export function lenient(text) {
   }
 }
 
+/** Parses a pre-1.13 `en_us.lang` (`key=value`) file into a JSON-like object. */
+export function parseLegacyLang(text) {
+  const out = {}
+  for (const line of String(text ?? '').split(/\r?\n/)) {
+    const trimmed = line.trim()
+    if (!trimmed || trimmed.startsWith('#')) continue
+    const eq = trimmed.indexOf('=')
+    if (eq > 0) out[trimmed.slice(0, eq).trim()] = trimmed.slice(eq + 1)
+  }
+  return out
+}
+
 /** `ns:path` and `path` both mean a file; a bare path is in the `minecraft` namespace. */
 export function split(key) {
   const colon = key.indexOf(':')
   return colon < 0 ? { ns: 'minecraft', path: key } : { ns: key.slice(0, colon), path: key.slice(colon + 1) }
 }
 
+/** Alternate legacy/modern texture paths (1.12 used `items/` and `blocks/`; 1.13+ uses `item/` and `block/`). */
+function texturePathVariants(path, preferLegacy) {
+  const variants = [path]
+  if (path.startsWith('item/')) {
+    const alt = `items/${path.slice(5)}`
+    if (preferLegacy) variants.unshift(alt)
+    else variants.push(alt)
+  } else if (path.startsWith('items/')) {
+    variants.push(`item/${path.slice(6)}`)
+  } else if (path.startsWith('block/')) {
+    const alt = `blocks/${path.slice(6)}`
+    if (preferLegacy) variants.unshift(alt)
+    else variants.push(alt)
+  } else if (path.startsWith('blocks/')) {
+    variants.push(`block/${path.slice(7)}`)
+  }
+  return variants
+}
+
 export class Assets {
   /**
-   * @param {{pack?: import('./pack.js').Pack|null, vanilla?: boolean}} [options]
-   *   [pack] is asked first; [vanilla] false keeps the game's own files out (tests, or offline)
+   * @param {{pack?: import('./pack.js').Pack|null, vanilla?: boolean, version?: string|number|null}} [options]
    */
-  constructor({ pack = null, vanilla = true } = {}) {
+  constructor({ pack = null, vanilla = true, version = null } = {}) {
     this.pack = pack
     this.vanilla = vanilla
+    this.versionInfo = resolveVersion(version ?? settings.version)
     this.cache = new Map()
   }
 
-  /** The json at assets/<ns>/<folder>/<path>.json, or null if neither the pack nor the game has it. */
+  get packFormat() { return this.versionInfo.packFormat }
+  get versionBranch() { return this.versionInfo.branch }
+
+  /** Checks if the active pack (including overlays matching `this.packFormat`) contains [file]. */
+  packHas(file) {
+    if (!this.pack) return false
+    return typeof this.pack.has === 'function' ? this.pack.has(file, this.packFormat) : this.pack.zip.has(file)
+  }
+
+  packJson(file) {
+    return typeof this.pack.readJson === 'function' ? this.pack.readJson(file, this.packFormat) : this.pack.zip.json(file)
+  }
+
+  packBytes(file) {
+    return typeof this.pack.readBytes === 'function' ? this.pack.readBytes(file, this.packFormat) : this.pack.zip.bytes(file)
+  }
+
+  /** The json at assets/<ns>/<folder>/<path>.json (pack overlays -> pack -> vanilla). */
   json(ns, folder, path) {
     return this.cached(`json:${ns}:${folder}/${path}`, async () => {
       const file = `assets/${ns}/${folder}/${path}.json`
-      if (this.pack?.zip.has(file)) return this.pack.zip.json(file)
-      // Mojang's own files are read the way the game reads them, which forgives a comma before a closing bracket (some of them have one).
+      if (this.packHas(file)) return this.packJson(file)
+      const fetched = await this.fetchGame(ns, file, async (response) => lenient(await response.text()))
+      if (fetched) return fetched
+      // Pre-1.13 language files were `.lang` (`en_us.lang`) instead of `.json`.
+      if (folder === 'lang' && !this.versionInfo.hasLangJson) {
+        const langFile = `assets/${ns}/lang/${path}.lang`
+        if (this.packHas(langFile)) {
+          const bytes = await this.packBytes(langFile)
+          return parseLegacyLang(new TextDecoder().decode(bytes))
+        }
+        return this.fetchGame(ns, langFile, async (response) => parseLegacyLang(await response.text()))
+      }
+      return null
+    })
+  }
+
+  /** Vanilla-only JSON (bypasses the resource pack; used when merging pack + vanilla font providers). */
+  vanillaJson(ns, folder, path) {
+    return this.cached(`vanilla-json:${ns}:${folder}/${path}`, async () => {
+      const file = `assets/${ns}/${folder}/${path}.json`
       return this.fetchGame(ns, file, async (response) => lenient(await response.text()))
     })
   }
 
-  /** The texture at assets/<ns>/textures/<path>.png, as pixels, or null. */
+  /** The texture at assets/<ns>/textures/<path>.png, as pixels, or null (supports 1.8–26.x texture paths). */
   texture(ns, path) {
     return this.cached(`texture:${ns}:${path}`, async () => {
-      const file = `assets/${ns}/textures/${path}.png`
-      const blob = this.pack?.zip.has(file)
-        ? new Blob([await this.pack.zip.bytes(file)], { type: 'image/png' })
-        : await this.fetchGame(ns, file, (response) => response.blob())
-      // A texture the game makes when it loads (the trim of an armor in each material) is not a file.
-      if (!blob) return this.permuted(ns, path)
-      return decode(blob, await this.meta(ns, path))
+      const candidates = texturePathVariants(path, this.versionInfo.hasLegacyTextureDirs)
+      for (const candidate of candidates) {
+        const file = `assets/${ns}/textures/${candidate}.png`
+        const blob = this.packHas(file)
+          ? new Blob([await this.packBytes(file)], { type: 'image/png' })
+          : await this.fetchGame(ns, file, (response) => response.blob())
+        if (blob) return decode(blob, await this.meta(ns, candidate))
+      }
+      return this.permuted(ns, path)
     })
   }
 
-  /** The `paletted_permutations` of the atlases of the item textures: the pack's and the game's, as the game joins them. */
+  /** The `paletted_permutations` of the atlases of the item textures: the pack's and the game's. */
   permutations() {
     return this.cached('permutations', async () => {
+      if (!this.versionInfo.hasPalettedPermutations) return []
       const found = []
       for (const name of ['items', 'blocks', 'armor_trims']) {
         const file = `assets/minecraft/atlases/${name}.json`
         const documents = []
-        if (this.pack?.zip.has(file)) documents.push(await this.pack.zip.json(file))
+        if (this.packHas(file)) documents.push(await this.packJson(file))
         documents.push(await this.fetchGame('minecraft', file, async (response) => lenient(await response.text())))
         for (const document of documents) for (const source of document?.sources ?? []) if (/paletted_permutations$/.test(source.type ?? '')) found.push(source)
       }
@@ -87,10 +170,6 @@ export class Assets {
     })
   }
 
-  /**
-   * A texture made from a grayscale one and a palette, as the atlas `paletted_permutations` source does: `trims/items/chestplate_trim_gold` is `chestplate_trim`
-   * with the colors of the palette key (`trim_palette`) changed to those of `color_palettes/gold`. Null when no source makes [path].
-   */
   async permuted(ns, path) {
     for (const source of await this.permutations()) {
       for (const texture of source.textures ?? []) {
@@ -114,25 +193,24 @@ export class Assets {
   meta(ns, path) {
     return this.cached(`meta:${ns}:${path}`, async () => {
       const file = `assets/${ns}/textures/${path}.png.mcmeta`
-      if (this.pack?.zip.has(file)) return this.pack.zip.json(file)
-      // Mojang's own files are read the way the game reads them, which forgives a comma before a closing bracket (some of them have one).
+      if (this.packHas(file)) return this.packJson(file)
       return this.fetchGame(ns, file, async (response) => lenient(await response.text()))
     })
   }
 
-  /** A texture from any address (the skin of a head), or null if the host does not let this page read it. */
+  /** A texture from any address (the skin of a head), or null if blocked. */
   fromUrl(url) {
     return this.cached(`url:${url}`, async () => {
       try {
         const response = await fetch(url)
         if (response.ok) return skin(await decode(await response.blob(), null))
-      } catch { /* not readable from here: try through the server */ }
+      } catch { /* try through server proxy */ }
       const blob = settings.skinProxy ? await settings.skinProxy(url).catch(() => null) : null
       return blob ? skin(await decode(blob, null)) : null
     })
   }
 
-  /** A player's skin texture by username: asks the connected server first (picking up SkinsRestorer/online skins), otherwise falls back to mc-heads.net. */
+  /** A player's skin texture by username: server proxy first, then mc-heads.net. */
   fromPlayer(name) {
     const clean = String(name ?? '').trim()
     if (!clean) return Promise.resolve(null)
@@ -144,7 +222,7 @@ export class Assets {
       try {
         const response = await fetch(`https://mc-heads.net/skin/${encodeURIComponent(clean)}`)
         if (response.ok) return skin(await decode(await response.blob(), null))
-      } catch { /* offline or blocked */ }
+      } catch { /* offline */ }
       return null
     })
   }
@@ -153,7 +231,17 @@ export class Assets {
   bytes(ns, file) {
     return this.cached(`bytes:${ns}:${file}`, async () => {
       const name = `assets/${ns}/${file}`
-      if (this.pack?.zip.has(name)) return this.pack.zip.bytes(name)
+      if (this.packHas(name)) return this.packBytes(name)
+      const found = await this.fetchGame(ns, name, async (response) => new Uint8Array(await response.arrayBuffer()))
+      if (found || ns !== 'minecraft' || !settings.gameFile) return found
+      return settings.gameFile(file).catch(() => null)
+    })
+  }
+
+  /** Vanilla-only bytes (bypasses the pack). */
+  vanillaBytes(ns, file) {
+    return this.cached(`vanilla-bytes:${ns}:${file}`, async () => {
+      const name = `assets/${ns}/${file}`
       const found = await this.fetchGame(ns, name, async (response) => new Uint8Array(await response.arrayBuffer()))
       if (found || ns !== 'minecraft' || !settings.gameFile) return found
       return settings.gameFile(file).catch(() => null)
@@ -163,7 +251,7 @@ export class Assets {
   async fetchGame(ns, file, read) {
     if (!this.vanilla || ns !== 'minecraft') return null
     try {
-      const response = await fetch(`${settings.base}/${settings.version}/${file}`)
+      const response = await fetch(`${settings.base}/${this.versionBranch}/${file}`)
       return response.ok ? await read(response) : null
     } catch {
       return null
@@ -176,12 +264,6 @@ export class Assets {
   }
 }
 
-/**
- * A skin the way the game prepares it: an old skin (64 by 32) is put on a 64 by 64 sheet, the base layer of the head is made opaque, and
- * a hat layer that has no transparent pixel at all (old skins have a solid one) is made fully transparent.
- * @param {Texture} texture
- * @returns {Texture}
- */
 export function skin(texture) {
   let { width, height, data } = texture
   if (height === 32 && width === 64) {
@@ -192,7 +274,6 @@ export function skin(texture) {
   }
   const opaque = (x0, y0, x1, y1) => { for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) data[(y * width + x) * 4 + 3] = 255 }
   if (texture.height === 32) {
-    // The solid hat of an old skin: if nothing in the area is transparent, none of it is shown.
     let solid = true
     for (let y = 0; y < 16 && solid; y++) for (let x = 32; x < 64; x++) if (data[(y * width + x) * 4 + 3] < 128) { solid = false; break }
     if (solid) for (let y = 0; y < 16; y++) for (let x = 32; x < 64; x++) data[(y * width + x) * 4 + 3] = 0
@@ -201,7 +282,6 @@ export function skin(texture) {
   return new Texture(width, height, data)
 }
 
-/** Decodes a png into pixels. An animated texture is a strip of frames; the first one is shown, as in the game for an item that is not animated by time. */
 async function decode(blob, meta) {
   const bitmap = await createImageBitmap(blob)
   const canvas = new OffscreenCanvas(bitmap.width, bitmap.height)
@@ -213,10 +293,6 @@ async function decode(blob, meta) {
   return new Texture(width, height, ctx.getImageData(0, 0, width, height).data)
 }
 
-/**
- * [texture] with each color of [keys] (read in order, left to right and down) replaced by the color at the same place of [colors]; a pixel that is not a key, and the
- * transparency of every pixel, stay as they are.
- */
 export function recolor(texture, keys, colors) {
   const map = new Map()
   for (let i = 0; i < keys.width * keys.height && i < colors.width * colors.height; i++) {

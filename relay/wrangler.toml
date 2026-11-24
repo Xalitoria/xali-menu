@@ -9,7 +9,8 @@ main = "worker.js"
 compatibility_date = "2026-01-01"
 
 routes = [
-  { pattern = "menu.xali.to/relay/*", zone_name = "xali.to" }
+  { pattern = "menu.xali.to/relay/*", zone_name = "xali.to" },
+  { pattern = "crate.xali.to/relay/*", zone_name = "xali.to" },
 ]
 
 [durable_objects]
@@ -23,6 +24,6 @@ tag = "v1"
 new_sqlite_classes = ["RelaySession"]
 
 [vars]
-XM_RELAY_ORIGINS = "https://menu.xali.to"
+XM_RELAY_ORIGINS = "https://menu.xali.to,https://crate.xali.to"
 XM_RELAY_MAX_TTL = "7200"
 XM_RELAY_IDLE = "900"

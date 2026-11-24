@@ -1,25 +1,19 @@
-// Draws a menu item as the game's inventory does: finds its item definition and model in the resource pack (then in the game's
-// own files), bakes the quads, and rasterizes them with the `gui` display transform and the game's lights (see raster.js).
+// Version-aware software item renderer shared by XaliMenu and XaliCrates web editors.
+// Renders modern 1.21.4+ (`pack_format >= 46`) `items/*.json` definitions AND legacy 1.8 – 1.21.3
+// `models/item/*.json` + `overrides` predicates, without clipping oversized `display.gui` models!
 
 import { numberOf, flagOf } from './dynamic.js'
 import { Assets, split } from './assets.js'
 import { Model, loadModel, bakeElements, bakeLayers, transformQuads } from './bake.js'
-import { chooseModels } from './itemdef.js'
+import { chooseModels, matchLegacyOverrides } from './itemdef.js'
 import { renderItem, addGlint, downsample } from './raster.js'
 import { specialQuads, bannerLayers, shieldLayers } from './special.js'
 
-/** The size of the pixel of the game on the page: items are drawn 16 of these wide. */
 export const SCALE = 3
 
-/**
- * What the renderer needs to know about a menu item, taken from its keys.
- * @param {object} item the item as the menu file writes it (`material`, `item-model`, `model`, `color`, `damage`, `amount`...)
- * @param {{material?: string, itemModel?: string, customModelData?: number[]}} [known] what a plugin says a custom item is
- */
 const PLAYER_NAME = /^[A-Za-z0-9_]{1,16}$/
 const TEXTURE_URL = /^https?:\/\/textures\.minecraft\.net\/texture\/[0-9a-f]{16,128}$/i
 
-/** Extracts the `textures.SKIN.url` from a base64-encoded Minecraft profile texture JSON, or null. */
 function decodeTextureBase64(b64) {
   try {
     const json = JSON.parse(atob(String(b64 ?? '').trim()))
@@ -29,19 +23,12 @@ function decodeTextureBase64(b64) {
   }
 }
 
-/** The address of the skin in a `texture:` value (base64 of the profile's JSON), or null. */
 export function skinUrl(material) {
   const text = String(material ?? '')
   if (!text.startsWith('texture:')) return null
   return decodeTextureBase64(text.slice(8))
 }
 
-/**
- * Resolves the skin texture key (`url:<https://...>` or `player:<name>`) for a player head item from:
- * 1. `item.skull` (player name, `head:<name>`, `texture:<base64>`, raw base64, or `textures.minecraft.net` URL),
- * 2. `item.material` (`texture:<base64>` or `head:<name>`),
- * 3. `item.nbt` (`[minecraft:profile={name:"..."}]` or texture URL/base64 on a `player_head`).
- */
 export function skinSpec(item) {
   const fromValue = (raw) => {
     const text = String(raw ?? '').trim()
@@ -87,7 +74,6 @@ export function skinSpec(item) {
   return null
 }
 
-/** The color a firework star shows: the average of the colors of its first burst, as 0xRRGGBB, or null when it has none. */
 export function fireworkColor(item) {
   const colors = (item.firework?.effects?.[0]?.colors ?? []).filter((c) => /^#[0-9a-f]{6}$/i.test(String(c))).map((c) => parseInt(c.slice(1), 16))
   if (colors.length === 0) return null
@@ -97,16 +83,16 @@ export function fireworkColor(item) {
 
 export function stateOf(item, known = {}) {
   const color = typeof item.color === 'string' && /^#[0-9a-f]{6}$/i.test(item.color) ? parseInt(item.color.slice(1), 16) : null
-  const model = numberOf(item.model, null)
-  const floats = model !== null ? [model] : known.customModelData
+  const model = numberOf(item.model ?? item['custom-model-data'], null)
+  const floats = model !== null && model !== 0 ? [model] : known.customModelData
   const text = String(item.material ?? '')
   const head = text.startsWith('head:') || text.startsWith('texture:')
   return {
     material: head ? 'player_head' : (known.material ?? text.replace(/^minecraft:/, '')),
     skin: skinSpec(item),
-    banner: Array.isArray(item.banner) ? item.banner : [],
+    banner: Array.isArray(item.banner) ? item.banner : (Array.isArray(item.patterns) ? item.patterns : []),
     baseColor: typeof item['base-color'] === 'string' ? item['base-color'] : null,
-    glint: flagOf(item.glow, null) === true || (flagOf(item.glow, null) !== false && (Object.keys(item.enchants ?? {}).length > 0 || Object.keys(item['stored-enchants'] ?? {}).length > 0)),
+    glint: flagOf(item.glow, null) === true || (flagOf(item.glow, null) !== false && (Object.keys(item.enchants ?? item.enchantments ?? {}).length > 0 || Object.keys(item['stored-enchants'] ?? {}).length > 0)),
     itemModel: item['item-model'] ?? known.itemModel ?? null,
     state: {
       customModelData: floats ? { floats } : undefined,
@@ -129,10 +115,6 @@ export class ItemRenderer {
     this.cache = new Map()
   }
 
-  /**
-   * The icon of the item as pixels, or null if nothing could be drawn.
-   * @returns {Promise<{width: number, height: number, data: Uint8ClampedArray}|null>}
-   */
   render(item, known = {}, scale = SCALE, smooth = true) {
     const described = stateOf(item, known)
     const key = JSON.stringify([described, scale, smooth])
@@ -140,13 +122,9 @@ export class ItemRenderer {
     return this.cache.get(key)
   }
 
-  /**
-   * [smooth] draws four times as large and shrinks the result, so the edges are not stairs; the game itself draws without it, which is what
-   * `smooth = false` gives.
-   */
   async draw({ material, itemModel, state, glint, skin, banner, baseColor }, scale, smooth) {
     const oversample = smooth ? 4 : 1
-    const entries = await this.entries(material, itemModel, state)
+    const { entries, hasDefinition, oversizedInGui } = await this.resolveEntries(material, itemModel, state)
     const layers = []
     const needed = new Set()
     for (const entry of entries) {
@@ -165,12 +143,14 @@ export class ItemRenderer {
       const { ns, path } = split(key)
       textures.set(key, await this.assets.texture(ns, path))
     }))
-    // A skin that cannot be read (offline, unknown player, or blocked host) is drawn as the default Steve head.
     for (const layer of layers) for (const quad of layer.quads) if ((quad.texture?.startsWith('url:') || quad.texture?.startsWith('player:')) && !textures.get(quad.texture)) quad.texture = 'minecraft:entity/player/wide/steve'
     if (layers.some((l) => l.quads.some((q) => q.texture === 'minecraft:entity/player/wide/steve')) && !textures.has('minecraft:entity/player/wide/steve')) {
       textures.set('minecraft:entity/player/wide/steve', await this.assets.texture('minecraft', 'entity/player/wide/steve'))
     }
-    const image = renderItem(layers, (key) => textures.get(key) ?? null, scale * oversample)
+    // Minecraft 1.21.6+ (pack_format >= 63) clips items in GUIs unless the item definition sets `oversized_in_gui: true`.
+    // Pass `oversample` as alignment so unclipped bounds divide cleanly in `downsample`.
+    const clipToSlot = Boolean(this.assets.versionInfo?.clipsNonOversizedInGui && hasDefinition && !oversizedInGui)
+    const image = renderItem(layers, (key) => textures.get(key) ?? null, scale * oversample, oversample, clipToSlot)
     if (glint) {
       const sheen = await this.assets.texture('minecraft', 'misc/enchanted_glint_item')
       if (sheen) addGlint(image, sheen)
@@ -178,24 +158,55 @@ export class ItemRenderer {
     return downsample(image, oversample)
   }
 
-  /** The models the item definition picks; an item without a definition is drawn with the model of the same name. */
-  async entries(material, itemModel, state) {
+  /**
+   * Resolves item model entries according to the active Minecraft version & pack format:
+   *   - Modern (`packFormat >= 46` / MC >= 1.21.4): checks `assets/<ns>/items/<path>.json` first, then falls back to `models/item/<path>.json` + legacy overrides.
+   *   - Legacy (`packFormat < 46` / MC 1.8 – 1.21.3): checks `assets/<ns>/models/item/<path>.json` + legacy `overrides` first, with fallback to `items/<path>.json`.
+   */
+  async resolveEntries(material, itemModel, state) {
+    const preferModern = this.assets.versionInfo ? this.assets.versionInfo.hasItemDefinitions : true
     const { ns, path } = split(itemModel ?? material)
-    const definition = await this.assets.json(ns, 'items', path)
-    if (definition) {
-      // Tints by climate read the colormaps, which are fetched only for the items that ask.
+
+    const tryModern = async () => {
+      const definition = await this.assets.json(ns, 'items', path)
+      if (!definition) return null
       const text = JSON.stringify(definition)
       const colormaps = {}
       if (text.includes('minecraft:grass')) colormaps.grass = await this.assets.texture('minecraft', 'colormap/grass')
       if (text.includes('minecraft:foliage')) colormaps.foliage = await this.assets.texture('minecraft', 'colormap/foliage')
-      return chooseModels(definition, { ...state, colormaps })
+      const entries = chooseModels(definition, { ...state, colormaps })
+      return { entries, hasDefinition: true, oversizedInGui: definition.oversized_in_gui === true }
     }
-    // No definition: the item with this name has a model of the same name, as an item or as a block.
-    const asItem = await this.assets.json(ns, 'models', `item/${path}`)
-    return [{ model: asItem ? `${ns}:item/${path}` : `${ns}:block/${path}`, tints: [] }]
+
+    const tryLegacy = async () => {
+      const baseKey = itemModel && !this.assets.versionInfo?.hasItemModelComponent ? material : (itemModel ?? material)
+      const target = split(baseKey)
+      const asItem = await this.assets.json(target.ns, 'models', `item/${target.path}`)
+      if (asItem) {
+        const overridden = matchLegacyOverrides(asItem, state)
+        const chosen = overridden ?? `${target.ns}:item/${target.path}`
+        return { entries: [{ model: chosen, tints: legacyTints(target.path, state) }], hasDefinition: false, oversizedInGui: false }
+      }
+      // Special built-in entities on legacy versions (player_head, chest, shulker_box, shield, banner)
+      const special = legacySpecial(target.path)
+      if (special) return { entries: [special], hasDefinition: false, oversizedInGui: false }
+      return { entries: [{ model: `${target.ns}:block/${target.path}`, tints: legacyTints(target.path, state) }], hasDefinition: false, oversizedInGui: false }
+    }
+
+    if (preferModern) {
+      const modern = await tryModern()
+      if (modern && modern.entries.length > 0) return modern
+      return tryLegacy()
+    }
+    const legacy = await tryLegacy()
+    if (legacy && legacy.entries.length > 0) return legacy
+    return (await tryModern()) ?? { entries: [], hasDefinition: false, oversizedInGui: false }
   }
 
-  /** The quads of one entry, placed by the display transform of its model. */
+  async entries(material, itemModel, state) {
+    return (await this.resolveEntries(material, itemModel, state)).entries
+  }
+
   async layer(entry, skin = null, banner = [], baseColor = null) {
     const key = entry.model ?? entry.base
     if (!key) return null
@@ -203,19 +214,16 @@ export class ItemRenderer {
     if (!model) return null
     if (entry.special && String(entry.special.type).replace(/^minecraft:/, '') === 'banner') {
       const built = bannerLayers(entry.special.color, banner)
-      // The game lights the cloth of a banner at about three quarters, measured from icons it rendered; no light of the item matches it.
       return built.layers.map((l) => ({ quads: l.quads, display: model.display.gui, guiLight: model.guiLight ?? 'side', tints: l.tints, brightness: 0.766 }))
     }
     if (entry.special && String(entry.special.type).replace(/^minecraft:/, '') === 'shield') {
       const built = shieldLayers(baseColor, banner)
-      // The game's icon of a shield, measured against one it rendered (the wiki's Invicon: 95 % of its pixels), sits where the base model's
-      // translation of (2, 3, 0) would not put it: one pixel left of the middle and no higher. The shield model is not centred in the game.
       const display = { ...model.display.gui, translation: [-1, 0, 0] }
       return built.layers.map((l) => ({ quads: l.quads, display, guiLight: model.guiLight ?? 'side', tints: l.tints }))
     }
     if (entry.special) {
       const built = specialQuads(entry.special, skin || null)
-      if (!built) return null // drawn by code in the game and not built here: better no picture than half of one
+      if (!built) return null
       return { quads: built.quads, display: model.display.gui, guiLight: model.guiLight ?? 'side', tints: [], alpha: undefined }
     }
     return this.plain(model, entry, key)
@@ -232,7 +240,23 @@ export class ItemRenderer {
   }
 }
 
-/** Blocks the game draws in its translucent layer: glass, ice, slime and honey. Everything else with elements is solid or cutout. */
+function legacyTints(itemName, state) {
+  const n = itemName.toLowerCase()
+  if (n.startsWith('leather_') && state.dyedColor != null) return [state.dyedColor]
+  if (n.includes('potion') && state.potionColor != null) return [state.potionColor]
+  if (n === 'firework_star' && state.fireworkColor != null) return [null, state.fireworkColor]
+  return []
+}
+
+function legacySpecial(itemName) {
+  const n = itemName.toLowerCase()
+  if (n === 'player_head' || n === 'skull') return { special: { type: 'minecraft:head', kind: 'player' }, base: 'minecraft:item/template_skull', tints: [] }
+  if (n === 'chest') return { special: { type: 'minecraft:chest', texture: 'minecraft:normal' }, base: 'minecraft:item/chest', tints: [] }
+  if (n === 'ender_chest') return { special: { type: 'minecraft:chest', texture: 'minecraft:ender' }, base: 'minecraft:item/chest', tints: [] }
+  if (n === 'shield') return { special: { type: 'minecraft:shield' }, base: 'minecraft:item/shield', tints: [] }
+  return null
+}
+
 function translucent(modelKey) {
   const name = modelKey.replace(/^minecraft:/, '').replace(/^block\//, '')
   return /(^|_)glass(_pane)?($|_)|^ice$|^frosted_ice$|slime_block|honey_block|tinted_glass/.test(name) && !name.includes('bottle')

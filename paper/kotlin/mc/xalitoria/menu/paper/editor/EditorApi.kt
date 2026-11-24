@@ -88,6 +88,7 @@ internal class EditorApi(private val plugin: XaliMenu, val menus: EditorMenus, v
                 menus = menus.names(), pack = packs.pack() != null || packs.packUrl() != null, catalogs = catalogs(),
                 packSize = packs.pack()?.let { Files.size(it) }, packUrl = packs.packUrl(),
                 autoReload = who.autoReload, initialMenu = who.initialMenu, config = serverConfig(), packHash = packs.packHash(),
+                serverVersion = plugin.server.minecraftVersion,
             ))
             path.size == 2 && path[0] == "menus" && method == "GET" -> {
                 val menu = menus.read(path[1]) ?: return error(404, "There is no menu '${path[1]}'")

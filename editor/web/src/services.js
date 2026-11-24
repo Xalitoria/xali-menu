@@ -1,7 +1,7 @@
 // The things that draw with the files of the game, made together so that they all see the same resource pack: when the pack changes,
 // everything is made again.
 
-import { Assets } from './assets.js'
+import { Assets, setMinecraftVersion } from './assets.js'
 import { Text } from './text.js'
 import { WindowView } from './window.js'
 import { ItemRenderer } from './itemrender.js'
@@ -10,7 +10,7 @@ import { loadCatalog } from './catalog.js'
 import { loadRegistries } from './registry.js'
 
 export const services = {
-  assets: null, text: null, window: null, renderer: null, pack: null,
+  assets: null, text: null, window: null, renderer: null, pack: null, version: null,
   /** Screen pixels to a pixel of the game (the GUI scale), or 0 to fit the window to the space there is. */
   scale: 0,
   /** The server the editor is connected to, if any. */
@@ -31,11 +31,17 @@ export function forgetCatalog() {
   services.catalogPromise = null
 }
 
-/** Starts over with [pack] (or none) in front of the game's own files. */
-export function configure(pack = null) {
+/** Starts over with [pack] (or none) in front of the game's own files, optionally targeting Minecraft [version]. */
+export function configure(pack = null, version = services.version) {
+  if (version) {
+    services.version = version
+    setMinecraftVersion(version)
+  }
+  const prevPreprocess = services.text?.preprocess
   services.pack = pack
-  services.assets = new Assets({ pack })
+  services.assets = new Assets({ pack, version: services.version })
   services.text = new Text(services.assets, () => services.pack)
+  if (prevPreprocess) services.text.preprocess = prevPreprocess
   services.window = new WindowView(services.text, services.assets)
   services.renderer = new ItemRenderer(services.assets)
   iconSettings.pack = pack

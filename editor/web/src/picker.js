@@ -28,7 +28,7 @@ export function materialPicker({ value = '', placeholder = '', commit }) {
       observer.unobserve(hit.target)
       const slot = hit.target.querySelector('.picker-icon')
       const id = hit.target.dataset.id
-      if (slot && !slot.firstChild) slot.append(icon({ material: id }, 2))
+      if (slot && !slot.firstChild) slot.append(icon({ material: id }, 2, 1, { contain: true }))
     }
   }, { root: list })
 
@@ -44,7 +44,7 @@ export function materialPicker({ value = '', placeholder = '', commit }) {
           onmousedown: (e) => { e.preventDefault(); choose(entry.id) }, onmousemove: () => { if (active !== i) { active = i; mark() } } },
           h('span', { class: 'picker-icon' }), h('span', { class: 'picker-name' }, entry.name), h('code', null, entry.id), entry.kind === 'custom' && h('span', { class: 'badge' }, entry.source))
         // The first rows have their picture at once; the others when they are scrolled to.
-        if (i < 10) row.querySelector('.picker-icon').append(icon({ material: entry.id }, 2))
+        if (i < 10) row.querySelector('.picker-icon').append(icon({ material: entry.id }, 2, 1, { contain: true }))
         else observer.observe(row)
         return row
       }),

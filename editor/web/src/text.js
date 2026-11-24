@@ -1,22 +1,42 @@
-// Draws text with the fonts of the game, so that names, titles, lore and counts look as they do on a screen of the game. A font is
-// looked up in the resource pack first and in the game's own files after it, the way the game layers them, and the first font
-// that has a character draws it. Characters nobody has are drawn with a browser font.
+// Draws text with the fonts of the game: layers the resource pack's font providers WITH vanilla's font providers
+// (so a Nexo/Oraxen/ItemsAdder pack defining `minecraft:default` never shadows vanilla's `ascii.png`!),
+// supports Nexo `<shift:N>` horizontal pixel offsets, per-run `<shadow:...>` colors, and pre-1.13 classic fonts.
 
-import { buildFont } from './pack.js'
+import { buildFont, CLASSIC_ASCII_PROVIDER } from './pack.js'
 import { DEFAULT_FONT, key as fontKey } from './fonts.js'
 import { split } from './assets.js'
 import { runs } from './mctext.js'
 
-/** Where each part of a font of the game is found: the providers of `font/<name>.json`, following references. */
-async function providersOf(assets, key, seen = new Set()) {
+/**
+ * Reads vanilla's font providers for [key] (always bypassing the resource pack so a pack's `default.json`
+ * never shadows vanilla's `minecraft:include/default` / `ascii.png`!).
+ */
+async function vanillaProvidersOf(assets, key, seen = new Set()) {
   if (seen.has(key)) return []
   seen.add(key)
   const { ns, path } = split(key)
-  const json = await assets.json(ns, 'font', path)
+  // Pre-1.13 (pack_format < 4): Minecraft had no `font/default.json`, only `textures/font/ascii.png` + space = 4px.
+  if (assets.versionInfo && !assets.versionInfo.hasFontJson && key === DEFAULT_FONT) {
+    return [
+      { type: 'space', advances: { ' ': 4 } },
+      CLASSIC_ASCII_PROVIDER,
+    ]
+  }
+  const readJson = typeof assets.vanillaJson === 'function'
+    ? (n, f, p) => assets.vanillaJson(n, f, p)
+    : (n, f, p) => assets.json(n, f, p)
+  const json = await readJson(ns, 'font', path)
   const out = []
   for (const provider of json?.providers ?? []) {
-    if (provider.type === 'reference') out.push(...(await providersOf(assets, fontKey(provider.id), seen)))
+    if (provider.type === 'reference') out.push(...(await vanillaProvidersOf(assets, fontKey(provider.id), seen)))
     else out.push(provider)
+  }
+  // Fallback if vanilla font json couldn't be read on a version where ascii.png still exists:
+  if (out.length === 0 && key === DEFAULT_FONT && assets.vanilla) {
+    return [
+      { type: 'space', advances: { ' ': 4 } },
+      CLASSIC_ASCII_PROVIDER,
+    ]
   }
   return out
 }
@@ -37,22 +57,23 @@ export class Text {
     this.assets = assets
     this.pack = pack
     this.cache = new Map()
-    /** Changes the text before it is laid out: the page uses it to turn the names of plugin glyphs into characters. */
+    /** Transforms text before layout (used for Nexo/Oraxen/ItemsAdder glyph & shift placeholders). */
     this.preprocess = (text) => text
   }
 
-  /** The fonts to try for [key], the pack's first. */
+  /** The fonts to try for [key]: the pack's providers first, then vanilla's providers (with pack textures still overriding vanilla textures!). */
   fonts(key) {
     const pack = this.pack()
-    const id = `${pack?.label ?? ''}|${key}`
+    const id = `${pack?.label ?? ''}|${this.assets.versionBranch ?? ''}|${key}`
     if (!this.cache.has(id)) {
       this.cache.set(id, (async () => {
         const list = []
         if (pack?.fontProviders.has(key)) list.push(await pack.font(key))
-        const providers = await providersOf(this.assets, key)
+        const providers = await vanillaProvidersOf(this.assets, key)
         if (providers.length) {
           list.push(await buildFont(providers, async (file) => {
             const { ns, path } = split(file)
+            // Textures still check pack first -> vanilla second so custom HD `ascii.png` in a pack works!
             const texture = await this.assets.texture(ns, path.replace(/\.png$/, ''))
             if (!texture) return null
             const canvas = new OffscreenCanvas(texture.width, texture.height)
@@ -79,11 +100,13 @@ export class Text {
     const parts = runs(this.preprocess(text))
     const fontsByKey = new Map()
     for (const run of parts) {
+      if (run.shift) continue
       const k = fontKey(run.font ?? DEFAULT_FONT)
       if (!fontsByKey.has(k)) fontsByKey.set(k, await this.fonts(k))
     }
-    // The fallback font is read once, and only for a character that no font has.
+    // The fallback font (Unifont) is loaded once, only when a character is missing from all bitmap/space fonts.
     for (const run of parts) {
+      if (run.shift) continue
       const fonts = fontsByKey.get(fontKey(run.font ?? DEFAULT_FONT))
       const lacking = [...run.text].some((c) => c >= ' ' && fonts.every((f) => f.advance(c) === null))
       if (lacking) await Promise.all(fonts.map((f) => f.loadLate()))
@@ -91,6 +114,10 @@ export class Text {
     const placed = []
     let x = 0
     for (const run of parts) {
+      if (typeof run.shift === 'number') {
+        x += run.shift
+        continue
+      }
       const fonts = fontsByKey.get(fontKey(run.font ?? DEFAULT_FONT))
       for (const character of run.text) {
         const font = fonts.find((f) => f.advance(character) !== null)
@@ -104,16 +131,23 @@ export class Text {
 
   /**
    * Draws [text] with the top left of its line at [x], [y] on [ctx].
-   * @param {{scale?: number, color?: string, shadow?: boolean}} [options] [scale] screen pixels per pixel of the game; [color] for text with no color of its own
+   * @param {{scale?: number, color?: string, shadow?: boolean}} [options]
    * @returns {Promise<number>} where the text ends, in screen pixels
    */
   async draw(ctx, text, x, y, { scale = 3, color = '#ffffff', shadow = true } = {}) {
     const { placed, width } = await this.layout(text)
-    const passes = shadow ? [true, false] : [false]
+    const hasCustomShadow = placed.some((p) => typeof p.run.shadow === 'string')
+    const passes = (shadow || hasCustomShadow) ? [true, false] : [false]
     for (const isShadow of passes) {
       for (const item of placed) {
+        if (isShadow) {
+          if (item.run.shadow === false) continue
+          if (!shadow && typeof item.run.shadow !== 'string') continue
+        }
         const tint = item.run.color ?? color
-        const used = isShadow ? shadowOf(tint) : tint
+        const used = isShadow
+          ? (typeof item.run.shadow === 'string' ? item.run.shadow : shadowOf(tint))
+          : tint
         const at = x + item.x * scale + (isShadow ? scale : 0)
         const top = y + (isShadow ? scale : 0)
         this.glyph(ctx, item, at, top, scale, used)
@@ -127,7 +161,6 @@ export class Text {
   glyph(ctx, item, x, y, scale, color) {
     ctx.save()
     if (item.run.italic) {
-      // The game slants the top of an italic glyph one pixel to the right of its bottom.
       ctx.translate(x, y + 8 * scale)
       ctx.transform(1, 0, -0.125, 1, 0, 0)
       ctx.translate(-x, -(y + 8 * scale))
@@ -142,12 +175,14 @@ export class Text {
     ctx.restore()
   }
 
-  /** Underline and strikethrough for the characters that have them. */
   lines(ctx, placed, x, y, scale, color, shadow) {
     for (const isShadow of shadow ? [true, false] : [false]) {
       for (const item of placed) {
+        if (isShadow && item.run.shadow === false) continue
         const tint = item.run.color ?? color
-        ctx.fillStyle = isShadow ? shadowOf(tint) : tint
+        ctx.fillStyle = isShadow
+          ? (typeof item.run.shadow === 'string' ? item.run.shadow : shadowOf(tint))
+          : tint
         const offset = isShadow ? scale : 0
         if (item.run.underline) ctx.fillRect(x + item.x * scale + offset, y + 8 * scale + offset, item.advance * scale, scale)
         if (item.run.strike) ctx.fillRect(x + item.x * scale + offset, y + 4 * scale + offset, item.advance * scale, scale)

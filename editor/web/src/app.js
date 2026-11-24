@@ -9,7 +9,7 @@ import { Inventory } from './inventory.js'
 import { claimsOf, addClaim, removeClaim, moveClaim, placesOf } from './placement.js'
 import { check } from './check.js'
 import { fromHash, decodeData, dataLink, defaultRelay, SHORT_CODE, Server, readFile, toFile, download } from './source.js'
-import { services, forgetCatalog, catalog } from './services.js'
+import { services, forgetCatalog, catalog, configure } from './services.js'
 import { knownItems } from './catalog.js'
 import { materialPicker } from './picker.js'
 import { isCustomMaterial } from './items.js'
@@ -139,6 +139,10 @@ export class App {
         services.server = this.server
         forgetCatalog(); this.known = null
         const info = await this.server.info()
+        if (info.serverVersion || info.packFormat) {
+          configure(this.pack.pack, info.serverVersion ?? info.packFormat)
+        }
+        services.text.preprocess = (text) => this.pack.expand(text)
         if (info.shared && !info.readOnly && !this.server.from) this.server.from = askName()
         if (info.config?.bedrock?.defaultMode) this.editor.bedrockDefault = info.config.bedrock.defaultMode
         this.menuNames = info.menus

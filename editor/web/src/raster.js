@@ -1,32 +1,26 @@
-// Draws an item the way the game's inventory does, in software so that every browser gives the same pixels: the model is placed
-// by its `gui` display transform, projected straight onto a 16 by 16 cell, lit with the game's two item lights, and sampled with
-// nearest-neighbour texture lookups at pixel centres. [scale] is how many screen pixels one pixel of the game is.
+// Software item rasterizer matching Minecraft's GUI display transform, two item lights, and nearest-neighbour sampling.
+// Supports items whose `display.gui` scale/translation or element geometry extends beyond the 16x16 slot bounds
+// (e.g. multi-slot Nexo UI buttons and enlarged player heads) by sizing the output canvas to the projected bounds
+// and returning `{ width, height, offsetX, offsetY, data }`.
 
 import { DIRECTIONS, apply, axisMatrix, multiply } from './bake.js'
 
-/**
- * The two lights of an item with `gui_light: side`. The game builds them from the angles in Lighting.java and the face normals
- * it lights are turned the same way as the model; these are the resulting directions, which reproduce the brightness of the
- * top, left and right faces of the block icons of the game (1.0, 0.64 and 0.40).
- */
 const LIGHT_0 = [0.3933224, 0.9039666, -0.1677554]
 const LIGHT_1 = [-0.6832039, 0.6843611, 0.2547202]
-
-/** A fully drawn face is never darker than this and the lights add at most to 1. */
 const AMBIENT = 0.4
 const DIFFUSE = 0.6
 
-/** The brightness of a face with the normal [n] (after the model is turned), for `gui_light: side`. */
+/** Safety clamp in Minecraft GUI pixels beyond the 16x16 slot so malformed models cannot OOM the browser. */
+const MAX_OVERFLOW_PX = 96
+
 export function sideLight(n) {
   const a = Math.max(0, n[0] * LIGHT_0[0] + n[1] * LIGHT_0[1] + n[2] * LIGHT_0[2])
   const b = Math.max(0, n[0] * LIGHT_1[0] + n[1] * LIGHT_1[1] + n[2] * LIGHT_1[2])
   return Math.min(1, (a + b) * DIFFUSE + AMBIENT)
 }
 
-/** The matrix of the model's display transform: the rotation as the game builds it (x, then y, then z about the model), scale and translation in blocks. */
 export function transformOf(display) {
   const rotation = (display?.rotation ?? [0, 0, 0]).map((d) => (d * Math.PI) / 180)
-  // Quaternionf.rotationXYZ: the vector is turned about z first, then y, then x.
   const matrix = multiply(multiply(axisMatrix('x', rotation[0]), axisMatrix('y', rotation[1])), axisMatrix('z', rotation[2]))
   const clamp = (v, limit) => Math.max(-limit, Math.min(limit, v))
   return {
@@ -37,52 +31,86 @@ export function transformOf(display) {
 }
 
 /**
- * @typedef {{quads: import('./bake.js').Quad[], display?: object, guiLight?: string|null, tints?: (number|null|undefined)[], alpha?: 'cutout'|'translucent', brightness?: number}} Layer
- * @typedef {{width: number, height: number, data: Uint8ClampedArray}} Image
- */
-
-/**
- * Draws [layers] in order, sharing one depth buffer, into an image of 16 * [scale] pixels square.
+ * Draws [layers] in order, sharing one depth buffer.
+ * When all vertices stay inside the 16x16 slot, returns a `16*scale` square with `offsetX = 0, offsetY = 0`.
+ * When `display.gui` scale/translation or model elements extend past the slot, expands the canvas cleanly
+ * and reports `offsetX` / `offsetY` (in pixels at [scale]) relative to the slot's top-left corner.
+ *
  * @param {Layer[]} layers
- * @param {(key: string) => import('./assets.js').Texture|null} texture the pixels of a texture by `ns:path`
- * @returns {Image}
+ * @param {(key: string) => import('./assets.js').Texture|null} texture
+ * @param {number} [scale]
+ * @param {number} [align] grid alignment for bounds (set to `oversample` when downsampling)
+ * @param {boolean} [clipToSlot] clip output to the 16x16 slot (MC 1.21.6+ when `oversized_in_gui` is not true)
  */
-export function renderItem(layers, texture, scale = 3) {
-  const size = 16 * scale
-  const out = new Uint8ClampedArray(size * size * 4)
-  const depth = new Float32Array(size * size).fill(-Infinity)
+export function renderItem(layers, texture, scale = 3, align = 1, clipToSlot = false) {
+  const slotSize = 16 * scale
+  const limitMin = -MAX_OVERFLOW_PX * scale
+  const limitMax = (16 + MAX_OVERFLOW_PX) * scale
+
+  // Pass 1: project every front-facing quad and determine the true bounding box.
+  const prepared = []
+  let minVx = 0
+  let minVy = 0
+  let maxVx = slotSize
+  let maxVy = slotSize
+
   for (const layer of layers) {
     const { matrix, scale: s, translation } = transformOf(layer.display)
     const flat = layer.guiLight === 'front'
-    // Flat items are drawn translucent (a pixel under a tenth is dropped, the rest is blended). Blocks are drawn as the block is: cutout
-    // (a half transparent pixel is either dropped or whole), or translucent for glass and the like.
     const mode = layer.alpha ?? (flat ? 'translucent' : 'cutout')
     for (const quad of layer.quads) {
       const normal = apply(matrix, quad.normal)
-      if (normal[2] <= 1e-6) continue // facing away from the viewer
+      if (normal[2] <= 1e-6) continue
       const lit = layer.brightness ?? (flat ? 1 : sideLight(apply(matrix, DIRECTIONS[quad.direction])))
       const tex = quad.texture ? texture(quad.texture) : null
       const tint = layer.tints?.[quad.tintIndex]
       const vertices = quad.positions.map((p, i) => {
         const centred = p.map((v, axis) => (v / 16 - 0.5) * s[axis])
         const turned = apply(matrix, centred).map((v, axis) => v + translation[axis])
-        return { x: (8 + 16 * turned[0]) * scale, y: (8 - 16 * turned[1]) * scale, z: 16 * turned[2], u: quad.uvs[i][0], v: quad.uvs[i][1] }
+        const vx = (8 + 16 * turned[0]) * scale
+        const vy = (8 - 16 * turned[1]) * scale
+        if (vx < minVx) minVx = vx
+        if (vx > maxVx) maxVx = vx
+        if (vy < minVy) minVy = vy
+        if (vy > maxVy) maxVy = vy
+        return { x: vx, y: vy, z: 16 * turned[2], u: quad.uvs[i][0], v: quad.uvs[i][1] }
       })
-      for (const triangle of [[0, 1, 2], [0, 2, 3]]) fill(out, depth, size, triangle.map((i) => vertices[i]), tex, tint, lit, quad.translucent ? 'translucent' : mode)
+      prepared.push({ vertices, tex, tint, lit, mode: quad.translucent ? 'translucent' : mode })
     }
   }
-  return { width: size, height: size, data: out }
+
+  const snapDown = (v) => Math.floor(v / align) * align
+  const snapUp = (v) => Math.ceil(v / align) * align
+  const originX = clipToSlot ? 0 : Math.max(snapDown(limitMin), Math.min(0, snapDown(minVx)))
+  const originY = clipToSlot ? 0 : Math.max(snapDown(limitMin), Math.min(0, snapDown(minVy)))
+  const endX = clipToSlot ? slotSize : Math.min(snapUp(limitMax), Math.max(slotSize, snapUp(maxVx)))
+  const endY = clipToSlot ? slotSize : Math.min(snapUp(limitMax), Math.max(slotSize, snapUp(maxVy)))
+
+  const width = Math.max(align, endX - originX)
+  const height = Math.max(align, endY - originY)
+  const out = new Uint8ClampedArray(width * height * 4)
+  const depth = new Float32Array(width * height).fill(-Infinity)
+
+  // Pass 2: rasterize shifted into [0..width, 0..height].
+  for (const item of prepared) {
+    const shifted = originX === 0 && originY === 0
+      ? item.vertices
+      : item.vertices.map((v) => ({ ...v, x: v.x - originX, y: v.y - originY }))
+    for (const triangle of [[0, 1, 2], [0, 2, 3]]) {
+      fill(out, depth, width, height, triangle.map((i) => shifted[i]), item.tex, item.tint, item.lit, item.mode)
+    }
+  }
+
+  return { width, height, offsetX: originX, offsetY: originY, data: out }
 }
 
-/** One triangle: the pixels whose centre is inside it (a pixel on an edge belongs to the triangle on its top or left side). */
-function fill(out, depth, size, [a, b, c], tex, tint, lit, mode) {
+function fill(out, depth, width, height, [a, b, c], tex, tint, lit, mode) {
   const area = (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x)
   if (Math.abs(area) < 1e-9) return
   const minX = Math.max(0, Math.floor(Math.min(a.x, b.x, c.x)))
-  const maxX = Math.min(size - 1, Math.ceil(Math.max(a.x, b.x, c.x)))
+  const maxX = Math.min(width - 1, Math.ceil(Math.max(a.x, b.x, c.x)))
   const minY = Math.max(0, Math.floor(Math.min(a.y, b.y, c.y)))
-  const maxY = Math.min(size - 1, Math.ceil(Math.max(a.y, b.y, c.y)))
-  // The edges are walked in the winding order of the triangle, so that "inside" is the same side for both windings.
+  const maxY = Math.min(height - 1, Math.ceil(Math.max(a.y, b.y, c.y)))
   const sign = area > 0 ? 1 : -1
   const edges = [[a, b], [b, c], [c, a]].map(([p, q]) => {
     const dx = (q.x - p.x) * sign
@@ -106,7 +134,7 @@ function fill(out, depth, size, [a, b, c], tex, tint, lit, mode) {
       const w1 = ((c.x - px) * (a.y - py) - (c.y - py) * (a.x - px)) / area
       const w2 = 1 - w0 - w1
       const z = w0 * a.z + w1 * b.z + w2 * c.z
-      const at = y * size + x
+      const at = y * width + x
       if (z < depth[at]) continue
       let r = 255, g = 0, bl = 255, alpha = 255
       if (tex) {
@@ -117,7 +145,6 @@ function fill(out, depth, size, [a, b, c], tex, tint, lit, mode) {
         const i = (ty * tex.width + tx) * 4
         r = tex.data[i]; g = tex.data[i + 1]; bl = tex.data[i + 2]; alpha = tex.data[i + 3]
       } else {
-        // The game's missing texture: purple and black squares, 8 pixels each.
         const u = w0 * a.u + w1 * b.u + w2 * c.u
         const v = w0 * a.v + w1 * b.v + w2 * c.v
         const dark = (Math.floor(u * 2) + Math.floor(v * 2)) % 2 === 0
@@ -126,7 +153,7 @@ function fill(out, depth, size, [a, b, c], tex, tint, lit, mode) {
       if (mode === 'cutout') {
         if (alpha < 127.5) continue
         alpha = 255
-      } else if (alpha < 25.5) continue // below 0.1 the game discards the pixel
+      } else if (alpha < 25.5) continue
       depth[at] = z
       const o = at * 4
       const f = lit
@@ -145,13 +172,6 @@ function fill(out, depth, size, [a, b, c], tex, tint, lit, mode) {
   }
 }
 
-/**
- * Adds the sheen of an enchanted item to [image], where the item is drawn: the glint texture, turned 10 degrees and repeated eight
- * times over the item, is added to the item as the game blends it, each channel squared after the 0.75 of the glint option. The sheen
- * moves in the game; this is one moment of it.
- * @param {Image} image
- * @param {{width: number, height: number, data: Uint8ClampedArray}} glint the glint texture
- */
 export function addGlint(image, glint) {
   const { width, height, data } = image
   const angle = (10 * Math.PI) / 180
@@ -177,16 +197,10 @@ export function addGlint(image, glint) {
   return image
 }
 
-/**
- * Shrinks [image] by the whole number [factor] (each output pixel is the average of a factor-by-factor square, weighted by alpha), which
- * is what drawing at a higher resolution and scaling down gives: the edges of the shapes are smooth, and every texel keeps its color.
- * @param {Image} image
- * @returns {Image}
- */
 export function downsample(image, factor) {
   if (factor === 1) return image
-  const width = image.width / factor
-  const height = image.height / factor
+  const width = Math.floor(image.width / factor)
+  const height = Math.floor(image.height / factor)
   const out = new Uint8ClampedArray(width * height * 4)
   const area = factor * factor
   for (let y = 0; y < height; y++) {
@@ -204,5 +218,11 @@ export function downsample(image, factor) {
       out[o + 3] = a / area
     }
   }
-  return { width, height, data: out }
+  return {
+    width,
+    height,
+    offsetX: Math.round((image.offsetX ?? 0) / factor),
+    offsetY: Math.round((image.offsetY ?? 0) / factor),
+    data: out,
+  }
 }

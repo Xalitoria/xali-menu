@@ -4,6 +4,9 @@
 import { h, fill } from './dom.js'
 import { Pack } from './pack.js'
 import { DEFAULT_FONT } from './fonts.js'
+import { expandPlaceholders } from './placeholders.js'
+import { PACK_FORMATS } from './versions.js'
+import { settings as assetSettings } from './assets.js'
 
 /** Whether this page may fetch [url]: an https page cannot read plain http, except from this computer. */
 export function readable(url) {
@@ -42,16 +45,20 @@ export class PackPanel {
     this.message = 'Reading the pack…'
     this.app.draw()
     try {
-      this.pack = await Pack.load(blob, label)
-      configure(this.pack)
+      const targetFormat = services.assets?.packFormat ?? null
+      this.pack = await Pack.load(blob, label, targetFormat)
+      configure(this.pack, services.version)
       services.text.preprocess = (text) => this.expand(text)
       await this.glyphFonts()
       this.fontKey = this.pack.fontKeys().includes(DEFAULT_FONT) ? DEFAULT_FONT : (this.pack.fontKeys()[0] ?? DEFAULT_FONT)
       const summary = await this.pack.summary()
-      this.message = `${label}: ${summary.namespaces.length} namespaces, ${summary.fonts} fonts, ${summary.bitmaps} picture providers.`
+      const fmtNote = summary.packFormat ? `, format ${summary.packFormat}` : ''
+      const ovNote = summary.overlays ? `, ${summary.overlays} overlays` : ''
+      this.message = `${label}: ${summary.namespaces.length} namespaces, ${summary.fonts} fonts, ${summary.bitmaps} picture providers${fmtNote}${ovNote}.`
     } catch (error) {
       this.pack = null
-      configure(null)
+      configure(null, services.version)
+      services.text.preprocess = (text) => this.expand(text)
       this.message = `The pack could not be read: ${error.message}`
     }
     this.app.draw()
@@ -66,6 +73,7 @@ export class PackPanel {
     if (!server) return
     const info = this.app.serverInfo ?? {}
     try { this.catalog = await server.glyphs() } catch { this.catalog = [] }
+    if (this.catalog.length > 0) this.app.draw()
     if (info.packUrl && readable(info.packUrl)) {
       try {
         const host = new URL(info.packUrl).host
@@ -117,22 +125,28 @@ export class PackPanel {
     return this.fontIndex.map
   }
 
-  /** Turns the names plugins define (`<glyph:name>`, `:name:`, `%img_name%`) into characters; the text draws what this gives. */
+  /** Turns Nexo, Oraxen and ItemsAdder glyph & shift placeholders into characters/shifts. */
   expand(text) {
-    let result = text
-    for (const glyph of this.catalog) {
-      const font = glyph.font || this.fontIndex?.found?.get(glyph.char)
-      const wrapped = font && font !== DEFAULT_FONT ? `<font:${font}>${glyph.char}</font>` : glyph.char
-      for (const form of [`<glyph:${glyph.name}>`, `:${glyph.name}:`, `%img_${glyph.name}%`]) result = result.split(form).join(wrapped)
-    }
-    return result
+    return expandPlaceholders(text, this.catalog, this.fontIndex?.found ?? null)
   }
 
   // ---- the tab
 
   view() {
+    const versionPicker = h('section', null,
+      h('h2', null, 'Minecraft version'),
+      h('p', { class: 'muted' }, 'Determines which vanilla textures, item models (1.21.4+ item definitions vs legacy overrides), and pack overlays are rendered.'),
+      h('div', { class: 'row-buttons' },
+        h('select', {
+          onchange: (e) => {
+            configure(this.pack, e.target.value)
+            services.text.preprocess = (text) => this.expand(text)
+            this.app.draw()
+          },
+        }, PACK_FORMATS.map((entry) => h('option', { value: entry.version, selected: assetSettings.version === entry.branch }, `${entry.version} (pack_format ${entry.packFormat})`)))))
     return h('div', { class: 'page pack-tab' },
       this.loader(),
+      versionPicker,
       this.pack ? h('p', { class: 'muted' }, 'The glyphs of the pack are in the bar under the window of the Editor tab: pick one there and move it into place.')
         : h('p', { class: 'muted' }, 'Load the resource pack of the server to see its glyphs in titles, move them into place, and see custom items.'),
       this.catalog.length > 0 && this.names())

@@ -297,14 +297,14 @@ export class EditorTab {
       draggable: true,
       ondragstart: (e) => { e.dataTransfer.effectAllowed = 'copy'; e.dataTransfer.setData('text/plain', JSON.stringify({ kind: 'item', name: id })) },
       onclick: () => app.pickItem(id) },
-    h('span', { class: 'item-icon' }, icon(item, view.device, view.ratio)),
+    h('span', { class: 'item-icon' }, icon(item, view.device, view.ratio, { contain: true })),
     h('span', { class: 'item-text' }, h('b', null, id), h('small', null, `${placeText(placesOf(this.menu, id))} · ${item.material ?? ''}`)))
   }
 
   /** The entry of the list for the template of a paged menu, or for its item for no elements: they are items of `pages`, not of `items`. */
   pagedRow(id, item, label, detail, bad, view) {
     return h('button', { class: `item-row paged ${id === this.app.picked.item ? 'active' : ''} ${bad ? 'bad' : ''}`, 'data-id': id, title: detail, onclick: () => this.app.pickItem(id) },
-      h('span', { class: 'item-icon' }, icon(item, view.device, view.ratio)),
+      h('span', { class: 'item-icon' }, icon(item, view.device, view.ratio, { contain: true })),
       h('span', { class: 'item-text' }, h('b', null, label), h('small', null, detail)))
   }
 

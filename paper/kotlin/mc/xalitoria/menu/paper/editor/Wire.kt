@@ -63,6 +63,7 @@ internal object Wire {
     val plugin: String, val version: String, val owner: String, val shared: Boolean, val readOnly: Boolean, val menus: List<String>, val pack: Boolean,
     val catalogs: Map<String, CatalogInfo>, val packSize: Long?, val packUrl: String?,
     val autoReload: Boolean = false, val initialMenu: String? = null, val config: ServerConfigInfo? = null, val packHash: String? = null,
+    val serverVersion: String? = null,
 )
 
 @Serializable internal data class MenuReply(val name: String, val menu: JsonElement)
