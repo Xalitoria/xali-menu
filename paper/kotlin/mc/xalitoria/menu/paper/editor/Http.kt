@@ -35,4 +35,39 @@ internal object Http {
             return bytes.takeIf { it.size <= maxBytes }
         }
     }
+
+    /**
+     * Like [get], following up to [maxRedirects] HTTP redirects while verifying [allowed] before the initial request and before
+     * every redirect hop, so an allowlisted host cannot redirect the server to an internal or disallowed address.
+     */
+    fun getChecked(
+        address: URI,
+        timeout: Duration,
+        maxBytes: Int,
+        maxRedirects: Int = 3,
+        allowed: (URI) -> Boolean,
+    ): ByteArray? {
+        var current = address
+        for (hop in 0..maxRedirects) {
+            if (!allowed(current)) return null
+            val request = HttpRequest.newBuilder(current).timeout(timeout).GET().build()
+            val response = send(request, HttpResponse.BodyHandlers.ofInputStream(), follow = false)
+            val status = response.statusCode()
+            if (status in REDIRECTS) {
+                response.body().use { /* discard redirect body */ }
+                if (hop == maxRedirects) return null
+                val location = response.headers().firstValue("location").orElse(null) ?: return null
+                current = runCatching { current.resolve(location) }.getOrNull() ?: return null
+                continue
+            }
+            response.body().use { stream ->
+                if (status != 200) return null
+                val bytes = stream.readNBytes(maxBytes + 1)
+                return bytes.takeIf { it.size <= maxBytes }
+            }
+        }
+        return null
+    }
+
+    private val REDIRECTS = setOf(301, 302, 303, 307, 308)
 }

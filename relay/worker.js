@@ -16,6 +16,7 @@ const DEFAULTS = {
   maxTtl: 2 * 3600,
   idle: 900,
   callTimeout: 30,
+  reconnectGrace: 10,
 }
 
 /** Threshold below which encrypted call/answer payloads ride directly inside a WebSocket text frame (Cloudflare limit is 1 MiB). */
@@ -186,6 +187,9 @@ export default {
     if (contentLength) headers.set('Content-Length', contentLength)
     const contentType = request.headers.get('content-type')
     if (contentType) headers.set('Content-Type', contentType)
+    // Only trust Cloudflare's edge-injected CF-Connecting-IP (never any caller-supplied X-Client-Ip).
+    const clientIp = request.headers.get('cf-connecting-ip')
+    if (clientIp) headers.set('X-Client-Ip', clientIp)
 
     const hasBody = request.method !== 'GET' && request.method !== 'HEAD' && request.method !== 'DELETE' && request.body !== null
     const forwarded = await stub.fetch(new Request(`https://relay.internal${subPath}`, {
@@ -216,6 +220,9 @@ export class RelaySession {
       maxBody: Number(this.env?.XM_RELAY_MAX_BODY) || DEFAULTS.maxBody,
       idle: Number(this.env?.XM_RELAY_IDLE) || DEFAULTS.idle,
       callTimeout: Number(this.env?.XM_RELAY_CALL_TIMEOUT) || DEFAULTS.callTimeout,
+      reconnectGrace: this.env?.XM_RELAY_RECONNECT_GRACE !== undefined
+        ? Number(this.env.XM_RELAY_RECONNECT_GRACE)
+        : DEFAULTS.reconnectGrace,
     }
   }
 
@@ -286,9 +293,10 @@ export class RelaySession {
     while (s.queue.length > 0) {
       const call = s.queue.shift()
       try {
+        const ipPart = call.ip ? { ip: call.ip } : {}
         const payload = call.data.byteLength <= WS_INLINE_MAX
-          ? JSON.stringify({ id: call.id, data: url64(call.data) })
-          : JSON.stringify({ id: call.id, fetch: true })
+          ? JSON.stringify({ id: call.id, data: url64(call.data), ...ipPart })
+          : JSON.stringify({ id: call.id, fetch: true, ...ipPart })
         ws.send(payload)
       } catch {
         s.queue.unshift(call)
@@ -328,18 +336,24 @@ export class RelaySession {
     } catch { /* bad base64 */ }
   }
 
-  /** Hibernation callback: when the plugin disconnects its WebSocket, fail waiting calls cleanly if no replacement exists. */
-  async webSocketClose(ws) {
+  /** Hibernation callback: when the plugin disconnects its WebSocket, end on normal close or mark disconnected for quick failover. */
+  async webSocketClose(ws, code = 1000) {
     this.restoreIfHibernated()
     const current = this.pluginSocket()
-    if (!current || current === ws) {
-      // Keep session metadata briefly only if not expired so a transient drop can reconnect; fail currently blocked calls?
-      // Waiting calls stay queued until timeout or reconnect unless the plugin sent normal close (1000).
+    if (current && current !== ws) return
+    if (code === 1000) {
+      this.end()
+      return
     }
+    if (this.session) this.session.disconnectedAt = Date.now()
   }
 
-  async webSocketError() {
-    // Reconnect or call timeout will handle recovery cleanly.
+  async webSocketError(ws) {
+    this.restoreIfHibernated()
+    const current = this.pluginSocket()
+    if ((!current || current === ws) && this.session) {
+      this.session.disconnectedAt = Date.now()
+    }
   }
 
   async fetch(request) {
@@ -383,6 +397,7 @@ export class RelaySession {
       const [client, server] = Object.values(pair)
       this.state.acceptWebSocket(server, ['plugin'])
       s.seen = Date.now()
+      s.disconnectedAt = null
       if (typeof server.serializeAttachment === 'function') {
         server.serializeAttachment({ id: s.id, secret: s.secret, expires: s.expires, seen: s.seen })
       }
@@ -394,16 +409,23 @@ export class RelaySession {
       if (!equalStrings(bearerOf(request), s.secret)) return jsonResponse(401, { error: 'Not the secret of this session' })
       const waiting = s.waiting.get(parts[1])
       if (!waiting) return jsonResponse(404, { error: 'There is no such call' })
-      return new Response(waiting.data, { status: 200, headers: { 'Content-Type': 'application/octet-stream', 'Cache-Control': 'no-store' } })
+      const headers = { 'Content-Type': 'application/octet-stream', 'Cache-Control': 'no-store' }
+      if (waiting.ip) headers['X-Relay-Client-Ip'] = waiting.ip
+      return new Response(waiting.data, { status: 200, headers })
     }
 
     if (parts.length === 1 && parts[0] === 'call' && request.method === 'POST') {
+      const { reconnectGrace } = this.config()
+      if (!this.pluginSocket() && s.disconnectedAt && Date.now() - s.disconnectedAt >= reconnectGrace * 1000) {
+        return jsonResponse(503, { error: 'The Minecraft server disconnected. Reconnect with a new /xmenu edit link or save to another server.', offline: true })
+      }
       if (s.queue.length + s.waiting.size >= 64) return jsonResponse(429, { error: 'Too many requests are waiting' })
       const data = await readBytes(request, maxBody)
       if (data === null) return jsonResponse(413, { error: 'The message is too big' })
+      const ip = request.headers.get('x-client-ip') || null
       this.touchActivity()
       return new Promise((resolve) => {
-        const call = { id: randomId(9), data, timer: null, resolve }
+        const call = { id: randomId(9), data, ip, timer: null, resolve }
         const drop = () => {
           clearTimeout(call.timer)
           s.waiting.delete(call.id)

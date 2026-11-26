@@ -69,23 +69,42 @@ internal class EditorServer(private val plugin: XaliMenu, val sessions: EditorSe
                 exchange.responseHeaders.add("Vary", "Origin")
             }
             if (exchange.requestMethod == "OPTIONS") {
-                exchange.responseHeaders.add("Access-Control-Allow-Methods", "GET, PUT, POST, OPTIONS")
+                exchange.responseHeaders.add("Access-Control-Allow-Methods", "GET, PUT, POST, DELETE, OPTIONS")
                 exchange.responseHeaders.add("Access-Control-Allow-Headers", "Authorization, Content-Type, Range, X-Editor-From")
-                exchange.responseHeaders.add("Access-Control-Allow-Private-Network", "true")
+                if (exchange.requestHeaders.getFirst("Access-Control-Request-Private-Network").equals("true", ignoreCase = true)) {
+                    exchange.responseHeaders.add("Access-Control-Allow-Private-Network", "true")
+                }
                 exchange.responseHeaders.add("Access-Control-Max-Age", "600")
                 return reply(exchange, 204, null)
             }
-            val token = exchange.requestHeaders.getFirst("Authorization")?.removePrefix("Bearer ")?.trim()
+            val auth = exchange.requestHeaders.getFirst("Authorization")
+            val token = auth?.takeIf { it.startsWith("Bearer ") }?.removePrefix("Bearer ")?.trim()
             val session = sessions.session(token) ?: return reply(exchange, 401, error("The link has expired"))
             val bytes = exchange.requestBody.readNBytes(EditorApi.MAX_BODY + 1)
             if (bytes.size > EditorApi.MAX_BODY) return reply(exchange, 413, error("The request is too big"))
             val path = exchange.requestURI.path.removePrefix("/v1")
             val from = if (session.shared) EditorRelay.clean(exchange.requestHeaders.getFirst("X-Editor-From") ?: session.owner) else session.owner
-            val caller = EditorApi.Caller(session.owner, shared = session.shared, from = from, readOnly = session.readOnly, autoReload = session.autoReload, initialMenu = session.initialMenu)
+            val clientIp = EditorGuard.resolveClientIp(
+                remoteIp = exchange.remoteAddress?.address?.hostAddress,
+                cfConnectingIp = exchange.requestHeaders.getFirst("CF-Connecting-IP"),
+                forwardedFor = exchange.requestHeaders.getFirst("X-Forwarded-For"),
+                trustProxy = plugin.config.data.editor.trustProxy,
+            )
+            val caller = EditorApi.Caller(
+                owner = session.owner,
+                shared = session.shared,
+                from = from,
+                readOnly = session.readOnly,
+                autoReload = session.autoReload,
+                initialMenu = session.initialMenu,
+                ownerIp = session.ownerIp,
+                ownerUuid = session.ownerUuid,
+                clientIp = clientIp,
+            )
             send(exchange, api.handle(EditorApi.Call(exchange.requestMethod, path, exchange.requestURI.rawQuery, bytes, exchange.requestHeaders.getFirst("Range")), caller))
         } catch (e: Exception) {
             plugin.logger.warning("The editor endpoint failed on ${exchange.requestURI}: $e")
-            runCatching { reply(exchange, 500, error("The server could not answer: ${e.message}")) }
+            runCatching { reply(exchange, 500, error("The server could not answer")) }
         } finally {
             exchange.close()
         }
@@ -98,6 +117,8 @@ internal class EditorServer(private val plugin: XaliMenu, val sessions: EditorSe
         if (reply.file != null) {
             exchange.sendResponseHeaders(reply.status, reply.file.fileSize())
             Files.copy(reply.file, exchange.responseBody)
+        } else if (reply.status == 204) {
+            exchange.sendResponseHeaders(204, -1)
         } else {
             exchange.sendResponseHeaders(reply.status, reply.body.size.toLong())
             exchange.responseBody.write(reply.body)
@@ -115,11 +136,12 @@ internal class EditorServer(private val plugin: XaliMenu, val sessions: EditorSe
 
     private fun error(message: String) = Wire.write(ErrorReply(message))
 
-    /** The editor's site, and the machine itself (for development); nothing else. */
+    /** The editor's site, and localhost (only when listening on loopback for local development); nothing else. */
     private fun allowed(origin: String): Boolean {
         val uri = runCatching { URI(origin) }.getOrNull() ?: return false
-        val site = runCatching { URI(plugin.config.data.editor.site) }.getOrNull()
+        val editorCfg = plugin.config.data.editor
+        val site = runCatching { URI(editorCfg.site) }.getOrNull()
         if (site != null && uri.scheme == site.scheme && uri.host == site.host && uri.port == site.port) return true
-        return uri.scheme == "http" && uri.host in setOf("localhost", "127.0.0.1")
+        return EditorGuard.isLoopback(editorCfg.host) && uri.scheme == "http" && uri.host in setOf("localhost", "127.0.0.1")
     }
 }

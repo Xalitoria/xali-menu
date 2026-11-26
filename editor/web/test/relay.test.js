@@ -160,3 +160,55 @@ test('short 12-char base64url codes parse cleanly, derive the expected session/k
     assert.equal(server.reloaded, true)
   } finally { globalThis.fetch = real }
 })
+
+test('RelayServer surfaces server-down disconnects (503/504/404), captures held reason, supports presence, and fails over to another server', async () => {
+  const codeA = 'Ab9-_xK2pQ7m'
+  const codeB = 'Cd8-_yL3qR6n'
+  const credsA = await deriveCode(codeA)
+  const credsB = await deriveCode(codeB)
+  let serverAState = 'online'
+  const savedOnB = []
+
+  const real = globalThis.fetch
+  globalThis.fetch = async (url, init) => {
+    if (url.includes(credsA.session)) {
+      if (serverAState === 'crashed') return new Response(JSON.stringify({ error: 'The Minecraft server disconnected.', offline: true }), { status: 503, headers: { 'Content-Type': 'application/json' } })
+      if (serverAState === 'gone') return new Response(JSON.stringify({ error: 'gone' }), { status: 404 })
+      const req = await open(credsA.key, credsA.session, 'q', new Uint8Array(init.body))
+      const payload = req.path === '/presence'
+        ? { peers: [{ id: 'p1', name: 'Steve', inGame: true, admin: true, color: '#3b82f6', menu: 'shop', slot: 13, self: false }], packRevision: 3, ipVerified: false, ipNotice: 'IP mismatch' }
+        : { problems: [], held: true, id: 12, reason: 'IP mismatch (9.9.9.9)' }
+      return new Response(await seal(credsA.key, credsA.session, 'a', { rid: req.rid, status: 200, type: 'application/json', body: Buffer.from(JSON.stringify(payload)).toString('base64') }))
+    }
+    if (url.includes(credsB.session)) {
+      const req = await open(credsB.key, credsB.session, 'q', new Uint8Array(init.body))
+      if (req.method === 'PUT') savedOnB.push({ path: req.path, menu: JSON.parse(req.body).menu })
+      return new Response(await seal(credsB.key, credsB.session, 'a', { rid: req.rid, status: 200, type: 'application/json', body: Buffer.from(JSON.stringify({ problems: [], reloaded: false })).toString('base64') }))
+    }
+    throw new Error(`unexpected ${url}`)
+  }
+  try {
+    const serverA = RelayServer.fromCode('https://menu.xali.to/relay', codeA)
+    const p = await serverA.presence({ clientId: 'me123', menu: 'shop', slot: 4 })
+    assert.equal(p.packRevision, 3)
+    assert.equal(p.ipVerified, false)
+    assert.equal(p.peers[0].name, 'Steve')
+
+    await serverA.save('shop', { title: 'Shop', size: 27 })
+    assert.equal(serverA.held, true)
+    assert.equal(serverA.heldId, 12)
+    assert.equal(serverA.heldReason, 'IP mismatch (9.9.9.9)')
+
+    // Server A crashes -> error carries offline = true so the editor preserves edits and prompts failover.
+    serverAState = 'crashed'
+    await assert.rejects(() => serverA.save('shop', { title: 'Edited', size: 27 }), (err) => err.offline === true)
+    serverAState = 'gone'
+    await assert.rejects(() => serverA.presence({ clientId: 'me123' }), (err) => err.offline === true)
+
+    // User connects to Server B and saves the preserved menu there.
+    const serverB = RelayServer.fromCode('https://menu.xali.to/relay', codeB)
+    await serverB.save('shop', { title: 'Edited', size: 27 })
+    assert.equal(serverB.held, false)
+    assert.deepEqual(savedOnB, [{ path: '/menus/shop', menu: { title: 'Edited', size: 27 } }])
+  } finally { globalThis.fetch = real }
+})

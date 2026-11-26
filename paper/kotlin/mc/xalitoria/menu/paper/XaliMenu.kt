@@ -157,6 +157,7 @@ class XaliMenu : JavaPlugin() {
         if (pm.isPluginEnabled("Nexo")) {
             registry.addSource(null, NexoSource())
             mc.xalitoria.menu.paper.hook.NexoTags.enabled = true
+            pm.registerEvents(mc.xalitoria.menu.paper.hook.NexoListener(this), this)
         }
         val hdb = if (pm.isPluginEnabled("HeadDatabase")) HeadDatabaseSource().also { registry.addSource(null, it) } else null
         heads = Heads(this, pm.isPluginEnabled("SkinsRestorer"), { hdb?.texture(it) })
@@ -201,9 +202,21 @@ class XaliMenu : JavaPlugin() {
         editor = EditorServer(this, EditorSessions({ config.data.editor.sessionMinutes }))
         relay = EditorRelay(this, editor.api)
         editor.api.onHeld = { edit ->
-            val message = messageConfig.data.commands.edit.heldNotice(edit.from, edit.name, edit.id)
-            server.onlinePlayers.filter { it.hasPermission(Permissions.ADMIN) }.forEach { it info message }
-            logger.info("${edit.from} sent an edit of '${edit.name}' (#${edit.id}); /xmenu edits lists it")
+            val editMsg = messageConfig.data.commands.edit
+            val isShared = edit.reason == "shared link"
+            val message = if (isShared) editMsg.heldNotice(edit.from.verbatim(), edit.name.verbatim(), edit.id)
+            else editMsg.heldIpNotice(edit.from.verbatim(), edit.name.verbatim(), edit.id, edit.reason.verbatim())
+            val privWarning = if (edit.privileged.isNotEmpty()) {
+                editMsg.editsPrivileged(edit.privileged.size, edit.privileged.take(5).joinToString("; ").verbatim())
+            } else null
+            server.onlinePlayers.filter { runCatching { it.hasPermission(Permissions.ADMIN) }.getOrDefault(false) }.forEach { admin ->
+                admin info message
+                if (privWarning != null) admin warn privWarning
+            }
+            val ipNote = edit.clientIp?.let { " [ip=$it]" }.orEmpty()
+            val privLog = if (edit.privileged.isNotEmpty()) " [PRIVILEGED: ${edit.privileged.joinToString("; ")}]" else ""
+            if (isShared) logger.info("${edit.from} sent an edit of '${edit.name}' (#${edit.id})$ipNote$privLog; /xmenu edits lists it")
+            else logger.warning("Held save of '${edit.name}' from ${edit.from} (#${edit.id}, ${edit.reason})$ipNote$privLog; /xmenu edits inspect ${edit.id}")
         }
         editor.api.onSaved = { owner, name, reloaded, problems ->
             val editMsg = messageConfig.data.commands.edit

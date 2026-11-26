@@ -246,3 +246,93 @@ test('RelaySession supports Hibernatable WebSockets across isolate hibernation, 
     globalThis.WebSocketPair = origPair
   }
 })
+
+test('worker forwards CF-Connecting-IP (ignoring spoofed headers) and detects Paper server disconnect cleanly', async () => {
+  class FakeSocket {
+    constructor() { this.sent = []; this.closed = false; this.attachment = null }
+    send(msg) { this.sent.push(msg) }
+    close() { this.closed = true }
+    serializeAttachment(v) { this.attachment = structuredClone(v) }
+    deserializeAttachment() { return this.attachment ? structuredClone(this.attachment) : null }
+  }
+  const origPair = globalThis.WebSocketPair
+  const sockets = []
+  let serverSocket
+  const state = {
+    acceptWebSocket(ws) { sockets.push(ws) },
+    getWebSockets() { return sockets.filter((s) => !s.closed) },
+  }
+  let doInstance
+  const env = {
+    XM_RELAY_RECONNECT_GRACE: '0.03',
+    SESSIONS: {
+      idFromName(name) { return name },
+      get() {
+        if (!doInstance) doInstance = new RelaySession(state, env)
+        return { fetch: (input, init) => doInstance.fetch(input instanceof Request ? input : new Request(input, init)) }
+      },
+    },
+  }
+  globalThis.WebSocketPair = function () {
+    const client = new FakeSocket()
+    serverSocket = new FakeSocket()
+    return { 0: client, 1: serverSocket }
+  }
+  try {
+    const id = 'MDOBu5MeKKxKUvcD8VhhAA'
+    const { secret } = await (await call(env, '/relay/s', { method: 'POST', body: JSON.stringify({ id, ttl: 300 }) })).json()
+    try {
+      await doInstance.fetch(new Request('https://relay.internal/ws', { headers: { ...bearer(secret), Upgrade: 'websocket' } }))
+    } catch { /* Node status 101 */ }
+
+    // 1. CF-Connecting-IP is forwarded; spoofed X-Client-Ip is ignored.
+    const smallCall = call(env, `/relay/s/${id}/call`, {
+      method: 'POST',
+      headers: { 'CF-Connecting-IP': '203.0.113.42', 'X-Client-Ip': '127.0.0.1' },
+      body: new TextEncoder().encode('ip-test'),
+    })
+    await new Promise((r) => setTimeout(r, 10))
+    const pushed = JSON.parse(serverSocket.sent.shift())
+    assert.equal(pushed.ip, '203.0.113.42')
+    await doInstance.webSocketMessage(serverSocket, JSON.stringify({ id: pushed.id, data: Buffer.from('ok').toString('base64url') }))
+    assert.equal((await smallCall).status, 200)
+
+    // 2. Large (>600 KB) call passes IP in both notice and X-Relay-Client-Ip header on GET /call/<id>.
+    const bigCall = call(env, `/relay/s/${id}/call`, {
+      method: 'POST',
+      headers: { 'CF-Connecting-IP': '198.51.100.9' },
+      body: new Uint8Array(650 * 1024).fill(7),
+    })
+    await new Promise((r) => setTimeout(r, 10))
+    const bigNotice = JSON.parse(serverSocket.sent.shift())
+    assert.equal(bigNotice.fetch, true)
+    assert.equal(bigNotice.ip, '198.51.100.9')
+    const pulled = await doInstance.fetch(new Request(`https://relay.internal/call/${bigNotice.id}`, { headers: bearer(secret) }))
+    assert.equal(pulled.headers.get('x-relay-client-ip'), '198.51.100.9')
+    await doInstance.fetch(new Request(`https://relay.internal/answer/${bigNotice.id}`, { method: 'POST', headers: bearer(secret), body: 'done' }))
+    assert.equal((await bigCall).status, 200)
+
+    // 3. Abrupt Paper server crash (abnormal close 1006): after reconnect grace expires, browser immediately gets 503 offline.
+    serverSocket.closed = true
+    await doInstance.webSocketClose(serverSocket, 1006)
+    await new Promise((r) => setTimeout(r, 50))
+    const offline = await call(env, `/relay/s/${id}/call`, { method: 'POST', body: 'after-crash' })
+    assert.equal(offline.status, 503)
+    const offlineBody = await offline.json()
+    assert.equal(offlineBody.offline, true)
+
+    // 4. Clean Paper shutdown (close 1000) ends the session immediately (404).
+    const id2 = 'NDOBu5MeKKxKUvcD8VhhBB'
+    doInstance = null
+    sockets.length = 0
+    const s2 = await (await call(env, '/relay/s', { method: 'POST', body: JSON.stringify({ id: id2, ttl: 300 }) })).json()
+    try {
+      await doInstance.fetch(new Request('https://relay.internal/ws', { headers: { ...bearer(s2.secret), Upgrade: 'websocket' } }))
+    } catch { /* Node status 101 */ }
+    serverSocket.closed = true
+    await doInstance.webSocketClose(serverSocket, 1000)
+    assert.equal((await call(env, `/relay/s/${id2}/call`, { method: 'POST', body: 'gone' })).status, 404)
+  } finally {
+    globalThis.WebSocketPair = origPair
+  }
+})

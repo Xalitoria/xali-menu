@@ -32,10 +32,22 @@ const url64 = (bytes) => bytes.toString('base64url')
  */
 export function createRelay(options = {}) {
   const {
-    token = '', maxBody = 8 * 1024 * 1024, maxSessions = 1000, maxTtl = 4 * 3600, idle = 120, callTimeout = 30, pollWait = 25, origins = null,
+    token = '', maxBody = 8 * 1024 * 1024, maxSessions = 1000, maxTtl = 4 * 3600, idle = 120, callTimeout = 30, pollWait = 25, origins = null, trustProxy = false,
   } = options
   /** @type {Map<string, {secret: Buffer, expires: number, seen: number, queue: object[], waiting: Map<string, object>, poller: object|null}>} */
   const sessions = new Map()
+
+  const isLoopback = (ip) => ip === '127.0.0.1' || ip === '::1' || ip === '::ffff:127.0.0.1'
+  function clientIpOf(req) {
+    const remote = req.socket?.remoteAddress ?? null
+    if (trustProxy && isLoopback(remote)) {
+      const cf = req.headers['cf-connecting-ip']
+      if (typeof cf === 'string' && cf.trim()) return cf.trim()
+      const xff = req.headers['x-forwarded-for']
+      if (typeof xff === 'string' && xff.trim()) return xff.split(',')[0].trim()
+    }
+    return remote
+  }
 
   const sweep = () => {
     const now = Date.now()
@@ -75,8 +87,13 @@ export function createRelay(options = {}) {
     })
   }
 
+  function bearerOf(req) {
+    const header = req.headers.authorization ?? ''
+    return header.startsWith('Bearer ') ? header.slice(7) : ''
+  }
+
   function authorized(session, req) {
-    const given = Buffer.from((req.headers.authorization ?? '').replace(/^Bearer /, ''))
+    const given = Buffer.from(bearerOf(req))
     return given.length === session.secret.length && timingSafeEqual(given, session.secret)
   }
 
@@ -87,7 +104,7 @@ export function createRelay(options = {}) {
     clearTimeout(timer)
     session.poller = null
     const batch = session.queue.splice(0, 16)
-    send(res, 200, batch.map((call) => ({ id: call.id, data: url64(call.data) })))
+    send(res, 200, batch.map((call) => ({ id: call.id, data: url64(call.data), ...(call.ip ? { ip: call.ip } : {}) })))
   }
 
   async function handle(req, res) {
@@ -106,7 +123,7 @@ export function createRelay(options = {}) {
     if (parts[0] !== 's') return reply(404, { error: 'Unknown request' })
 
     if (parts.length === 1 && req.method === 'POST') {
-      const given = Buffer.from((req.headers.authorization ?? '').replace(/^Bearer /, ''))
+      const given = Buffer.from(bearerOf(req))
       const wanted = Buffer.from(token)
       if (token && !(given.length === wanted.length && timingSafeEqual(given, wanted))) return reply(401, { error: 'A token is needed to open a session' })
       sweep()
@@ -158,7 +175,7 @@ export function createRelay(options = {}) {
       if (session.queue.length + session.waiting.size >= 64) return reply(429, { error: 'Too many requests are waiting' })
       const data = await readBody(req, res)
       if (data === null) return
-      const call = { id: url64(randomBytes(9)), data, timer: null, answer: (status, body) => reply(status, body) }
+      const call = { id: url64(randomBytes(9)), data, ip: clientIpOf(req), timer: null, answer: (status, body) => reply(status, body) }
       const drop = () => { clearTimeout(call.timer); session.waiting.delete(call.id); const at = session.queue.indexOf(call); if (at >= 0) session.queue.splice(at, 1) }
       call.timer = setTimeout(() => { drop(); reply(504, { error: 'The server did not answer' }) }, callTimeout * 1000)
       session.waiting.set(call.id, call)
@@ -177,7 +194,7 @@ export function createRelay(options = {}) {
     return reply(404, { error: 'Unknown request' })
   }
 
-  const server = createServer((req, res) => { handle(req, res).catch((error) => send(res, 500, { error: String(error?.message ?? error) })) })
+  const server = createServer((req, res) => { handle(req, res).catch(() => send(res, 500, { error: 'Internal relay error' })) })
   server.on('close', () => { clearInterval(timer); for (const id of [...sessions.keys()]) end(id) })
   server.sessions = sessions
   return server
@@ -185,7 +202,8 @@ export function createRelay(options = {}) {
 
 if (import.meta.url === `file://${process.argv[1]}`) {
   const origins = process.env.XM_RELAY_ORIGINS ? process.env.XM_RELAY_ORIGINS.split(',').map((s) => s.trim()) : null
-  const server = createRelay({ token: process.env.XM_RELAY_TOKEN ?? '', origins })
+  const trustProxy = process.env.XM_RELAY_TRUST_PROXY === '1' || process.env.XM_RELAY_TRUST_PROXY === 'true'
+  const server = createRelay({ token: process.env.XM_RELAY_TOKEN ?? '', origins, trustProxy })
   const port = Number(process.env.PORT ?? 8787)
   server.listen(port, process.env.HOST ?? '127.0.0.1', () => console.log(`XaliMenu relay on port ${port}`))
 }

@@ -1,13 +1,22 @@
+import com.typesafe.config.ConfigFactory
+import mc.xalitoria.menu.paper.config.MainConfig
 import mc.xalitoria.menu.paper.editor.EditorApi
+import mc.xalitoria.menu.paper.editor.EditorGuard
 import mc.xalitoria.menu.paper.editor.EditorLink
 import mc.xalitoria.menu.paper.editor.EditorMenus
+import mc.xalitoria.menu.paper.editor.EditorPresence
+import mc.xalitoria.menu.paper.editor.EditorPush
 import mc.xalitoria.menu.paper.editor.EditorSessions
 import mc.xalitoria.menu.paper.editor.GameFiles
+import mc.xalitoria.menu.paper.editor.Held
 import mc.xalitoria.menu.paper.editor.Http
 import mc.xalitoria.menu.paper.editor.ColorsRequest
 import mc.xalitoria.menu.paper.editor.ErrorReply
 import mc.xalitoria.menu.paper.editor.MenuRequest
 import mc.xalitoria.menu.paper.editor.Problems
+import mc.xalitoria.menu.paper.editor.RelayCrypto
+import mc.xalitoria.menu.paper.editor.RelayReply
+import mc.xalitoria.menu.paper.editor.RelayRequest
 import mc.xalitoria.menu.paper.editor.Saved
 import mc.xalitoria.menu.paper.editor.Wire
 import mc.xalitoria.menu.paper.editor.fontImageIds
@@ -191,5 +200,211 @@ class Editor {
         assertEquals(0L..limit - 1, EditorApi.byteRange("bytes=0-", 100 * limit), "cut to a part that can be sent")
         assertEquals(5L..5L, EditorApi.byteRange(" bytes=5-5 ", 10))
         for (bad in listOf("bytes=1000-1001", "bytes=50-10", "bytes=-5", "items=0-1", "bytes=0-1,5-6", "", "bytes=a-b")) assertNull(EditorApi.byteRange(bad, 1000), bad)
+    }
+
+    @Test
+    fun ipNormalizationAndMatchingHandleMappedIpv6LoopbackAndRejectHostnames() {
+        assertEquals("203.0.113.5", EditorGuard.normalizeIp(" 203.0.113.5 "))
+        assertEquals("203.0.113.5", EditorGuard.normalizeIp("::ffff:203.0.113.5"))
+        assertTrue(EditorGuard.ipsMatch("203.0.113.5", "::ffff:203.0.113.5"))
+        assertTrue(EditorGuard.ipsMatch("127.0.0.1", "::1"))
+        assertTrue(EditorGuard.ipsMatch("[::1]", "127.0.0.1"))
+        assertFalse(EditorGuard.ipsMatch("203.0.113.5", "203.0.113.6"))
+        assertNull(EditorGuard.normalizeIp("localhost"))
+        assertNull(EditorGuard.normalizeIp("evil.example"))
+        assertNull(EditorGuard.normalizeIp(""))
+        assertEquals("198.51.100.7", EditorGuard.resolveClientIp("127.0.0.1", "198.51.100.7", "203.0.113.9", trustProxy = true))
+        assertEquals("203.0.113.9", EditorGuard.resolveClientIp("::1", null, "203.0.113.9, 10.0.0.1", trustProxy = true))
+        assertEquals("127.0.0.1", EditorGuard.resolveClientIp("127.0.0.1", "198.51.100.7", null, trustProxy = false))
+        assertEquals("192.0.2.4", EditorGuard.resolveClientIp("192.0.2.4", "198.51.100.7", null, trustProxy = true), "never trust forwarding headers from non-loopback")
+    }
+
+    @Test
+    fun saveGuardEnforcesIpPoliciesPermissionsAndSharedLinks() {
+        // ADMIN policy: matches owner IP, or another online admin's IP (including console sessions), holds unknown IPs.
+        assertEquals(EditorGuard.SaveDecision.Allow, EditorGuard.checkSave(MainConfig.VerifyIp.ADMIN, false, false, "1.2.3.4", true, "1.2.3.4", emptyList()))
+        assertEquals(EditorGuard.SaveDecision.Allow, EditorGuard.checkSave(MainConfig.VerifyIp.ADMIN, false, false, "1.2.3.4", true, "5.6.7.8", listOf("5.6.7.8")))
+        assertEquals(EditorGuard.SaveDecision.Allow, EditorGuard.checkSave(MainConfig.VerifyIp.ADMIN, false, false, null, true, "5.6.7.8", listOf("5.6.7.8")), "console session saved by online admin")
+        val consoleHold = EditorGuard.checkSave(MainConfig.VerifyIp.ADMIN, false, false, null, true, "9.9.9.9", listOf("5.6.7.8"))
+        assertTrue(consoleHold is EditorGuard.SaveDecision.Hold && consoleHold.code == "ip-mismatch")
+
+        // OWNER policy: requires exact owner IP; other online admins and console sessions hold.
+        assertEquals(EditorGuard.SaveDecision.Allow, EditorGuard.checkSave(MainConfig.VerifyIp.OWNER, false, false, "1.2.3.4", true, "::ffff:1.2.3.4", emptyList()))
+        assertTrue(EditorGuard.checkSave(MainConfig.VerifyIp.OWNER, false, false, "1.2.3.4", true, "5.6.7.8", listOf("5.6.7.8")) is EditorGuard.SaveDecision.Hold)
+        assertTrue(EditorGuard.checkSave(MainConfig.VerifyIp.OWNER, false, false, null, true, "5.6.7.8", listOf("5.6.7.8")) is EditorGuard.SaveDecision.Hold)
+
+        // OFF policy, readOnly, shared, and revoked permissions.
+        assertEquals(EditorGuard.SaveDecision.Allow, EditorGuard.checkSave(MainConfig.VerifyIp.OFF, false, false, "1.2.3.4", true, "9.9.9.9", emptyList()))
+        assertEquals(EditorGuard.SaveDecision.ReadOnly, EditorGuard.checkSave(MainConfig.VerifyIp.OFF, true, true, "1.2.3.4", true, "1.2.3.4", emptyList()))
+        assertEquals(EditorGuard.SaveDecision.PermissionRevoked, EditorGuard.checkSave(MainConfig.VerifyIp.ADMIN, false, false, "1.2.3.4", false, "1.2.3.4", listOf("1.2.3.4")))
+        val sharedHold = EditorGuard.checkSave(MainConfig.VerifyIp.OFF, true, false, "1.2.3.4", true, "1.2.3.4", listOf("1.2.3.4"))
+        assertTrue(sharedHold is EditorGuard.SaveDecision.Hold && sharedHold.code == "shared")
+    }
+
+    @Test
+    fun privilegedActionScannerFindsNestedDangerousActionsWithoutFlaggingConditions() {
+        val menu = ConfigFactory.parseString(
+            """
+            {
+              "title": "Shop",
+              "open": {
+                "require": [{
+                  "condition": { "type": "permission", "node": "shop.open" },
+                  "deny": [{ "type": "console", "command": "warn {player}" }]
+                }]
+              },
+              "items": {
+                "a": {
+                  "material": "diamond",
+                  "view": {
+                    "require": [{
+                      "condition": { "type": "and", "conditions": [
+                        { "type": "group", "name": "vip" },
+                        { "type": "gamemode", "modes": ["SURVIVAL"] }
+                      ]}
+                    }]
+                  },
+                  "click": {
+                    "left": {
+                      "actions": [
+                        { "type": "message", "text": "hi" },
+                        { "type": "delay", "ticks": 5, "action": { "type": "permission", "node": "admin.*" } },
+                        { "type": "group", "name": "owner" },
+                        { "type": "meta", "key": "prefix", "value": "&cAdmin" },
+                        { "type": "gamemode", "mode": "CREATIVE" }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+            """.trimIndent(),
+        ).root()
+        val found = EditorGuard.privilegedActions(menu)
+        assertEquals(
+            listOf(
+                "console: warn {player}",
+                "permission: +admin.*",
+                "group: +owner",
+                "meta: prefix=&cAdmin",
+                "gamemode: CREATIVE",
+            ),
+            found,
+        )
+    }
+
+    @Test
+    fun gameFilesAddressCheckAndCheckedRedirectsBlockSsrf() {
+        assertTrue(GameFiles.allowedAddress(java.net.URI("https://piston-meta.mojang.com/mc/game/version_manifest_v2.json")))
+        assertFalse(GameFiles.allowedAddress(java.net.URI("http://piston-meta.mojang.com/x")))
+        assertFalse(GameFiles.allowedAddress(java.net.URI("https://piston-meta.mojang.com:8443/x")))
+        assertFalse(GameFiles.allowedAddress(java.net.URI("https://user@piston-meta.mojang.com/x")))
+        assertFalse(GameFiles.allowedAddress(java.net.URI("https://169.254.169.254/latest/meta-data/")))
+
+        val server = com.sun.net.httpserver.HttpServer.create(java.net.InetSocketAddress("127.0.0.1", 0), 0)
+        server.createContext("/good") { ex ->
+            val body = "ok".toByteArray()
+            ex.sendResponseHeaders(200, body.size.toLong())
+            ex.responseBody.use { it.write(body) }
+            ex.close()
+        }
+        server.createContext("/redir-ok") { ex ->
+            ex.responseHeaders.add("Location", "/good")
+            ex.sendResponseHeaders(302, -1)
+            ex.close()
+        }
+        server.createContext("/redir-evil") { ex ->
+            ex.responseHeaders.add("Location", "http://169.254.169.254/latest/meta-data/")
+            ex.sendResponseHeaders(302, -1)
+            ex.close()
+        }
+        server.start()
+        try {
+            val port = server.address.port
+            val allowLocal: (java.net.URI) -> Boolean = { it.host == "127.0.0.1" && it.port == port }
+            assertEquals("ok", Http.getChecked(java.net.URI("http://127.0.0.1:$port/redir-ok"), java.time.Duration.ofSeconds(5), 64, allowed = allowLocal)?.decodeToString())
+            assertNull(Http.getChecked(java.net.URI("http://127.0.0.1:$port/redir-evil"), java.time.Duration.ofSeconds(5), 64, allowed = allowLocal), "redirect to disallowed host must be blocked")
+        } finally {
+            server.stop(0)
+        }
+    }
+
+    @Test
+    fun menuFormatBlocksHoconIncludesAndSystemSubstitutions() {
+        val includeAttempt = runCatching { Registry.format.decode("""include file("/etc/passwd")""") }
+        assertTrue(includeAttempt.isFailure, "HOCON include directives must be refused")
+        val envAttempt = runCatching { Registry.format.decode("""title = ${'$'}{java.home}""") }
+        assertTrue(envAttempt.isFailure, "system properties must not resolve in menu files")
+    }
+
+    @Test
+    fun editorPresenceAssignsDistinctColorsSeparatesInGameAndAnonymousAndExpiresStalePeers() {
+        var time = 1000L
+        val presence = EditorPresence(ttlMs = 5000L, now = { time })
+        val first = presence.update(EditorPresence.Beat("tab-1", "Steve", inGame = true, admin = true, menu = "shop", item = "sword", slot = 10, area = "items", tab = "Editor"))
+        assertEquals(1, first.size)
+        assertTrue(first[0].self && first[0].inGame && first[0].admin && first[0].name == "Steve")
+
+        val second = presence.update(EditorPresence.Beat("tab-2", null, inGame = false, admin = false, menu = "shop", item = "gem", slot = 12, area = "items", tab = "Editor"))
+        assertEquals(2, second.size)
+        val self = second.first { it.self }
+        val other = second.first { !it.self }
+        assertEquals("Anonymous #1", self.name)
+        assertFalse(self.inGame)
+        assertNotEquals(self.color, other.color, "active peers get distinct highlight colors")
+
+        time = 7000L
+        val afterExpiry = presence.update(EditorPresence.Beat("tab-2", null, inGame = false, admin = false, menu = "shop", item = "gem", slot = 12, area = "items", tab = "Editor"))
+        assertEquals(1, afterExpiry.size)
+        presence.remove("tab-2")
+        assertEquals(0, presence.activeCount())
+    }
+
+    @Test
+    fun editorPushParsesTargetsAndPushesMenusOverDirectAndEncryptedRelayEndpoints() {
+        assertTrue(EditorPush.parseTarget("Ab9-_xK2pQ7m", "https://menu.xali.to/relay") is EditorPush.Target.Relay)
+        assertTrue(EditorPush.parseTarget("https://menu.xali.to/#Ab9-_xK2pQ7m&relay=https%3A%2F%2Frelay.example.com", "https://menu.xali.to/relay") is EditorPush.Target.Relay)
+        assertTrue(EditorPush.parseTarget("https://menu.xali.to/#server=http%3A%2F%2F127.0.0.1%3A8123&token=TOK", "https://menu.xali.to/relay") is EditorPush.Target.Direct)
+        assertNull(EditorPush.parseTarget("not-a-link", "https://menu.xali.to/relay"))
+        assertNull(EditorPush.parseTarget("https://menu.xali.to/#server=file%3A%2F%2F%2Fetc%2Fpasswd&token=TOK", "https://menu.xali.to/relay"))
+
+        val code = "Ab9-_xK2pQ7m"
+        val derived = RelayCrypto.derive(code)
+        var receivedDirectPath: String? = null
+        val server = com.sun.net.httpserver.HttpServer.create(java.net.InetSocketAddress("127.0.0.1", 0), 0)
+        server.createContext("/v1/menus/") { ex ->
+            assertEquals("Bearer DIRECT_TOK", ex.requestHeaders.getFirst("Authorization"))
+            receivedDirectPath = ex.requestURI.path
+            val body = Wire.write(Saved(listOf("minor warning"), reloaded = true)).toByteArray()
+            ex.sendResponseHeaders(200, body.size.toLong())
+            ex.responseBody.use { it.write(body) }
+            ex.close()
+        }
+        server.createContext("/s/${derived.sessionId}/call") { ex ->
+            val reqBytes = ex.requestBody.readAllBytes()
+            val plain = RelayCrypto.open(derived.key, derived.sessionId, "q", reqBytes)!!
+            val relayReq = Wire.read<RelayRequest>(plain.decodeToString())!!
+            assertEquals("PUT", relayReq.method)
+            assertEquals("/menus/shop", relayReq.path)
+            val heldBody = Wire.write(Held(emptyList(), held = true, id = 7, reason = "IP mismatch (1.2.3.4)"))
+            val reply = RelayReply(relayReq.rid!!, 200, "application/json", Base64.getEncoder().encodeToString(heldBody.toByteArray()))
+            val sealed = RelayCrypto.seal(derived.key, derived.sessionId, "a", Wire.write(reply).toByteArray())
+            ex.sendResponseHeaders(200, sealed.size.toLong())
+            ex.responseBody.use { it.write(sealed) }
+            ex.close()
+        }
+        server.start()
+        try {
+            val base = "http://127.0.0.1:${server.address.port}"
+            val menu = ConfigFactory.parseString("""{"title": "Shop", "size": 27}""").root()
+            val directRes = EditorPush.push(EditorPush.Target.Direct(base, "DIRECT_TOK"), "shop", menu, "Steve")
+            assertEquals("/v1/menus/shop", receivedDirectPath)
+            assertEquals(EditorPush.Result.Saved(reloaded = true, problems = listOf("minor warning")), directRes)
+
+            val relayRes = EditorPush.push(EditorPush.Target.Relay(base, code), "shop", menu, "Steve")
+            assertEquals(EditorPush.Result.Held(id = 7, reason = "IP mismatch (1.2.3.4)", problems = emptyList()), relayRes)
+        } finally {
+            server.stop(0)
+        }
     }
 }

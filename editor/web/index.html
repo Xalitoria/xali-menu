@@ -3,15 +3,13 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; connect-src 'self' https: http://127.0.0.1:* http://localhost:*; object-src 'none'; base-uri 'none'; form-action 'none';">
   <title>XaliMenu editor</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <div id="app"><p class="loading">Loading the editor…</p></div>
   <noscript>This editor needs JavaScript.</noscript>
-  <script type="module">
-    import { boot } from './src/app.js'
-    boot().catch((error) => { document.getElementById('app').textContent = `The editor could not start: ${error.message}` })
-  </script>
+  <script type="module" src="./src/boot.js"></script>
 </body>
 </html>

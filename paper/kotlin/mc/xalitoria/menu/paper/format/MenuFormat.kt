@@ -1,7 +1,12 @@
 package mc.xalitoria.menu.paper.format
 
+import com.typesafe.config.ConfigException
 import com.typesafe.config.ConfigFactory
+import com.typesafe.config.ConfigIncludeContext
+import com.typesafe.config.ConfigIncluder
 import com.typesafe.config.ConfigObject
+import com.typesafe.config.ConfigParseOptions
+import com.typesafe.config.ConfigResolveOptions
 import kotlinx.serialization.hocon.Hocon
 import kotlinx.serialization.hocon.decodeFromConfig
 import kotlinx.serialization.hocon.encodeToConfig
@@ -30,12 +35,22 @@ class MenuFormat(private val module: SerializersModule, private val externals: S
      * 'close'?)`) and not by what the reader tripped on. A file that cannot be read throws [MenuFormatException] with every reason at once.
      */
     fun decodeChecked(text: String): Read {
-        val root = ConfigFactory.parseString(text).resolve().root()
+        val root = ConfigFactory.parseString(text, SAFE_PARSE).resolve(SAFE_RESOLVE).root()
         val checked = ConfigChecker(module, externals, activators).check(root)
         if (checked.errors.isNotEmpty()) throw MenuFormatException(checked.errors, checked.warnings)
         // Only a menu that uses something another plugin added is rewritten; any other is read as written.
         val packed = if ((externals + activators).none { it in text }) checked.config else checked.config.packExternals(externals, activators) as ConfigObject
         return Read(hocon.decodeFromConfig(packed.toConfig()), checked.warnings)
+    }
+
+    companion object {
+        private val NO_INCLUDE = object : ConfigIncluder {
+            override fun withFallback(fallback: ConfigIncluder?) = this
+            override fun include(context: ConfigIncludeContext, what: String): ConfigObject =
+                throw ConfigException.Generic("include directives are not allowed in menus")
+        }
+        internal val SAFE_PARSE: ConfigParseOptions = ConfigParseOptions.defaults().setIncluder(NO_INCLUDE)
+        internal val SAFE_RESOLVE: ConfigResolveOptions = ConfigResolveOptions.noSystem()
     }
 
     fun decode(text: String): Menu = decodeChecked(text).menu

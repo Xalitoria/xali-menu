@@ -62,6 +62,8 @@ Read from the environment:
 | `PORT`, `HOST` | `8787`, `127.0.0.1` | Where it listens. Put it behind a reverse proxy with https: the editor is served over https and the browser refuses to call plain http (except on localhost). |
 | `XM_RELAY_TOKEN` | none | When set, only a request with this bearer token may open a session; put the same value in `editor.relay.token`. Without it anyone can use the relay as a mailbox. |
 | `XM_RELAY_ORIGINS` | any | Sites that may call it from a browser, comma separated, such as `https://menu.xali.to`. |
+| `XM_RELAY_TRUST_PROXY` | `false` | Set to `1` on self-hosted `relay.js` behind a local reverse proxy (`127.0.0.1`/`::1`) to forward `CF-Connecting-IP` / `X-Forwarded-For` as the caller IP for `editor.verify-ip`. (`worker.js` always uses Cloudflare's unspoofable `CF-Connecting-IP`.) |
+| `XM_RELAY_RECONNECT_GRACE` | `10` | (`worker.js`) Seconds after an unexpected plugin WebSocket drop before browser calls return `503` offline immediately instead of waiting for a reconnect. Clean close (`1000`) ends the session immediately. |
 
 ## Development
 

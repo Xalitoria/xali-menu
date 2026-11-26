@@ -608,7 +608,8 @@ All of these need `xalimenu.admin`. The command is `/xalimenu`, also `/xmenu` an
 | `/xmenu client [player]` | Show a player's detected client edition, OS/device, input mode, UI profile and dialog/form support. |
 | `/xmenu edit [menu] [--auto-reload] \| stop` | Open a short 12-character end-to-end encrypted web editor link (`https://menu.xali.to/#<code>`). Lists all menus when no menu is named; saves sync to disk and apply on `/xmenu reload` unless `--auto-reload` is passed. `stop` closes active edit links. |
 | `/xmenu share [readonly\|stop] [menu]` | Open a shared editor link whose saves wait in `/xmenu edits` for admin approval (or read-only). |
-| `/xmenu edits [apply\|drop <id>]` | List, apply or drop edits submitted through shared editor links. |
+| `/xmenu edits [inspect\|apply\|drop <id>]` | List, inspect (client IP, reason, privileged actions), apply or drop edits held from shared links or IP mismatches. |
+| `/xmenu push <menu> <link-or-code>` | Push a local menu to another XaliMenu server using that target server's `/xmenu edit` or `/xmenu share` link or 12-character code. |
 | `/xmenu import deluxemenus` | Import DeluxeMenus menus, see [below](#importing-from-deluxemenus). |
 | `/xvar ...`, `/xvarp ...` | Variables, see [above](#variables). |
 
@@ -658,8 +659,10 @@ pack, glyphs, custom items and `config.yml` settings.
 
 - When no menu is named (`/xmenu edit`), **all menus** in `plugins/XaliMenu/menus/` are available in the editor's switcher (and you can create new ones with **+ New**).
 - By default, `/xmenu edit` connects out through `editor.relay.url` (default `https://menu.xali.to/relay`) using end-to-end AES-256-GCM encryption derived from the 12-character fragment via PBKDF2-HMAC-SHA256, so the relay never sees the code, key, menus, or pack data. Saved menus are validated and written atomically to disk (keeping `<name>.conf.bak`), and **do not apply live until `/xmenu reload` (or `/xmenu reload <menu>`)** unless `--auto-reload` was passed.
+- **IP verification (`editor.verify-ip`, default `admin`)** checks the browser's IP upfront when opening the editor and again on save: in `admin` mode, saves apply directly when the browser IP matches the session owner or any currently online `xalimenu.admin` player (supporting console `/xmenu edit` and multi-admin link sharing), while unrecognized IPs are automatically held in `/xmenu edits` (with client IP and privileged-action warnings for `console`/`permission`/`group`/`meta`/`gamemode`). Set `owner` to require the exact creator's IP, or `off` to disable. Direct HTTP setups behind a local reverse proxy can enable `editor.trust-proxy: true`.
+- **Live pack updates, presence & server failover:** Nexo and ItemsAdder reloads automatically refresh the resource pack, glyphs and custom items in active web-editor tabs. Multiple admins or collaborators editing together see Google Docs-style colored badges and slot/item highlights (distinguishing in-game players from anonymous browsers). If the Paper server goes down, unsaved edits stay protected in the browser (plus local draft recovery) with one-click **Reconnect / Save to another server**, and `/xmenu push <menu> <link-or-code>` pushes any menu directly to another server.
 - With `editor.enabled` on in `config.yml`, `/xmenu edit` connects directly to the plugin's HTTP endpoint instead; with both off, `/xmenu edit <menu>` falls back to an offline `#data=...` link.
-- `/xmenu share [readonly|stop] [menu]` creates a short shared link whose saves wait in `/xmenu edits` until an admin runs `/xmenu edits apply <id>` or `drop <id>`. How to host the site and `/relay/` endpoint: `editor/README.md` and `relay/README.md`.
+- `/xmenu share [readonly|stop] [menu]` creates a short shared link whose saves wait in `/xmenu edits` until an admin runs `/xmenu edits inspect <id>` and `apply <id>` or `drop <id>`. How to host the site and `/relay/` endpoint: `editor/README.md` and `relay/README.md`.
 
 ## Extending
 

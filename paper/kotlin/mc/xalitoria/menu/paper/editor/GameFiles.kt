@@ -50,16 +50,18 @@ internal class GameFiles(private val plugin: XaliMenu, private val version: Stri
         return hashIn(index.decodeToString(), name)
     }
 
-    private fun get(address: URI): ByteArray? {
-        if (address.scheme != "https" || address.host !in HOSTS) return null
-        return Http.get(address, Duration.ofSeconds(60), MAX_FILE, follow = true)
-    }
+    private fun get(address: URI): ByteArray? =
+        Http.getChecked(address, Duration.ofSeconds(60), MAX_FILE, allowed = ::allowedAddress)
 
     companion object {
         private const val MANIFEST = "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json"
         private val HOSTS = setOf("piston-meta.mojang.com", "launchermeta.mojang.com", "resources.download.minecraft.net")
         private const val MAX_FILE = 16 * 1024 * 1024
         private val NAME = Regex("font/[a-z0-9_.-]+\\.zip")
+
+        /** Whether [address] is a standard HTTPS URL on one of Mojang's asset hosts (no custom port, no userinfo). */
+        fun allowedAddress(address: URI): Boolean =
+            address.scheme == "https" && address.host in HOSTS && address.port == -1 && address.userInfo == null
 
         /** Whether [name] is a file this may fetch: a zip in the game's `font` folder, nothing else. */
         fun allowed(name: String): Boolean = NAME.matches(name) && ".." !in name

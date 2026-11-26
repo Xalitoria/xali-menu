@@ -99,4 +99,26 @@ class EditorRelayTest {
         val ids = (1..5).map { pending.add("p$it", "m", menu(), emptyList()).id }
         assertEquals(ids.takeLast(3), pending.list().map { it.id })
     }
+
+    @Test
+    fun perIpCapPreventsOneCollaboratorFromEvictingOthersAndStoresMetadata() {
+        val pending = PendingEdits(limit = 10, perSourceLimit = 2)
+        val legit = pending.add("Admin", "shop", menu(), emptyList(), clientIp = "1.2.3.4", reason = "IP mismatch (1.2.3.4)", privileged = listOf("console: say hi"))
+        // Attacker rotates `from` names from one IP to try to evict `legit`.
+        for (i in 1..6) pending.add("fake$i", "m$i", menu(), emptyList(), clientIp = "9.9.9.9")
+        val list = pending.list()
+        assertEquals(3, list.size)
+        assertEquals(legit.id, list.first().id, "other IPs' pending edits are not evicted")
+        assertEquals("1.2.3.4", pending.get(legit.id)?.clientIp)
+        assertEquals(listOf("console: say hi"), pending.get(legit.id)?.privileged)
+        assertNotEquals(null, pending.get(legit.id), "get peeks without removing")
+    }
+
+    @Test
+    fun callIdsRejectPathTraversal() {
+        assertTrue(EditorRelay.CALL_ID.matches("abc_123-XYZ"))
+        for (bad in listOf("", "../secret", "a/b", "id?x=1", "id#frag", "x".repeat(65))) {
+            assertFalse(EditorRelay.CALL_ID.matches(bad), bad)
+        }
+    }
 }

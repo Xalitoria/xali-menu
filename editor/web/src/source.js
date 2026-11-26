@@ -51,8 +51,12 @@ export class Server {
     this.url = url.replace(/\/+$/, '')
     this.token = token
     this.from = from
-    /** True after a save that was held for admin approval (shared direct link). */
+    /** True after a save that was held for admin approval (shared link or IP mismatch). */
     this.held = false
+    /** Pending edit id when [held] is true. */
+    this.heldId = null
+    /** Reason the edit was held (e.g. "shared link" or "IP mismatch (...)"). */
+    this.heldReason = null
     /** True after a save that was also reloaded live on the server (`--auto-reload`). */
     this.reloaded = false
   }
@@ -68,24 +72,45 @@ export class Server {
     try {
       response = await fetch(`${this.url}/v1${path}`, { ...options, headers })
     } catch (error) {
-      throw new Error(`Cannot reach ${this.url}. The page is served over https, so the server needs https too unless it is on this computer (${error.message}).`)
+      const err = new Error(`Cannot reach ${this.url}. The server may be offline, or needs https unless it is on this computer (${error.message}).`)
+      err.offline = true
+      throw err
     }
-    if (response.status === 401) throw new Error('The link has expired. Run /xmenu edit again.')
+    if (response.status === 401) {
+      const err = new Error('The link has expired. Run /xmenu edit again.')
+      err.offline = true
+      throw err
+    }
     if (!response.ok) {
       const body = await response.json().catch(() => ({}))
-      throw new Error(body.error ?? `The server answered ${response.status}`)
+      const err = new Error(body.error ?? `The server answered ${response.status}`)
+      if (response.status === 503 || response.status === 504) err.offline = true
+      throw err
     }
     return response
   }
 
   async info() { return (await this.request('/info')).json() }
 
+  /** Sends a collaborator presence heartbeat and receives active peers, pack revision, and IP verification status. */
+  async presence(state) {
+    return (await this.request('/presence', { method: 'POST', body: JSON.stringify(state) })).json()
+  }
+
+  /** Tells the server this browser tab is closing or switching servers. */
+  async leavePresence(clientId) {
+    if (!clientId) return
+    await this.request(`/presence?clientId=${encodeURIComponent(clientId)}`, { method: 'DELETE' }).catch(() => {})
+  }
+
   async menu(name) { return (await (await this.request(`/menus/${encodeURIComponent(name)}`)).json()).menu }
 
-  /** Writes the menu (or holds it for admin approval on a shared link). @returns {Promise<string[]>} the problems the server found in it */
+  /** Writes the menu (or holds it for admin approval on a shared link or IP mismatch). @returns {Promise<string[]>} the problems the server found in it */
   async save(name, menu) {
     const body = await (await this.request(`/menus/${encodeURIComponent(name)}`, { method: 'PUT', body: JSON.stringify({ menu }) })).json()
     this.held = body.held === true
+    this.heldId = body.id ?? null
+    this.heldReason = body.reason ?? null
     this.reloaded = body.reloaded === true
     return body.problems ?? []
   }

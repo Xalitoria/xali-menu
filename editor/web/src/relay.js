@@ -49,10 +49,26 @@ export class RelayServer extends Server {
     try {
       response = await fetch(`${this.url}/s/${session}/call`, { method: 'POST', body: await seal(key, session, 'q', payload) })
     } catch (error) {
-      throw new Error(`Cannot reach the relay at ${this.url} (${error.message}).`)
+      const err = new Error(`Cannot reach the relay at ${this.url} (${error.message}).`)
+      err.offline = true
+      throw err
     }
-    if (response.status === 404) throw new Error('This link has ended. Run /xmenu edit again.')
-    if (response.status === 504) throw new Error('The server did not answer. It may be offline, or the session may have ended.')
+    if (response.status === 404) {
+      const err = new Error('This link has ended or the server restarted. Run /xmenu edit again or save to another server.')
+      err.offline = true
+      throw err
+    }
+    if (response.status === 503) {
+      const parsed = await response.json().catch(() => ({}))
+      const err = new Error(parsed.error ?? 'The Minecraft server disconnected. Reconnect with a new /xmenu edit link or save to another server.')
+      err.offline = true
+      throw err
+    }
+    if (response.status === 504) {
+      const err = new Error('The server did not answer. It may be offline, or the session may have ended.')
+      err.offline = true
+      throw err
+    }
     if (!response.ok) throw new Error(`The relay answered ${response.status}`)
     let answer
     try {
@@ -62,7 +78,11 @@ export class RelayServer extends Server {
     }
     if (answer.rid !== rid) throw new Error('The answer is not for this request.')
     const body = bytesOf(answer.body ?? '')
-    if (answer.status === 401) throw new Error('The link has ended.')
+    if (answer.status === 401) {
+      const err = new Error('The link has ended.')
+      err.offline = true
+      throw err
+    }
     if (answer.status >= 400) {
       const parsed = (() => { try { return JSON.parse(new TextDecoder().decode(body)) } catch { return {} } })()
       throw new Error(parsed.error ?? `The server answered ${answer.status}`)
@@ -80,6 +100,8 @@ export class RelayServer extends Server {
   async save(name, menu) {
     const body = await (await this.request(`/menus/${encodeURIComponent(name)}`, { method: 'PUT', body: JSON.stringify({ menu }) })).json()
     this.held = body.held === true
+    this.heldId = body.id ?? null
+    this.heldReason = body.reason ?? null
     this.reloaded = body.reloaded === true
     return body.problems ?? []
   }

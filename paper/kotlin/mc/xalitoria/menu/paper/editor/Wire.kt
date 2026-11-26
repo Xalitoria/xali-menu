@@ -2,7 +2,9 @@ package mc.xalitoria.menu.paper.editor
 
 import com.typesafe.config.ConfigFactory
 import com.typesafe.config.ConfigObject
+import com.typesafe.config.ConfigParseOptions
 import com.typesafe.config.ConfigRenderOptions
+import com.typesafe.config.ConfigSyntax
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
@@ -16,14 +18,15 @@ import kotlinx.serialization.json.JsonObject
 internal object Wire {
     /** Unknown keys of a request are ignored (a newer editor may send more), and every key of a reply is written, `null` included. */
     val json = Json { ignoreUnknownKeys = true; encodeDefaults = true }
+    private val JSON_PARSE = ConfigParseOptions.defaults().setSyntax(ConfigSyntax.JSON)
 
     inline fun <reified T> write(value: T): String = json.encodeToString(value)
 
     /** [text] read as a [T], or null when it is not one. */
     inline fun <reified T> read(text: String): T? = try { json.decodeFromString<T>(text) } catch (e: Exception) { null }
 
-    /** A menu (or a part of one) as the config object the plugin reads it through. */
-    fun config(value: JsonObject): ConfigObject = ConfigFactory.parseString(value.toString()).root()
+    /** A menu (or a part of one) as the config object the plugin reads it through (strict JSON: no HOCON includes or substitutions). */
+    fun config(value: JsonObject): ConfigObject = ConfigFactory.parseString(value.toString(), JSON_PARSE).root()
 
     /** A config object as JSON, for the editor. */
     fun tree(config: ConfigObject): JsonElement = json.parseToJsonElement(config.render(ConfigRenderOptions.concise()))
@@ -38,8 +41,8 @@ internal object Wire {
 /** The answer to saving a menu directly to disk: whether it was also reloaded live depends on the session's `--auto-reload` flag. */
 @Serializable internal data class Saved(val problems: List<String>, val reloaded: Boolean)
 
-/** The answer to the save of a shared link, which is kept for an admin and not written. */
-@Serializable internal data class Held(val problems: List<String>, val held: Boolean, val id: Int)
+/** The answer to a save that is kept for an admin in [PendingEdits] and not written directly (shared link or IP mismatch). */
+@Serializable internal data class Held(val problems: List<String>, val held: Boolean, val id: Int, val reason: String? = null)
 
 @Serializable internal data class CatalogInfo(val values: Map<String, String>, val settings: Map<String, String>)
 
@@ -63,7 +66,46 @@ internal object Wire {
     val plugin: String, val version: String, val owner: String, val shared: Boolean, val readOnly: Boolean, val menus: List<String>, val pack: Boolean,
     val catalogs: Map<String, CatalogInfo>, val packSize: Long?, val packUrl: String?,
     val autoReload: Boolean = false, val initialMenu: String? = null, val config: ServerConfigInfo? = null, val packHash: String? = null,
-    val serverVersion: String? = null,
+    val serverVersion: String? = null, val packRevision: Long = 0,
+    val ipVerified: Boolean = true, val ipNotice: String? = null, val clientName: String? = null,
+)
+
+/** Collaborator heartbeat sent by an open web-editor tab (`POST /v1/presence`). */
+@Serializable internal data class PresenceRequest(
+    val clientId: String? = null,
+    val name: String? = null,
+    val menu: String? = null,
+    val item: String? = null,
+    val slot: Int? = null,
+    val area: String? = null,
+    val tab: String? = null,
+)
+
+/** One collaborator active in the web editor, for Google Docs-style presence badges and slot/item highlights. */
+@Serializable internal data class PeerInfo(
+    val id: String,
+    val name: String,
+    val inGame: Boolean,
+    val admin: Boolean,
+    val color: String,
+    val menu: String? = null,
+    val item: String? = null,
+    val slot: Int? = null,
+    val area: String? = null,
+    val tab: String? = null,
+    val self: Boolean = false,
+)
+
+/** Reply to `POST /v1/presence`: active peers, live pack revision/hash (for Nexo/ItemsAdder reloads), and current IP verification state. */
+@Serializable internal data class PresenceReply(
+    val peers: List<PeerInfo>,
+    val packRevision: Long,
+    val packHash: String? = null,
+    val packSize: Long? = null,
+    val packUrl: String? = null,
+    val ipVerified: Boolean = true,
+    val ipNotice: String? = null,
+    val clientName: String? = null,
 )
 
 @Serializable internal data class MenuReply(val name: String, val menu: JsonElement)
@@ -113,8 +155,8 @@ internal object Wire {
 /** What the relay says when a session is made. [ws] is true when the relay accepts Hibernatable WebSockets at `/s/<id>/ws`. */
 @Serializable internal data class RelaySession(val id: String, val secret: String, val ws: Boolean = false)
 
-/** One question the relay holds for the plugin: [data] is sealed, and base64url of a [RelayRequest] once opened. [fetch] asks the plugin to pull a large body over HTTP. */
-@Serializable internal data class RelayCall(val id: String? = null, val data: String? = null, val fetch: Boolean = false)
+/** One question the relay holds for the plugin: [data] is sealed, and base64url of a [RelayRequest] once opened. [fetch] asks the plugin to pull a large body over HTTP; [ip] is the browser's IP as seen by the relay. */
+@Serializable internal data class RelayCall(val id: String? = null, val data: String? = null, val fetch: Boolean = false, val ip: String? = null)
 
 /** One encrypted answer sent back over the plugin's WebSocket. */
 @Serializable internal data class RelayWsAnswer(val id: String, val data: String)

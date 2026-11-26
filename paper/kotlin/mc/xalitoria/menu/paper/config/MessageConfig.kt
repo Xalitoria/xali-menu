@@ -43,7 +43,8 @@ data class MessageConfig(
             &d/{0} &ropen <menu> [player] [args...]
             &d/{0} &redit [menu] [--auto-reload] | stop
             &d/{0} &rshare [readonly|stop] [menu]
-            &d/{0} &redits [apply|drop <id>]
+            &d/{0} &redits [inspect|apply|drop <id>]
+            &d/{0} &rpush <menu> <link-or-code>
             &d/{0} &rimport deluxemenus [overwrite] [folder]
         """.trimIndent(),
         val reload: Reload = Reload(),
@@ -201,9 +202,19 @@ data class MessageConfig(
             @SerialName("edits-none")
             val editsNone: String = "&7No edits are waiting.",
             @SerialName("edits-header")
-            private val editsHeader: String = "&eEdits waiting: {0}. &7/xmenu edits apply <id> or drop <id>",
+            private val editsHeader: String = "&eEdits waiting: {0}. &7/xmenu edits inspect|apply|drop <id>",
             @SerialName("edits-line")
             private val editsLine: String = "&7#{0} &f{1} &7sent &f{2} &7({3} problem(s), {4} min ago)",
+            @SerialName("edits-line-reason")
+            private val editsLineReason: String = "&7#{0} &f{1} &7sent &f{2} &7[{5}] ({3} problem(s), {4} min ago)",
+            @SerialName("edits-privileged")
+            private val editsPrivileged: String = "&c  ⚠ Privileged actions ({0}): {1}",
+            @SerialName("edits-inspect-header")
+            private val editsInspectHeader: String = "&dEdit #{0}: &f{1} &7by &f{2} &7[{3}] ({4} min ago)",
+            @SerialName("edits-inspect-ip")
+            private val editsInspectIp: String = "&7Client IP: &f{0}",
+            @SerialName("edits-inspect-clean")
+            val editsInspectClean: String = "&aNo privileged actions (console/permission/group/meta/gamemode) found.",
             @SerialName("edits-applied")
             private val editsApplied: String = "&aApplied #{0}: '{1}' is saved and loaded.{2}",
             @SerialName("edits-dropped")
@@ -214,6 +225,18 @@ data class MessageConfig(
             private val editsRefused: String = "&c#{0} could not be applied: {1}",
             @SerialName("held-notice")
             private val heldNotice: String = "&e{0} sent an edit of '{1}' (#{2}) through a shared link. /xmenu edits lists it.",
+            @SerialName("held-ip-notice")
+            private val heldIpNotice: String = "&cHeld save of '{1}' from {0} (#{2}, {3}). Inspect with /xmenu edits inspect {2} before applying.",
+            @SerialName("push-invalid")
+            val pushInvalid: String = "&cThat does not look like a 12-character editor code or /xmenu edit / /xmenu share link.",
+            @SerialName("push-saved")
+            private val pushSaved: String = "Pushed menu '{0}' to the target server (run /xmenu reload there to apply).",
+            @SerialName("push-saved-reloaded")
+            private val pushSavedReloaded: String = "Pushed and reloaded menu '{0}' on the target server.",
+            @SerialName("push-held")
+            private val pushHeld: String = "Pushed menu '{0}' to the target server as pending edit #{1} ({2}). Approve it there with /xmenu edits apply {1}.",
+            @SerialName("push-failed")
+            private val pushFailed: String = "Could not push menu '{0}': {1}",
         ) {
             fun editStopped(count: Int): String = editStopped.formatArgs(count)
             fun savedNotice(menu: String): String = savedNotice.formatArgs(menu)
@@ -222,11 +245,20 @@ data class MessageConfig(
             fun shareStopped(count: Int): String = shareStopped.formatArgs(count)
             fun editsHeader(count: Int): String = editsHeader.formatArgs(count)
             fun editsLine(id: Int, from: String, menu: String, problems: Int, minutes: Long): String = editsLine.formatArgs(id, from, menu, problems, minutes)
+            fun editsLineReason(id: Int, from: String, menu: String, problems: Int, minutes: Long, reason: String): String = editsLineReason.formatArgs(id, from, menu, problems, minutes, reason)
+            fun editsPrivileged(count: Int, actions: String): String = editsPrivileged.formatArgs(count, actions)
+            fun editsInspectHeader(id: Int, menu: String, from: String, reason: String, minutes: Long): String = editsInspectHeader.formatArgs(id, menu, from, reason, minutes)
+            fun editsInspectIp(ip: String): String = editsInspectIp.formatArgs(ip)
             fun editsApplied(id: Int, menu: String, problems: String): String = editsApplied.formatArgs(id, menu, problems)
             fun editsDropped(id: Int): String = editsDropped.formatArgs(id)
             fun editsUnknown(id: Int): String = editsUnknown.formatArgs(id)
             fun editsRefused(id: Int, reason: String): String = editsRefused.formatArgs(id, reason)
             fun heldNotice(from: String, menu: String, id: Int): String = heldNotice.formatArgs(from, menu, id)
+            fun heldIpNotice(from: String, menu: String, id: Int, reason: String): String = heldIpNotice.formatArgs(from, menu, id, reason)
+            fun pushSaved(menu: String): String = pushSaved.formatArgs(menu)
+            fun pushSavedReloaded(menu: String): String = pushSavedReloaded.formatArgs(menu)
+            fun pushHeld(menu: String, id: Int, reason: String): String = pushHeld.formatArgs(menu, id, reason)
+            fun pushFailed(menu: String, reason: String): String = pushFailed.formatArgs(menu, reason)
             fun tooBig(menu: String): String = tooBig.formatArgs(menu)
             fun notListening(address: String, reason: String): String = notListening.formatArgs(address, reason)
         }

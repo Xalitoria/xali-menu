@@ -137,3 +137,16 @@ test('relay accepts /relay prefix, health endpoint, and caller-chosen derived se
     assert.equal(Buffer.from(await (await call).arrayBuffer()).toString(), 'ok')
   } finally { await stop() }
 })
+
+test('relay attaches client IP to polled calls and enforces strict Bearer prefix', async () => {
+  const { base, stop } = await start({ trustProxy: true })
+  try {
+    const { id, secret } = await open(base)
+    assert.equal((await fetch(`${base}/s/${id}/poll`, { headers: { Authorization: secret } })).status, 401, 'bare token without Bearer prefix must be rejected')
+    const call = fetch(`${base}/s/${id}/call`, { method: 'POST', headers: { 'CF-Connecting-IP': '203.0.113.8' }, body: Buffer.from('hi') })
+    const polled = await (await fetch(`${base}/s/${id}/poll?wait=5`, { headers: bearer(secret) })).json()
+    assert.equal(polled[0].ip, '203.0.113.8')
+    await fetch(`${base}/s/${id}/answer/${polled[0].id}`, { method: 'POST', headers: bearer(secret), body: Buffer.from('ok') })
+    assert.equal((await call).status, 200)
+  } finally { await stop() }
+})

@@ -36,6 +36,34 @@ function askName() {
 
 const TABS = ['Editor', 'Raw', 'Pack']
 const MENU_NAME = /^[A-Za-z0-9_-]{1,64}$/
+const DRAFT_KEY = 'xm-editor-draft'
+const PRESENCE_MS = 4000
+
+function makeClientId() {
+  if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID().replace(/-/g, '').slice(0, 16)
+  return Math.random().toString(36).slice(2, 14) + Date.now().toString(36)
+}
+
+function readDraft() {
+  try {
+    const raw = localStorage.getItem(DRAFT_KEY)
+    if (!raw) return null
+    const parsed = JSON.parse(raw)
+    if (parsed && typeof parsed.name === 'string' && parsed.menu && typeof parsed.menu === 'object') return parsed
+  } catch { /* ignore storage errors */ }
+  return null
+}
+
+function writeDraft(name, menu) {
+  try {
+    if (!menu || Object.keys(menu).length === 0) return
+    localStorage.setItem(DRAFT_KEY, JSON.stringify({ name, menu, at: Date.now() }))
+  } catch { /* ignore quota errors */ }
+}
+
+function clearDraft() {
+  try { localStorage.removeItem(DRAFT_KEY) } catch { /* ignore */ }
+}
 
 export class App {
   constructor(root, schema) {
@@ -91,7 +119,20 @@ export class App {
     this.editor = new EditorTab(this)
     this.raw = new RawTab(this)
     this.asked = new Set()
+    this.clientId = makeClientId()
+    /** Active collaborators reported by the server (`POST /v1/presence`). */
+    this.peers = []
+    this.peerKey = ''
+    this.presenceTimer = null
+    this.presenceInFlight = false
+    this.packReloading = false
+    /** True when the connected Minecraft server stopped answering (crash / restart / expired link). */
+    this.serverOffline = false
+    this.offlineMessage = ''
+    /** Optional saved local draft from an earlier interrupted session. */
+    this.savedDraft = readDraft()
     this.store.onChange((quiet) => {
+      if (this.store.dirty && Object.keys(this.store.value).length > 0) writeDraft(this.name, this.store.value)
       this.refreshHeader()
       // Typing in a field: the window is drawn again a moment later, and what the server knows of the new text (the color of a potion) is asked once typing stops.
       if (quiet) { if (this.tab === 'Editor') this.editor.refresh(); this.fetchElements(); this.resolveSoon(); return }
@@ -110,13 +151,23 @@ export class App {
       else if (this.showProblems && !inside('.problems-wrap')) { this.showProblems = false; this.drawProblems() }
       else if (this.fileMenuOpen && !inside('.menu-drop-wrap')) { this.fileMenuOpen = false; this.refreshHeader() }
     })
-    window.addEventListener('beforeunload', (e) => { if (this.store.dirty) e.preventDefault() })
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden && this.server && !this.serverOffline) this.syncPresence()
+    })
+    window.addEventListener('beforeunload', (e) => {
+      if (this.server) this.server.leavePresence(this.clientId)
+      if (this.store.dirty) e.preventDefault()
+    })
     this.build()
   }
 
-  /** Reads the address and loads what it points at. */
+  /** Reads the address and loads what it points at, then clears secret session credentials from the URL bar. */
   async start() {
-    await this.loadHash(fromHash(location.hash))
+    const hash = fromHash(location.hash)
+    await this.loadHash(hash)
+    if ((hash.code || hash.token) && typeof history?.replaceState === 'function') {
+      history.replaceState(null, '', location.pathname + location.search)
+    }
     this.build()
     this.draw()
   }
@@ -129,6 +180,12 @@ export class App {
     try {
       const hasServer = Boolean(hash.code || (hash.server && hash.token))
       if (hasServer) {
+        if (this.server) this.server.leavePresence(this.clientId)
+        this.stopPresence()
+        this.peers = []
+        this.peerKey = ''
+        this.serverOffline = false
+        this.offlineMessage = ''
         this.server = hash.code
           ? RelayServer.fromCode(hash.relay || defaultRelay(), hash.code, '')
           : new Server(hash.server, hash.token)
@@ -137,6 +194,7 @@ export class App {
         assetSettings.gameFile = (file) => this.server.gameFile(file)
         services.server = this.server
         forgetCatalog(); this.known = null
+        this.asked.clear()
         const info = await this.server.info()
         if (info.serverVersion || info.packFormat) {
           configure(this.pack.pack, info.serverVersion ?? info.packFormat)
@@ -151,7 +209,8 @@ export class App {
           await this.loadData(hash.data, hash.name, true)
         } else if (keepMenu && Object.keys(this.store.value).length > 0) {
           this.store.dirty = true
-          this.setStatus(`Connected to server (${info.owner}). Ready to ${info.shared ? 'send for approval' : 'save'} '${this.name}'.`)
+          const action = (info.shared || info.ipVerified === false) ? 'send for approval' : 'save'
+          this.setStatus(`Connected to server (${info.owner}). Ready to ${action} '${this.name}'.`)
           this.resolveItems()
           this.findCustomItems()
           this.loadKnownItems()
@@ -170,7 +229,9 @@ export class App {
         } else if (info.menus.length > 0) {
           await this.open(info.menus[0])
           if (!info.shared && !info.readOnly) {
-            const syncNote = info.autoReload ? 'auto-reload on' : 'run /xmenu reload after saving'
+            const syncNote = info.ipVerified === false
+              ? 'IP check requires approval in /xmenu edits'
+              : info.autoReload ? 'auto-reload on' : 'run /xmenu reload after saving'
             this.setStatus(`Opened ${info.menus[0]} (${info.menus.length} menus available; ${syncNote}).`)
           }
         } else {
@@ -178,10 +239,12 @@ export class App {
         }
         this.pack.discover()
         this.loadServerRegistries()
+        this.startPresence()
       } else if (hash.data) {
         await this.loadData(hash.data, hash.name, Boolean(this.server))
       }
     } catch (error) {
+      if (error.offline) this.markOffline(error.message)
       this.setStatus(error.message, true)
     }
   }
@@ -216,6 +279,7 @@ export class App {
     this.picked = { slot: null, item: null, area: 'items' }
     this.placing = false
     this.setStatus(`Opened ${name}.`)
+    this.notifyPresenceSoon()
     this.draw()
     this.resolveItems()
     this.findCustomItems()
@@ -260,6 +324,202 @@ export class App {
    * Picks the slot [slot] of [area] that was clicked in the window, and the item that is drawn in it ([names] says which, the one drawn first at the
    * front). While slots are being picked for the elements of a paged menu, or for the picked item, it does that instead.
    */
+  /** Active remote collaborators on [menuName]. */
+  peersForMenu(menuName) {
+    return this.peers.filter((p) => !p.self && p.menu === menuName)
+  }
+
+  /** Active remote collaborators currently inspecting [itemId] on [menuName]. */
+  peersForItem(menuName, itemId) {
+    return this.peers.filter((p) => !p.self && p.menu === menuName && p.item === itemId)
+  }
+
+  startPresence() {
+    this.stopPresence()
+    if (!this.server) return
+    this.syncPresence()
+    this.presenceTimer = setInterval(() => {
+      if (typeof document !== 'undefined' && document.hidden) return
+      if (!this.serverOffline) this.syncPresence()
+    }, PRESENCE_MS)
+  }
+
+  stopPresence() {
+    if (this.presenceTimer) { clearInterval(this.presenceTimer); this.presenceTimer = null }
+  }
+
+  /** Debounced presence push when the user clicks a slot/item or switches menus. */
+  notifyPresenceSoon() {
+    if (!this.server || this.serverOffline) return
+    clearTimeout(this.presenceDebounce)
+    this.presenceDebounce = setTimeout(() => this.syncPresence(), 180)
+  }
+
+  async syncPresence(force = false) {
+    if (!this.server || (this.presenceInFlight && !force)) return
+    this.presenceInFlight = true
+    try {
+      const reply = await this.server.presence({
+        clientId: this.clientId,
+        name: this.server.from || null,
+        menu: this.name || null,
+        item: this.picked.item || null,
+        slot: this.picked.slot ?? null,
+        area: this.picked.area ?? 'items',
+        tab: this.tab,
+      })
+      const wasOffline = this.serverOffline
+      this.serverOffline = false
+      this.offlineMessage = ''
+
+      // Update upfront IP verification state dynamically (e.g. if an admin just logged in or out).
+      let ipChanged = false
+      if (this.serverInfo && typeof reply.ipVerified === 'boolean') {
+        if (this.serverInfo.ipVerified !== reply.ipVerified || this.serverInfo.ipNotice !== reply.ipNotice) {
+          this.serverInfo = { ...this.serverInfo, ipVerified: reply.ipVerified, ipNotice: reply.ipNotice, clientName: reply.clientName ?? this.serverInfo.clientName }
+          ipChanged = true
+        }
+      }
+
+      // Detect Nexo / ItemsAdder pack reload (revision bump or hash/URL change) and refresh pack + glyphs + custom items live.
+      const prevRev = this.serverInfo?.packRevision ?? 0
+      const prevHash = this.serverInfo?.packHash ?? null
+      const prevUrl = this.serverInfo?.packUrl ?? null
+      const packChanged = this.serverInfo && (
+        (typeof reply.packRevision === 'number' && reply.packRevision > prevRev) ||
+        (reply.packHash && reply.packHash !== prevHash) ||
+        (reply.packUrl && reply.packUrl !== prevUrl)
+      )
+      if (packChanged && !this.packReloading) {
+        this.serverInfo = {
+          ...this.serverInfo,
+          packRevision: reply.packRevision ?? prevRev,
+          packHash: reply.packHash ?? prevHash,
+          packSize: reply.packSize ?? this.serverInfo.packSize,
+          packUrl: reply.packUrl ?? prevUrl,
+        }
+        this.reloadServerPack()
+      }
+
+      const nextPeers = Array.isArray(reply.peers) ? reply.peers : []
+      const nextKey = JSON.stringify(nextPeers)
+      const peersChanged = nextKey !== this.peerKey
+      this.peers = nextPeers
+      this.peerKey = nextKey
+      if (wasOffline || ipChanged || peersChanged) {
+        this.refreshHeader()
+        if (this.tab === 'Editor') this.editor.refresh()
+      }
+    } catch (error) {
+      if (error.offline) {
+        this.markOffline(error.message)
+      }
+    } finally {
+      this.presenceInFlight = false
+    }
+  }
+
+  /** Reloads the resource pack, plugin glyphs, custom item catalog and item resolutions after a Nexo or ItemsAdder reload. */
+  async reloadServerPack() {
+    if (!this.server || this.packReloading) return
+    this.packReloading = true
+    try {
+      this.setStatus('Nexo / ItemsAdder reloaded — updating resource pack in the editor…')
+      iconSettings.resolved.clear()
+      this.asked.clear()
+      forgetCatalog()
+      this.known = null
+      await this.pack.discover()
+      await Promise.all([this.resolveItems(), this.loadKnownItems(), this.findCustomItems()])
+      this.setStatus('Resource pack updated from server.')
+      this.draw()
+    } catch {
+      /* keep current pack on transient reload error */
+    } finally {
+      this.packReloading = false
+    }
+  }
+
+  markOffline(message) {
+    if (this.store.dirty && Object.keys(this.store.value).length > 0) writeDraft(this.name, this.store.value)
+    this.serverOffline = true
+    this.offlineMessage = message || 'The Minecraft server is unreachable.'
+    this.peers = []
+    this.peerKey = ''
+    this.refreshHeader()
+  }
+
+  async retryConnection() {
+    if (!this.server) return
+    this.setStatus('Reconnecting to server…')
+    try {
+      const info = await this.server.info()
+      this.serverInfo = info
+      this.menuNames = info.menus
+      this.serverOffline = false
+      this.offlineMessage = ''
+      this.setStatus(`Reconnected to server (${info.owner}).`)
+      this.refreshHeader()
+      this.startPresence()
+    } catch (error) {
+      this.markOffline(error.message)
+      this.setStatus(error.message, true)
+    }
+  }
+
+  /** Focuses the menu and item/slot another collaborator is currently editing. */
+  async jumpToPeer(peer) {
+    if (!peer || peer.self) return
+    if (peer.menu && peer.menu !== this.name && this.server && this.menuNames.includes(peer.menu)) {
+      await this.open(peer.menu)
+    }
+    if (peer.item && this.store.value.items?.[peer.item]) {
+      this.pickItem(peer.item)
+    } else if (peer.slot !== null && peer.slot !== undefined) {
+      this.picked = { slot: peer.slot, item: null, area: peer.area ?? 'items' }
+      this.inventory.slot = peer.slot
+      this.inventory.area = peer.area ?? 'items'
+      this.draw()
+    }
+  }
+
+  /** Connects to another server via its /xmenu edit or /xmenu share link while preserving the current menu, ready to save there. */
+  async saveToAnotherServer() {
+    const raw = (prompt('Paste the other server\'s 12-character /xmenu edit (or /xmenu share) code or link to save this menu there:') ?? '').trim()
+    if (!raw) return
+    const hashIndex = raw.indexOf('#')
+    const fragment = hashIndex >= 0 ? raw.slice(hashIndex) : raw
+    const parsed = fromHash(fragment)
+    if (!parsed.code && !(parsed.server && parsed.token)) {
+      this.setStatus('That does not look like a /xmenu edit or /xmenu share link/code.', true)
+      return
+    }
+    await this.loadHash(parsed, { keepMenu: true })
+    this.draw()
+  }
+
+  restoreSavedDraft() {
+    const draft = this.savedDraft
+    if (!draft) return
+    if (this.store.dirty && !confirm('Replace your current unsaved changes with the recovered browser draft?')) return
+    this.name = draft.name || 'menu'
+    this.centerStage = true
+    this.raw.discard()
+    this.store.load(draft.menu)
+    this.store.dirty = true
+    this.savedDraft = null
+    this.picked = { slot: null, item: null, area: 'items' }
+    this.placing = false
+    this.setStatus(`Recovered unsaved draft '${this.name}'. Save to a server or download .conf.`)
+    this.draw()
+  }
+
+  dismissSavedDraft() {
+    clearDraft()
+    this.savedDraft = null
+    this.refreshHeader()
+  }
+
   pickSlot(slot, names, area = 'items') {
     const menu = this.store.value
     if (this.painting) {
@@ -275,6 +535,7 @@ export class App {
     // The elements the preview draws are all the one template.
     const item = name === EMPTY ? EMPTY : isPaged(name) ? TEMPLATE : name
     this.picked = { slot, item, area }
+    this.notifyPresenceSoon()
     this.draw()
   }
 
@@ -361,7 +622,10 @@ export class App {
   fetchElements() {
     clearTimeout(this.fetching)
     const key = this.liveKey()
-    if (!this.server || key === null) { if (this.live) { this.live = null; this.editor.drawStage() } return }
+    if (!this.server || key === null || this.serverInfo?.shared || this.serverInfo?.readOnly) {
+      if (this.live) { this.live = null; this.editor.drawStage() }
+      return
+    }
     if (this.live?.key === key) return
     this.fetching = setTimeout(async () => {
       this.live = { key, pending: true }
@@ -404,6 +668,7 @@ export class App {
     this.inventory.area = area
     this.editor.drawerOpen = false
     if (typeof window !== 'undefined' && window.innerWidth <= 820) this.editor.mobilePane = 'props'
+    this.notifyPresenceSoon()
     this.draw()
   }
 
@@ -441,12 +706,15 @@ export class App {
   build() {
     this.menuSelect = h('select', { class: 'menu-select', title: 'Menu', onchange: () => this.open(this.menuSelect.value) })
     this.statusLine = h('span', { class: 'status' })
+    this.peersWrap = h('div', { class: 'peers-bar', hidden: true })
+    this.bannersWrap = h('div', { class: 'top-banners', hidden: true })
     this.fileMenuOpen = false
     this.buttons = {
       undo: h('button', { class: 'icon-btn', onclick: () => this.store.undo(), title: 'Undo (Ctrl+Z)', 'aria-label': 'Undo' }, '↶'),
       redo: h('button', { class: 'icon-btn', onclick: () => this.store.redo(), title: 'Redo (Ctrl+Y)', 'aria-label': 'Redo' }, '↷'),
       newMenu: h('button', { class: 'small', onclick: () => this.createMenu(), title: 'Create a new menu to edit and save to the server' }, '+ New'),
       loadLink: h('button', { onclick: () => { this.fileMenuOpen = false; this.promptLink() }, title: 'Paste a shared menu link (#data=...) or a /xmenu edit / /xmenu share server link' }, 'Load link'),
+      saveOther: h('button', { onclick: () => { this.fileMenuOpen = false; this.saveToAnotherServer() }, title: 'Switch to another server using its /xmenu edit or /xmenu share link while keeping your current menu' }, 'Save to another server…'),
       share: h('button', { onclick: () => { this.fileMenuOpen = false; this.copyShareLink() }, title: 'Copy a shareable link carrying this menu so another admin can open and save it' }, 'Share link'),
       open: h('button', { onclick: () => { this.fileMenuOpen = false; this.pickFile() } }, 'Open file'),
       download: h('button', { onclick: () => { this.fileMenuOpen = false; this.download() } }, 'Download .conf'),
@@ -454,7 +722,7 @@ export class App {
     }
     this.fileMenuBtn = h('button', { class: 'menu-drop-btn', title: 'File & link actions', onclick: () => { this.fileMenuOpen = !this.fileMenuOpen; this.refreshHeader() } }, 'File ▾')
     this.fileMenuPop = h('div', { class: 'menu-drop', hidden: true },
-      this.buttons.loadLink, this.buttons.share, this.buttons.open, this.buttons.download)
+      this.buttons.loadLink, this.buttons.saveOther, this.buttons.share, this.buttons.open, this.buttons.download)
     this.tabs = h('nav', { class: 'tabs' }, TABS.map((t) => h('button', { 'data-tab': t, onclick: () => this.goTo(t) }, t)))
     this.problemsButton = h('button', { class: 'problems-button', onclick: () => { this.showProblems = !this.showProblems; this.drawProblems() } })
     this.problemsPanel = h('div', { class: 'problems-pop', hidden: true })
@@ -467,10 +735,12 @@ export class App {
           this.menuSelect,
           this.buttons.newMenu),
         this.statusLine,
+        this.peersWrap,
         h('div', { class: 'header-actions' },
           h('div', { class: 'btn-group' }, this.buttons.undo, this.buttons.redo),
           h('div', { class: 'menu-drop-wrap' }, this.fileMenuBtn, this.fileMenuPop),
           this.buttons.save)),
+      this.bannersWrap,
       this.tabs,
       h('main', null, this.view))
     this.refreshHeader()
@@ -502,14 +772,68 @@ export class App {
     this.menuSelect.hidden = names.length === 0
     this.buttons.newMenu.hidden = !this.server || this.serverInfo?.readOnly === true
     this.buttons.share.hidden = Object.keys(this.store.value).length === 0
+    this.buttons.saveOther.hidden = Object.keys(this.store.value).length === 0
     this.statusLine.textContent = `${this.store.dirty ? '● ' : ''}${this.status}`
     this.statusLine.className = `status ${this.statusBad ? 'bad' : ''}`
     this.buttons.save.hidden = !this.server || this.serverInfo?.readOnly === true
-    this.buttons.save.textContent = this.serverInfo?.shared ? 'Send for approval' : 'Save to server'
+    const needsApproval = this.serverInfo?.shared || this.serverInfo?.ipVerified === false
+    this.buttons.save.textContent = needsApproval ? 'Send for approval' : 'Save to server'
     this.buttons.undo.disabled = this.store.undoStack.length === 0
     this.buttons.redo.disabled = this.store.redoStack.length === 0
     if (this.fileMenuPop) this.fileMenuPop.hidden = !this.fileMenuOpen
     if (this.fileMenuBtn) this.fileMenuBtn.classList.toggle('active', this.fileMenuOpen)
+    this.refreshPeers()
+    this.refreshBanners()
+  }
+
+  refreshPeers() {
+    if (!this.peersWrap) return
+    if (!this.server || this.peers.length === 0) {
+      this.peersWrap.hidden = true
+      return
+    }
+    this.peersWrap.hidden = false
+    fill(this.peersWrap, this.peers.map((p) => {
+      const role = p.inGame ? (p.admin ? 'in-game admin' : 'in-game') : 'anonymous'
+      const where = p.menu ? ` · ${p.menu}${p.item ? `/${p.item}` : ''}` : ''
+      return h('button', {
+        class: `peer-chip ${p.self ? 'self' : ''} ${p.inGame ? 'ingame' : 'anon'}`,
+        style: `--peer-color:${p.color}`,
+        title: `${p.name} (${role})${where}${p.self ? ' — you' : ' — click to jump'}`,
+        onclick: () => !p.self && this.jumpToPeer(p),
+      },
+      h('span', { class: 'peer-dot', style: `background:${p.color}` }),
+      h('span', { class: 'peer-name' }, p.name),
+      h('span', { class: 'peer-kind' }, p.self ? 'you' : (p.inGame ? 'in-game' : 'anon')))
+    }))
+  }
+
+  refreshBanners() {
+    if (!this.bannersWrap) return
+    const items = []
+    if (this.serverOffline) {
+      items.push(h('div', { class: 'notice-banner danger' },
+        h('span', null, h('b', null, 'Server disconnected: '), `${this.offlineMessage} Your edits to '${this.name}' are safe in this browser.`),
+        h('div', { class: 'notice-actions' },
+          h('button', { class: 'primary small', onclick: () => this.saveToAnotherServer() }, 'Reconnect / Save to another server'),
+          h('button', { class: 'small', onclick: () => this.retryConnection() }, 'Retry'),
+          h('button', { class: 'small', onclick: () => this.download() }, 'Download .conf'),
+          h('button', { class: 'small', onclick: () => this.copyShareLink() }, 'Copy #data= link'))))
+    } else if (this.serverInfo && !this.serverInfo.readOnly && !this.serverInfo.shared && this.serverInfo.ipVerified === false) {
+      items.push(h('div', { class: 'notice-banner warn' },
+        h('span', null, h('b', null, 'IP check: '), this.serverInfo.ipNotice ?? 'Your browser IP does not match an online admin in-game. Saves will be held in /xmenu edits for approval.'),
+        h('div', { class: 'notice-actions' },
+          h('button', { class: 'small', onclick: () => this.syncPresence(true) }, 'Re-check IP'))))
+    }
+    if (this.savedDraft && !this.store.dirty) {
+      items.push(h('div', { class: 'notice-banner info' },
+        h('span', null, h('b', null, 'Recovered local draft: '), `Unsaved edits to '${this.savedDraft.name}' were kept in this browser.`),
+        h('div', { class: 'notice-actions' },
+          h('button', { class: 'primary small', onclick: () => this.restoreSavedDraft() }, 'Restore draft'),
+          h('button', { class: 'small', onclick: () => this.dismissSavedDraft() }, 'Dismiss'))))
+    }
+    this.bannersWrap.hidden = items.length === 0
+    fill(this.bannersWrap, items)
   }
 
   draw() {
@@ -665,16 +989,25 @@ export class App {
     try {
       this.serverProblems = await this.server.save(this.name, this.store.value)
       this.store.markSaved()
+      clearDraft()
+      this.savedDraft = null
+      this.serverOffline = false
+      this.offlineMessage = ''
       if (!this.server.held && !this.menuNames.includes(this.name)) {
         this.menuNames = [...this.menuNames, this.name].sort()
       }
+      const heldId = this.server.heldId ? ` #${this.server.heldId}` : ''
+      const heldReason = this.server.heldReason && this.server.heldReason !== 'shared link' ? ` (${this.server.heldReason})` : ''
       const note = this.server.held
-        ? `Sent ${this.name} to the admin of the server, who has to approve it in game (/xmenu edits).`
+        ? `Held ${this.name} as pending edit${heldId}${heldReason}. Approve in game with /xmenu edits apply${heldId || ' <id>'}.`
         : this.server.reloaded
           ? `Saved and reloaded ${this.name}.`
           : `Saved ${this.name}. Run /xmenu reload ${this.name} (or /xmenu reload) to apply.`
       this.setStatus(this.serverProblems.length ? note.replace(/\.$/, ', with problems.') : note)
-    } catch (error) { this.setStatus(error.message, true) }
+    } catch (error) {
+      if (error.offline) this.markOffline(error.message)
+      this.setStatus(error.message, true)
+    }
     this.draw()
   }
 

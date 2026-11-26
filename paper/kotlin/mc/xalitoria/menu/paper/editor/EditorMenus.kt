@@ -32,7 +32,7 @@ internal class EditorMenus(private val plugin: XaliMenu) {
     /** The menu [name] as it is in its file, or null if there is no such file. */
     fun read(name: String): ConfigObject? {
         val file = file(name)?.takeIf { it.exists() } ?: return null
-        return ConfigFactory.parseFile(file.toFile()).resolve().root()
+        return ConfigFactory.parseFile(file.toFile(), MenuFormat.SAFE_PARSE).resolve(MenuFormat.SAFE_RESOLVE).root()
     }
 
     /** What reading and saving the menu came to. */

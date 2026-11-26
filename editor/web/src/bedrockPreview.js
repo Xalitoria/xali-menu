@@ -112,7 +112,7 @@ export function bedrockFormView(app, device, presentation) {
 
 function buttonIcon(btn, view) {
   if (btn.image && /^https?:\/\//i.test(btn.image)) {
-    return h('img', { src: btn.image, alt: '', class: 'bedrock-img' })
+    return h('img', { src: btn.image, alt: '', class: 'bedrock-img', referrerpolicy: 'no-referrer' })
   }
   if (btn.item) return icon(btn.item, view.device, view.ratio)
   if (btn.image && !btn.image.includes('/')) return icon({ material: btn.image }, view.device, view.ratio)

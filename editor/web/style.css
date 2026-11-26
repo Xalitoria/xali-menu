@@ -25,7 +25,7 @@
 
 * { box-sizing: border-box; }
 html, body { margin: 0; height: 100%; overflow: hidden; }
-#app { display: grid; grid-template-rows: auto auto minmax(0, 1fr); height: 100dvh; min-height: 0; }
+#app { display: grid; grid-template-rows: auto auto auto minmax(0, 1fr); height: 100dvh; min-height: 0; }
 
 /* subtle dark scrollbars */
 * { scrollbar-width: thin; scrollbar-color: var(--line-strong) transparent; }
@@ -877,4 +877,98 @@ input.layout-char { width: 3ch; text-align: center; font-family: ui-monospace, m
   .item-head-actions { width: 100%; justify-content: flex-end; }
   .meta-mode-bar { flex-wrap: wrap; }
   .picker-row code { max-width: 100px; }
+}
+
+/* security / offline / draft banners */
+.top-banners { display: grid; gap: 0; }
+.notice-banner {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 7px 14px;
+  font-size: 13px;
+  border-bottom: 1px solid var(--line);
+}
+.notice-banner.warn { background: var(--warn-soft); color: var(--text); border-bottom-color: rgba(224, 177, 69, 0.35); }
+.notice-banner.danger { background: var(--danger-soft); color: var(--text); border-bottom-color: rgba(235, 106, 99, 0.4); }
+.notice-banner.info { background: var(--accent-soft); color: var(--text); border-bottom-color: rgba(91, 157, 255, 0.35); }
+.notice-actions { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+
+/* Google Docs-style collaborator presence bar & highlights */
+.peers-bar { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; }
+.peer-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 26px;
+  padding: 2px 8px;
+  font-size: 12px;
+  border-radius: 999px;
+  background: var(--surface);
+  border: 1px solid var(--peer-color, var(--line-strong));
+}
+.peer-chip.self { cursor: default; opacity: .88; }
+.peer-dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+.peer-name { font-weight: 600; max-width: 110px; overflow: hidden; text-overflow: ellipsis; }
+.peer-kind {
+  font-size: 10px;
+  padding: 1px 5px;
+  border-radius: 999px;
+  background: var(--raised);
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: .03em;
+}
+.peer-chip.ingame .peer-kind { color: var(--good); }
+.peer-chip.anon .peer-kind { color: var(--warn); }
+
+.slot.peer-active {
+  box-shadow: inset 0 0 0 2px var(--peer-color, var(--accent)), 0 0 0 1px var(--peer-color, var(--accent));
+  z-index: 2;
+}
+.peer-tags {
+  position: absolute;
+  left: -2px;
+  top: -15px;
+  display: flex;
+  gap: 2px;
+  pointer-events: none;
+  z-index: 8;
+}
+.peer-tag {
+  font-size: 9px;
+  line-height: 1.25;
+  font-weight: 700;
+  color: #fff;
+  padding: 1px 4px;
+  border-radius: 3px;
+  white-space: nowrap;
+  max-width: 72px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  box-shadow: 0 1px 4px #0009;
+}
+.peer-tag.anon { font-style: italic; }
+
+.item-row.peer-active {
+  border-left: 3px solid var(--peer-color, var(--accent));
+}
+.item-peers {
+  display: inline-flex;
+  gap: 3px;
+  margin-left: auto;
+  flex: none;
+}
+.item-peer-dot {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  display: inline-grid;
+  place-items: center;
+  box-shadow: 0 0 0 1px #0006;
 }

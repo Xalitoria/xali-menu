@@ -21,6 +21,7 @@ import mc.xalitoria.menu.paper.deluxemenus.BukkitMaterials
 import mc.xalitoria.menu.paper.deluxemenus.DeluxeMenusImporter
 import mc.xalitoria.menu.paper.editor.EditorLink
 import mc.xalitoria.menu.paper.editor.EditorMenus
+import mc.xalitoria.menu.paper.editor.EditorPush
 import mc.xalitoria.menu.paper.editor.EditorRelay
 import mc.xalitoria.menu.paper.format.MenuFormat
 import mc.xalitoria.menu.paper.runtime.Clients
@@ -146,8 +147,17 @@ object MenuCommand {
         .then(Commands
             .literal("edits")
             .executes { ctx -> edits(ctx) }
+            .then(Commands.literal("inspect").then(Commands.argument("id", IntegerArgumentType.integer(1)).executes { ctx -> inspectEdit(ctx, IntegerArgumentType.getInteger(ctx, "id")) }))
             .then(Commands.literal("apply").then(Commands.argument("id", IntegerArgumentType.integer(1)).executes { ctx -> applyEdit(ctx, IntegerArgumentType.getInteger(ctx, "id")) }))
             .then(Commands.literal("drop").then(Commands.argument("id", IntegerArgumentType.integer(1)).executes { ctx -> dropEdit(ctx, IntegerArgumentType.getInteger(ctx, "id")) }))
+        )
+        .then(Commands
+            .literal("push")
+            .then(menuArgument()
+                .then(Commands.argument("target", StringArgumentType.greedyString())
+                    .executes { ctx -> pushMenu(ctx, StringArgumentType.getString(ctx, "menu"), StringArgumentType.getString(ctx, "target")) }
+                )
+            )
         )
         .then(Commands
             .literal("import")
@@ -324,8 +334,11 @@ object MenuCommand {
         val messages = cmdMsg.edit
         val settings = plugin.config.data.editor
         val template = if (autoReload) messages.linkServerAutoReload else messages.linkServer
+        val player = sender as? Player
+        val ownerIp = player?.address?.address?.hostAddress
+        val ownerUuid = player?.uniqueId
         if (plugin.editor.running) {
-            val token = plugin.editor.sessions.create(sender.name, autoReload = autoReload, initialMenu = menu)
+            val token = plugin.editor.sessions.create(sender.name, autoReload = autoReload, initialMenu = menu, ownerIp = ownerIp, ownerUuid = ownerUuid)
             val address = settings.publicUrl.ifBlank { "http://${settings.host}:${settings.port}" }
             val link = EditorLink.server(settings.site, address, token, menu)
             sender.sendMessage(linkMessage(template.replace("{minutes}", settings.sessionMinutes.toString()), link))
@@ -333,7 +346,7 @@ object MenuCommand {
         }
         if (settings.relay.url.isNotBlank()) {
             plugin.server.asyncScheduler.runNow(plugin) {
-                when (val started = plugin.relay.start(sender.name, menu, readOnly = false, shared = false, autoReload = autoReload)) {
+                when (val started = plugin.relay.start(sender.name, menu, readOnly = false, shared = false, autoReload = autoReload, ownerIp = ownerIp, ownerUuid = ownerUuid)) {
                     is EditorRelay.Started.Failed -> sender fail messages.shareFailed(started.reason)
                     is EditorRelay.Started.Ok -> sender.sendMessage(linkMessage(template.replace("{minutes}", settings.sessionMinutes.toString()), started.link))
                 }
@@ -375,10 +388,13 @@ object MenuCommand {
         val messages = cmdMsg.edit
         val settings = plugin.config.data.editor
         val template = if (readOnly) messages.shareLinkReadOnly else messages.shareLink
+        val player = sender as? Player
+        val ownerIp = player?.address?.address?.hostAddress
+        val ownerUuid = player?.uniqueId
         if (settings.relay.url.isNotBlank()) {
             // Opening a session is a request to the relay, which waits for an answer, so it is not made on the server's thread.
             plugin.server.asyncScheduler.runNow(plugin) {
-                when (val started = plugin.relay.start(sender.name, menu, readOnly = readOnly, shared = true)) {
+                when (val started = plugin.relay.start(sender.name, menu, readOnly = readOnly, shared = true, ownerIp = ownerIp, ownerUuid = ownerUuid)) {
                     is EditorRelay.Started.Failed -> sender fail messages.shareFailed(started.reason)
                     is EditorRelay.Started.Ok -> sender.sendMessage(linkMessage(template.replace("{minutes}", settings.sessionMinutes.toString()), started.link))
                 }
@@ -386,7 +402,7 @@ object MenuCommand {
             return Command.SINGLE_SUCCESS
         }
         if (plugin.editor.running) {
-            val token = plugin.editor.sessions.create(sender.name, shared = true, readOnly = readOnly, initialMenu = menu)
+            val token = plugin.editor.sessions.create(sender.name, shared = true, readOnly = readOnly, initialMenu = menu, ownerIp = ownerIp, ownerUuid = ownerUuid)
             val address = settings.publicUrl.ifBlank { "http://${settings.host}:${settings.port}" }
             val link = EditorLink.server(settings.site, address, token, menu)
             sender.sendMessage(linkMessage(template.replace("{minutes}", settings.sessionMinutes.toString()), link))
@@ -405,7 +421,7 @@ object MenuCommand {
         return Command.SINGLE_SUCCESS
     }
 
-    /** Lists the edits that came through shared links. */
+    /** Lists the edits that came through shared links or failed IP verification. */
     private fun edits(ctx: CommandContext<CommandSourceStack>): Int {
         val sender = ctx.source.sender
         if (!sender.allowed()) return Command.SINGLE_SUCCESS
@@ -414,7 +430,37 @@ object MenuCommand {
         if (waiting.isEmpty()) { sender info messages.editsNone; return Command.SINGLE_SUCCESS }
         sender info messages.editsHeader(waiting.size)
         val now = System.currentTimeMillis()
-        for (edit in waiting) sender info messages.editsLine(edit.id, edit.from.verbatim(), edit.name.verbatim(), edit.problems.size, (now - edit.at) / 60_000)
+        for (edit in waiting) {
+            val mins = (now - edit.at) / 60_000
+            if (edit.reason == "shared link") {
+                sender info messages.editsLine(edit.id, edit.from.verbatim(), edit.name.verbatim(), edit.problems.size, mins)
+            } else {
+                sender info messages.editsLineReason(edit.id, edit.from.verbatim(), edit.name.verbatim(), edit.problems.size, mins, edit.reason.verbatim())
+            }
+            if (edit.privileged.isNotEmpty()) {
+                sender warn messages.editsPrivileged(edit.privileged.size, edit.privileged.take(5).joinToString("; ").verbatim())
+            }
+        }
+        return Command.SINGLE_SUCCESS
+    }
+
+    /** Shows the source IP, reason, problems, and any privileged actions of pending edit [id] without applying or dropping it. */
+    private fun inspectEdit(ctx: CommandContext<CommandSourceStack>, id: Int): Int {
+        val sender = ctx.source.sender
+        if (!sender.allowed()) return Command.SINGLE_SUCCESS
+        val messages = cmdMsg.edit
+        val edit = plugin.editor.pending.get(id)
+        if (edit == null) { sender fail messages.editsUnknown(id); return Command.SINGLE_SUCCESS }
+        val mins = (System.currentTimeMillis() - edit.at) / 60_000
+        sender info messages.editsInspectHeader(edit.id, edit.name.verbatim(), edit.from.verbatim(), edit.reason.verbatim(), mins)
+        edit.clientIp?.let { sender info messages.editsInspectIp(it.verbatim()) }
+        if (edit.privileged.isEmpty()) {
+            sender pass messages.editsInspectClean
+        } else {
+            sender warn messages.editsPrivileged(edit.privileged.size, edit.privileged.take(10).joinToString("; ").verbatim())
+            for (action in edit.privileged) sender info "  - $action".verbatim()
+        }
+        if (edit.problems.isNotEmpty()) sender.problems(edit.name, edit.problems)
         return Command.SINGLE_SUCCESS
     }
 
@@ -428,7 +474,8 @@ object MenuCommand {
         when (val result = plugin.editor.menus.save(edit.name, edit.menu, reload = true)) {
             is EditorMenus.Result.Refused -> { sender fail messages.editsRefused(id, result.reason.verbatim()); return Command.SINGLE_SUCCESS }
             is EditorMenus.Result.Ok -> {
-                plugin.logger.info("${sender.name} applied edit #$id of '${edit.name}' by ${edit.from}")
+                val ipNote = edit.clientIp?.let { " (ip=$it)" }.orEmpty()
+                plugin.logger.info("${sender.name} applied edit #$id of '${edit.name}' by ${edit.from} [${edit.reason}]$ipNote")
                 sender pass messages.editsApplied(id, edit.name.verbatim(), "")
                 if (result.problems.isNotEmpty()) sender.problems(edit.name, result.problems)
             }
@@ -441,6 +488,39 @@ object MenuCommand {
         if (!sender.allowed()) return Command.SINGLE_SUCCESS
         val edit = plugin.editor.pending.take(id)
         sender info (if (edit == null) cmdMsg.edit.editsUnknown(id) else cmdMsg.edit.editsDropped(id))
+        return Command.SINGLE_SUCCESS
+    }
+
+    /** Pushes local menu [name] to another XaliMenu server using that target server's `/xmenu edit` or `/xmenu share` link/code. */
+    private fun pushMenu(ctx: CommandContext<CommandSourceStack>, name: String, rawTarget: String): Int {
+        val sender = ctx.source.sender
+        if (!sender.allowed()) return Command.SINGLE_SUCCESS
+        val messages = cmdMsg.edit
+        val menu = plugin.editor.menus.read(name)
+        if (menu == null) {
+            sender fail menuMsg.unknown(name.verbatim())
+            return Command.SINGLE_SUCCESS
+        }
+        val settings = plugin.config.data.editor
+        val fallbackRelay = settings.relay.url.trim().ifEmpty { EditorRelay.defaultRelay(settings.site) }
+        val target = EditorPush.parseTarget(rawTarget, fallbackRelay)
+        if (target == null) {
+            sender fail messages.pushInvalid
+            return Command.SINGLE_SUCCESS
+        }
+        plugin.server.asyncScheduler.runNow(plugin) {
+            when (val res = EditorPush.push(target, name, menu, sender.name)) {
+                is EditorPush.Result.Saved -> {
+                    sender pass (if (res.reloaded) messages.pushSavedReloaded(name.verbatim()) else messages.pushSaved(name.verbatim()))
+                    if (res.problems.isNotEmpty()) sender.problems(name, res.problems)
+                }
+                is EditorPush.Result.Held -> {
+                    sender info messages.pushHeld(name.verbatim(), res.id, (res.reason ?: "approval required").verbatim())
+                    if (res.problems.isNotEmpty()) sender.problems(name, res.problems)
+                }
+                is EditorPush.Result.Failed -> sender fail messages.pushFailed(name.verbatim(), res.reason.verbatim())
+            }
+        }
         return Command.SINGLE_SUCCESS
     }
 

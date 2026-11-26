@@ -76,7 +76,7 @@ export class Inventory {
    * [menu] is what is drawn (the menu of the store unless the page shows it differently, as a paged menu with its first page); [listed] is the set of
    * slots the elements of a paged menu go into, which are marked; [painting] says that a click picks slots for them and does not pick an item.
    */
-  draw(box = { width: 1000, height: 700 }, { menu = this.store.value, listed = new Set(), painting = false } = {}) {
+  draw(box = { width: 1000, height: 700 }, { menu = this.store.value, listed = new Set(), painting = false, peers = [] } = {}) {
     const count = slotCount(menu)
     const g = geometry(menu)
     const view = this.viewFor(g, box)
@@ -85,17 +85,32 @@ export class Inventory {
     const cell = view.css(18)
     const slots = bySlot(menu)
     const inventorySlots = inventoryEntries(menu)
+    const peersBySlot = new Map()
+    for (const peer of peers) {
+      if (peer.self || peer.slot === null || peer.slot === undefined) continue
+      const key = `${peer.area ?? 'items'}:${peer.slot}`
+      if (!peersBySlot.has(key)) peersBySlot.set(key, [])
+      peersBySlot.get(key).push(peer)
+    }
     // The coordinates of the game are those of the item, which lies one pixel inside the slot's border: the square of the slot starts one pixel up and to the left.
     const at = (x, y) => `left:${view.css(room.x + x - 1)}px;top:${view.css(room.y + y - 1)}px;width:${cell}px;height:${cell}px`
     /** A slot of [area], with the items [names] drawn in it, the one drawn first at the front. */
     const cellFor = (slot, names, place, extra = {}, area = 'items') => {
       const shown = names[0]
       const item = shown ? menu.items?.[shown] : null
+      const slotPeers = peersBySlot.get(`${area}:${slot}`) ?? []
+      const peerStyle = slotPeers.length ? `;--peer-color:${slotPeers[0].color}` : ''
       // What can be dragged is a slot the item says itself: not one of the layout, which is the layout's to move, and not an element of a paged menu.
       const own = Boolean(item) && !isPaged(shown) && !extra.outside && claimsOf(item, area).includes(slot)
+      const peerBadges = slotPeers.length > 0 && h('div', { class: 'peer-tags' },
+        slotPeers.slice(0, 2).map((p) => h('span', {
+          class: `peer-tag ${p.inGame ? 'ingame' : 'anon'}`,
+          style: `background:${p.color}`,
+          title: `${p.name} (${p.inGame ? 'in-game' : 'anonymous'})`,
+        }, p.name)))
       return h('div', {
-        class: `slot ${this.slot === slot && this.area === area ? 'picked' : ''} ${names.length > 1 ? 'shared' : ''} ${area === 'items' && listed.has(slot) ? 'listed' : ''} ${extra.class ?? ''}`,
-        'data-slot': slot, 'data-area': area, style: place,
+        class: `slot ${this.slot === slot && this.area === area ? 'picked' : ''} ${slotPeers.length ? 'peer-active' : ''} ${names.length > 1 ? 'shared' : ''} ${area === 'items' && listed.has(slot) ? 'listed' : ''} ${extra.class ?? ''}`,
+        'data-slot': slot, 'data-area': area, style: place + peerStyle,
         draggable: own,
         onclick: () => { this.slot = slot; this.area = area; this.events.select(slot, names, area) },
         ondragstart: (e) => {
@@ -114,7 +129,7 @@ export class Inventory {
         onmouseenter: (e) => this.showTip(item, shown, names, slot, e, view, extra.note),
         onmousemove: (e) => this.moveTip(e),
         onmouseleave: () => this.hideTip(),
-      }, item && icon(item, view.device, view.ratio), item && decorations(item, services.text, settings.resolved.get(item.material)?.maxDamage ?? 0, view.device, view.ratio), h('span', { class: 'number' }, slot))
+      }, item && icon(item, view.device, view.ratio), item && decorations(item, services.text, settings.resolved.get(item.material)?.maxDamage ?? 0, view.device, view.ratio), peerBadges, h('span', { class: 'number' }, slot))
     }
     const grid = h('div', { class: 'slots layered' })
     for (let slot = 0; slot < count; slot++) {

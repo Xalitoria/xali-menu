@@ -82,6 +82,11 @@ internal class ResourcePacks(private val plugin: XaliMenu) {
     @Volatile
     private var cachedHash: Triple<Path, Long, String>? = null
 
+    /** Drops cached pack hash metadata so a rebuilt pack is re-hashed on the next read. */
+    fun invalidateCache() {
+        cachedHash = null
+    }
+
     /** The pack file: the configured one, otherwise the first of the supported plugins that has one. */
     fun pack(): Path? {
         val configured = plugin.config.data.editor.pack

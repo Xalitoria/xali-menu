@@ -17,6 +17,7 @@ class ItemsAdderListener(private val plugin: XaliMenu) : Listener {
     fun onItemsAdderLoad(event: ItemsAdderLoadDataEvent) {
         clearTextCache()
         plugin.items.clearWarnings()
+        plugin.editor.api.notifyPackUpdated("ItemsAdder")
         if (plugin.menus.isLoaded) {
             plugin.logger info "ItemsAdder data loaded (${event.cause.name.lowercase()}); refreshing menus."
             plugin.menus.load()

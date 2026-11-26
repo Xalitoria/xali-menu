@@ -179,7 +179,7 @@ export class EditorTab {
     }
     const shown = app.shownMenu()
     const preview = isBedrock ? { ...shown, title: titleForDevice(shown, device) } : shown
-    app.inventory.draw({ width, height }, { menu: preview, listed: new Set(listedSlots(this.menu.pages)), painting: app.painting })
+    app.inventory.draw({ width, height }, { menu: preview, listed: new Set(listedSlots(this.menu.pages)), painting: app.painting, peers: app.peersForMenu(app.name) })
     fill(this.stage, ...(isBedrock ? [bedrockBanner(app, device, presentation, this.bedrockDefault), this.app.inventory.root] : [this.app.inventory.root]))
     this.pager?.replaceWith(this.pager = this.pagerView())
     // The window opens in the middle of the stage, and stays where it was dragged to.
@@ -380,19 +380,43 @@ export class EditorTab {
     const { app } = this
     const item = this.menu.items[id]
     const active = id === app.picked.item
-    return h('button', { class: `item-row ${active ? 'active' : ''} ${bad.has(id) ? 'bad' : ''}`, 'data-id': id, title: `${id}: ${item.material ?? ''}`,
+    const peers = app.peersForItem(app.name, id)
+    const peerTitle = peers.length ? ` · Editing: ${peers.map((p) => `${p.name} (${p.inGame ? 'in-game' : 'anon'})`).join(', ')}` : ''
+    return h('button', {
+      class: `item-row ${active ? 'active' : ''} ${bad.has(id) ? 'bad' : ''} ${peers.length ? 'peer-active' : ''}`,
+      style: peers.length ? `--peer-color:${peers[0].color}` : null,
+      'data-id': id,
+      title: `${id}: ${item.material ?? ''}${peerTitle}`,
       draggable: true,
       ondragstart: (e) => { e.dataTransfer.effectAllowed = 'copy'; e.dataTransfer.setData('text/plain', JSON.stringify({ kind: 'item', name: id })) },
-      onclick: () => app.pickItem(id) },
+      onclick: () => app.pickItem(id),
+    },
     h('span', { class: 'item-icon' }, icon(item, view.device, view.ratio, { contain: true })),
-    h('span', { class: 'item-text' }, h('b', null, id), h('small', null, `${placeText(placesOf(this.menu, id))} · ${item.material ?? ''}`)))
+    h('span', { class: 'item-text' }, h('b', null, id), h('small', null, `${placeText(placesOf(this.menu, id))} · ${item.material ?? ''}`)),
+    peers.length > 0 && h('span', { class: 'item-peers' },
+      peers.slice(0, 3).map((p) => h('span', {
+        class: `item-peer-dot ${p.inGame ? 'ingame' : 'anon'}`,
+        style: `background:${p.color}`,
+        title: `${p.name} (${p.inGame ? 'in-game' : 'anonymous'})`,
+      }, p.name.slice(0, 1).toUpperCase()))))
   }
 
   /** The entry of the list for the template of a paged menu, or for its item for no elements: they are items of `pages`, not of `items`. */
   pagedRow(id, item, label, detail, bad, view) {
-    return h('button', { class: `item-row paged ${id === this.app.picked.item ? 'active' : ''} ${bad ? 'bad' : ''}`, 'data-id': id, title: detail, onclick: () => this.app.pickItem(id) },
-      h('span', { class: 'item-icon' }, icon(item, view.device, view.ratio, { contain: true })),
-      h('span', { class: 'item-text' }, h('b', null, label), h('small', null, detail)))
+    const peers = this.app.peersForItem(this.app.name, id)
+    return h('button', {
+      class: `item-row paged ${id === this.app.picked.item ? 'active' : ''} ${bad ? 'bad' : ''} ${peers.length ? 'peer-active' : ''}`,
+      style: peers.length ? `--peer-color:${peers[0].color}` : null,
+      'data-id': id, title: detail, onclick: () => this.app.pickItem(id),
+    },
+    h('span', { class: 'item-icon' }, icon(item, view.device, view.ratio, { contain: true })),
+    h('span', { class: 'item-text' }, h('b', null, label), h('small', null, detail)),
+    peers.length > 0 && h('span', { class: 'item-peers' },
+      peers.slice(0, 3).map((p) => h('span', {
+        class: `item-peer-dot ${p.inGame ? 'ingame' : 'anon'}`,
+        style: `background:${p.color}`,
+        title: `${p.name} (${p.inGame ? 'in-game' : 'anonymous'})`,
+      }, p.name.slice(0, 1).toUpperCase()))))
   }
 
   /** The small bar under the window of a paged menu that turns the example pages, or says that the page of no elements is shown. */

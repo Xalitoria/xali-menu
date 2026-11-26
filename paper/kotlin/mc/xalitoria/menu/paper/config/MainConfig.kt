@@ -77,6 +77,14 @@ data class MainConfig(
         @SerialName("icon-url")
         val iconUrl: String = "",
     )
+    /** IP verification policy when saving menus through `/xmenu edit`. */
+    @Serializable
+    enum class VerifyIp {
+        @SerialName("admin") ADMIN,
+        @SerialName("owner") OWNER,
+        @SerialName("off") OFF,
+    }
+
     @Serializable
     data class Editor(
         val enabled: Boolean = false,
@@ -91,6 +99,19 @@ data class MainConfig(
         @YamlComment("How long the link from /xmenu edit works, in minutes.")
         @SerialName("session-minutes")
         val sessionMinutes: Int = 60,
+        @YamlComment(
+            "IP verification when saving menus from `/xmenu edit`: `admin` (default — browser IP must match the session owner",
+            "or any currently online player with `xalimenu.admin`; unrecognized IPs and console sessions without a matching online",
+            "admin are held in `/xmenu edits` for approval), `owner` (must match the exact player who ran `/xmenu edit`), or `off`.",
+        )
+        @SerialName("verify-ip")
+        val verifyIp: VerifyIp = VerifyIp.ADMIN,
+        @YamlComment(
+            "Only for the direct HTTP endpoint (`editor.enabled: true`) behind a local reverse proxy (nginx/Caddy): read the",
+            "browser's IP from `CF-Connecting-IP` / `X-Forwarded-For` when the direct socket comes from loopback (`127.0.0.1` / `::1`).",
+        )
+        @SerialName("trust-proxy")
+        val trustProxy: Boolean = false,
         @YamlComment(
             "The resource pack the editor shows, as a path of a zip file. Empty: the pack of Nexo, Oraxen or ItemsAdder, whichever",
             "is installed. The pack is sent to the editor, which never stores it.",

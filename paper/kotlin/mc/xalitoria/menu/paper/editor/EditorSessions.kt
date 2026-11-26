@@ -3,6 +3,7 @@ package mc.xalitoria.menu.paper.editor
 import java.security.MessageDigest
 import java.security.SecureRandom
 import java.util.Base64
+import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -18,6 +19,8 @@ internal class EditorSessions(private val minutes: () -> Int, private val now: (
         val readOnly: Boolean = false,
         val autoReload: Boolean = false,
         val initialMenu: String? = null,
+        val ownerIp: String? = null,
+        val ownerUuid: UUID? = null,
     )
 
     private val sessions = ConcurrentHashMap<String, Session>()
@@ -30,11 +33,26 @@ internal class EditorSessions(private val minutes: () -> Int, private val now: (
         readOnly: Boolean = false,
         autoReload: Boolean = false,
         initialMenu: String? = null,
+        ownerIp: String? = null,
+        ownerUuid: UUID? = null,
     ): String {
+        purge()
+        while (sessions.size >= MAX_SESSIONS) {
+            val oldest = sessions.entries.minByOrNull { it.value.expires }?.key ?: break
+            sessions.remove(oldest)
+        }
         val bytes = ByteArray(24).also(random::nextBytes)
         val token = Base64.getUrlEncoder().withoutPadding().encodeToString(bytes)
-        sessions[hash(token)] = Session(owner, now() + minutes() * 60_000L, shared = shared, readOnly = readOnly, autoReload = autoReload, initialMenu = initialMenu)
-        purge()
+        sessions[hash(token)] = Session(
+            owner = owner,
+            expires = now() + minutes() * 60_000L,
+            shared = shared,
+            readOnly = readOnly,
+            autoReload = autoReload,
+            initialMenu = initialMenu,
+            ownerIp = EditorGuard.normalizeIp(ownerIp),
+            ownerUuid = ownerUuid,
+        )
         return token
     }
 
@@ -78,4 +96,8 @@ internal class EditorSessions(private val minutes: () -> Int, private val now: (
     }
 
     private fun hash(token: String): String = Base64.getEncoder().encodeToString(MessageDigest.getInstance("SHA-256").digest(token.toByteArray()))
+
+    companion object {
+        const val MAX_SESSIONS = 64
+    }
 }

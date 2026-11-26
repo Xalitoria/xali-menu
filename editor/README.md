@@ -198,13 +198,15 @@ How it is kept safe:
   fragment never leaves the browser. Both ends derive a 22-character opaque session id and a 256-bit AES-GCM key via
   PBKDF2-HMAC-SHA256 (100,000 iterations), so the relay only sees an opaque session id and encrypted bytes, holds nothing on disk,
   and drops sessions when the plugin stops polling or `editor.session-minutes` expires.
-- The plugin drops any request that was not encrypted with the session key, is more than ten minutes old, or has a repeated id.
+- The plugin drops any request that was not encrypted with the session key, is more than two minutes old, exceeds the body limit, or has a repeated id. The editor page also enforces a strict Content-Security-Policy and clears secret session codes/tokens from the browser URL bar after connecting.
+- **Upfront & on-save IP verification (`editor.verify-ip`, default `admin`):** The server checks the browser's IP (via Cloudflare's `CF-Connecting-IP` on the relay, or socket / `editor.trust-proxy` on direct HTTP) both when the editor loads (showing an immediate warning banner before edits are made) and again on save. In `admin` mode, saves from the creator's IP or any currently online `xalimenu.admin` player write directly (supporting console `/xmenu edit` and multi-admin collaboration); saves from unrecognized IPs are automatically held in `/xmenu edits` with client IP and privileged-action inspection (`/xmenu edits inspect <id>`).
+- **Live presence & pack reloads:** Open tabs share Google Docs-style collaborator badges and colored slot/item highlights (marking in-game players matched by IP vs anonymous browsers). When Nexo or ItemsAdder reloads its pack, active editor tabs automatically refresh the resource pack, glyphs and custom items without losing unsaved edits.
+- **Server-down resilience & cross-server transfer:** If the Minecraft server crashes or restarts while editing, unsaved edits stay safe in memory and `localStorage` draft recovery, and the disconnect banner offers one-click **Reconnect / Save to another server** (also in **File ▾ → Save to another server…**), `.conf` download, or `#data=` link copy. In-game, `/xmenu push <menu> <link-or-code>` pushes a menu directly to another server.
 - **Admin edit links (`/xmenu edit [menu] [--auto-reload]`)** read all menus, Nexo/Oraxen/ItemsAdder packs, glyphs, custom items,
   live registries and `config.yml` settings from the server. Saved menus validate and write atomically to `plugins/XaliMenu/menus/`
   without applying live until `/xmenu reload`, unless `--auto-reload` was passed. `/xmenu edit stop` ends active edit links.
-- **Shared links (`/xmenu share [readonly|stop] [menu]`)** let collaborators read the same menus and packs, but every save is held
-  in `/xmenu edits` until an admin runs `/xmenu edits apply <id>` or `/xmenu edits drop <id>`. A menu can run console commands, so
-  never apply a shared edit you have not reviewed. `/xmenu share readonly [menu]` refuses saves (403) and hides the save button.
+- **Shared links (`/xmenu share [readonly|stop] [menu]`)** let collaborators read the same menus and packs (live admin catalog previews `/v1/elements` are disabled on shared links), and every save is held
+  in `/xmenu edits` with privileged-action warnings (`console`, `permission`, `group`, `meta`, `gamemode`) until an admin runs `/xmenu edits inspect <id>` and `apply <id>` or `drop <id>`. `/xmenu share readonly [menu]` refuses saves (403) and hides the save button.
 
 ### 4. Show the resource pack (optional)
 
