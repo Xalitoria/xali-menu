@@ -464,15 +464,13 @@ class MenuManager(private val plugin: XaliMenu) {
 
         plugin.bedrockForms.left(player)
         val view = MenuView(plugin, target.name, menu, ctx, target.bySlot, target.inventoryBySlot, profile)
-        val title = view.title()
-        val fontTitle = view.fontTitle
-        @Suppress("DEPRECATION") // the title is legacy text, the only kind that can be changed once the menu is open
+        val title = view.openTitle()
         val inventory = if (menu.type == "chest") {
             val rows = menu.size.coerceIn(9, 54) / 9 * 9
-            if (fontTitle != null) Bukkit.createInventory(view, rows, fontTitle) else Bukkit.createInventory(view, rows, title)
+            Bukkit.createInventory(view, rows, title)
         } else {
             val type = runCatching { InventoryType.valueOf(menu.type.uppercase()) }.getOrDefault(InventoryType.CHEST)
-            if (fontTitle != null) Bukkit.createInventory(view, type, fontTitle) else Bukkit.createInventory(view, type, title)
+            Bukkit.createInventory(view, type, title)
         }
         view.attach(inventory)
         val drawOverlay = target.inventoryBySlot.isNotEmpty() && BedrockPlanner.shouldDrawInventoryOverlay(menu, profile, plugin.config.data.bedrock)

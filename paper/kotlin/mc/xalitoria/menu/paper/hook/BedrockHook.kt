@@ -215,23 +215,18 @@ internal class GeyserBridge : BedrockBridge {
 
     private fun send(player: Player, form: Form): Boolean = api.sendForm(player.uniqueId, form)
 
-    @Suppress("DEPRECATION") // Geyser deprecated legacy platforms (HoloLens, Windows Phone, tvOS), but older clients can still report them.
     private fun mapPlatform(platform: BedrockPlatform?): DeviceOs = when (platform) {
         BedrockPlatform.GOOGLE -> DeviceOs.ANDROID
         BedrockPlatform.IOS -> DeviceOs.IOS
         BedrockPlatform.OSX -> DeviceOs.OSX
         BedrockPlatform.LINUX -> DeviceOs.LINUX
         BedrockPlatform.AMAZON -> DeviceOs.AMAZON
-        BedrockPlatform.GEARVR -> DeviceOs.GEAR_VR
-        BedrockPlatform.HOLOLENS -> DeviceOs.HOLOLENS
         BedrockPlatform.UWP, BedrockPlatform.WIN32 -> DeviceOs.WINDOWS
-        BedrockPlatform.WINDOWS_PHONE -> DeviceOs.WINDOWS_PHONE
         BedrockPlatform.DEDICATED -> DeviceOs.DEDICATED
-        BedrockPlatform.TVOS -> DeviceOs.TVOS
         BedrockPlatform.PS4 -> DeviceOs.PLAYSTATION
         BedrockPlatform.NX -> DeviceOs.SWITCH
         BedrockPlatform.XBOX -> DeviceOs.XBOX
-        BedrockPlatform.UNKNOWN, null -> DeviceOs.UNKNOWN
+        else -> DeviceOs.UNKNOWN
     }
 
     private fun mapInput(mode: GeyserInputMode?): InputMode = when (mode) {

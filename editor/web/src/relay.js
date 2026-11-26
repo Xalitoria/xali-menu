@@ -21,17 +21,14 @@ export { deriveCode, seal, open, importKey }
 export class RelayServer extends Server {
   /**
    * @param {string} relay the address of the relay
-   * @param {string|null} session the session of the link (or null when [key] is a derived credentials promise)
-   * @param {string|Promise<{session: string, key: CryptoKey}>} key the key of the link (base64url), or a derived credentials promise
+   * @param {Promise<{session: string, key: CryptoKey}>} credsPromise derived session id + AES-GCM key from `deriveCode`
    * @param {string} [from] the name the admin sees on shared edits
    */
-  constructor(relay, session, key, from = '') {
+  constructor(relay, credsPromise, from = '') {
     super(relay, '')
-    this.session = session
+    this.session = null
     this.from = from
-    this.credsPromise = typeof key === 'string'
-      ? importKey(key).then((cryptoKey) => ({ session, key: cryptoKey }))
-      : key
+    this.credsPromise = credsPromise
     /** True after a save the admin has yet to approve. */
     this.held = false
     /** True after a save that was also reloaded live on the server (`--auto-reload`). */
@@ -40,7 +37,7 @@ export class RelayServer extends Server {
 
   /** Connects to [relay] using a short 12-character base64url code from `/xmenu edit` or `/xmenu share`. */
   static fromCode(relay, code, from = '') {
-    return new RelayServer(relay, null, deriveCode(code), from)
+    return new RelayServer(relay, deriveCode(code), from)
   }
 
   async request(path, options = {}) {

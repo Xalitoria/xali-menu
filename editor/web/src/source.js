@@ -14,7 +14,7 @@ export function defaultRelay(base = globalThis.location?.href) {
   return 'https://menu.xali.to/relay'
 }
 
-/** What the address after the `#` asks for. @returns {{code?: string, relay?: string, session?: string, key?: string, server?: string, token?: string, menu?: string, data?: string, name?: string}} */
+/** What the address after the `#` asks for. @returns {{code?: string, relay?: string, server?: string, token?: string, menu?: string, data?: string, name?: string}} */
 export function fromHash(hash) {
   const clean = String(hash ?? '').replace(/^#/, '').trim()
   if (!clean) return {}

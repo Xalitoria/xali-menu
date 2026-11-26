@@ -364,11 +364,5 @@ internal class EditorRelay(private val plugin: XaliMenu, private val api: Editor
             if (cleanRelay == defaultRelay(cleanSite)) return "$cleanSite/#$code"
             return "$cleanSite/#$code&relay=${URLEncoder.encode(cleanRelay, Charsets.UTF_8)}"
         }
-
-        /** Legacy explicit link format (`#relay=...&session=...&key=...`), kept for compatibility. */
-        fun link(site: String, relay: String, session: String, key: String, menu: String?): String {
-            fun encode(text: String) = URLEncoder.encode(text, Charsets.UTF_8)
-            return "${site.trimEnd('/')}/#relay=${encode(relay)}&session=$session&key=$key" + (menu?.let { "&menu=${encode(it)}" } ?: "")
-        }
     }
 }

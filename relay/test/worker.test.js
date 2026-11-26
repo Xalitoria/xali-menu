@@ -42,7 +42,7 @@ test('worker serves health, CORS preflight, and blocks disallowed origins', asyn
   assert.equal(denied.status, 403)
 })
 
-test('worker supports caller-chosen derived session ids, long-poll, answer, and delete', async () => {
+test('worker validates caller-chosen derived session ids, auth, and delete', async () => {
   const env = makeEnv()
   const id = 'MDOBu5MeKKxKUvcD8VhhAA'
 
@@ -50,35 +50,18 @@ test('worker supports caller-chosen derived session ids, long-poll, answer, and 
 
   const created = await call(env, '/relay/s', { method: 'POST', body: JSON.stringify({ id, ttl: 600 }) })
   assert.equal(created.status, 201)
-  const { secret, ttl } = await created.json()
+  const { secret, ttl, ws } = await created.json()
   assert.equal(ttl, 600)
+  assert.equal(ws, true)
 
   assert.equal((await call(env, '/relay/s', { method: 'POST', body: JSON.stringify({ id, ttl: 600 }) })).status, 409)
-  assert.equal((await call(env, `/relay/s/${id}/poll`, { headers: bearer('wrong') })).status, 401)
+  assert.equal((await call(env, `/relay/s/${id}/ws`, { headers: bearer('wrong') })).status, 401)
+  assert.equal((await call(env, `/relay/s/${id}/ws`, { headers: bearer(secret) })).status, 426)
 
-  // Start long-poll before the browser call arrives.
-  const pollPromise = call(env, `/relay/s/${id}/poll?wait=5`, { headers: bearer(secret) })
-  await new Promise((r) => setTimeout(r, 20))
-
-  const callPromise = call(env, `/relay/s/${id}/call`, { method: 'POST', body: new TextEncoder().encode('cipher-req') })
-  const polled = await (await pollPromise).json()
-  assert.equal(polled.length, 1)
-  assert.equal(Buffer.from(polled[0].data, 'base64url').toString(), 'cipher-req')
-
-  const ans = await call(env, `/relay/s/${id}/answer/${polled[0].id}`, {
-    method: 'POST',
-    headers: bearer(secret),
-    body: new TextEncoder().encode('cipher-res'),
-  })
-  assert.equal(ans.status, 204)
-
-  const callRes = await callPromise
-  assert.equal(callRes.status, 200)
-  assert.equal(Buffer.from(await callRes.arrayBuffer()).toString(), 'cipher-res')
-
-  // End session -> subsequent poll returns 404.
+  // End session -> subsequent requests return 404.
+  assert.equal((await call(env, `/relay/s/${id}`, { method: 'DELETE', headers: bearer('wrong') })).status, 401)
   assert.equal((await call(env, `/relay/s/${id}`, { method: 'DELETE', headers: bearer(secret) })).status, 204)
-  assert.equal((await call(env, `/relay/s/${id}/poll`, { headers: bearer(secret) })).status, 404)
+  assert.equal((await call(env, `/relay/s/${id}/ws`, { headers: bearer(secret) })).status, 404)
 })
 
 test('worker enforces token, body limit, timeout, and idle expiry', async () => {
@@ -93,45 +76,75 @@ test('worker enforces token, body limit, timeout, and idle expiry', async () => 
   assert.equal((await call(env, `/relay/s/${made.id}/call`, { method: 'POST', body: 'hi' })).status, 404)
 })
 
-test('RelayServer.fromCode talks end-to-end encrypted through the Cloudflare Worker', async () => {
-  const env = makeEnv({ XM_RELAY_ORIGINS: 'https://menu.xali.to' })
-  const code = 'Ab9-_xK2pQ7m'
-  const { session, key } = await deriveCode(code)
+test('RelayServer.fromCode talks end-to-end encrypted over Hibernatable WebSocket through the Cloudflare Worker', async () => {
+  let resolveSent
+  const firstSent = new Promise((r) => { resolveSent = r })
+  class FakeSocket {
+    constructor() { this.sent = []; this.closed = false; this.attachment = null }
+    send(msg) { this.sent.push(msg); resolveSent?.(msg) }
+    close() { this.closed = true }
+    serializeAttachment(v) { this.attachment = structuredClone(v) }
+    deserializeAttachment() { return this.attachment ? structuredClone(this.attachment) : null }
+  }
+  const origPair = globalThis.WebSocketPair
+  const sockets = []
+  let serverSocket
+  const state = {
+    acceptWebSocket(ws) { sockets.push(ws) },
+    getWebSockets() { return sockets.filter((s) => !s.closed) },
+  }
+  let doInstance
+  const env = {
+    XM_RELAY_ORIGINS: 'https://menu.xali.to',
+    SESSIONS: {
+      idFromName(name) { return name },
+      get() {
+        if (!doInstance) doInstance = new RelaySession(state, env)
+        return { fetch: (input, init) => doInstance.fetch(input instanceof Request ? input : new Request(input, init)) }
+      },
+    },
+  }
+  globalThis.WebSocketPair = function () {
+    const client = new FakeSocket()
+    serverSocket = new FakeSocket()
+    return { 0: client, 1: serverSocket }
+  }
+  const realFetch = globalThis.fetch
+  try {
+    const code = 'Ab9-_xK2pQ7m'
+    const { session, key } = await deriveCode(code)
+    const { secret } = await (await call(env, '/relay/s', { method: 'POST', body: JSON.stringify({ id: session, ttl: 300 }) })).json()
+    try {
+      await doInstance.fetch(new Request('https://relay.internal/ws', { headers: { ...bearer(secret), Upgrade: 'websocket' } }))
+    } catch { /* Node Response forbids status 101 after acceptWebSocket ran */ }
 
-  const { secret } = await (await call(env, '/relay/s', { method: 'POST', body: JSON.stringify({ id: session, ttl: 300 }) })).json()
-
-  // Simulated plugin side polling the Worker and answering encrypted requests.
-  const pluginLoop = (async () => {
-    const res = await call(env, `/relay/s/${session}/poll?wait=5`, { headers: bearer(secret) })
-    const [job] = await res.json()
+    globalThis.fetch = (url, init) => worker.fetch(new Request(url, { ...init, headers: { Origin: 'https://menu.xali.to', ...(init?.headers ?? {}) } }), env)
+    const client = RelayServer.fromCode('https://menu.xali.to/relay', code)
+    const infoPromise = client.info()
+    const rawJob = await firstSent
+    const job = JSON.parse(rawJob)
     const req = await open(key, session, 'q', Buffer.from(job.data, 'base64url'))
     assert.equal(req.method, 'GET')
     assert.equal(req.path, '/info')
     const reply = { rid: req.rid, status: 200, type: 'application/json', body: Buffer.from(JSON.stringify({ menus: ['shop', 'kits'], shared: false })).toString('base64') }
-    await call(env, `/relay/s/${session}/answer/${job.id}`, {
-      method: 'POST',
-      headers: bearer(secret),
-      body: await seal(key, session, 'a', reply),
-    })
-  })()
+    const sealed = await seal(key, session, 'a', reply)
+    await doInstance.webSocketMessage(serverSocket, JSON.stringify({ id: job.id, data: Buffer.from(sealed).toString('base64url') }))
 
-  const realFetch = globalThis.fetch
-  globalThis.fetch = (url, init) => worker.fetch(new Request(url, { ...init, headers: { Origin: 'https://menu.xali.to', ...(init?.headers ?? {}) } }), env)
-  try {
-    const client = RelayServer.fromCode('https://menu.xali.to/relay', code)
-    const info = await client.info()
+    const info = await infoPromise
     assert.deepEqual(info, { menus: ['shop', 'kits'], shared: false })
-    await pluginLoop
   } finally {
     globalThis.fetch = realFetch
+    globalThis.WebSocketPair = origPair
   }
 })
 
 test('RelaySession supports Hibernatable WebSockets across isolate hibernation, inline answers, and large HTTP fetch/answer', async () => {
   // Minimal Cloudflare WebSocketPair + DurableObjectState hibernation mock.
+  let resolveSent
+  const firstSent = new Promise((r) => { resolveSent = r })
   class FakeSocket {
     constructor() { this.sent = []; this.closed = false; this.attachment = null }
-    send(msg) { this.sent.push(msg) }
+    send(msg) { this.sent.push(msg); resolveSent?.(msg) }
     close() { this.closed = true }
     serializeAttachment(v) { this.attachment = structuredClone(v) }
     deserializeAttachment() { return this.attachment ? structuredClone(this.attachment) : null }

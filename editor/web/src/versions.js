@@ -1,55 +1,34 @@
-// Minecraft Java Edition version & resource pack `pack_format` registry (1.8 through 26.3+).
-// Used by the Asset Manager, Resource Pack overlay resolver, Font loader, and Item Model renderer so older
-// servers and packs render with the exact model format, texture paths, and overlays of their version.
+// Minecraft Java Edition version & resource pack `pack_format` registry (1.8.9 through 26.3).
+// Keeps only the latest patch release for each Minecraft minor version line (e.g. 1.8.9 for 1.8, 1.21.11 for 1.21).
 
 /**
- * Known Minecraft Java Edition release ranges ordered newest-first.
+ * Latest release per Minecraft Java Edition minor version line, ordered newest-first.
  * `branch` is the matching branch on `InventivetalentDev/minecraft-assets`.
  * `packFormat` is the primary resource pack format (major number; 1.21.9+ uses major.minor).
  */
 export const PACK_FORMATS = [
-  { version: '26.3',   min: [26, 3, 0],  packFormat: 97, branch: '26.3' },
-  { version: '26.2',   min: [26, 2, 0],  packFormat: 90, branch: '26.2' },
-  { version: '26.1.2', min: [26, 1, 2],  packFormat: 84, branch: '26.1.2' },
-  { version: '26.1',   min: [26, 1, 0],  packFormat: 84, branch: '26.1' },
-  { version: '1.21.11',min: [1, 21, 11], packFormat: 75, branch: '1.21.11' },
-  { version: '1.21.10',min: [1, 21, 10], packFormat: 69, branch: '1.21.10' },
-  { version: '1.21.9', min: [1, 21, 9],  packFormat: 69, branch: '1.21.9' },
-  { version: '1.21.8', min: [1, 21, 8],  packFormat: 64, branch: '1.21.8' },
-  { version: '1.21.7', min: [1, 21, 7],  packFormat: 64, branch: '1.21.7' },
-  { version: '1.21.6', min: [1, 21, 6],  packFormat: 63, branch: '1.21.6' },
-  { version: '1.21.5', min: [1, 21, 5],  packFormat: 55, branch: '1.21.5' },
-  { version: '1.21.4', min: [1, 21, 4],  packFormat: 46, branch: '1.21.4' },
-  { version: '1.21.3', min: [1, 21, 3],  packFormat: 42, branch: '1.21.3' },
-  { version: '1.21.2', min: [1, 21, 2],  packFormat: 42, branch: '1.21.2' },
-  { version: '1.21.1', min: [1, 21, 1],  packFormat: 34, branch: '1.21.1' },
-  { version: '1.21',   min: [1, 21, 0],  packFormat: 34, branch: '1.21' },
-  { version: '1.20.6', min: [1, 20, 6],  packFormat: 32, branch: '1.20.6' },
-  { version: '1.20.5', min: [1, 20, 5],  packFormat: 32, branch: '1.20.5' },
-  { version: '1.20.4', min: [1, 20, 4],  packFormat: 22, branch: '1.20.4' },
-  { version: '1.20.3', min: [1, 20, 3],  packFormat: 22, branch: '1.20.3' },
-  { version: '1.20.2', min: [1, 20, 2],  packFormat: 18, branch: '1.20.2' },
-  { version: '1.20.1', min: [1, 20, 1],  packFormat: 15, branch: '1.20.1' },
-  { version: '1.20',   min: [1, 20, 0],  packFormat: 15, branch: '1.20' },
-  { version: '1.19.4', min: [1, 19, 4],  packFormat: 13, branch: '1.19.4' },
-  { version: '1.19.3', min: [1, 19, 3],  packFormat: 12, branch: '1.19.3' },
-  { version: '1.19.2', min: [1, 19, 2],  packFormat: 9,  branch: '1.19.2' },
-  { version: '1.19',   min: [1, 19, 0],  packFormat: 9,  branch: '1.19' },
-  { version: '1.18.2', min: [1, 18, 2],  packFormat: 8,  branch: '1.18.2' },
-  { version: '1.18',   min: [1, 18, 0],  packFormat: 8,  branch: '1.18' },
-  { version: '1.17.1', min: [1, 17, 1],  packFormat: 7,  branch: '1.17.1' },
-  { version: '1.16.5', min: [1, 16, 2],  packFormat: 6,  branch: '1.16.5' },
-  { version: '1.16.1', min: [1, 15, 0],  packFormat: 5,  branch: '1.16.1' },
-  { version: '1.14.4', min: [1, 14, 0],  packFormat: 4,  branch: '1.14.4' },
-  { version: '1.13.2', min: [1, 13, 0],  packFormat: 4,  branch: '1.13.2' },
-  { version: '1.12.2', min: [1, 11, 0],  packFormat: 3,  branch: '1.12.2' },
-  { version: '1.10.2', min: [1, 9, 0],   packFormat: 2,  branch: '1.10.2' },
-  { version: '1.8.9',  min: [1, 6, 1],   packFormat: 1,  branch: '1.8.9' },
+  { version: '26.3',    min: [26, 3, 0], packFormat: 97, branch: '26.3' },
+  { version: '26.2',    min: [26, 2, 0], packFormat: 90, branch: '26.2' },
+  { version: '26.1.2',  min: [26, 1, 0], packFormat: 84, branch: '26.1.2' },
+  { version: '1.21.11', min: [1, 21, 0], packFormat: 75, branch: '1.21.11' },
+  { version: '1.20.6',  min: [1, 20, 0], packFormat: 32, branch: '1.20.6' },
+  { version: '1.19.4',  min: [1, 19, 0], packFormat: 13, branch: '1.19.4' },
+  { version: '1.18.2',  min: [1, 18, 0], packFormat: 8,  branch: '1.18.2' },
+  { version: '1.17.1',  min: [1, 17, 0], packFormat: 7,  branch: '1.17.1' },
+  { version: '1.16.5',  min: [1, 16, 0], packFormat: 6,  branch: '1.16.5' },
+  { version: '1.15.2',  min: [1, 15, 0], packFormat: 5,  branch: '1.15.2' },
+  { version: '1.14.4',  min: [1, 14, 0], packFormat: 4,  branch: '1.14.4' },
+  { version: '1.13.2',  min: [1, 13, 0], packFormat: 4,  branch: '1.13.2' },
+  { version: '1.12.2',  min: [1, 12, 0], packFormat: 3,  branch: '1.12.2' },
+  { version: '1.11.2',  min: [1, 11, 0], packFormat: 3,  branch: '1.11.2' },
+  { version: '1.10.2',  min: [1, 10, 0], packFormat: 2,  branch: '1.10.2' },
+  { version: '1.9.4',   min: [1, 9, 0],  packFormat: 2,  branch: '1.9.4' },
+  { version: '1.8.9',   min: [1, 8, 0],  packFormat: 1,  branch: '1.8.9' },
 ]
 
 export const LATEST_VERSION = '26.3'
 
-/** Parses a Minecraft version string (`"1.21.4"`, `"1.20.4-R0.1-SNAPSHOT"`, `"26.1.2"`, `"26.3"`) into `[major, minor, patch]`. */
+/** Parses a Minecraft version string (`"1.21.11"`, `"1.20.6-R0.1-SNAPSHOT"`, `"26.1.2"`, `"26.3"`) into `[major, minor, patch]`. */
 export function parseVersion(raw) {
   const text = String(raw ?? '').trim()
   const match = text.match(/(\d+)\.(\d+)(?:\.(\d+))?/)
@@ -66,6 +45,7 @@ function cmpTuple(a, b) {
 
 /**
  * Resolves rendering capabilities and asset branch for a Minecraft version string (or numeric `packFormat`).
+ * Any patch version within a minor line (e.g. `1.8.8` or `1.21.4`) maps to that minor line's latest release.
  * @param {string|number|null|undefined} versionOrFormat
  */
 export function resolveVersion(versionOrFormat) {
@@ -75,11 +55,8 @@ export function resolveVersion(versionOrFormat) {
   }
   const parsed = parseVersion(versionOrFormat)
   if (!parsed) return buildInfo(LATEST_VERSION, 97, LATEST_VERSION)
-  const clean = parsed[2] > 0 ? `${parsed[0]}.${parsed[1]}.${parsed[2]}` : `${parsed[0]}.${parsed[1]}`
   const match = PACK_FORMATS.find((e) => cmpTuple(parsed, e.min) >= 0) ?? PACK_FORMATS[PACK_FORMATS.length - 1]
-  // Exact known version uses its exact branch; unknown patch uses closest matching known branch.
-  const exact = PACK_FORMATS.find((e) => e.version === clean)
-  return buildInfo(clean, match.packFormat, exact ? exact.branch : match.branch)
+  return buildInfo(match.version, match.packFormat, match.branch)
 }
 
 function buildInfo(version, packFormat, branch) {

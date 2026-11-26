@@ -33,5 +33,9 @@ fun MenuContext.bedrockText(text: String, stripPrivateUse: Boolean = true): Stri
     return if (stripPrivateUse) stripPrivateUse(serialized) else serialized
 }
 
+/** Same as [bedrockText], returned as an Adventure [Component] for [org.bukkit.Bukkit.createInventory]. */
+fun MenuContext.bedrockComponent(text: String, stripPrivateUse: Boolean = true): Component =
+    BEDROCK.deserialize(bedrockText(text, stripPrivateUse))
+
 /** Whether this or any part of it is written in a font, which legacy text cannot say. */
 fun Component.hasFont(): Boolean = font() != null || children().any { it.hasFont() }

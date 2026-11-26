@@ -39,11 +39,6 @@ internal object RelayCrypto {
         return Derived(sessionId, SecretKeySpec(raw.copyOfRange(16, 48), "AES"))
     }
 
-    /** A new 256-bit key, as a legacy link carries it (base64url). */
-    fun newKey(): String = Base64.getUrlEncoder().withoutPadding().encodeToString(ByteArray(32).also(random::nextBytes))
-
-    fun keyOf(text: String) = SecretKeySpec(Base64.getUrlDecoder().decode(text), "AES")
-
     private fun cipher(mode: Int, key: SecretKeySpec, iv: ByteArray, session: String, direction: String) =
         Cipher.getInstance("AES/GCM/NoPadding").also {
             it.init(mode, key, GCMParameterSpec(128, iv))

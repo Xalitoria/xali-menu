@@ -4,6 +4,7 @@ import io.papermc.paper.threadedregions.scheduler.ScheduledTask
 import mc.xalitoria.menu.paper.XaliMenu
 import mc.xalitoria.menu.paper.bedrock.BedrockPlanner
 import mc.xalitoria.menu.paper.bedrock.ClientProfile
+import mc.xalitoria.menu.paper.util.bedrockComponent
 import mc.xalitoria.menu.paper.util.bedrockText
 import mc.xalitoria.menu.paper.util.hasFont
 import mc.xalitoria.menu.paper.util.legacy
@@ -98,12 +99,15 @@ class MenuView(
         else ctx.legacy(titleTemplate)
 
     /**
-     * The title to open the inventory with. A paged menu works out its first page first, so the title can already show it.
+     * The title to open the inventory with as an Adventure [Component]. A paged menu works out its first page first, so
+     * the title can already show it.
      */
-    fun title(): String {
+    fun openTitle(): Component {
         menu.pages?.let { layout(it) }
-        if (!profile.isBedrock) fontTitle = ctx.component(titleTemplate).takeIf { it.hasFont() }
-        return renderTitle().also { shownTitle = it }
+        val comp = ctx.component(titleTemplate)
+        if (!profile.isBedrock) fontTitle = comp.takeIf { it.hasFont() }
+        shownTitle = renderTitle()
+        return if (profile.isBedrock) ctx.bedrockComponent(titleTemplate, plugin.config.data.bedrock.stripPrivateUseTitle) else comp
     }
 
     fun attach(inventory: Inventory) {

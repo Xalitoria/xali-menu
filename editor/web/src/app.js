@@ -127,13 +127,11 @@ export class App {
    */
   async loadHash(hash, { keepMenu = false } = {}) {
     try {
-      const hasServer = Boolean(hash.code || (hash.server && hash.token) || (hash.relay && hash.session && hash.key))
+      const hasServer = Boolean(hash.code || (hash.server && hash.token))
       if (hasServer) {
         this.server = hash.code
           ? RelayServer.fromCode(hash.relay || defaultRelay(), hash.code, '')
-          : hash.relay
-            ? new RelayServer(hash.relay, hash.session, hash.key, '')
-            : new Server(hash.server, hash.token)
+          : new Server(hash.server, hash.token)
         assetSettings.skinProxy = (url) => this.server.skin(url)
         assetSettings.playerSkinProxy = (name) => this.server.playerSkin(name)
         assetSettings.gameFile = (file) => this.server.gameFile(file)

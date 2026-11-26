@@ -6,7 +6,6 @@
 // - Heartbeat `"ping"` frames are answered with `"pong"` by Cloudflare's auto-response without waking the DO.
 // - Small encrypted replies (<= 512 KB) travel back over the WebSocket; large pack chunks (> 512 KB, up to 8 MB)
 //   use `POST /relay/s/<id>/answer/<call>` (and large calls > 600 KB use `GET /relay/s/<id>/call/<call>`).
-// - Legacy HTTP long-polling (`GET /relay/s/<id>/poll?wait=25`) also remains supported.
 // - Zero disk/storage writes: session metadata lives only on the in-memory WebSocket attachment and disappears on close.
 
 const encoder = new TextEncoder()
@@ -17,7 +16,6 @@ const DEFAULTS = {
   maxTtl: 2 * 3600,
   idle: 900,
   callTimeout: 30,
-  pollWait: 25,
 }
 
 /** Threshold below which encrypted call/answer payloads ride directly inside a WebSocket text frame (Cloudflare limit is 1 MiB). */
@@ -206,7 +204,7 @@ export class RelaySession {
   constructor(state = {}, env = {}) {
     this.state = state
     this.env = env
-    /** @type {{id: string, secret: string, expires: number, seen: number, queue: object[], waiting: Map<string, object>, poller: object|null}|null} */
+    /** @type {{id: string, secret: string, expires: number, seen: number, queue: object[], waiting: Map<string, object>}|null} */
     this.session = null
     if (typeof this.state.setWebSocketAutoResponse === 'function' && typeof globalThis.WebSocketRequestResponsePair === 'function') {
       this.state.setWebSocketAutoResponse(new globalThis.WebSocketRequestResponsePair('ping', 'pong'))
@@ -218,7 +216,6 @@ export class RelaySession {
       maxBody: Number(this.env?.XM_RELAY_MAX_BODY) || DEFAULTS.maxBody,
       idle: Number(this.env?.XM_RELAY_IDLE) || DEFAULTS.idle,
       callTimeout: Number(this.env?.XM_RELAY_CALL_TIMEOUT) || DEFAULTS.callTimeout,
-      pollWait: Number(this.env?.XM_RELAY_POLL_WAIT) || DEFAULTS.pollWait,
     }
   }
 
@@ -242,7 +239,6 @@ export class RelaySession {
       seen: meta.seen ?? Date.now(),
       queue: [],
       waiting: new Map(),
-      poller: null,
     }
   }
 
@@ -279,39 +275,26 @@ export class RelaySession {
     }
     s.waiting.clear()
     s.queue.length = 0
-    if (s.poller) {
-      clearTimeout(s.poller.timer)
-      s.poller.resolve(jsonResponse(404, { error: 'The session has ended' }))
-      s.poller = null
-    }
   }
 
-  /** Pushes queued calls over the plugin's Hibernatable WebSocket (preferred) or wakes a waiting HTTP poller. */
+  /** Pushes queued calls over the plugin's Hibernatable WebSocket. */
   deliver() {
     const s = this.session
     if (!s || s.queue.length === 0) return
     const ws = this.pluginSocket()
-    if (ws) {
-      while (s.queue.length > 0) {
-        const call = s.queue.shift()
-        try {
-          const payload = call.data.byteLength <= WS_INLINE_MAX
-            ? JSON.stringify({ id: call.id, data: url64(call.data) })
-            : JSON.stringify({ id: call.id, fetch: true })
-          ws.send(payload)
-        } catch {
-          s.queue.unshift(call)
-          break
-        }
+    if (!ws) return
+    while (s.queue.length > 0) {
+      const call = s.queue.shift()
+      try {
+        const payload = call.data.byteLength <= WS_INLINE_MAX
+          ? JSON.stringify({ id: call.id, data: url64(call.data) })
+          : JSON.stringify({ id: call.id, fetch: true })
+        ws.send(payload)
+      } catch {
+        s.queue.unshift(call)
+        break
       }
-      return
     }
-    if (!s.poller) return
-    const { resolve, timer } = s.poller
-    clearTimeout(timer)
-    s.poller = null
-    const batch = s.queue.splice(0, 16)
-    resolve(jsonResponse(200, batch.map((c) => ({ id: c.id, data: url64(c.data) }))))
   }
 
   resolveAnswer(callId, bytes) {
@@ -363,14 +346,14 @@ export class RelaySession {
     this.checkExpiry()
     const url = new URL(request.url)
     const parts = url.pathname.split('/').filter(Boolean)
-    const { maxBody, callTimeout, pollWait } = this.config()
+    const { maxBody, callTimeout } = this.config()
 
     if (parts.length === 1 && parts[0] === 'create' && request.method === 'POST') {
       if (this.session) return jsonResponse(409, { error: 'That session id is already in use' })
       const { id, ttl } = await request.json()
       const secret = randomId(24)
       const now = Date.now()
-      this.session = { id, secret, expires: now + ttl * 1000, seen: now, queue: [], waiting: new Map(), poller: null }
+      this.session = { id, secret, expires: now + ttl * 1000, seen: now, queue: [], waiting: new Map() }
       return jsonResponse(201, { id, secret, ttl, ws: true })
     }
 
@@ -405,40 +388,6 @@ export class RelaySession {
       }
       this.deliver()
       return new Response(null, { status: 101, webSocket: client })
-    }
-
-    if (parts.length === 1 && parts[0] === 'poll' && request.method === 'GET') {
-      if (!equalStrings(bearerOf(request), s.secret)) return jsonResponse(401, { error: 'Not the secret of this session' })
-      s.seen = Date.now()
-      if (s.poller) {
-        clearTimeout(s.poller.timer)
-        s.poller.resolve(jsonResponse(204, null))
-        s.poller = null
-      }
-      const wait = Math.min(Math.max(Number(url.searchParams.get('wait')) || 0, 0), pollWait)
-      if (s.queue.length > 0) {
-        const batch = s.queue.splice(0, 16)
-        return jsonResponse(200, batch.map((c) => ({ id: c.id, data: url64(c.data) })))
-      }
-      if (wait === 0) return jsonResponse(204, null)
-      return new Promise((resolve) => {
-        const poller = { resolve, timer: null }
-        poller.timer = setTimeout(() => {
-          if (s.poller === poller) {
-            s.poller = null
-            s.seen = Date.now()
-            resolve(jsonResponse(204, null))
-          }
-        }, wait * 1000)
-        s.poller = poller
-        request.signal?.addEventListener('abort', () => {
-          if (s.poller === poller) {
-            clearTimeout(poller.timer)
-            s.poller = null
-            resolve(jsonResponse(204, null))
-          }
-        }, { once: true })
-      })
     }
 
     if (parts.length === 2 && parts[0] === 'call' && request.method === 'GET') {
