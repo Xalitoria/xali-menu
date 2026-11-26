@@ -95,6 +95,52 @@ export class Text {
     return (await this.layout(text)).width
   }
 
+  /** Splits [text] into lines and lays out each glyph, optionally word-wrapping at [maxWidth] (in game pixels). */
+  async layoutLines(text, { maxWidth = Infinity } = {}) {
+    const parts = runs(this.preprocess(text))
+    const fontsByKey = new Map()
+    for (const run of parts) {
+      if (run.shift) continue
+      const k = fontKey(run.font ?? DEFAULT_FONT)
+      if (!fontsByKey.has(k)) fontsByKey.set(k, await this.fonts(k))
+    }
+    // The fallback font (Unifont) is loaded once, only when a character is missing from all bitmap/space fonts.
+    for (const run of parts) {
+      if (run.shift) continue
+      const fonts = fontsByKey.get(fontKey(run.font ?? DEFAULT_FONT))
+      const lacking = [...run.text].some((c) => c >= ' ' && fonts.every((f) => f.advance(c) === null))
+      if (lacking) await Promise.all(fonts.map((f) => f.loadLate()))
+    }
+    const logical = splitRunLines(parts)
+    const lines = []
+    for (const lineRuns of logical) {
+      const placed = []
+      let x = 0
+      for (const run of lineRuns) {
+        if (typeof run.shift === 'number') {
+          x += run.shift
+          continue
+        }
+        const fonts = fontsByKey.get(fontKey(run.font ?? DEFAULT_FONT))
+        for (const character of run.text) {
+          const font = fonts.find((f) => f.advance(character) !== null)
+          const advance = (font ? font.advance(character) : 6) + (run.bold ? 1 : 0)
+          placed.push({ character, font, x, run, advance })
+          x += advance
+        }
+      }
+      if (Number.isFinite(maxWidth) && maxWidth > 0 && placed.length > 0) {
+        for (const wrapped of wrapPlaced(placed, maxWidth)) lines.push(measureLine(wrapped))
+      } else {
+        lines.push(measureLine(placed, x))
+      }
+    }
+    return {
+      lines,
+      width: lines.reduce((m, l) => Math.max(m, l.width), 0),
+    }
+  }
+
   /** The characters of [text] with the font that draws each, their position and style, and the total width. */
   async layout(text) {
     const parts = runs(this.preprocess(text))
@@ -130,12 +176,10 @@ export class Text {
   }
 
   /**
-   * Draws [text] with the top left of its line at [x], [y] on [ctx].
+   * Draws a pre-laid-out line [placed] at [x], [y] on [ctx].
    * @param {{scale?: number, color?: string, shadow?: boolean}} [options]
-   * @returns {Promise<number>} where the text ends, in screen pixels
    */
-  async draw(ctx, text, x, y, { scale = 3, color = '#ffffff', shadow = true } = {}) {
-    const { placed, width } = await this.layout(text)
+  drawPlaced(ctx, placed, x, y, { scale = 3, color = '#ffffff', shadow = true } = {}) {
     const hasCustomShadow = placed.some((p) => typeof p.run.shadow === 'string')
     const passes = (shadow || hasCustomShadow) ? [true, false] : [false]
     for (const isShadow of passes) {
@@ -155,7 +199,34 @@ export class Text {
       }
     }
     this.lines(ctx, placed, x, y, scale, color, shadow)
+  }
+
+  /**
+   * Draws [text] with the top left of its line at [x], [y] on [ctx].
+   * @param {{scale?: number, color?: string, shadow?: boolean}} [options]
+   * @returns {Promise<number>} where the text ends, in screen pixels
+   */
+  async draw(ctx, text, x, y, { scale = 3, color = '#ffffff', shadow = true } = {}) {
+    const { placed, width } = await this.layout(text)
+    this.drawPlaced(ctx, placed, x, y, { scale, color, shadow })
     return x + width * scale
+  }
+
+  /**
+   * Draws multi-line (and optionally word-wrapped) [text] onto [ctx].
+   * @param {{scale?: number, color?: string, shadow?: boolean, lineHeight?: number, maxWidth?: number, align?: 'left'|'center'|'right', boxWidth?: number}} [options]
+   */
+  async drawLines(ctx, text, x, y, { scale = 2, color = '#ffffff', shadow = true, lineHeight = 10, maxWidth = Infinity, align = 'left', boxWidth = 0 } = {}) {
+    const { lines, width } = await this.layoutLines(text, { maxWidth })
+    const span = boxWidth > 0 ? boxWidth : width
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i]
+      let dx = 0
+      if (align === 'center') dx = Math.floor((span - line.width) / 2)
+      else if (align === 'right') dx = Math.floor(span - line.width)
+      this.drawPlaced(ctx, line.placed, x + dx * scale, y + i * lineHeight * scale, { scale, color, shadow })
+    }
+    return { lines, width, height: lines.length ? (lines.length - 1) * lineHeight + 8 : 0 }
   }
 
   glyph(ctx, item, x, y, scale, color) {
@@ -189,4 +260,136 @@ export class Text {
       }
     }
   }
+}
+
+/** Splits styled runs at newline boundaries while preserving active run styles across lines. */
+function splitRunLines(parts) {
+  const lines = [[]]
+  for (const run of parts) {
+    if (typeof run.shift === 'number') {
+      lines[lines.length - 1].push(run)
+      continue
+    }
+    const pieces = String(run.text ?? '').split('\n')
+    for (let i = 0; i < pieces.length; i++) {
+      if (i > 0) lines.push([])
+      if (pieces[i]) lines[lines.length - 1].push({ ...run, text: pieces[i] })
+    }
+  }
+  return lines
+}
+
+/** Measures the horizontal advance and glyph bounding box of a placed line (in game pixels). */
+function measureLine(placed, explicitWidth = null) {
+  let minX = 0
+  let maxX = 0
+  let minY = 0
+  let maxY = 8
+  let endX = 0
+  for (const item of placed) {
+    if (item.x < minX) minX = item.x
+    const glyph = item.font?.glyphOf?.(item.character) ?? null
+    const right = glyph
+      ? item.x + Math.max(item.advance, glyph.sw * glyph.scale + (item.run.bold ? 1 : 0))
+      : item.x + item.advance
+    if (right > maxX) maxX = right
+    endX = item.x + item.advance
+    if (glyph) {
+      const top = 7 - glyph.ascent
+      const bottom = top + glyph.height
+      if (top < minY) minY = top
+      if (bottom > maxY) maxY = bottom
+    }
+  }
+  const width = explicitWidth !== null ? Math.max(explicitWidth, maxX) : Math.max(endX, maxX)
+  return { placed, width, minX, maxX, minY, maxY }
+}
+
+/** Word-wraps a single placed line to [maxWidth] game pixels, breaking oversized words by character. */
+export function wrapPlaced(placed, maxWidth) {
+  if (!placed.length) return [[]]
+  const tokens = []
+  let currentToken = null
+  for (const item of placed) {
+    const isSpace = item.character === ' ' || item.character === '\t'
+    if (isSpace) {
+      if (currentToken) { tokens.push(currentToken); currentToken = null }
+      tokens.push({ space: true, items: [item] })
+    } else {
+      if (!currentToken) currentToken = { space: false, items: [] }
+      currentToken.items.push(item)
+    }
+  }
+  if (currentToken) tokens.push(currentToken)
+
+  const out = []
+  let line = []
+  let cursorX = 0
+  let prevEndX = tokens[0].items[0].x
+  let wrappedOnce = false
+
+  const flush = () => {
+    // Strip trailing space on wrapped lines so centered/right alignment looks balanced.
+    while (line.length > 0 && (line[line.length - 1].character === ' ' || line[line.length - 1].character === '\t')) {
+      line.pop()
+    }
+    out.push(line)
+    line = []
+    cursorX = 0
+    wrappedOnce = true
+  }
+
+  for (const token of tokens) {
+    const first = token.items[0]
+    const last = token.items[token.items.length - 1]
+    const gap = line.length > 0 ? first.x - prevEndX : 0
+    const tokenSpan = Math.max(0, (last.x + last.advance) - first.x)
+
+    if (token.space) {
+      if (line.length === 0 && wrappedOnce) {
+        prevEndX = last.x + last.advance
+        continue
+      }
+      if (line.length > 0 && cursorX + gap + tokenSpan > maxWidth) {
+        flush()
+        prevEndX = last.x + last.advance
+        continue
+      }
+      const dx = cursorX + gap - first.x
+      line.push({ ...first, x: first.x + dx })
+      cursorX += gap + tokenSpan
+      prevEndX = last.x + last.advance
+      continue
+    }
+
+    if (line.length > 0 && cursorX + gap + tokenSpan > maxWidth) {
+      flush()
+    }
+
+    if (line.length === 0 && tokenSpan > maxWidth) {
+      // Oversized word: break character-by-character so nothing overflows maxWidth.
+      let itemPrevEnd = first.x
+      for (const item of token.items) {
+        const itemGap = line.length > 0 ? item.x - itemPrevEnd : 0
+        if (line.length > 0 && cursorX + itemGap + item.advance > maxWidth) {
+          flush()
+        }
+        const effectiveGap = line.length > 0 ? itemGap : 0
+        line.push({ ...item, x: cursorX + effectiveGap })
+        cursorX += effectiveGap + item.advance
+        itemPrevEnd = item.x + item.advance
+      }
+      prevEndX = last.x + last.advance
+      continue
+    }
+
+    const effectiveGap = line.length > 0 ? gap : 0
+    const dx = cursorX + effectiveGap - first.x
+    for (const item of token.items) line.push({ ...item, x: item.x + dx })
+    cursorX += effectiveGap + tokenSpan
+    prevEndX = last.x + last.advance
+  }
+
+  if (line.length > 0 || out.length === 0) out.push(line)
+  return out
 }

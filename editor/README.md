@@ -69,7 +69,9 @@ The editor draws what a player sees, from the same files the game reads, with no
 - **The window** fills the space between the toolbars and is always on the screen. It takes the biggest GUI scale at which it fits (or the scale you chose) and
   the rest of the space is room around it, for glyphs that are used as overlays and reach past the window. It is the game's container texture for the inventory
   type (chest, hopper, dispenser, dropper), the title is in the game's font with the glyphs of the resource pack, and the player's inventory is below it. Counts
-  and the durability bar are drawn as the game draws them, and the tooltip uses the game's own sprites, with the name, enchantments and lore.
+  and the durability bar are drawn as the game draws them, and the tooltip uses the game's own sprites, with the name, enchantments and lore. Inline formatted
+  field previews (names, lore, titles, messages), written book pages (wrapped to Minecraft's 114px page width), and Bedrock form previews also render in
+  Minecraft's bitmap font (`src/textpreview.js`) with loaded pack glyphs and shifts.
 - **The game's files** are read from a public copy of Mojang's assets (`editor/web/src/assets.js` names it and the version) and are not
   part of this repository. Everything is fetched the first time it is needed, so the first draw of a menu takes a moment.
 - **Player heads.** `skull` (`player_head` with a player name, `textures.minecraft.net` URL, or base64 texture), `material = "head:<player>"` / `texture:<base64>`, and bracketed `[minecraft:profile={name:"..."}]` in `nbt` render the real player skin in the preview: connected to a server they resolve through `/v1/skin?player=<name>` (including online players and SkinsRestorer), and standalone through `mc-heads.net`.

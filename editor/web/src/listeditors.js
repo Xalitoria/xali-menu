@@ -6,7 +6,9 @@ import { icon } from './icons.js'
 import { registries } from './registry.js'
 import { EFFECT_COLORS } from './potions.js'
 import { numberOf } from './dynamic.js'
-import { render as renderText, plain } from './mctext.js'
+import { plain } from './mctext.js'
+import { services } from './services.js'
+import { renderMcTextCanvas } from './textpreview.js'
 import { roman, levelOf, amplifierOf, secondsOf, ticksOf, clock, OPERATIONS, effectOf } from './effects.js'
 
 const words = (id) => String(id).replace(/_/g, ' ').replace(/^./, (c) => c.toUpperCase())
@@ -122,7 +124,10 @@ export function bookPages(store, path, value) {
   const rows = pages.map((text, index) => {
     const sheet = h('div', { class: 'book-page' })
     const count = h('small', { class: 'muted' })
-    const show = (now) => { sheet.replaceChildren(renderText(now)); count.textContent = `${plain(now).length} characters` }
+    const show = (now) => {
+      renderMcTextCanvas(sheet, services.text, now, { scale: 1.5, color: '#000000', shadow: false, maxWidth: 114, lineHeight: 9 })
+      count.textContent = `${plain(now).length} characters`
+    }
     show(String(text ?? ''))
     const box = h('textarea', { rows: 6, spellcheck: false, 'aria-label': `Page ${index + 1}`, placeholder: 'The text of the page. &c gives color, a new line is a new line.' }, String(text ?? ''))
     box.addEventListener('input', () => { set(liveList().map((p, i) => (i === index ? box.value : p)), true); show(box.value) })

@@ -3,7 +3,8 @@
 
 import { h, doc } from './dom.js'
 import { summary } from './schema.js'
-import { render as renderText } from './mctext.js'
+import { services } from './services.js'
+import { renderMcTextCanvas } from './textpreview.js'
 import { reorderable } from './reorder.js'
 import { flagOf, parseDynamic, isDynamic } from './dynamic.js'
 import { editorFor } from './editors.js'
@@ -231,7 +232,11 @@ export class Form {
   }
 
   preview(element, key, text) {
-    element.replaceChildren(FORMATTED.has(key) && text ? renderText(text) : '')
+    renderMcTextCanvas(element, services.text, FORMATTED.has(key) ? text : '', {
+      scale: 2,
+      color: key === 'lore' ? '#aa00aa' : '#ffffff',
+      shadow: true,
+    })
   }
 
   number(type, path, value, field) {
