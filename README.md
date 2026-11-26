@@ -27,7 +27,7 @@ sources through an [addon API](#extending).
 
 | Plugin | Needed | Purpose |
 |---|---|---|
-| PlaceholderAPI | Yes | Placeholders in menu text and conditions; XaliMenu's own `%xalimenu_...%` placeholders. |
+| PlaceholderAPI | Yes | Placeholders in menu text and conditions; XaliMenu's own `%xmenu_...%` placeholders. |
 | VaultUnlocked (or Vault) | No | Money conditions and actions (several currencies), permission actions. |
 | ItemsAdder | No | The `itemsadder:<ns>:<id>` (and `ia:<ns>:<id>`) item source, in-game font images and pixel offsets (`:ns:id:`, `:offset_N:`, `%img_offset_N%`, `%img_ns:id%`, `<glyph:ns:id>`, `<shift:N>`), automatic menu refresh on `ItemsAdderLoadDataEvent`, and editor pack/glyph discovery. Runs on **Paper only**, see [Troubleshooting](#troubleshooting). |
 | Nexo | No | The `nexo:<id>` item source. |
@@ -154,7 +154,7 @@ items {
     close { material = "barrier", slot = 4, click.any.actions = [{ type = "close" }] }
     filler { material = "gray_stained_glass_pane", name = " ", slots = [0, 1, 7, 8], inventory-slots = [0, 1, 2, 3, 4, 5, 6, 7] }  # one item, in the menu and the hotbar
     back { material = "arrow", inventory-slots = [8], name = "Back", click.any.actions = [{ type = "open", menu = "main" }] }
-    coins { material = "gold_ingot", inventory-slots = [9], name = "Coins: %xalimenu_var_coins:0%", update = true }
+    coins { material = "gold_ingot", inventory-slots = [9], name = "Coins: %xmenu_var_coins:0%", update = true }
 }
 ```
 
@@ -193,7 +193,7 @@ first slot, in slot order, that the item fits, and does nothing if there is none
 
 Opening checks the menu's `open` gate, then draws the items. Of the items claiming a slot, the one with the lowest
 `priority` (ties by name) whose `view` gate passes is drawn. `refresh` draws again, rebuilding only items marked
-`update`; a menu whose file names a variable placeholder (`%xalimenu_var_<name>%` and the like) is also drawn again, with no `refresh` needed, a moment after a variable changes (see Variables). A click runs the item's handler for that kind of click (or `any`) if its `require` gate passes. Nothing can be
+`update`; a menu whose file names a variable placeholder (`%xmenu_var_<name>%` and the like) is also drawn again, with no `refresh` needed, a moment after a variable changes (see Variables). A click runs the item's handler for that kind of click (or `any`) if its `require` gate passes. Nothing can be
 moved in or out of a menu. Everything runs on the player's region thread; console commands go to the global region
 (Folia).
 
@@ -390,8 +390,8 @@ catalogs, see [Extending](#extending).
   conditions, and in the gate of its clicks. They are cleaned like a menu's arguments (no `%`, no control characters).
 - **Page numbers.** `{page}` (from 1), `{pages}`, `{total}` (the elements), `{page_next}` and `{page_prev}` (this page at
   the ends) are available in the text of every item of the menu, not just the template. Items that use them are drawn
-  again when the page changes. Other plugins get them as `%xalimenu_page%`, `%xalimenu_pages%`, `%xalimenu_total%`,
-  `%xalimenu_page_next%` and `%xalimenu_page_prev%` for the player's open menu.
+  again when the page changes. Other plugins get them as `%xmenu_page%`, `%xmenu_pages%`, `%xmenu_total%`,
+  `%xmenu_page_next%` and `%xmenu_page_prev%` for the player's open menu.
 - **Sorting and filtering.** `sort` names a value to order by (numbers as numbers, otherwise text without regard to
   case; `descending` turns it round). The template's `view` gate decides which elements are listed. It is applied to every
   element *before* the elements are cut into pages, so all pages but the last are full.
@@ -488,8 +488,8 @@ items {
   by default (`bedrock.pocket-inventory-overlay`), and clicking a multi-click item on touch/controller opens an action-picker
   form (or falls back to the item's sole click handler if only `right` or `shift-left` is defined).
 - **Conditions & placeholders**: Use `{ type = "client", ... }` in any gate (`open`, `view`, `require`, `open-with`) and
-  `%xalimenu_client_edition%`, `%xalimenu_client_device%`, `%xalimenu_client_os%`, `%xalimenu_client_input%`,
-  `%xalimenu_client_ui%` in text.
+  `%xmenu_client_edition%`, `%xmenu_client_device%`, `%xmenu_client_os%`, `%xmenu_client_input%`,
+  `%xmenu_client_ui%` in text.
 - **Server defaults**: `bedrock.default-mode` in `config.yml` (`inventory`, `touch-form`, or `always-form`) sets what
   happens for menus that have no explicit `bedrock` form settings. `bedrock.icon-url` optionally points vanilla button icons
   at a hosted image template (`https://.../items/{material}.png`) instead of Bedrock's built-in `textures/...` paths.
@@ -547,9 +547,9 @@ memory at once and is written in the background.
   Numbers are exact decimals: sums are not rounded, products and quotients keep 8 places.
 - The `variable` action: `{ type = "variable", name = "coins", op = "INC", value = "5" }` with `op` SET, REMOVE, INC,
   DEC, MUL or DIV, `scope` GLOBAL or PLAYER, and optional `player`, `expiry` and `replace`.
-- PlaceholderAPI: `%xalimenu_var_<name>%` and `%xalimenu_varp_<name>%` (the player the text is for), and
-  `%xalimenu_vart_<name>%` and `%xalimenu_varpt_<name>%` for the time left (`1h 2m 3s`). A `:<default>` after the name is
-  shown when the variable does not exist: `%xalimenu_var_coins:0%`. Use them in `compare` and `text` conditions to gate
+- PlaceholderAPI: `%xmenu_var_<name>%` and `%xmenu_varp_<name>%` (the player the text is for), and
+  `%xmenu_vart_<name>%` and `%xmenu_varpt_<name>%` for the time left (`1h 2m 3s`). A `:<default>` after the name is
+  shown when the variable does not exist: `%xmenu_var_coins:0%`. Use them in `compare` and `text` conditions to gate
   on a variable.
 
 An open menu follows its variables: when a variable changes (set, changed, removed, expired, or written by another server of a shared store),
@@ -580,7 +580,7 @@ variables:
   slow or unreachable one never holds the server up (the connect gives up after 5 s and is tried again at 2, 4, ... 30 s
   intervals). Until it answers, its variables are *unavailable*: `/xvar` and the `variable` action tell the player so
   and change nothing, the API refuses the change, and the placeholders **are not answered at all** (the text stays
-  `%xalimenu_var_net_x:0%`), not even with the `:default`. A test such as `claimed == 0` therefore fails closed instead
+  `%xmenu_var_net_x:0%`), not even with the `:default`. A test such as `claimed == 0` therefore fails closed instead
   of passing for want of an answer.
 - Every change to a shared variable takes its turn in the database (one revision counter, locked until the change
   commits), so numbers that two servers change at once add up. Each server asks, every `poll-interval`, for what came

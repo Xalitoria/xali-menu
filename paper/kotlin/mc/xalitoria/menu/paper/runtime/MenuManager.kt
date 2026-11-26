@@ -56,7 +56,7 @@ fun slottedInventory(menu: Menu): Map<Int, List<Pair<String, Item>>> = menu.item
     .groupBy({ it.first }, { it.second })
     .mapValues { entry -> entry.value.sortedWith(compareBy({ it.second.priority }, { it.first })) }
 
-/** Whether the file of a menu names a variable placeholder (`%xalimenu_var_coins%`), so that the menu has something to show when one changes. */
+/** Whether the file of a menu names a variable placeholder (`%xmenu_var_coins%`), so that the menu has something to show when one changes. */
 internal fun showsVariables(file: java.nio.file.Path): Boolean = try {
     showsVariables(java.nio.file.Files.readString(file))
 } catch (e: java.io.IOException) {
@@ -67,7 +67,7 @@ internal fun showsVariables(text: String): Boolean = VARIABLE_PLACEHOLDER.contai
 
 private val VARIABLE_WINDOW = 100.milliseconds
 
-private val VARIABLE_PLACEHOLDER = Regex("%xalimenu_var(p|t|pt)?_", RegexOption.IGNORE_CASE)
+private val VARIABLE_PLACEHOLDER = Regex("%xmenu_var(p|t|pt)?_", RegexOption.IGNORE_CASE)
 
 /** The menus of `menus/`, and the players who have one open. */
 class MenuManager(private val plugin: XaliMenu) {

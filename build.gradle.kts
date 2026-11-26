@@ -17,7 +17,7 @@ subprojects {
         "editor" -> "com.xalitoria.menu"
         else -> error("No group for $path")
     }
-    version = "0.3.0"
+    version = "0.4.0"
 }
 
 paper {

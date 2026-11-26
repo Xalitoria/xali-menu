@@ -38,7 +38,7 @@ sealed interface Scope {
 
 /**
  * Values that menus keep between clicks and restarts: global ones, shared by everyone, and personal ones, one set per
- * player. In text they are `%xalimenu_var_<name>%` and `%xalimenu_varp_<name>%`; the `/xvar` and `/xvarp` commands and
+ * player. In text they are `%xmenu_var_<name>%` and `%xmenu_varp_<name>%`; the `/xvar` and `/xvarp` commands and
  * the `variable` action change them.
  *
  * Where a variable is kept is decided by its name, by the rules in `config.yml`: in memory only, in the server's own

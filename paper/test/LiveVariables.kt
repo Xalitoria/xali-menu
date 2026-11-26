@@ -91,11 +91,11 @@ class LiveVariables {
 
     @Test
     fun aMenuShowsVariablesWhenItNamesAPlaceholderOfThem() {
-        assertTrue(showsVariables("""name = "Coins: %xalimenu_var_coins:0%""""))
-        assertTrue(showsVariables("%xalimenu_varp_kills%"))
-        assertTrue(showsVariables("%XaliMenu_vart_boost%"))
-        assertFalse(showsVariables("%player_name% and %xalimenu_page%"))
-        assertFalse(showsVariables("xalimenu_var without the percent"))
+        assertTrue(showsVariables("""name = "Coins: %xmenu_var_coins:0%""""))
+        assertTrue(showsVariables("%xmenu_varp_kills%"))
+        assertTrue(showsVariables("%XMenu_vart_boost%"))
+        assertFalse(showsVariables("%player_name% and %xmenu_page%"))
+        assertFalse(showsVariables("xmenu_var without the percent"))
     }
 
     @AfterTest

@@ -13,20 +13,20 @@ import kotlin.time.Duration.Companion.seconds
 
 /**
  * The variables for PlaceholderAPI:
- * - `%xalimenu_var_<name>%` a global variable, and `%xalimenu_varp_<name>%` the personal one of the player the text is for;
- * - `%xalimenu_vart_<name>%` and `%xalimenu_varpt_<name>%` the time they have left, such as `1h 2m 3s`, or `0s` if they
+ * - `%xmenu_var_<name>%` a global variable, and `%xmenu_varp_<name>%` the personal one of the player the text is for;
+ * - `%xmenu_vart_<name>%` and `%xmenu_varpt_<name>%` the time they have left, such as `1h 2m 3s`, or `0s` if they
  *   do not expire (or do not exist).
  *
- * - `%xalimenu_page%`, `%xalimenu_pages%`, `%xalimenu_total%`, `%xalimenu_page_next%` and `%xalimenu_page_prev%` for the
+ * - `%xmenu_page%`, `%xmenu_pages%`, `%xmenu_total%`, `%xmenu_page_next%` and `%xmenu_page_prev%` for the
  *   player's open menu, when it is paged: the page (from 1), the number of pages, the number of elements, and the pages
  *   after and before this one (this one at the ends).
  *
- * `:<default>` after the name is what is shown if there is no such variable, `%xalimenu_var_coins:0%`. While the store the
+ * `:<default>` after the name is what is shown if there is no such variable, `%xmenu_var_coins:0%`. While the store the
  * variable lives in is not loaded yet (the shared database is still being connected to) the placeholder is not answered at
  * all, so it stays in the text as written and tests on it fail.
  */
 class VariableExpansion(private val plugin: XaliMenu) : PlaceholderExpansion() {
-    override fun getIdentifier() = "xalimenu"
+    override fun getIdentifier() = "xmenu"
 
     override fun getAuthor() = plugin.pluginMeta.authors.joinToString()
 
