@@ -4,7 +4,8 @@
 AbstractMenus: activators open menus, and items carry gates (requirements) and click actions. Menus are read with
 kotlinx.serialization's HOCON support, and text goes through the same color handling as
 [XaliChat](../chat/README.md) (legacy codes and MiniMessage). Other plugins add their own actions, conditions and item
-sources through an [addon API](#extending).
+sources through an [addon API](#addons), and anyone can add them for a plugin that knows nothing of XaliMenu with an
+[extension](#extensions), a jar in a folder, the way PlaceholderAPI has expansions.
 
 ## Contents
 
@@ -16,7 +17,7 @@ sources through an [addon API](#extending).
   [Opening a menu by what a player does](#opening-a-menu-by-what-a-player-does), [Variables](#variables)
 - [Usage](#usage): [Commands](#commands), [Importing from DeluxeMenus](#importing-from-deluxemenus)
 - [Web editor](#web-editor)
-- [Extending](#extending)
+- [Extending](#extending): [Addons](#addons), [Extensions](#extensions)
 - [Troubleshooting](#troubleshooting)
 - [Development](#development)
 - [See also](#see-also)
@@ -79,6 +80,7 @@ tables `<prefix>variable` and `<prefix>revision` stay. Plugins that registered a
 | `plugins/XaliMenu/config.yml` | `debug`, `language`, `click-cooldown`, `database`, `variables`, `editor` and `bedrock`. |
 | `plugins/XaliMenu/language/<language>.yml` | Every message, written with the defaults on the first start. |
 | `plugins/XaliMenu/menus/<name>.conf` | One menu per file. `example.conf` is written on the first start. |
+| `plugins/XaliMenu/extensions/<name>.jar` | One [extension](#extensions) per jar. The folder is made on the first start; jars are read at the start and by `/xmenu extensions reload`. |
 
 Both configuration files are YAML, like XaliChat's. `/xmenu reload` reads configuration, language and menus again.
 Messages and menu text accept `&` codes, `&#RRGGBB`, CMI gradients (`{#a0a>}text{#fff<}`) and MiniMessage.
@@ -611,6 +613,9 @@ All of these need `xalimenu.admin`. The command is `/xalimenu`, also `/xmenu` an
 | `/xmenu edits [inspect\|apply\|drop <id>]` | List, inspect (client IP, reason, privileged actions), apply or drop edits held from shared links or IP mismatches. |
 | `/xmenu push <menu> <link-or-code>` | Push a local menu to another XaliMenu server using that target server's `/xmenu edit` or `/xmenu share` link or 12-character code. |
 | `/xmenu import deluxemenus` | Import DeluxeMenus menus, see [below](#importing-from-deluxemenus). |
+| `/xmenu extensions [list]` | List the [extensions](#extensions) with their version, author and state, and the jars that could not be used. |
+| `/xmenu extensions info <extension>` | The file, state, required plugins and everything one extension added. |
+| `/xmenu extensions reload` | Unregister every extension, read the jars again and read the menus again. `/xmenu reload` does not read jars. |
 | `/xvar ...`, `/xvarp ...` | Variables, see [above](#variables). |
 
 Each one-word entry of a menu's `commands` is registered as a command and opens the menu. Words typed after it fill the
@@ -665,6 +670,11 @@ pack, glyphs, custom items and `config.yml` settings.
 - `/xmenu share [readonly|stop] [menu]` creates a short shared link whose saves wait in `/xmenu edits` until an admin runs `/xmenu edits inspect <id>` and `apply <id>` or `drop <id>`. How to host the site and `/relay/` endpoint: `editor/README.md` and `relay/README.md`.
 
 ## Extending
+
+There are two ways to add types, and the same API behind both. An [addon](#addons) is a plugin that registers its own types. An
+[extension](#extensions) is a jar that XaliMenu loads itself, for a plugin that has no XaliMenu support.
+
+### Addons
 
 An addon adds its own action, condition, catalog, activator or item source in `onEnable`. List XaliMenu as a dependency of the addon
 (`join-classpath` on). Menus are read after every plugin has enabled, and again when one is disabled, so they are never
@@ -739,7 +749,89 @@ what they should, so `[money take, give item]` does not give the item for free. 
 > default deserializer. Constructors with default arguments are avoided in the API because they carry
 > `DefaultConstructorMarker`, a `kotlin.` type.
 
-[XaliFriends](../friends/README.md) and [XaliRedeem](../redeem/README.md) use this API: they register their own actions
+### Extensions
+
+An extension adds actions, conditions, catalogs, activators and item sources for a plugin that does not know XaliMenu, without a
+change to that plugin and without its author. It is a jar in `plugins/XaliMenu/extensions`, as a PlaceholderAPI expansion is a jar
+in PlaceholderAPI's folder. It is not a plugin: it has no `plugin.yml`, and the server does not list, enable or disable it.
+
+An extension is one class that extends `MenuExtension`. When every plugin has enabled, XaliMenu reads each jar, creates the class
+and calls `register`, then reads the menus. What the extension adds is named `identifier:name`, so extensions cannot take each
+other's names, and is taken away when the extension goes.
+
+```kotlin
+class TownyExtension : MenuExtension() {
+    override val identifier = "towny"
+    override val author = "me"
+    override val version = "1.0.0"
+    override val requiredPlugins = listOf("Towny")
+
+    override fun register(context: ExtensionContext) {
+        context.registerCondition("resident") { settings -> InTown(settings.string("town")) }   // { type = "towny:resident", town = "x" }
+        context.registerAction("spawn") { settings -> TownSpawn(settings.requireString("town")) }
+        val entered = context.registerActivator("enter") { settings -> TownFilter(settings.string("town")) }   // open-with = [{ type = "towny:enter" }]
+        context.registerListener(TownListener(entered))   // calls entered.fire(player, mapOf("town" to name)) from Towny's events
+    }
+}
+```
+
+```java
+public final class TownyExtension extends MenuExtension {
+    @Override public String getIdentifier() { return "towny"; }
+    @Override public String getAuthor() { return "me"; }
+    @Override public String getVersion() { return "1.0.0"; }
+    @Override public List<String> getRequiredPlugins() { return List.of("Towny"); }
+    @Override public void register(ExtensionContext context) {
+        context.registerCondition("resident", settings -> new InTown(settings.getString("town")));
+    }
+}
+```
+
+The class has the members of [`MenuExtension`](api/kotlin/net/xalitoria/menu/Extension.kt):
+
+| Member | Purpose |
+|---|---|
+| `identifier` | Lower case letters, digits and `_ - .`. The prefix of every name the extension adds, and the name of its data folder. |
+| `author`, `version` | Shown by `/xmenu extensions`. |
+| `requiredPlugins` | Plugins that must be enabled. The extension waits for them and is registered when the last one enables. When one is disabled the extension is taken away, and registered again when it is enabled. The default is none. |
+| `canRegister()` | A last check, such as a setting or a version. When it returns false the extension is skipped until `/xmenu extensions reload`. |
+| `register(context)` | Adds what the extension offers. It runs on the global thread. When it throws, what it had added is taken back and the extension is listed as failed with the message. |
+| `unregister()` | Stops what the extension started itself (a task, a connection) when it goes, and when `register` failed. What was added through the context needs no undoing. |
+
+The `ExtensionContext` has `registerAction`, `registerCondition`, `registerCatalog` (with the overloads that tell the editor what its
+elements and settings are), `registerActivator` (which returns the source that is fired) and `registerItemSource`, which are those of the
+[addon API](#addons) without the owner and with the name written without the identifier. `registerListener` registers a Bukkit listener
+for the extension that is unregistered when it goes, `plugin` is XaliMenu, for the schedulers, `logger` is a logger named after the
+extension and `dataFolder` is `plugins/XaliMenu/extensions/<identifier>`, which is not made until the extension makes it. An item source
+keeps its own `prefix` (`mmoitems`), since that is what a menu writes, and cannot take one that is in use.
+
+How an extension is found and loaded:
+
+- Every `.jar` in the folder is read. Every class in it that extends `MenuExtension` is an extension, so one jar may hold several; a
+  jar that shades libraries lists the classes in `META-INF/services/net.xalitoria.menu.MenuExtension`, one per line, and nothing else
+  is looked at.
+- Classes come from XaliMenu first (the API, Kotlin, Bukkit), then the jar, then the plugins that are enabled. An extension reaches
+  the classes of the plugin it is for by name, so it is compiled against that plugin with `compileOnly` and needs no entry in a
+  `plugin.yml`. Do not put the XaliMenu API, the Kotlin runtime or the other plugin into the jar.
+- The class that extends `MenuExtension` must have a public constructor without parameters and must not use the other plugin's classes
+  in its fields, signatures or constructor, since it has to load when that plugin is absent. Put the code that uses them in other
+  classes, which are only loaded when `register` calls them. A class of a plugin that is not installed shows as `failed: it uses ...,
+  which is not there`.
+- The API an extension touches is made of JDK, Bukkit and Adventure types and its own, as the addon API is, so an extension may be written
+  in Java. The same rules hold for what it registers: actions run on the player's region thread, and conditions and catalogs are asked on
+  every refresh and must be cheap.
+
+`/xmenu extensions` shows each extension's state: `registered`, `waiting for <plugins>`, `skipped` or `failed: <why>`. `/xmenu extensions
+reload` unregisters all of them, reads the jars again and reads the menus again; `/xmenu reload` leaves the extensions alone. The class
+loader of an extension that went is closed five minutes later, so a menu that was open at that moment can still use its actions.
+
+> [!WARNING]
+> An extension is code that runs with the same rights as a plugin. XaliMenu loads only the jars that are in the folder and downloads
+> none. Put only jars there that you trust.
+
+`live/extension/DemoExtension.java` is a small extension in Java, for PlaceholderAPI; `XM_EXTENSION=1` builds it into the live server.
+
+[XaliFriends](../friends/README.md) and [XaliRedeem](../redeem/README.md) use the addon API: they register their own actions
 (`xalifriends:accept`, `xaliredeem:redeem`) and, for XaliRedeem, a catalog, and write their menus into `plugins/XaliMenu/menus`.
 
 ## Troubleshooting
@@ -787,6 +879,7 @@ the roadmap and what is left.
 | Catalogs | `menu/paper/.../catalog` |
 | Variables: stores and sync | `menu/paper/.../variable` |
 | Addon API implementation | `menu/paper/.../api` |
+| Extensions: jar loading, class loader, lifecycle | `menu/paper/.../extension`; the API is `menu/api/.../Extension.kt` |
 | DeluxeMenus import | `menu/paper/.../deluxemenus`, free of the server API (`Materials` is an interface) |
 
 Unit tests do not start a server; [`live/`](live/README.md) has the scripts that do, with a bot as the player.

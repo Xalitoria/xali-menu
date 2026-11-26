@@ -20,6 +20,8 @@ import mc.xalitoria.menu.paper.config.MainConfig
 import mc.xalitoria.menu.paper.config.MessageConfig
 import mc.xalitoria.menu.paper.editor.EditorRelay
 import mc.xalitoria.menu.paper.editor.EditorServer
+import mc.xalitoria.menu.paper.extension.Extensions
+import mc.xalitoria.menu.paper.extension.PluginHost
 import mc.xalitoria.menu.paper.editor.EditorSessions
 import mc.xalitoria.menu.paper.bedrock.BedrockForms
 import mc.xalitoria.menu.paper.bedrock.ClientProfile
@@ -68,6 +70,10 @@ class XaliMenu : JavaPlugin() {
 
     /** The actions, conditions and item sources there are, the built-in ones and those other plugins added. */
     lateinit var registry: TypeRegistry
+        private set
+
+    /** The extension jars in `extensions/`, which add types for plugins that do not know XaliMenu. */
+    lateinit var extensions: Extensions
         private set
 
     lateinit var heads: Heads
@@ -144,6 +150,7 @@ class XaliMenu : JavaPlugin() {
 
         economyHook = Economy(this)
         registry = TypeRegistry()
+        extensions = Extensions(PluginHost(this), registry)
         Actions.register(registry)
         Conditions.register(registry)
         Catalogs.register(registry)
@@ -234,7 +241,7 @@ class XaliMenu : JavaPlugin() {
             }
         }
         startEditor()
-        server.globalRegionScheduler.runDelayed(this, { if (!menus.isLoaded) listener.loadMenus() }, 40)
+        server.globalRegionScheduler.runDelayed(this, { if (!menus.isLoaded) listener.start() }, 40)
 
         lifecycleManager.registerEventHandler(LifecycleEvents.COMMANDS) { event ->
             MenuCommand.register(event.registrar())
@@ -246,6 +253,7 @@ class XaliMenu : JavaPlugin() {
 
     override fun onDisable() {
         if (::menus.isInitialized) menus.closeAll()
+        if (::extensions.isInitialized) extensions.unload()
         // The questions that are open (a dialog, an anvil with its paper) are taken away rather than left to the server's shutdown.
         if (::inputs.isInitialized) inputs.stop()
         if (::screens.isInitialized) screens.stop()

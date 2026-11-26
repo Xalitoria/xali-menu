@@ -23,6 +23,7 @@ import mc.xalitoria.menu.paper.editor.EditorLink
 import mc.xalitoria.menu.paper.editor.EditorMenus
 import mc.xalitoria.menu.paper.editor.EditorPush
 import mc.xalitoria.menu.paper.editor.EditorRelay
+import mc.xalitoria.menu.paper.extension.Extensions
 import mc.xalitoria.menu.paper.format.MenuFormat
 import mc.xalitoria.menu.paper.runtime.Clients
 import mc.xalitoria.menu.paper.runtime.MenuManager
@@ -160,6 +161,20 @@ object MenuCommand {
             )
         )
         .then(Commands
+            .literal("extensions")
+            .executes { ctx -> listExtensions(ctx) }
+            .then(Commands.literal("list").executes { ctx -> listExtensions(ctx) })
+            .then(Commands
+                .literal("info")
+                .then(Commands
+                    .argument("extension", StringArgumentType.word())
+                    .suggests { _, builder -> builder.suggestMatching(plugin.extensions.entries.map { it.identifier }) }
+                    .executes { ctx -> extensionInfo(ctx, StringArgumentType.getString(ctx, "extension")) }
+                )
+            )
+            .then(Commands.literal("reload").executes { ctx -> reloadExtensions(ctx) })
+        )
+        .then(Commands
             .literal("import")
             .then(Commands
                 .literal("deluxemenus")
@@ -172,6 +187,62 @@ object MenuCommand {
                 )
             )
         )
+
+    private val extensionMsg get() = cmdMsg.extensions
+
+    private fun stateText(state: Extensions.State): String = when (state) {
+        Extensions.State.Registered -> extensionMsg.stateRegistered
+        is Extensions.State.Waiting -> extensionMsg.stateWaiting(state.plugins.joinToString().verbatim())
+        Extensions.State.Skipped -> extensionMsg.stateSkipped
+        is Extensions.State.Failed -> extensionMsg.stateFailed(state.reason.verbatim())
+    }
+
+    private fun listExtensions(ctx: CommandContext<CommandSourceStack>): Int {
+        val sender = ctx.source.sender
+        if (!sender.allowed()) return Command.SINGLE_SUCCESS
+        val entries = plugin.extensions.entries
+        val problems = plugin.extensions.problems
+        if (entries.isEmpty() && problems.isEmpty()) {
+            sender info extensionMsg.none
+            return Command.SINGLE_SUCCESS
+        }
+        sender info extensionMsg.header(entries.size)
+        for (entry in entries) sender info extensionMsg.line(entry.identifier.verbatim(), entry.version.verbatim(), entry.author.verbatim(), stateText(entry.state))
+        for ([file, reason] in problems) sender warn extensionMsg.problem(file.verbatim(), reason.verbatim())
+        return Command.SINGLE_SUCCESS
+    }
+
+    private fun extensionInfo(ctx: CommandContext<CommandSourceStack>, id: String): Int {
+        val sender = ctx.source.sender
+        if (!sender.allowed()) return Command.SINGLE_SUCCESS
+        val entry = plugin.extensions.find(id)
+        if (entry == null) {
+            sender fail extensionMsg.unknown(id.verbatim())
+            return Command.SINGLE_SUCCESS
+        }
+        sender info extensionMsg.infoHeader(entry.identifier.verbatim(), entry.version.verbatim(), entry.author.verbatim())
+        sender info extensionMsg.infoLine("file", entry.file.fileName.toString().verbatim())
+        sender info extensionMsg.infoLine("state", stateText(entry.state))
+        val required = runCatching { entry.extension?.requiredPlugins.orEmpty() }.getOrDefault(emptyList())
+        if (required.isNotEmpty()) sender info extensionMsg.infoLine("requires", required.joinToString().verbatim())
+        val added = plugin.extensions.added(entry)
+        sender info extensionMsg.infoLine("adds", if (added.isEmpty()) extensionMsg.addedNone else added.joinToString().verbatim())
+        return Command.SINGLE_SUCCESS
+    }
+
+    /** The extensions are registered on the global thread, as their `register` is documented to be, and the menus are read again for what they added. */
+    private fun reloadExtensions(ctx: CommandContext<CommandSourceStack>): Int {
+        val sender = ctx.source.sender
+        if (!sender.allowed()) return Command.SINGLE_SUCCESS
+        debug("{0} reloaded the extensions", sender.name)
+        plugin.server.globalRegionScheduler.run(plugin) {
+            plugin.extensions.unload()
+            val registered = plugin.extensions.load()
+            plugin.menus.load()
+            sender pass extensionMsg.reloaded(registered, plugin.extensions.entries.size, plugin.extensions.problems.size)
+        }
+        return Command.SINGLE_SUCCESS
+    }
 
     private fun menuArgument() = Commands
         .argument("menu", StringArgumentType.word())

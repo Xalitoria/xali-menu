@@ -46,12 +46,14 @@ data class MessageConfig(
             &d/{0} &redits [inspect|apply|drop <id>]
             &d/{0} &rpush <menu> <link-or-code>
             &d/{0} &rimport deluxemenus [overwrite] [folder]
+            &d/{0} &rextensions [list|info <extension>|reload]
         """.trimIndent(),
         val reload: Reload = Reload(),
         val menu: Menu = Menu(),
         val tools: Tools = Tools(),
         val variable: Variable = Variable(),
         val edit: Edit = Edit(),
+        val extensions: ExtensionMessages = ExtensionMessages(),
         @SerialName("import")
         val importer: Import = Import(),
     ) {
@@ -119,6 +121,41 @@ data class MessageConfig(
             fun loaded(count: Int): String = loaded.formatArgs(count)
             fun list(count: Int, names: String): String = list.formatArgs(count, names)
             fun commandsChanged(labels: String): String = commandsChanged.formatArgs(labels)
+        }
+
+        /** `/xmenu extensions`: the jars in the extensions folder and what they added. */
+        @Serializable
+        data class ExtensionMessages(
+            val none: String = "No extensions are loaded. A jar in plugins/XaliMenu/extensions is read at the start, or by &d/xmenu extensions reload&r.",
+            private val header: String = "Extensions ({0}):",
+            private val line: String = "&d{0} &7{1} by {2}: &r{3}",
+            private val problem: String = "{0}: {1}",
+            private val unknown: String = "No extension with the identifier '{0}'.",
+            @SerialName("info-header")
+            private val infoHeader: String = "Extension '{0}' {1} by {2}",
+            @SerialName("info-line")
+            private val infoLine: String = "&7{0}: &r{1}",
+            private val reloaded: String = "Registered {0} of {1} extensions; {2} jars could not be used. Menus were read again.",
+            @SerialName("state-registered")
+            val stateRegistered: String = "registered",
+            @SerialName("state-waiting")
+            private val stateWaiting: String = "waiting for {0}",
+            @SerialName("state-skipped")
+            val stateSkipped: String = "skipped (it said it cannot register now)",
+            @SerialName("state-failed")
+            private val stateFailed: String = "failed: {0}",
+            @SerialName("added-none")
+            val addedNone: String = "nothing",
+        ) {
+            fun header(count: Int): String = header.formatArgs(count)
+            fun line(id: String, version: String, author: String, state: String): String = line.formatArgs(id, version, author, state)
+            fun problem(file: String, reason: String): String = problem.formatArgs(file, reason)
+            fun unknown(id: String): String = unknown.formatArgs(id)
+            fun infoHeader(id: String, version: String, author: String): String = infoHeader.formatArgs(id, version, author)
+            fun infoLine(label: String, value: String): String = infoLine.formatArgs(label, value)
+            fun reloaded(registered: Int, found: Int, broken: Int): String = reloaded.formatArgs(registered, found, broken)
+            fun stateWaiting(plugins: String): String = stateWaiting.formatArgs(plugins)
+            fun stateFailed(reason: String): String = stateFailed.formatArgs(reason)
         }
 
         /** `/xmenu reload <menu>`, `info`, `validate` and `inspect`. */

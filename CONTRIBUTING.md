@@ -20,7 +20,8 @@ The packages of `paper`, under `mc.xalitoria.menu.paper`:
 | `action`, `condition`, `catalog` | The built-in actions, conditions and catalogs. One file per group, one class per type. |
 | `runtime` | Everything that happens while a menu is open: `MenuManager` (loading and opening), `MenuView` (one open menu), `ItemFactory` (items), `Gates`, `Activators` and `ActivatorListener`, `Context`. |
 | `format` | Reading and writing menu files (HOCON). |
-| `api` | The implementation of `XaliMenuApi` and the registry of types, including what other plugins add. |
+| `api` | The implementation of `XaliMenuApi` and the registry of types, including what other plugins and extensions add. |
+| `extension` | Extensions: the jars of `plugins/XaliMenu/extensions` (`Extensions`, which holds the rules and runs without a server), their class loader and `PluginHost`, the server behind them. The API is `MenuExtension` and `ExtensionContext` in `api`. |
 | `command` | `/xmenu`, `/xmenu variable` and the commands that open menus. |
 | `config`, `variable` | `config.yml`, `messages.yml`, and the variable store with its SQL and file backends. |
 | `hook` | One class per other plugin that is used: Vault, SkinsRestorer, WorldGuard, FancyNpcs, HeadDatabase. |

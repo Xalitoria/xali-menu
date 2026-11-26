@@ -75,6 +75,17 @@ if [ -n "${XM_ADDON:-}" ]; then
   (cd "$classes" && "$JAVA_HOME/bin/jar" cf "$server/plugins/XmDemo.jar" .)
   rm -rf "$classes"
 fi
+# XM_EXTENSION=1 also builds extension/DemoExtension.java into plugins/XaliMenu/extensions/demo.jar: an extension for PlaceholderAPI, not a plugin (bot/extension.js uses it).
+if [ -n "${XM_EXTENSION:-}" ]; then
+  libs=$(for name in paper-api adventure-api adventure-key examination-api jspecify annotations bungeecord-chat; do
+    find "$HOME/.gradle/caches/modules-2" -name "$name-[0-9]*.jar" ! -name '*sources*' | sort | tail -1
+  done | paste -sd:)
+  classes=$(mktemp -d)
+  "$JAVA_HOME/bin/javac" -d "$classes" -cp "$libs:$plugin:$(ls "$server"/plugins/PlaceholderAPI-*.jar | head -1)" "$here"/extension/DemoExtension.java
+  mkdir -p "$server/plugins/XaliMenu/extensions"
+  (cd "$classes" && "$JAVA_HOME/bin/jar" cf "$server/plugins/XaliMenu/extensions/demo.jar" .)
+  rm -rf "$classes"
+fi
 # XM_EDITOR=1 turns the web editor's endpoint on (port XM_EDITOR_PORT, default 8123; XM_EDITOR_PACK is the pack zip to show).
 # XM_PACK_URL=<url> sets editor.pack-url, the address the pack is hosted at.
 # XM_RELAY=<url> sets editor.relay.url, for /xmenu share (run the relay with `node menu/relay/relay.js`).

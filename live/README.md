@@ -39,6 +39,7 @@ Set these before `setup.sh` (and `server.sh`):
 | `XM_RELAY=<url>` | none | The relay of `/xmenu share`. |
 | `XM_EDITOR=1` | off | Turn the web editor's endpoint on. `XM_EDITOR_PORT`, `XM_EDITOR_PACK` (a pack zip) and `XM_GLYPHS` (a Nexo glyphs folder) tune it; `/xmenu edit` then prints a link, and `curl` with its token tries the endpoint. |
 | `XM_ADDON=1` | off | Build and install `addon/XmDemo.java`, the demo plugin that adds an activator and `/xmsave`. |
+| `XM_EXTENSION=1` | off | Build `extension/DemoExtension.java`, an extension for PlaceholderAPI, into `plugins/XaliMenu/extensions/demo.jar`. |
 
 The server is offline-mode and meant to be thrown away. Do not pipe a bot into `head`: closing the pipe ends it early.
 
@@ -59,6 +60,7 @@ before `server.sh start`, and write a bot in `bot/`.
 | `bot/props.js` | `i` (`/xi`) | The item properties: it gives one item of every kind; then read the saved player data with `python3 bot/nbt.py <server>/world/players/data/<uuid>.dat` (Folia has no `/data` for entities). |
 | `bot/complete.js` | `a` (`/xa`) | Tab completion of a menu's `args` from its `complete` map: players, fixed words, the rest of the line. |
 | `bot/addon.js` | `e` (`/xe`) | An activator added by another plugin, `addon/XmDemo.java` (built with `XM_ADDON=1` at setup): `/xmwave` fires it with values; matching, a gate, `cancel`, and the keys it refuses. |
+| `bot/extension.js` | `x` (`/xx`) | The extension `extension/DemoExtension.java` (`XM_EXTENSION=1` at setup): a listener of the extension fires its `demo:join` activator, which opens the menu when the bot joins; the `demo:papi` condition, which reaches a class of PlaceholderAPI from the extension's jar, decides which item is shown; the `demo:say` action runs on a click. Then `server.sh cmd xmenu extensions`, `info demo` and `reload` show the extension's state in `server.log`, and a menu that names `demo:` types fails to read once the jar is removed and reloaded. |
 | `bot/layout.js` | `l` (`/xl`) | A menu `matrix` (`cells` + `map`): the item in every slot of the window. |
 | `bot/npc.js` | `n` (`/xn`) | FancyNpcs `npc` activators: creates an NPC and right- and left-clicks it (set up with `XM_PLUGINS=FancyNpcs`). |
 | `bot/skin.js` | `s` (`/xs`) | The `skin` and `skin-reset` actions with SkinsRestorer (`XM_PLUGINS=SkinsRestorer`): what it stores for the player after each, and a skin that does not exist. |

@@ -13,24 +13,25 @@ import net.xalitoria.menu.CatalogType
 import net.xalitoria.menu.Condition
 import net.xalitoria.menu.ConditionType
 import net.xalitoria.menu.ItemSource
-import org.bukkit.plugin.Plugin
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
 import kotlin.reflect.KClass
 
 /**
- * The actions, conditions and item sources there are: the built-in ones and what other plugins added. The first two are
- * what menu files are read with, so their [module] is rebuilt whenever one comes or goes. A null owner is XaliMenu itself.
+ * The actions, conditions and item sources there are: the built-in ones and what other plugins and extensions added. The first two are
+ * what menu files are read with, so their [module] is rebuilt whenever one comes or goes. An owner is the plugin that added the
+ * type, or any other object that is kept for an extension (compared by `==`, so one that is only the same object is enough);
+ * a null owner is XaliMenu itself.
  */
 class TypeRegistry {
-    private class Type<B : Any>(val owner: Plugin?, val type: KClass<out B>, val serializer: KSerializer<out B>) {
+    private class Type<B : Any>(val owner: Any?, val type: KClass<out B>, val serializer: KSerializer<out B>) {
         val name: String get() = serializer.descriptor.serialName
     }
 
-    private class Source(val owner: Plugin?, val source: ItemSource)
+    private class Source(val owner: Any?, val source: ItemSource)
 
     /** An action or condition another plugin added, read through [ExternalSerializer]. */
-    private class External<B : Any>(val owner: Plugin, val name: String, val serializer: DeserializationStrategy<B>)
+    private class External<B : Any>(val owner: Any, val name: String, val serializer: DeserializationStrategy<B>)
 
     private val actions = CopyOnWriteArrayList<Type<Action>>()
     private val conditions = CopyOnWriteArrayList<Type<Condition>>()
@@ -38,10 +39,10 @@ class TypeRegistry {
     private val externalConditions = CopyOnWriteArrayList<External<Condition>>()
     private val catalogs = CopyOnWriteArrayList<Type<Catalog>>()
     private val externalCatalogs = CopyOnWriteArrayList<External<Catalog>>()
-    private class ExternalActivator(val owner: Plugin, val type: ActivatorType)
+    private class ExternalActivator(val owner: Any, val type: ActivatorType)
 
     /** What the editor is told about a catalog: what its elements hold, and (for another plugin's) which keys its settings take, each with an example. */
-    class CatalogInfo(val owner: Plugin?, val values: Map<String, String>, val settings: Map<String, String>)
+    class CatalogInfo(val owner: Any?, val values: Map<String, String>, val settings: Map<String, String>)
 
     private val catalogValues = ConcurrentHashMap<String, CatalogInfo>()
     private val activators = ConcurrentHashMap<String, ExternalActivator>()
@@ -69,41 +70,41 @@ class TypeRegistry {
     /** The item sources by prefix. */
     val sources: Map<String, ItemSource> get() = itemSources.mapValues { it.value.source }
 
-    fun <T : Action> addAction(owner: Plugin?, type: KClass<T>, serializer: KSerializer<T>) {
+    fun <T : Action> addAction(owner: Any?, type: KClass<T>, serializer: KSerializer<T>) {
         add(actions, Type(owner, type, serializer))
     }
 
-    fun <T : Condition> addCondition(owner: Plugin?, type: KClass<T>, serializer: KSerializer<T>) {
+    fun <T : Condition> addCondition(owner: Any?, type: KClass<T>, serializer: KSerializer<T>) {
         add(conditions, Type(owner, type, serializer))
     }
 
-    fun <T : Catalog> addCatalog(owner: Plugin?, type: KClass<T>, serializer: KSerializer<T>, values: Map<String, String> = emptyMap()) {
+    fun <T : Catalog> addCatalog(owner: Any?, type: KClass<T>, serializer: KSerializer<T>, values: Map<String, String> = emptyMap()) {
         val added = Type(owner, type, serializer)
         add(catalogs, added)
         catalogValues[added.name] = CatalogInfo(owner, values, emptyMap())
     }
 
     /** Adds the action [name] of the plugin [owner]; [type] builds it from the keys written in the menu file. */
-    fun addAction(owner: Plugin, name: String, type: ActionType) {
+    fun addAction(owner: Any, name: String, type: ActionType) {
         addExternal(externalActions, owner, name, ExternalSerializer(name, type::create))
     }
 
-    fun addCondition(owner: Plugin, name: String, type: ConditionType) {
+    fun addCondition(owner: Any, name: String, type: ConditionType) {
         addExternal(externalConditions, owner, name, ExternalSerializer(name, type::create))
     }
 
     /** Adds the catalog [name] of the plugin [owner]; [values] and [settings] are what the editor is told about it, see [net.xalitoria.menu.XaliMenuApi.registerCatalog]. */
-    fun addCatalog(owner: Plugin, name: String, type: CatalogType, values: Map<String, String> = emptyMap(), settings: Map<String, String> = emptyMap()) {
+    fun addCatalog(owner: Any, name: String, type: CatalogType, values: Map<String, String> = emptyMap(), settings: Map<String, String> = emptyMap()) {
         addExternal(externalCatalogs, owner, name, ExternalSerializer(name, type::create))
         catalogValues[name] = CatalogInfo(owner, values, settings)
     }
 
-    fun addActivator(owner: Plugin, name: String, type: ActivatorType) {
+    fun addActivator(owner: Any, name: String, type: ActivatorType) {
         require(NAME.matches(name)) { "'$name' isn't a name for an activator; use lower case as plugin:name, such as myplugin:emote" }
         require(activators.putIfAbsent(name, ExternalActivator(owner, type)) == null) { "There is already an activator '$name'" }
     }
 
-    private fun <B : Any> addExternal(list: CopyOnWriteArrayList<External<B>>, owner: Plugin, name: String, serializer: DeserializationStrategy<B>) {
+    private fun <B : Any> addExternal(list: CopyOnWriteArrayList<External<B>>, owner: Any, name: String, serializer: DeserializationStrategy<B>) {
         require(NAME.matches(name)) { "'$name' isn't a name for an action or condition; use lower case as plugin:name, such as myplugin:reward" }
         require(list.none { it.name == name }) { "There is already a '$name' of that kind" }
         list += External(owner, name, serializer)
@@ -118,13 +119,13 @@ class TypeRegistry {
     inline fun <reified T : Catalog> catalog(values: Map<String, String> = emptyMap()) = addCatalog(null, T::class, serializer<T>(), values)
     inline fun <reified T : Catalog> catalog(vararg values: Pair<String, String>) = addCatalog(null, T::class, serializer<T>(), values.toMap())
 
-    fun addSource(owner: Plugin?, source: ItemSource) {
+    fun addSource(owner: Any?, source: ItemSource) {
         val prefix = source.prefix.lowercase()
         require(itemSources.putIfAbsent(prefix, Source(owner, source)) == null) { "There is already an item source '$prefix'" }
     }
 
     /** Takes away everything [owner] added. @return whether there was anything */
-    fun removeAll(owner: Plugin): Boolean {
+    fun removeAll(owner: Any): Boolean {
         val removed =
             actions.removeIf { it.owner == owner } or
             conditions.removeIf { it.owner == owner } or
@@ -138,6 +139,14 @@ class TypeRegistry {
         if (removed) module = build()
         return removed
     }
+
+    /** What [owner] added, each as its kind and name (`action towny:claim`), in the order of the kinds: for `/xmenu extensions info`. */
+    fun addedBy(owner: Any): List<String> =
+        externalActions.filter { it.owner == owner }.map { "action ${it.name}" } +
+            externalConditions.filter { it.owner == owner }.map { "condition ${it.name}" } +
+            externalCatalogs.filter { it.owner == owner }.map { "catalog ${it.name}" } +
+            activators.filterValues { it.owner == owner }.keys.sorted().map { "activator $it" } +
+            itemSources.filterValues { it.owner == owner }.keys.sorted().map { "item source $it:" }
 
     @Suppress("UNCHECKED_CAST")
     private fun <B : Any> add(list: CopyOnWriteArrayList<Type<B>>, type: Type<out B>) {
