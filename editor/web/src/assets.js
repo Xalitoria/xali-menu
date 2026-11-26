@@ -9,6 +9,24 @@
 
 import { LATEST_VERSION, resolveVersion } from './versions.js'
 
+const SKIN_PATH = /^\/texture\/[0-9a-f]{16,128}$/
+const SAFE_GAME_FILE = /^assets\/minecraft\/[a-z0-9_./-]+$/
+const SAFE_BRANCH = /^[A-Za-z0-9._-]+$/
+const ALLOWED_ASSET_HOSTS = new Set(['raw.githubusercontent.com'])
+
+/** Canonical Mojang texture URL (`https://textures.minecraft.net/texture/<hex>`), or null if disallowed. */
+export function safeSkinUrl(raw) {
+  try {
+    const parsed = new URL(String(raw ?? '').replace(/^http:\/\//i, 'https://'))
+    if (parsed.protocol !== 'https:' || parsed.hostname !== 'textures.minecraft.net') return null
+    if (parsed.port || parsed.username || parsed.password || parsed.search || parsed.hash) return null
+    if (!SKIN_PATH.test(parsed.pathname)) return null
+    return `https://textures.minecraft.net${parsed.pathname}`
+  } catch {
+    return null
+  }
+}
+
 /** Global asset source configuration; updated automatically when connected to a server. */
 export const settings = {
   base: 'https://raw.githubusercontent.com/InventivetalentDev/minecraft-assets',
@@ -198,14 +216,16 @@ export class Assets {
     })
   }
 
-  /** A texture from any address (the skin of a head), or null if blocked. */
+  /** A texture from a Mojang skin address (the skin of a head), or null if disallowed or blocked. */
   fromUrl(url) {
-    return this.cached(`url:${url}`, async () => {
+    const safeUrl = safeSkinUrl(url)
+    if (!safeUrl) return Promise.resolve(null)
+    return this.cached(`url:${safeUrl}`, async () => {
       try {
-        const response = await fetch(url)
+        const response = await fetch(safeUrl, { credentials: 'omit', redirect: 'error' })
         if (response.ok) return skin(await decode(await response.blob(), null))
       } catch { /* try through server proxy */ }
-      const blob = settings.skinProxy ? await settings.skinProxy(url).catch(() => null) : null
+      const blob = settings.skinProxy ? await settings.skinProxy(safeUrl).catch(() => null) : null
       return blob ? skin(await decode(blob, null)) : null
     })
   }
@@ -250,8 +270,14 @@ export class Assets {
 
   async fetchGame(ns, file, read) {
     if (!this.vanilla || ns !== 'minecraft') return null
+    if (!SAFE_BRANCH.test(this.versionBranch) || !SAFE_GAME_FILE.test(file) || file.includes('..')) return null
     try {
-      const response = await fetch(`${settings.base}/${this.versionBranch}/${file}`)
+      const base = new URL(settings.base)
+      if (base.protocol !== 'https:' || !ALLOWED_ASSET_HOSTS.has(base.hostname)) return null
+      const basePath = base.pathname.replace(/\/+$/, '')
+      const target = new URL(`${basePath}/${encodeURIComponent(this.versionBranch)}/${file}`, base.origin)
+      if (target.origin !== base.origin || !target.pathname.startsWith(`${basePath}/`)) return null
+      const response = await fetch(`https://raw.githubusercontent.com${target.pathname}`, { credentials: 'omit', redirect: 'error' })
       return response.ok ? await read(response) : null
     } catch {
       return null

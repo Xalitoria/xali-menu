@@ -1,14 +1,17 @@
 import com.xalitoria.util.message.PLAIN
+import mc.xalitoria.menu.paper.action.Actions
 import mc.xalitoria.menu.paper.runtime.Context
 import mc.xalitoria.menu.paper.runtime.Host
 import mc.xalitoria.menu.paper.runtime.MenuArgs
 import mc.xalitoria.menu.paper.runtime.Placeholders
+import mc.xalitoria.menu.paper.runtime.runActions
 import net.xalitoria.menu.Action
 import org.bukkit.entity.Player
 import java.lang.reflect.Proxy
 import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -103,5 +106,39 @@ class Arguments {
         val json = ctx.parse("""{"text":"{x}"}""") { it.replace("\\", "\\\\").replace("\"", "\\\"") }
         val parsed = net.kyori.adventure.text.serializer.gson.GsonComponentSerializer.gson().deserialize(json)
         assertEquals("a\"},{\"text\":\"b\\", PLAIN.serialize(parsed))
+    }
+
+    @Test
+    fun consoleCommandsBlockUnsafePlayerArguments() {
+        val ran = mutableListOf<String>()
+        val recordingHost = object : Host {
+            override fun run(actions: List<Action>, ctx: Context) { runActions(actions, ctx) { _, _ -> } }
+            override fun runLater(player: Player, ticks: Long, task: () -> Unit) = Unit
+            override fun console(command: String) { ran += command }
+            override fun open(player: Player, menu: String, args: List<String>) = Unit
+            override fun close(player: Player) = Unit
+            override fun refresh(player: Player) = Unit
+            override fun page(player: Player, relative: Boolean, value: Int) = Unit
+        }
+        val player = Proxy.newProxyInstance(Player::class.java.classLoader, arrayOf(Player::class.java)) { _, _, _ -> null } as Player
+        Placeholders.resolver = { _, text -> text.replace("%player_name%", "Steve") }
+
+        fun exec(template: String, vararg args: Pair<String, String>): Boolean {
+            val c = Context(player, "test", mapOf(*args), recordingHost)
+            return runActions(listOf(Actions.Console(template)), c) { _, _ -> }
+        }
+
+        assertTrue(exec("give %player_name% diamond {amount}", "amount" to "16"))
+        assertTrue(exec("lp user %player_name% meta set bio \"{input}\"", "input" to "Hello world"))
+        assertEquals(listOf("give Steve diamond 16", "lp user Steve meta set bio \"Hello world\""), ran)
+        ran.clear()
+
+        for (bad in listOf("@a", "Steve 64", "Steve; op me", "a\"b", "diamond{Enchantments:[]}", " ", "a\\b")) {
+            assertFalse(exec("give {target} diamond 1", "target" to bad), "must refuse unquoted '$bad'")
+        }
+        for (bad in listOf("hi\" permission set * true", "trailing\\")) {
+            assertFalse(exec("lp user %player_name% meta set bio \"{input}\"", "input" to bad), "must refuse quoted '$bad'")
+        }
+        assertEquals(emptyList(), ran, "refused console commands must never execute")
     }
 }

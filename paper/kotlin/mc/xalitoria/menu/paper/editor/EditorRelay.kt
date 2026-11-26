@@ -249,7 +249,7 @@ internal class EditorRelay(private val plugin: XaliMenu, private val api: Editor
 
     private fun dispatchWsCall(relay: String, share: Share, callId: String, call: RelayCall, ws: WebSocket) {
         if (!CALL_ID.matches(callId)) return
-        var clientIp = call.ip
+        var rawIp = call.ip
         val data = if (call.fetch) {
             runCatching {
                 val req = HttpRequest.newBuilder(URI("$relay/s/${share.id}/call/$callId")).timeout(Duration.ofSeconds(15))
@@ -257,14 +257,14 @@ internal class EditorRelay(private val plugin: XaliMenu, private val api: Editor
                 val res = Http.send(req, HttpResponse.BodyHandlers.ofInputStream())
                 res.body().use { stream ->
                     if (res.statusCode() != 200) return@runCatching null
-                    if (clientIp.isNullOrBlank()) clientIp = res.headers().firstValue("x-relay-client-ip").orElse(null)
-                    val bytes = stream.readNBytes(MAX_RELAY_BODY + 1)
-                    bytes.takeIf { it.size <= MAX_RELAY_BODY }
+                    if (rawIp.isNullOrBlank()) rawIp = res.headers().firstValue("x-relay-client-ip").orElse(null)
+                    readBounded(stream, MAX_RELAY_BODY)
                 }
             }.getOrNull() ?: return
         } else {
-            call.data?.let { runCatching { Base64.getUrlDecoder().decode(it) }.getOrNull() } ?: return
+            decodeCallData(call.data) ?: return
         }
+        val clientIp = trustedRelayIp(relay, plugin.config.data.editor.relay.trustIp, rawIp)
         answer(relay, share, callId, data, ws, clientIp)
     }
 
@@ -276,14 +276,24 @@ internal class EditorRelay(private val plugin: XaliMenu, private val api: Editor
             try {
                 val request = HttpRequest.newBuilder(URI("$relay/s/${share.id}/poll?wait=25")).timeout(Duration.ofSeconds(40))
                     .header("Authorization", "Bearer ${share.secret}").GET().build()
-                val response = Http.send(request, HttpResponse.BodyHandlers.ofString())
-                when (response.statusCode()) {
+                val response = Http.send(request, HttpResponse.BodyHandlers.ofInputStream())
+                val status = response.statusCode()
+                val body = response.body().use { stream ->
+                    if (status == 200) readBounded(stream, MAX_POLL_BODY) else null
+                }
+                when (status) {
                     200 -> {
                         failures = 0
-                        for (call in Wire.read<List<RelayCall>>(response.body()).orEmpty()) {
+                        if (body == null) {
+                            plugin.logger.warning("Dropped oversized polling response from relay (exceeded $MAX_POLL_BODY bytes)")
+                            continue
+                        }
+                        val trustIp = plugin.config.data.editor.relay.trustIp
+                        for (call in Wire.read<List<RelayCall>>(body.decodeToString()).orEmpty()) {
                             val id = call.id?.takeIf { CALL_ID.matches(it) } ?: continue
-                            val data = call.data?.let { runCatching { Base64.getUrlDecoder().decode(it) }.getOrNull() } ?: continue
-                            workers.execute { answer(relay, share, id, data, null, call.ip) }
+                            val data = decodeCallData(call.data) ?: continue
+                            val clientIp = trustedRelayIp(relay, trustIp, call.ip)
+                            workers.execute { answer(relay, share, id, data, null, clientIp) }
                         }
                     }
                     204 -> failures = 0
@@ -320,8 +330,9 @@ internal class EditorRelay(private val plugin: XaliMenu, private val api: Editor
         }.onFailure { plugin.logger.warning("An answer could not be sent to the relay: ${it.message}") }
     }
 
-    /** The answer for the request in [data], or null when it is to be ignored (not made with the key, old, or already answered). */
+    /** The answer for the request in [data], or null when it is to be ignored (oversized, not made with the key, old, or already answered). */
     internal fun handle(share: Share, data: ByteArray, clientIp: String? = null): RelayReply? {
+        if (data.size > MAX_RELAY_BODY) return null
         val plain = RelayCrypto.open(share.key, share.id, "q", data) ?: return null
         val request = Wire.read<RelayRequest>(plain.decodeToString()) ?: return null
         val rid = request.rid?.takeIf { it.length in 1..64 } ?: return null
@@ -377,13 +388,42 @@ internal class EditorRelay(private val plugin: XaliMenu, private val api: Editor
         private const val MAX_SEEN = 4096
         private const val MAX_SHARES = 20
         private const val MAX_WS_FRAME = 1024 * 1024
-        private const val MAX_RELAY_BODY = EditorApi.MAX_BODY + 256 * 1024
+        internal const val MAX_RELAY_BODY = EditorApi.MAX_BODY + 256 * 1024
+        internal const val MAX_POLL_BODY = 4 * 1024 * 1024
+        private const val MAX_ENCODED_RELAY_BODY = ((MAX_RELAY_BODY + 2) / 3) * 4
         private const val MAX_ANSWER = 5 * 1024 * 1024
         private const val WS_ANSWER_MAX = 512 * 1024
         private const val WS_PING_SECONDS = 55L
         private const val JSON = "application/json; charset=utf-8"
         private val METHODS = setOf("GET", "PUT", "POST", "DELETE")
         val CALL_ID = Regex("[A-Za-z0-9_-]{1,64}")
+
+        /** Reads at most [maxBytes] from [stream], returning null without buffering the rest if the stream exceeds the cap. */
+        internal fun readBounded(stream: java.io.InputStream, maxBytes: Int): ByteArray? {
+            val bytes = stream.readNBytes(maxBytes + 1)
+            return bytes.takeIf { it.size <= maxBytes }
+        }
+
+        /** Base64url-decodes a relay call payload only when its encoded and decoded sizes fit within [MAX_RELAY_BODY]. */
+        internal fun decodeCallData(encoded: String?): ByteArray? {
+            if (encoded == null || encoded.length > MAX_ENCODED_RELAY_BODY) return null
+            val bytes = runCatching { Base64.getUrlDecoder().decode(encoded) }.getOrNull() ?: return null
+            return bytes.takeIf { it.size <= MAX_RELAY_BODY }
+        }
+
+        /**
+         * Returns normalized [rawIp] only when [trustIp] is explicitly enabled AND [relayUrl] uses `https://` or
+         * loopback (`http://127.0.0.1` / `localhost` / `[::1]`). Unauthenticated metadata from untrusted or cleartext
+         * relays is never accepted for IP-gated save authorization.
+         */
+        internal fun trustedRelayIp(relayUrl: String, trustIp: Boolean, rawIp: String?): String? {
+            if (!trustIp || rawIp.isNullOrBlank()) return null
+            val uri = runCatching { URI(relayUrl) }.getOrNull() ?: return null
+            val host = uri.host ?: return null
+            val safeTransport = uri.scheme == "https" || (uri.scheme == "http" && (host.equals("localhost", ignoreCase = true) || EditorGuard.isLoopback(host)))
+            if (!safeTransport) return null
+            return EditorGuard.normalizeIp(rawIp)
+        }
 
         /** Converts an HTTP(S) relay base URL into its WebSocket session endpoint (`wss://.../s/<id>/ws`). */
         fun wsUri(relay: String, sessionId: String): URI {

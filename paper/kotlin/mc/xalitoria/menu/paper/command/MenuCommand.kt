@@ -437,8 +437,10 @@ object MenuCommand {
             } else {
                 sender info messages.editsLineReason(edit.id, edit.from.verbatim(), edit.name.verbatim(), edit.problems.size, mins, edit.reason.verbatim())
             }
-            if (edit.privileged.isNotEmpty()) {
-                sender warn messages.editsPrivileged(edit.privileged.size, edit.privileged.take(5).joinToString("; ").verbatim())
+            if (edit.privilegedTotal > 0 || edit.privilegedTruncated) {
+                val preview = edit.privileged.take(5).joinToString("; ")
+                val suffix = if (edit.privilegedTotal > 5) "; ... (+${edit.privilegedTotal - 5} more)" else ""
+                sender warn messages.editsPrivileged(edit.privilegedTotal, "$preview$suffix".verbatim())
             }
         }
         return Command.SINGLE_SUCCESS
@@ -454,11 +456,19 @@ object MenuCommand {
         val mins = (System.currentTimeMillis() - edit.at) / 60_000
         sender info messages.editsInspectHeader(edit.id, edit.name.verbatim(), edit.from.verbatim(), edit.reason.verbatim(), mins)
         edit.clientIp?.let { sender info messages.editsInspectIp(it.verbatim()) }
-        if (edit.privileged.isEmpty()) {
+        val scan = mc.xalitoria.menu.paper.editor.EditorGuard.scanPrivilegedActions(edit.menu, limit = 50)
+        if (!scan.scannedAll) {
+            sender warn "Scan could not inspect the entire menu (nesting or size limit reached); review the file manually before applying.".verbatim()
+        } else if (scan.totalFound == 0) {
             sender pass messages.editsInspectClean
         } else {
-            sender warn messages.editsPrivileged(edit.privileged.size, edit.privileged.take(10).joinToString("; ").verbatim())
-            for (action in edit.privileged) sender info "  - $action".verbatim()
+            val preview = scan.actions.take(10).joinToString("; ")
+            val suffix = if (scan.totalFound > 10) "; ... (+${scan.totalFound - 10} more)" else ""
+            sender warn messages.editsPrivileged(scan.totalFound, "$preview$suffix".verbatim())
+            for (action in scan.actions) sender info "  - $action".verbatim()
+            if (scan.truncated) {
+                sender warn "  ...and ${scan.totalFound - scan.actions.size} more privileged action(s) not shown.".verbatim()
+            }
         }
         if (edit.problems.isNotEmpty()) sender.problems(edit.name, edit.problems)
         return Command.SINGLE_SUCCESS
@@ -471,6 +481,11 @@ object MenuCommand {
         val messages = cmdMsg.edit
         val edit = plugin.editor.pending.take(id)
         if (edit == null) { sender fail messages.editsUnknown(id); return Command.SINGLE_SUCCESS }
+        val scan = mc.xalitoria.menu.paper.editor.EditorGuard.scanPrivilegedActions(edit.menu)
+        if (!scan.scannedAll) {
+            sender fail messages.editsRefused(id, "menu structure is too complex to verify privileged actions")
+            return Command.SINGLE_SUCCESS
+        }
         when (val result = plugin.editor.menus.save(edit.name, edit.menu, reload = true)) {
             is EditorMenus.Result.Refused -> { sender fail messages.editsRefused(id, result.reason.verbatim()); return Command.SINGLE_SUCCESS }
             is EditorMenus.Result.Ok -> {

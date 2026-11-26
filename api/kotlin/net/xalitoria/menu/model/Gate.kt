@@ -19,8 +19,8 @@ data class Check(
  * A set of checks that decide whether something happens: opening a menu, showing an item, or a click doing its
  * actions. All the [require] checks must hold, except the [Check.optional] ones, and at least [minimum] of the checks must
  * (the optional ones count too; to accept any two of three, mark the three optional with a minimum of 2). With
- * [stopAtSuccess] the checks after the [minimum]th that holds are not looked at. [pass] and [deny] run for the gate as a
- * whole, after the checks' own.
+ * [stopAtSuccess] optional checks after the [minimum]th that holds are not looked at; non-optional checks must still hold.
+ * [pass] and [deny] run for the gate as a whole, after the checks' own.
  */
 @Serializable
 data class Gate(

@@ -17,6 +17,7 @@ import net.xalitoria.menu.Variable
 import java.math.BigDecimal
 import java.time.Instant
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicInteger
 import java.util.logging.Logger
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.minutes
@@ -38,6 +39,11 @@ internal class Shard(
     private val connect: (() -> SqlBackend)? = null,
     private val pollEvery: Duration? = null,
     private val onReady: (Shard) -> Unit = {},
+    private val maxKeyLength: Int = DEFAULT_MAX_KEY_LENGTH,
+    private val maxValueLength: Int = DEFAULT_MAX_VALUE_LENGTH,
+    private val maxEntriesPerOwner: Int = DEFAULT_MAX_ENTRIES_PER_OWNER,
+    private val maxTotalEntries: Int = DEFAULT_MAX_TOTAL_ENTRIES,
+    private val maxPendingWrites: Int = DEFAULT_MAX_PENDING_WRITES,
 ) {
     private class Entry(val variable: Variable, val rev: Long)
 
@@ -49,7 +55,8 @@ internal class Shard(
 
     /** Per variable, the changes queued or running; while there are any, what other servers wrote is not taken over it. */
     private val pending = ConcurrentHashMap<Key, Int>()
-    private val writes = Channel<Write>(Channel.UNLIMITED)
+    private val writes = Channel<Write>(maxPendingWrites)
+    private val queuedWrites = AtomicInteger()
 
     private val changed = MutableSharedFlow<Key>(extraBufferCapacity = 1024, onBufferOverflow = BufferOverflow.DROP_OLDEST)
 
@@ -117,22 +124,40 @@ internal class Shard(
 
     fun set(key: Key, value: String, expiry: Instant?, replace: Boolean): Boolean {
         if (!ready) return false
+        if (key.name.isBlank() || key.name.length > maxKeyLength || value.length > maxValueLength) return false
         val next = Variable(key.name, value, expiry)
         if (next.isExpired()) return false
+        if (!reserveWriteSlot()) return false
         track(key)
         var written = false
         cache.compute(key) { _, old ->
-            if (old != null && !old.variable.isExpired() && !replace) old else Entry(next, old?.rev ?: 0).also { written = true }
+            val live = old?.variable?.takeUnless { it.isExpired() }
+            if (live != null && !replace) return@compute old
+            if (live == null && !hasCapacityForNew(key)) return@compute old
+            written = true
+            Entry(next, old?.rev ?: 0)
         }
-        if (written) { changed.tryEmit(key); submit(Write.Put(key, value, expiry?.toEpochMilli(), replace)) } else untrack(key)
+        if (written) {
+            changed.tryEmit(key)
+            submit(Write.Put(key, value, expiry?.toEpochMilli(), replace))
+        } else {
+            untrack(key)
+            releaseWriteSlot()
+        }
         return written
     }
 
     fun remove(key: Key): Boolean {
         if (!ready) return false
+        if (!reserveWriteSlot()) return false
         track(key)
         val old = cache.remove(key)
-        if (old != null) submit(Write.Remove(key)) else untrack(key)
+        if (old != null) {
+            submit(Write.Remove(key))
+        } else {
+            untrack(key)
+            releaseWriteSlot()
+        }
         val existed = old != null && !old.variable.isExpired()
         if (existed) changed.tryEmit(key)
         return existed
@@ -140,26 +165,66 @@ internal class Shard(
 
     fun change(key: Key, change: (BigDecimal) -> BigDecimal): Boolean {
         if (!ready) return false
+        if (key.name.isBlank() || key.name.length > maxKeyLength) return false
+        if (!reserveWriteSlot()) return false
         track(key)
         var ok = true
         var wrote = false
         cache.compute(key) { _, old ->
             val live = old?.variable?.takeUnless { it.isExpired() }
+            if (live == null && !hasCapacityForNew(key)) {
+                ok = false
+                return@compute old
+            }
             val current = if (live == null) BigDecimal.ZERO else live.number
             val changed = if (current == null) null else try {
                 change(current)
             } catch (e: ArithmeticException) {
                 null
             }
-            if (changed == null) {
+            val formatted = changed?.let(Variable::format)
+            if (formatted == null || formatted.length > maxValueLength) {
                 ok = false
                 return@compute old
             }
             wrote = true
-            Entry(Variable(key.name, Variable.format(changed), live?.expiry), old?.rev ?: 0)
+            Entry(Variable(key.name, formatted, live?.expiry), old?.rev ?: 0)
         }
-        if (wrote) { changed.tryEmit(key); submit(Write.Change(key, change)) } else untrack(key)
+        if (wrote) {
+            changed.tryEmit(key)
+            submit(Write.Change(key, change))
+        } else {
+            untrack(key)
+            releaseWriteSlot()
+        }
         return ok
+    }
+
+    private fun hasCapacityForNew(key: Key): Boolean {
+        if (cache.size >= maxTotalEntries) {
+            var liveTotal = 0
+            for (entry in cache.values) if (!entry.variable.isExpired() && ++liveTotal >= maxTotalEntries) return false
+        }
+        if (key.owner != VariableStore.GLOBAL && maxEntriesPerOwner > 0) {
+            var owned = 0
+            for (entry in cache.entries) {
+                if (entry.key.owner == key.owner && !entry.value.variable.isExpired() && ++owned >= maxEntriesPerOwner) return false
+            }
+        }
+        return true
+    }
+
+    private fun reserveWriteSlot(): Boolean {
+        if (connect == null) return true
+        while (true) {
+            val current = queuedWrites.get()
+            if (current >= maxPendingWrites) return false
+            if (queuedWrites.compareAndSet(current, current + 1)) return true
+        }
+    }
+
+    private fun releaseWriteSlot() {
+        if (connect != null) queuedWrites.decrementAndGet()
     }
 
     /** The names of the variables of [owner] that exist now. */
@@ -216,7 +281,15 @@ internal class Shard(
     }
 
     private fun startBackground(sql: SqlBackend) {
-        writer = scope.launch(Dispatchers.IO) { for (write in writes) perform(sql, write) }
+        writer = scope.launch(Dispatchers.IO) {
+            for (write in writes) {
+                try {
+                    perform(sql, write)
+                } finally {
+                    releaseWriteSlot()
+                }
+            }
+        }
         val jobs = mutableListOf(sweeper())
         pollEvery?.let { every ->
             jobs += scope.launch(Dispatchers.IO) {
@@ -237,7 +310,10 @@ internal class Shard(
     }
 
     private fun submit(write: Write) {
-        if (connect != null) writes.trySend(write)
+        if (connect != null && writes.trySend(write).isFailure) {
+            untrack(write.key)
+            releaseWriteSlot()
+        }
     }
 
     private fun track(key: Key) {
@@ -305,5 +381,10 @@ internal class Shard(
     companion object {
         /** How long a removal stays in the database for the other servers to hear of. */
         val REMOVALS_KEPT = 10.minutes
+        const val DEFAULT_MAX_KEY_LENGTH = 128
+        const val DEFAULT_MAX_VALUE_LENGTH = 4096
+        const val DEFAULT_MAX_ENTRIES_PER_OWNER = 256
+        const val DEFAULT_MAX_TOTAL_ENTRIES = 100_000
+        const val DEFAULT_MAX_PENDING_WRITES = 10_000
     }
 }

@@ -136,6 +136,12 @@ data class MainConfig(
             val url: String = "https://menu.xali.to/relay",
             @YamlComment("The token the relay asks for when it opens sessions, if it does.")
             val token: String = "",
+            @YamlComment(
+                "Trust the browser IP reported in relay metadata for `verify-ip` checks (requires an https:// or loopback relay).",
+                "Off by default because relay IP metadata sits outside the end-to-end encrypted payload.",
+            )
+            @SerialName("trust-ip")
+            val trustIp: Boolean = false,
         )
     }
 

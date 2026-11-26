@@ -1,6 +1,6 @@
 # Menu file reference
 
-Every key of a menu file, XaliMenu 0.3.0. This page is written by `node editor/tools/reference.mjs` from `editor/web/schema.json`,
+Every key of a menu file, XaliMenu 0.4.1. This page is written by `node editor/tools/reference.mjs` from `editor/web/schema.json`,
 which comes from the plugin's classes and their comments, so it lists what the plugin reads. Do not edit it by hand: change the comment on
 the key, then run `./gradlew :menu:editor:schema` and the command above.
 
@@ -511,7 +511,7 @@ One step of an `Animation`. After `delay` (counted from the frame before, at lea
 
 ## Gate
 
-A set of checks that decide whether something happens: opening a menu, showing an item, or a click doing its actions. All the `require` checks must hold, except the `Check.optional` ones, and at least `minimum` of the checks must (the optional ones count too; to accept any two of three, mark the three optional with a minimum of 2). With `stopAtSuccess` the checks after the `minimum`th that holds are not looked at. `pass` and `deny` run for the gate as a whole, after the checks' own.
+A set of checks that decide whether something happens: opening a menu, showing an item, or a click doing its actions. All the `require` checks must hold, except the `Check.optional` ones, and at least `minimum` of the checks must (the optional ones count too; to accept any two of three, mark the three optional with a minimum of 2). With `stopAtSuccess` optional checks after the `minimum`th that holds are not looked at; non-optional checks must still hold. `pass` and `deny` run for the gate as a whole, after the checks' own.
 
 - `require`: list of [Check](#check); default `[]`
 

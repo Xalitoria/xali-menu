@@ -206,8 +206,10 @@ class XaliMenu : JavaPlugin() {
             val isShared = edit.reason == "shared link"
             val message = if (isShared) editMsg.heldNotice(edit.from.verbatim(), edit.name.verbatim(), edit.id)
             else editMsg.heldIpNotice(edit.from.verbatim(), edit.name.verbatim(), edit.id, edit.reason.verbatim())
-            val privWarning = if (edit.privileged.isNotEmpty()) {
-                editMsg.editsPrivileged(edit.privileged.size, edit.privileged.take(5).joinToString("; ").verbatim())
+            val privWarning = if (edit.privilegedTotal > 0 || edit.privilegedTruncated) {
+                val preview = edit.privileged.take(5).joinToString("; ")
+                val suffix = if (edit.privilegedTotal > 5) "; ... (+${edit.privilegedTotal - 5} more)" else ""
+                editMsg.editsPrivileged(edit.privilegedTotal, "$preview$suffix".verbatim())
             } else null
             server.onlinePlayers.filter { runCatching { it.hasPermission(Permissions.ADMIN) }.getOrDefault(false) }.forEach { admin ->
                 admin info message

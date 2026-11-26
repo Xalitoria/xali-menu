@@ -188,4 +188,34 @@ class LocalVariables {
         assertTrue(store.set(Scope.Global, "x", "1"))
         assertEquals("1", store[Scope.Global, "x"]?.value)
     }
+
+    @Test
+    fun variableShardEnforcesKeyValueAndPerOwnerLimits() {
+        val shard = Shard(
+            name = "bounded",
+            scope = scope,
+            logger = logger,
+            maxKeyLength = 8,
+            maxValueLength = 10,
+            maxEntriesPerOwner = 2,
+            maxTotalEntries = 3,
+        )
+        val store = VariableStore(StoreRules(StoreKind.MEMORY, emptyList()), shard, shard, null)
+
+        assertFalse(store.set(player, "   ", "1"), "blank key is rejected")
+        assertFalse(store.set(player, "toolongkey", "1"), "oversized key is rejected")
+        assertFalse(store.set(player, "ok", "01234567890"), "oversized value is rejected")
+
+        assertTrue(store.set(player, "a", "1"))
+        assertTrue(store.set(player, "b", "2"))
+        assertFalse(store.set(player, "c", "3"), "per-owner cap blocks unbounded key creation")
+        assertTrue(store.set(player, "a", "updated"), "updating an existing key is still allowed at the cap")
+
+        val other = Scope.Player(UUID.randomUUID())
+        assertTrue(store.set(other, "a", "1"))
+        assertFalse(store.set(other, "b", "2"), "total cap blocks unbounded growth across owners")
+
+        assertTrue(store.set(player, "a", "9999999999"))
+        assertFalse(store.change(player, "a") { it * BigDecimal("10") }, "numeric growth past maxValueLength is rejected")
+    }
 }

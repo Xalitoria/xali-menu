@@ -20,6 +20,8 @@ internal class PendingEdits(private val limit: Int = 50, private val perSourceLi
         val clientIp: String? = null,
         val reason: String = "shared link",
         val privileged: List<String> = emptyList(),
+        val privilegedTotal: Int = privileged.size,
+        val privilegedTruncated: Boolean = privilegedTotal > privileged.size,
     )
 
     private val counter = AtomicInteger()
@@ -40,6 +42,8 @@ internal class PendingEdits(private val limit: Int = 50, private val perSourceLi
         clientIp: String? = null,
         reason: String = "shared link",
         privileged: List<String> = emptyList(),
+        privilegedTotal: Int = privileged.size,
+        privilegedTruncated: Boolean = privilegedTotal > privileged.size,
     ): Edit {
         edits.values.removeIf { it.from == from && it.name == name && it.clientIp == clientIp }
         if (clientIp != null && perSourceLimit > 0) {
@@ -47,7 +51,7 @@ internal class PendingEdits(private val limit: Int = 50, private val perSourceLi
             val dropCount = sameIp.size - perSourceLimit + 1
             for (i in 0 until dropCount.coerceAtLeast(0)) edits.remove(sameIp[i])
         }
-        val edit = Edit(counter.incrementAndGet(), from, name, menu, problems, now, clientIp, reason, privileged)
+        val edit = Edit(counter.incrementAndGet(), from, name, menu, problems, now, clientIp, reason, privileged, privilegedTotal, privilegedTruncated)
         edits[edit.id] = edit
         while (edits.size > limit) edits.remove(edits.keys.first())
         return edit

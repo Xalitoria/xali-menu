@@ -239,6 +239,20 @@ class Editor {
         assertEquals(EditorGuard.SaveDecision.PermissionRevoked, EditorGuard.checkSave(MainConfig.VerifyIp.ADMIN, false, false, "1.2.3.4", false, "1.2.3.4", listOf("1.2.3.4")))
         val sharedHold = EditorGuard.checkSave(MainConfig.VerifyIp.OFF, true, false, "1.2.3.4", true, "1.2.3.4", listOf("1.2.3.4"))
         assertTrue(sharedHold is EditorGuard.SaveDecision.Hold && sharedHold.code == "shared")
+
+        // Shared IPs (NAT/LAN/proxy with non-admin or another player on the same IP) must hold, never prove identity.
+        val adminShared = EditorGuard.checkSave(
+            MainConfig.VerifyIp.ADMIN, false, false, "1.2.3.4", true, "1.2.3.4",
+            onlineAdminIps = listOf("1.2.3.4"),
+            onlineNonAdminIps = listOf("1.2.3.4"),
+        )
+        assertTrue(adminShared is EditorGuard.SaveDecision.Hold && adminShared.code == "shared-ip")
+        val ownerShared = EditorGuard.checkSave(
+            MainConfig.VerifyIp.OWNER, false, false, "1.2.3.4", true, "1.2.3.4",
+            onlineAdminIps = listOf("1.2.3.4"),
+            ipSharedWithOtherPlayer = true,
+        )
+        assertTrue(ownerShared is EditorGuard.SaveDecision.Hold && ownerShared.code == "shared-ip")
     }
 
     @Test
@@ -291,6 +305,50 @@ class Editor {
             ),
             found,
         )
+
+        // Item literally named `condition` with privileged action in `pass`, plus `player` and command-like `chat`.
+        val tricky = ConfigFactory.parseString(
+            """
+            {
+              "items": {
+                "condition": {
+                  "material": "stone",
+                  "slot": 0,
+                  "click": {
+                    "left": {
+                      "require": {
+                        "pass": [{ "type": "console", "command": "op evil" }]
+                      },
+                      "actions": [
+                        { "type": "player", "command": "op evil" },
+                        { "type": "chat", "text": "/op evil" },
+                        { "type": "chat", "text": "hello world" }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+            """.trimIndent(),
+        ).root()
+        val trickyScan = EditorGuard.scanPrivilegedActions(tricky)
+        assertTrue(trickyScan.complete)
+        assertEquals(listOf("console: op evil", "player: op evil", "chat: /op evil"), trickyScan.actions)
+
+        // Truncated count and exceeded depth are flagged rather than treated as complete/clean.
+        val truncatedScan = EditorGuard.scanPrivilegedActions(menu, limit = 2)
+        assertEquals(2, truncatedScan.actions.size)
+        assertEquals(5, truncatedScan.totalFound)
+        assertTrue(truncatedScan.truncated)
+        assertTrue(truncatedScan.scannedAll)
+        assertFalse(truncatedScan.complete)
+
+        var deep = """{ "type": "console", "command": "op deep" }"""
+        repeat(8) { deep = """{ "type": "all", "actions": [$deep] }""" }
+        val deepScan = EditorGuard.scanPrivilegedActions(ConfigFactory.parseString("""{ "on-open": [$deep] }""").root(), maxDepth = 4)
+        assertTrue(deepScan.depthExceeded)
+        assertFalse(deepScan.scannedAll)
+        assertFalse(deepScan.complete)
     }
 
     @Test
@@ -365,8 +423,12 @@ class Editor {
         assertTrue(EditorPush.parseTarget("Ab9-_xK2pQ7m", "https://menu.xali.to/relay") is EditorPush.Target.Relay)
         assertTrue(EditorPush.parseTarget("https://menu.xali.to/#Ab9-_xK2pQ7m&relay=https%3A%2F%2Frelay.example.com", "https://menu.xali.to/relay") is EditorPush.Target.Relay)
         assertTrue(EditorPush.parseTarget("https://menu.xali.to/#server=http%3A%2F%2F127.0.0.1%3A8123&token=TOK", "https://menu.xali.to/relay") is EditorPush.Target.Direct)
+        assertTrue(EditorPush.parseTarget("https://menu.xali.to/#server=https%3A%2F%2Fplay.example.com%3A8443&token=TOK", "https://menu.xali.to/relay") is EditorPush.Target.Direct)
+        assertNull(EditorPush.parseTarget("https://menu.xali.to/#server=http%3A%2F%2Fplay.example.com%3A8123&token=TOK", "https://menu.xali.to/relay"), "non-loopback cleartext HTTP direct push must be refused")
         assertNull(EditorPush.parseTarget("not-a-link", "https://menu.xali.to/relay"))
         assertNull(EditorPush.parseTarget("https://menu.xali.to/#server=file%3A%2F%2F%2Fetc%2Fpasswd&token=TOK", "https://menu.xali.to/relay"))
+        val refusedCleartext = EditorPush.push(EditorPush.Target.Direct("http://play.example.com:8123", "TOK"), "shop", ConfigFactory.parseString("""{"title":"S"}""").root(), "Steve")
+        assertTrue(refusedCleartext is EditorPush.Result.Failed)
 
         val code = "Ab9-_xK2pQ7m"
         val derived = RelayCrypto.derive(code)
@@ -405,6 +467,34 @@ class Editor {
             assertEquals(EditorPush.Result.Held(id = 7, reason = "IP mismatch (1.2.3.4)", problems = emptyList()), relayRes)
         } finally {
             server.stop(0)
+        }
+    }
+
+    @Test
+    fun slowBodyRequestsTimeOutWithoutWedgingWorkers() {
+        val timer = java.util.concurrent.Executors.newSingleThreadScheduledExecutor()
+        val server = com.sun.net.httpserver.HttpServer.create(java.net.InetSocketAddress("127.0.0.1", 0), 0)
+        val outcome = java.util.concurrent.CompletableFuture<mc.xalitoria.menu.paper.editor.EditorServer.BodyRead>()
+        server.createContext("/slow") { ex ->
+            try {
+                outcome.complete(mc.xalitoria.menu.paper.editor.EditorServer.readBodyWithTimeout(ex, 1024, 150L, timer))
+            } finally {
+                ex.close()
+            }
+        }
+        server.start()
+        try {
+            java.net.Socket("127.0.0.1", server.address.port).use { socket ->
+                socket.getOutputStream().write("POST /slow HTTP/1.1\r\nHost: 127.0.0.1\r\nContent-Length: 500\r\n\r\npartial".toByteArray())
+                socket.getOutputStream().flush()
+                assertEquals(
+                    mc.xalitoria.menu.paper.editor.EditorServer.BodyRead.TimedOut,
+                    outcome.get(3, java.util.concurrent.TimeUnit.SECONDS),
+                )
+            }
+        } finally {
+            server.stop(0)
+            timer.shutdownNow()
         }
     }
 }

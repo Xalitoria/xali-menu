@@ -11,10 +11,32 @@ import java.net.InetAddress
  */
 internal object EditorGuard {
     /** Action types that can escalate privileges or execute arbitrary commands on the server. */
-    private val PRIVILEGED_ACTIONS = setOf("console", "permission", "group", "meta", "gamemode")
+    private val PRIVILEGED_ACTIONS = setOf("console", "permission", "group", "meta", "gamemode", "player", "chat")
+    private val ACTION_CONTEXT_KEYS = setOf(
+        "pass", "deny", "actions", "action", "then", "reject",
+        "on-open", "on-close", "on-start", "on-end", "on-submit", "on-cancel",
+        "items", "click", "accept", "bedrock", "animation", "frames", "pages",
+    )
+    private val ITEM_MAP_KEYS = setOf("items", "map", "templates")
     private val NUMERIC_IPV4 = Regex("\\d{1,3}(\\.\\d{1,3}){3}")
     private val NUMERIC_IPV6 = Regex("[0-9a-fA-F:]+(?:\\.\\d{1,3}){3}|[0-9a-fA-F:]+")
-    private const val MAX_WALK_DEPTH = 32
+    internal const val MAX_WALK_DEPTH = 64
+    internal const val MAX_WALK_NODES = 20_000
+
+    /** Outcome of scanning a menu tree for privileged actions. */
+    data class PrivilegedScan(
+        val actions: List<String>,
+        val totalFound: Int = actions.size,
+        val truncated: Boolean = false,
+        val depthExceeded: Boolean = false,
+        val nodeLimitExceeded: Boolean = false,
+    ) {
+        /** False when the walk hit its depth or node ceiling and could not inspect the whole menu. */
+        val scannedAll: Boolean get() = !depthExceeded && !nodeLimitExceeded
+
+        /** True only when the whole menu was scanned and every privileged action is listed in [actions]. */
+        val complete: Boolean get() = scannedAll && !truncated
+    }
 
     /** Outcome of checking whether a save request may write straight to disk or must be held / refused. */
     sealed interface SaveDecision {
@@ -81,20 +103,25 @@ internal object EditorGuard {
         ownerStillAllowed: Boolean,
         clientIp: String?,
         onlineAdminIps: Collection<String>,
+        onlineNonAdminIps: Collection<String> = emptyList(),
+        ipSharedWithOtherPlayer: Boolean = false,
     ): SaveDecision {
         if (readOnly) return SaveDecision.ReadOnly
         if (shared) return SaveDecision.Hold("shared link", "shared")
         if (!ownerStillAllowed) return SaveDecision.PermissionRevoked
+        val sharedWithNonAdmin = clientIp != null && onlineNonAdminIps.any { ipsMatch(it, clientIp) }
         return when (policy) {
             VerifyIp.OFF -> SaveDecision.Allow
             VerifyIp.OWNER -> when {
                 ownerIp == null -> SaveDecision.Hold("console session (no player IP)", "ip-mismatch")
                 clientIp == null -> SaveDecision.Hold("client IP unavailable", "ip-mismatch")
+                sharedWithNonAdmin || ipSharedWithOtherPlayer -> SaveDecision.Hold("shared IP ($clientIp)", "shared-ip")
                 ipsMatch(ownerIp, clientIp) -> SaveDecision.Allow
                 else -> SaveDecision.Hold("IP mismatch ($clientIp)", "ip-mismatch")
             }
             VerifyIp.ADMIN -> when {
                 clientIp == null -> SaveDecision.Hold("client IP unavailable", "ip-mismatch")
+                sharedWithNonAdmin -> SaveDecision.Hold("shared IP ($clientIp)", "shared-ip")
                 ownerIp != null && ipsMatch(ownerIp, clientIp) -> SaveDecision.Allow
                 onlineAdminIps.any { ipsMatch(it, clientIp) } -> SaveDecision.Allow
                 else -> SaveDecision.Hold("IP mismatch ($clientIp)", "ip-mismatch")
@@ -103,46 +130,86 @@ internal object EditorGuard {
     }
 
     /**
-     * Walks [menu] and summarizes every privileged action (`console`, `permission`, `group`, `meta`, `gamemode`) so admins
-     * see them before applying a pending edit. Ignores `condition` / `conditions` subtrees so permission/group/gamemode
-     * conditions are never flagged as actions.
+     * Walks [menu] and summarizes every privileged action (`console`, `permission`, `group`, `meta`, `gamemode`,
+     * `player`, command-like `chat`) so admins see them before applying a pending edit. Ignores actual `condition` /
+     * `conditions` subtrees without letting item names or `pass` lists hide actions.
      */
-    fun privilegedActions(menu: ConfigObject, limit: Int = 20): List<String> {
-        val found = ArrayList<String>()
-        walk(menu, inCondition = false, depth = 0, out = found, limit = limit)
-        return found
-    }
+    fun privilegedActions(menu: ConfigObject, limit: Int = 20): List<String> =
+        scanPrivilegedActions(menu, limit).actions
 
-    private fun walk(node: Any?, inCondition: Boolean, depth: Int, out: MutableList<String>, limit: Int) {
-        if (depth > MAX_WALK_DEPTH || out.size >= limit || node == null) return
-        when (node) {
-            is ConfigObject -> {
-                if (!inCondition) summarizeAction(node)?.let { out.add(it) }
-                if (out.size >= limit) return
-                for ((key, value) in node) {
-                    val childCondition = when (key.lowercase()) {
-                        "condition", "conditions" -> true
-                        "deny", "actions", "action", "then", "reject", "on-open", "on-close", "on-start", "on-end", "on-submit", "on-cancel" -> false
-                        else -> inCondition
-                    }
-                    walk(value, childCondition, depth + 1, out, limit)
-                    if (out.size >= limit) return
-                }
+    /** Full scan of [menu] for privileged actions, reporting truncation or depth/node-limit overflow explicitly. */
+    fun scanPrivilegedActions(
+        menu: ConfigObject,
+        limit: Int = 20,
+        maxDepth: Int = MAX_WALK_DEPTH,
+        maxNodes: Int = MAX_WALK_NODES,
+    ): PrivilegedScan {
+        val found = ArrayList<String>()
+        var total = 0
+        var nodes = 0
+        var depthExceeded = false
+        var nodeLimitExceeded = false
+
+        fun walk(node: Any?, inCondition: Boolean, inItemMap: Boolean, depth: Int) {
+            if (node == null) return
+            if (depth > maxDepth) {
+                depthExceeded = true
+                return
             }
-            is ConfigList -> {
-                for (item in node) {
-                    walk(item, inCondition, depth + 1, out, limit)
-                    if (out.size >= limit) return
+            if (++nodes > maxNodes) {
+                nodeLimitExceeded = true
+                return
+            }
+            when (node) {
+                is ConfigObject -> {
+                    if (!inCondition) {
+                        summarizeAction(node)?.let { summary ->
+                            total++
+                            if (found.size < limit) found.add(summary)
+                        }
+                    }
+                    for ((key, value) in node) {
+                        val lower = key.lowercase()
+                        val childCondition = when {
+                            inItemMap -> false
+                            lower == "condition" || lower == "conditions" -> true
+                            lower in ACTION_CONTEXT_KEYS -> false
+                            else -> inCondition
+                        }
+                        val childItemMap = !childCondition && lower in ITEM_MAP_KEYS
+                        walk(value, childCondition, childItemMap, depth + 1)
+                        if (nodeLimitExceeded) return
+                    }
+                }
+                is ConfigList -> {
+                    for (item in node) {
+                        walk(item, inCondition, inItemMap = false, depth = depth + 1)
+                        if (nodeLimitExceeded) return
+                    }
                 }
             }
         }
+
+        walk(menu, inCondition = false, inItemMap = false, depth = 0)
+        return PrivilegedScan(
+            actions = found,
+            totalFound = total,
+            truncated = total > found.size,
+            depthExceeded = depthExceeded,
+            nodeLimitExceeded = nodeLimitExceeded,
+        )
     }
 
     private fun summarizeAction(obj: ConfigObject): String? {
-        val type = stringOf(obj, "type")?.lowercase() ?: return null
+        val type = stringOf(obj, "type")?.trim()?.lowercase() ?: return null
         if (type !in PRIVILEGED_ACTIONS) return null
         return when (type) {
             "console" -> "console: ${cleanValue(stringOf(obj, "command") ?: "")}"
+            "player" -> "player: ${cleanValue(stringOf(obj, "command") ?: "")}"
+            "chat" -> {
+                val text = cleanValue(stringOf(obj, "text") ?: "")
+                if (text.startsWith("/") || '{' in text || '%' in text) "chat: $text" else null
+            }
             "permission" -> {
                 val prefix = if (boolOf(obj, "take")) "-" else "+"
                 "permission: $prefix${cleanValue(stringOf(obj, "node") ?: "")}"

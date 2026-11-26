@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { skin, Texture } from '../src/assets.js'
+import { safeSkinUrl, skin, Texture } from '../src/assets.js'
 import { skinSpec } from '../src/itemrender.js'
 
 const sheet = (width, height, fill) => {
@@ -38,4 +38,21 @@ test('skinSpec resolves player names, texture URLs, base64, head: material, and 
   assert.equal(skinSpec({ material: `texture:${b64}` }), `url:${url}`)
   assert.equal(skinSpec({ material: 'player_head', nbt: '[minecraft:profile={name:"audizian"}]' }), 'player:audizian')
   assert.equal(skinSpec({ material: 'stone', nbt: '[minecraft:profile={name:"audizian"}]' }), null)
+})
+
+test('safeSkinUrl allows only canonical Mojang texture addresses', () => {
+  const hash = '292009a4925b58f02c77dadc3ecef07ea4c7472f64e0fdc32ce5522489362680'
+  assert.equal(safeSkinUrl(`http://textures.minecraft.net/texture/${hash}`), `https://textures.minecraft.net/texture/${hash}`)
+  assert.equal(safeSkinUrl(`https://textures.minecraft.net/texture/${hash}`), `https://textures.minecraft.net/texture/${hash}`)
+  for (const bad of [
+    `https://evil.example/texture/${hash}`,
+    `https://textures.minecraft.net.evil.example/texture/${hash}`,
+    `https://textures.minecraft.net:8443/texture/${hash}`,
+    `https://user@textures.minecraft.net/texture/${hash}`,
+    `https://textures.minecraft.net/texture/${hash}?x=1`,
+    'http://169.254.169.254/latest/meta-data/',
+    'file:///etc/passwd',
+  ]) {
+    assert.equal(safeSkinUrl(bad), null, bad)
+  }
 })

@@ -184,20 +184,26 @@ class Reader {
   }
 }
 
+function isUnsafeKey(key) {
+  return key === '__proto__' || key === 'constructor' || key === 'prototype'
+}
+
 /** Sets [path] in [target] to [value], merging objects that meet, and appending to a list for `+=`. */
 function assign(target, path, value, append, fail) {
   let node = target
   for (let i = 0; i < path.length - 1; i++) {
     const key = path[i]
-    if (typeof node[key] !== 'object' || node[key] === null || Array.isArray(node[key])) node[key] = {}
+    if (isUnsafeKey(key)) fail(`unsafe key '${key}'`)
+    if (!Object.hasOwn(node, key) || typeof node[key] !== 'object' || node[key] === null || Array.isArray(node[key])) node[key] = {}
     node = node[key]
   }
   const last = path[path.length - 1]
+  if (isUnsafeKey(last)) fail(`unsafe key '${last}'`)
   if (append) {
-    if (node[last] === undefined) node[last] = []
+    if (!Object.hasOwn(node, last)) node[last] = []
     if (!Array.isArray(node[last])) fail(`'${path.join('.')}' is not a list, so += cannot add to it`)
     node[last].push(value)
-  } else if (isObject(node[last]) && isObject(value)) {
+  } else if (Object.hasOwn(node, last) && isObject(node[last]) && isObject(value)) {
     merge(node[last], value)
   } else {
     node[last] = value
@@ -208,7 +214,8 @@ function isObject(value) { return typeof value === 'object' && value !== null &&
 
 function merge(into, from) {
   for (const key of Object.keys(from)) {
-    if (isObject(into[key]) && isObject(from[key])) merge(into[key], from[key])
+    if (key === '__proto__' || key === 'constructor' || key === 'prototype') continue
+    if (Object.hasOwn(into, key) && isObject(into[key]) && isObject(from[key])) merge(into[key], from[key])
     else into[key] = from[key]
   }
 }

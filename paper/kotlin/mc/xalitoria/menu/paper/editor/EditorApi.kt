@@ -98,21 +98,26 @@ internal class EditorApi(private val plugin: XaliMenu, val menus: EditorMenus, v
         )
     }
 
-    /** Online player matching [clientIp], preferring an admin when several players share an IP (e.g. NAT/LAN). */
+    /** Online player uniquely matching [clientIp]; returns null when multiple players share the IP (NAT/LAN/proxy). */
     private fun onlinePlayerFor(clientIp: String?): Player? {
         if (clientIp == null) return null
         val matches = plugin.server.onlinePlayers.filter { player ->
             val ip = runCatching { player.address?.address?.hostAddress }.getOrNull()
             EditorGuard.ipsMatch(ip, clientIp)
         }
-        return matches.firstOrNull { runCatching { it.hasPermission(Permissions.ADMIN) }.getOrDefault(false) } ?: matches.firstOrNull()
+        return matches.singleOrNull()
     }
 
-    /** Normalized IPs of all currently online players with [Permissions.ADMIN]. */
-    private fun onlineAdminIps(): List<String> = plugin.server.onlinePlayers.mapNotNull { player ->
-        runCatching {
-            if (player.hasPermission(Permissions.ADMIN)) EditorGuard.normalizeIp(player.address?.address?.hostAddress) else null
-        }.getOrNull()
+    /** Normalized IPs of currently online players, split into admins and non-admins. */
+    private fun onlineIpsByRole(): Pair<List<String>, List<String>> {
+        val admins = ArrayList<String>()
+        val nonAdmins = ArrayList<String>()
+        for (player in plugin.server.onlinePlayers) {
+            val ip = runCatching { EditorGuard.normalizeIp(player.address?.address?.hostAddress) }.getOrNull() ?: continue
+            val isAdmin = runCatching { player.hasPermission(Permissions.ADMIN) }.getOrDefault(false)
+            if (isAdmin) admins.add(ip) else nonAdmins.add(ip)
+        }
+        return admins to nonAdmins
     }
 
     /** Evaluates the current save/IP authorization state for [who] (used upfront in `/info` & `/presence` and enforced on `PUT`). */
@@ -120,8 +125,13 @@ internal class EditorApi(private val plugin: XaliMenu, val menus: EditorMenus, v
         val matched = onlinePlayerFor(who.clientIp)
         val ownerStillAllowed = who.ownerUuid?.let { uuid ->
             val player = plugin.server.getPlayer(uuid)
-            player == null || runCatching { player.hasPermission(Permissions.ADMIN) }.getOrDefault(false)
+            player != null && runCatching { player.hasPermission(Permissions.ADMIN) }.getOrDefault(false)
         } ?: true
+        val [adminIps, nonAdminIps] = onlineIpsByRole()
+        val ipSharedWithOtherPlayer = who.clientIp != null && plugin.server.onlinePlayers.any { player ->
+            player.uniqueId != who.ownerUuid &&
+                EditorGuard.ipsMatch(runCatching { player.address?.address?.hostAddress }.getOrNull(), who.clientIp)
+        }
         val decision = EditorGuard.checkSave(
             policy = plugin.config.data.editor.verifyIp,
             shared = who.shared,
@@ -129,7 +139,9 @@ internal class EditorApi(private val plugin: XaliMenu, val menus: EditorMenus, v
             ownerIp = who.ownerIp,
             ownerStillAllowed = ownerStillAllowed,
             clientIp = who.clientIp,
-            onlineAdminIps = onlineAdminIps(),
+            onlineAdminIps = adminIps,
+            onlineNonAdminIps = nonAdminIps,
+            ipSharedWithOtherPlayer = ipSharedWithOtherPlayer,
         )
         return decision to matched
     }
@@ -137,11 +149,11 @@ internal class EditorApi(private val plugin: XaliMenu, val menus: EditorMenus, v
     private fun accessStatus(who: Caller, decision: EditorGuard.SaveDecision): Pair<Boolean, String?> = when (decision) {
         EditorGuard.SaveDecision.Allow -> true to null
         EditorGuard.SaveDecision.ReadOnly -> false to null
-        EditorGuard.SaveDecision.PermissionRevoked -> false to "${who.owner} no longer has ${Permissions.ADMIN} permission to save menus."
+        EditorGuard.SaveDecision.PermissionRevoked -> false to "${who.owner} must be online with ${Permissions.ADMIN} permission to save menus."
         is EditorGuard.SaveDecision.Hold -> if (who.shared) {
             true to null
         } else {
-            false to "IP check (${decision.reason}): your browser IP does not match an online admin in-game. Changes can still be edited and submitted, but saves will be held in /xmenu edits until approved in-game (or an admin joins from your IP)."
+            false to "IP check (${decision.reason}): your browser IP does not uniquely match an online admin in-game. Changes can still be edited and submitted, but saves will be held in /xmenu edits until approved in-game."
         }
     }
 
@@ -283,21 +295,27 @@ internal class EditorApi(private val plugin: XaliMenu, val menus: EditorMenus, v
     private fun hold(name: String, menu: ConfigObject, who: Caller, reason: String, matchedName: String?): Reply = when (val checked = menus.check(name, menu)) {
         is EditorMenus.Result.Refused -> error(422, checked.reason)
         is EditorMenus.Result.Ok -> {
-            val senderLabel = matchedName ?: who.from
-            val privileged = EditorGuard.privilegedActions(menu)
-            val edit = pending.add(
-                from = senderLabel,
-                name = name,
-                menu = menu,
-                problems = checked.problems,
-                clientIp = who.clientIp,
-                reason = reason,
-                privileged = privileged,
-            )
-            val privNote = if (privileged.isNotEmpty()) " [${privileged.size} privileged action(s)]" else ""
-            log(senderLabel, "held an edit of menu '$name' (#${edit.id}, $reason)$privNote")
-            onHeld(edit)
-            json(200, Held(checked.problems, held = true, id = edit.id, reason = reason))
+            val scan = EditorGuard.scanPrivilegedActions(menu)
+            if (!scan.scannedAll) {
+                error(422, "Menu structure is too deeply nested or large to inspect for privileged actions")
+            } else {
+                val senderLabel = matchedName ?: who.from
+                val edit = pending.add(
+                    from = senderLabel,
+                    name = name,
+                    menu = menu,
+                    problems = checked.problems,
+                    clientIp = who.clientIp,
+                    reason = reason,
+                    privileged = scan.actions,
+                    privilegedTotal = scan.totalFound,
+                    privilegedTruncated = scan.truncated,
+                )
+                val privNote = if (scan.totalFound > 0) " [${scan.totalFound} privileged action(s)]" else ""
+                log(senderLabel, "held an edit of menu '$name' (#${edit.id}, $reason)$privNote")
+                onHeld(edit)
+                json(200, Held(checked.problems, held = true, id = edit.id, reason = reason))
+            }
         }
     }
 

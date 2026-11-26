@@ -166,9 +166,9 @@ object Social {
         }
     }
 
-    /** [value] as one argument of a command: in quotes if it has a space, with the quotes in it taken out. */
+    /** [value] as one argument of a command: in quotes if it has a space, with quotes and backslashes taken out. */
     fun quote(value: String): String {
-        val clean = value.replace("\"", "").filter { !it.isISOControl() }
+        val clean = value.replace("\\", "").replace("\"", "").filter { !it.isISOControl() }
         return if (clean.any { it.isWhitespace() } || clean.isEmpty()) "\"$clean\"" else clean
     }
 }

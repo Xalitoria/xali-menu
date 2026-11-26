@@ -121,4 +121,25 @@ class EditorRelayTest {
             assertFalse(EditorRelay.CALL_ID.matches(bad), bad)
         }
     }
+
+    @Test
+    fun oversizedPollAndCallPayloadsAreDroppedBeforeParsing() {
+        val small = java.io.ByteArrayInputStream(ByteArray(10) { 1 })
+        assertEquals(10, EditorRelay.readBounded(small, 10)?.size)
+        val tooBig = java.io.ByteArrayInputStream(ByteArray(11) { 1 })
+        assertNull(EditorRelay.readBounded(tooBig, 10))
+
+        val okEncoded = Base64.getUrlEncoder().withoutPadding().encodeToString("hello".toByteArray())
+        assertEquals("hello", EditorRelay.decodeCallData(okEncoded)?.decodeToString())
+        val oversizedEncoded = "A".repeat(((EditorRelay.MAX_RELAY_BODY + 2) / 3) * 4 + 4)
+        assertNull(EditorRelay.decodeCallData(oversizedEncoded))
+    }
+
+    @Test
+    fun unauthenticatedRelayIpMetadataRequiresExplicitTrustAndSafeTransport() {
+        assertNull(EditorRelay.trustedRelayIp("https://menu.xali.to/relay", trustIp = false, rawIp = "203.0.113.5"))
+        assertNull(EditorRelay.trustedRelayIp("http://relay.example.com", trustIp = true, rawIp = "203.0.113.5"))
+        assertEquals("203.0.113.5", EditorRelay.trustedRelayIp("https://menu.xali.to/relay", trustIp = true, rawIp = "203.0.113.5"))
+        assertEquals("203.0.113.5", EditorRelay.trustedRelayIp("http://127.0.0.1:8787", trustIp = true, rawIp = "::ffff:203.0.113.5"))
+    }
 }

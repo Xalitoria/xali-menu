@@ -66,7 +66,7 @@ object Actions {
     /** The console runs [command]. */
     @Serializable @SerialName("console")
     data class Console(val command: String) : Action {
-        override fun run(ctx: MenuContext) = ctx.console(ctx.parse(command))
+        override fun run(ctx: MenuContext) = ctx.console(mc.xalitoria.menu.paper.runtime.formatConsoleCommand(command, ctx))
     }
 
     /** The viewer says [text] in chat. */
@@ -285,36 +285,55 @@ object Actions {
 
         override fun run(ctx: MenuContext) {
             val plugin = XaliMenu.INSTANCE
-            val variables = plugin.variables
+            execute(ctx, plugin.variables) { key ->
+                ctx.player fail plugin.messageConfig.data.commands.variable.unavailable(key.verbatim())
+            }
+        }
+
+        internal fun execute(ctx: MenuContext, variables: net.xalitoria.menu.Variables, onUnavailable: (String) -> Unit) {
             val key = ctx.parse(name)
             if (!variables.isAvailable(key)) {
-                ctx.player fail plugin.messageConfig.data.commands.variable.unavailable(key.verbatim())
-                return
+                onUnavailable(key)
+                ctx.abort()
             }
             val owner: net.xalitoria.menu.Scope = if (scope == Scope.GLOBAL) net.xalitoria.menu.Scope.Global else {
                 val named = player?.let(ctx::parse)?.trim()?.ifEmpty { null }
                 val id = if (named == null) ctx.player.uniqueId
                 else ctx.player.server.getPlayerExact(named)?.uniqueId ?: ctx.player.server.getOfflinePlayerIfCached(named)?.uniqueId
-                    ?: return debug("Variable {0}: no player named {1}", key, named)
+                    ?: run {
+                        debug("Variable {0}: no player named {1}", key, named)
+                        ctx.abort()
+                    }
                 net.xalitoria.menu.Scope.Player(id)
             }
             val text = ctx.parse(value)
-            when (op) {
+            val ok = when (op) {
                 Op.SET -> {
                     val until = expiry?.let { java.time.Instant.now().plusMillis(it.inWholeMilliseconds) }
                     variables.set(owner, key, text, until, replace)
                 }
                 Op.REMOVE -> variables.remove(owner, key)
                 else -> {
-                    val amount = net.xalitoria.menu.Variable.parseNumber(text) ?: return debug("Variable {0}: '{1}' isn't a number", key, text)
+                    val amount = net.xalitoria.menu.Variable.parseNumber(text) ?: run {
+                        debug("Variable {0}: '{1}' isn't a number", key, text)
+                        ctx.abort()
+                    }
+                    if (op == Op.DIV && amount.signum() == 0) {
+                        debug("Variable {0}: cannot divide by zero", key)
+                        ctx.abort()
+                    }
                     val change: (BigDecimal) -> BigDecimal = when (op) {
                         Op.INC -> { current -> current + amount }
                         Op.DEC -> { current -> current - amount }
                         Op.MUL -> { current -> (current * amount).setScale(PRECISION, RoundingMode.HALF_UP) }
-                        else -> { current -> if (amount.signum() == 0) current else current.divide(amount, PRECISION, RoundingMode.HALF_UP) }
+                        else -> { current -> current.divide(amount, PRECISION, RoundingMode.HALF_UP) }
                     }
                     variables.change(owner, key, change)
                 }
+            }
+            if (!ok) {
+                debug("Variable {0}: {1} failed", key, op)
+                ctx.abort()
             }
         }
     }

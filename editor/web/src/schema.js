@@ -11,7 +11,9 @@ export class Schema {
   }
 
   static async load(url = 'schema.json') {
-    const response = await fetch(url)
+    const file = String(url ?? '').replace(/^\.\//, '')
+    if (!/^[A-Za-z0-9_-]+\.json$/.test(file)) throw new Error('Invalid schema path')
+    const response = await fetch(`./${encodeURIComponent(file)}`)
     if (!response.ok) throw new Error(`The schema could not be loaded (${response.status})`)
     return new Schema(await response.json())
   }

@@ -4,6 +4,7 @@ import com.xalitoria.util.bukkit.runConsoleCommand
 import mc.xalitoria.menu.paper.XaliMenu
 import net.xalitoria.menu.Action
 import net.xalitoria.menu.ActionsAborted
+import net.xalitoria.menu.MenuContext
 import org.bukkit.entity.Player
 
 /**
@@ -27,6 +28,10 @@ class ActionRunner(private val plugin: XaliMenu) : Host {
 
     /** Folia has no main thread to run the console on; the global region is where console commands go. */
     override fun console(command: String) {
+        if (command.isBlank() || command.any { it.isISOControl() }) {
+            plugin.logger.warning("Refused to run blank or control-character console command")
+            return
+        }
         plugin.runConsoleCommand(command)
     }
 
@@ -72,4 +77,67 @@ fun runActions(actions: List<Action>, ctx: Context, failed: (Action, String?) ->
         }
     }
     return complete
+}
+
+private val CONSOLE_ARGUMENT = Regex("\\{([^{}]+)}")
+
+/**
+ * Formats an administrator-authored console command [template] with [ctx] while preventing player-supplied `{name}`
+ * values from altering command structure (splitting tokens, breaking out of quotes, injecting control characters, or
+ * introducing target selectors like `@a`). Aborts the action list if an unsafe player value is encountered.
+ */
+fun formatConsoleCommand(template: String, ctx: MenuContext): String {
+    val inQuotes = BooleanArray(template.length)
+    var quoted = false
+    var escaped = false
+    for (i in template.indices) {
+        val ch = template[i]
+        inQuotes[i] = quoted
+        if (escaped) {
+            escaped = false
+        } else if (ch == '\\' && quoted) {
+            escaped = true
+        } else if (ch == '"') {
+            quoted = !quoted
+        }
+    }
+
+    val out = StringBuilder(template.length)
+    var cursor = 0
+    for (match in CONSOLE_ARGUMENT.findAll(template)) {
+        if (match.range.first > cursor) {
+            val literal = template.substring(cursor, match.range.first)
+            out.append(if ('%' in literal) ctx.parse(literal) else literal)
+        }
+        val raw = match.value
+        var resolvedArg = false
+        var argValue = ""
+        val expanded = ctx.parse(raw) { value ->
+            resolvedArg = true
+            argValue = value
+            value
+        }
+        if (!resolvedArg) {
+            out.append(expanded)
+        } else if (inQuotes[match.range.first]) {
+            if (argValue.any { it == '"' || it == '\\' || it.isISOControl() }) ctx.abort()
+            out.append(argValue)
+        } else {
+            if (argValue.isEmpty() || argValue.startsWith("@") || argValue.any {
+                    it.isWhitespace() || it == '"' || it == '\'' || it == '\\' || it == ';' || it == '{' || it == '}' || it == '[' || it == ']' || it.isISOControl()
+                }
+            ) {
+                ctx.abort()
+            }
+            out.append(argValue)
+        }
+        cursor = match.range.last + 1
+    }
+    if (cursor < template.length) {
+        val tail = template.substring(cursor)
+        out.append(if ('%' in tail) ctx.parse(tail) else tail)
+    }
+    val command = out.toString()
+    if (command.isBlank() || command.any { it.isISOControl() }) ctx.abort()
+    return command
 }

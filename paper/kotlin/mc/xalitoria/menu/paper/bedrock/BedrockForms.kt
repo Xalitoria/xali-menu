@@ -12,7 +12,10 @@ import net.xalitoria.menu.model.BedrockButton
 import net.xalitoria.menu.model.BedrockField
 import net.xalitoria.menu.model.BedrockMenu
 import net.xalitoria.menu.model.Item
+import net.xalitoria.menu.model.Menu
 import org.bukkit.entity.Player
+import java.math.BigDecimal
+import java.math.RoundingMode
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 
@@ -337,6 +340,11 @@ class BedrockForms(private val plugin: XaliMenu, val bridge: BedrockBridge?) {
             onSubmit = { rawValues ->
                 player.scheduler.run(plugin, {
                     if (!sessions.remove(player.uniqueId, session)) return@run
+                    if (!player.isOnline || plugin.menus.menu(session.name)?.menu !== menu) return@run
+                    if (!canSubmitCustom(menu, ctx)) {
+                        menu.open?.let { plugin.actions.run(it.deny, ctx) }
+                        return@run
+                    }
                     val scope = bindCustomValues(bindings, rawValues, ctx)
                     plugin.actions.run(cfg.onSubmit, ctx.with(scope))
                 }, null)
@@ -419,15 +427,18 @@ class BedrockForms(private val plugin: XaliMenu, val bridge: BedrockBridge?) {
     }
 
     companion object {
-        /** Maps submitted values of [fields] to `{id}` (and `{id}_index` for dropdowns and step sliders). */
+        /** Re-checks the menu's opening authorization gate before running `CUSTOM` form `on-submit` actions. */
+        fun canSubmitCustom(menu: Menu, ctx: Context): Boolean = menu.open.passes(ctx, run = false)
+
+        /** Maps submitted values of [fields] to `{id}` (and `{id}_index` for dropdowns and step sliders), validating bounds. */
         fun bindCustomValues(fields: List<BedrockField>, rawValues: List<String>, parse: (String) -> String): Map<String, String> {
             val out = LinkedHashMap<String, String>()
             fields.forEachIndexed { index, field ->
                 val raw = rawValues.getOrNull(index).orEmpty()
                 when (field) {
                     is BedrockField.Input -> out[field.id] = raw
-                    is BedrockField.Toggle -> out[field.id] = raw
-                    is BedrockField.Slider -> out[field.id] = raw
+                    is BedrockField.Toggle -> out[field.id] = (raw.trim().lowercase().toBooleanStrictOrNull() ?: field.default).toString()
+                    is BedrockField.Slider -> out[field.id] = normalizeSlider(field, raw)
                     is BedrockField.Dropdown -> {
                         val chosen = raw.toIntOrNull()?.coerceIn(0, field.options.lastIndex) ?: 0
                         out[field.id] = parse(field.options[chosen])
@@ -442,6 +453,19 @@ class BedrockForms(private val plugin: XaliMenu, val bridge: BedrockBridge?) {
                 }
             }
             return out
+        }
+
+        private fun normalizeSlider(field: BedrockField.Slider, raw: String): String {
+            val min = BigDecimal(field.min.toString())
+            val max = BigDecimal(field.max.toString())
+            val step = BigDecimal(field.step.toString())
+            val fallback = BigDecimal((field.default ?: field.min).coerceIn(field.min, field.max).toString())
+            val parsed = raw.trim().toDoubleOrNull()?.takeIf { it.isFinite() }?.let { runCatching { BigDecimal(raw.trim()) }.getOrNull() } ?: fallback
+            val clamped = parsed.coerceIn(min, max)
+            val steps = clamped.subtract(min).divide(step, 0, RoundingMode.HALF_UP)
+            val snapped = min.add(steps.multiply(step)).coerceIn(min, max)
+            val normalized = snapped.stripTrailingZeros()
+            return (if (normalized.scale() < 0) normalized.setScale(0) else normalized).toPlainString()
         }
 
         private fun bindCustomValues(fields: List<BedrockField>, rawValues: List<String>, ctx: Context): Map<String, String> =

@@ -8,17 +8,32 @@ import { expandPlaceholders } from './placeholders.js'
 import { PACK_FORMATS } from './versions.js'
 import { settings as assetSettings } from './assets.js'
 
+const PRIVATE_HOST = /^(localhost|127\.\d+\.\d+\.\d+|10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+|169\.254\.\d+\.\d+|0\.0\.0\.0|\[?::1\]?|\[?fc[0-9a-f]{2}:.*|\[?fd[0-9a-f]{2}:.*|\[?fe80:.*)$/i
+
 /** Whether this page may fetch [url]: an https page cannot read plain http, except from this computer. */
 export function readable(url) {
   try {
     const target = new URL(url)
-    return target.protocol === 'https:' || (globalThis.location?.protocol !== 'https:')
+    return target.protocol === 'https:' || (target.protocol === 'http:' && globalThis.location?.protocol !== 'https:')
   } catch { return false }
+}
+
+/** Validates that [url] is an allowed http(s) pack URL without credentials or private-network targets. */
+export function validatePackUrl(url) {
+  const target = new URL(String(url ?? '').trim())
+  if (target.protocol !== 'https:' && (target.protocol !== 'http:' || globalThis.location?.protocol === 'https:')) {
+    throw new Error('Only https:// pack URLs are allowed')
+  }
+  if (target.username || target.password) throw new Error('Pack URL must not contain credentials')
+  const localPage = globalThis.location?.hostname === 'localhost' || globalThis.location?.hostname === '127.0.0.1'
+  if (!localPage && PRIVATE_HOST.test(target.hostname)) throw new Error('Private network pack URLs are not allowed')
+  return target
 }
 
 /** The file at [url] as a Blob; the host has to allow other sites to read it (CORS). */
 export async function download(url) {
-  const response = await fetch(url)
+  const target = validatePackUrl(url)
+  const response = await fetch(target.href, { credentials: 'omit' })
   if (!response.ok) throw new Error(`it answered ${response.status}`)
   return response.blob()
 }

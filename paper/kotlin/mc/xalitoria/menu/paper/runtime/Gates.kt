@@ -17,6 +17,7 @@ fun Gate?.passes(ctx: MenuContext, run: Boolean): Boolean {
     var passed = 0
     var failed = false
     for (check in require) {
+        if (check.optional && stopAtSuccess && minimum != null && passed >= minimum) continue
         if (check.condition.test(ctx)) {
             passed++
             if (run) ctx.run(check.pass)
@@ -27,7 +28,6 @@ fun Gate?.passes(ctx: MenuContext, run: Boolean): Boolean {
                 break
             }
         }
-        if (stopAtSuccess && minimum != null && passed >= minimum) break
     }
     val ok = !failed && passed >= (minimum ?: 0)
     if (run) ctx.run(if (ok) pass else deny)

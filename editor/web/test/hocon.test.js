@@ -68,3 +68,10 @@ test('what is written reads back the same', () => {
   }
   assert.deepEqual(parse(write(original)), original)
 })
+
+test('refuses prototype-polluting keys', () => {
+  assert.throws(() => parse('__proto__.polluted = true'), (e) => e instanceof HoconError && /unsafe key/.test(e.message))
+  assert.throws(() => parse('constructor.prototype.polluted = true'), (e) => e instanceof HoconError && /unsafe key/.test(e.message))
+  assert.throws(() => parse('a { "__proto__" { polluted = true } }'), (e) => e instanceof HoconError && /unsafe key/.test(e.message))
+  assert.equal(({}).polluted, undefined)
+})

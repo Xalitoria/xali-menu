@@ -236,6 +236,46 @@ class Bedrock {
     }
 
     @Test
+    fun customFormSlidersAndTogglesValidateBoundsAndFallbackSafely() {
+        val fields = listOf(
+            BedrockField.Toggle("notify", "Notifications", default = false),
+            BedrockField.Slider("amount", "Amount", min = 1f, max = 64f, step = 1f, default = 4f),
+            BedrockField.Slider("ratio", "Ratio", min = 0f, max = 5f, step = 0.5f),
+        )
+        val clampedLow = BedrockForms.bindCustomValues(fields, ["TRUE", "-50", "2.3"]) { it }
+        assertEquals("true", clampedLow["notify"])
+        assertEquals("1", clampedLow["amount"])
+        assertEquals("2.5", clampedLow["ratio"])
+
+        val clampedHigh = BedrockForms.bindCustomValues(fields, ["not-a-bool", "9999", "NaN"]) { it }
+        assertEquals("false", clampedHigh["notify"])
+        assertEquals("64", clampedHigh["amount"])
+        assertEquals("0", clampedHigh["ratio"])
+
+        val injected = BedrockForms.bindCustomValues(fields, ["true; op me", "16; op me", "Infinity"]) { it }
+        assertEquals("false", injected["notify"])
+        assertEquals("4", injected["amount"])
+        assertEquals("0", injected["ratio"])
+    }
+
+    @Test
+    fun customFormSubmissionReChecksOpeningGate() {
+        var allowed = true
+        val player = Proxy.newProxyInstance(Player::class.java.classLoader, arrayOf(Player::class.java)) { _, method, args ->
+            if (method.name == "hasPermission" && args[0] == "menu.secret") allowed else null
+        } as Player
+        val ctx = Context(player, "secret", emptyMap(), host)
+        val gated = Menu(
+            title = "Secret",
+            open = net.xalitoria.menu.model.Gate([net.xalitoria.menu.model.Check(Conditions.Permission("menu.secret"))]),
+            bedrock = BedrockMenu(mode = BedrockMenu.Mode.CUSTOM, fields = [BedrockField.Input("x", "X")]),
+        )
+        assertTrue(BedrockForms.canSubmitCustom(gated, ctx))
+        allowed = false
+        assertFalse(BedrockForms.canSubmitCustom(gated, ctx), "revoked permission must block custom form submission")
+    }
+
+    @Test
     fun hoconRoundTripForBedrockMenusAndClientCondition() {
         val source = """
             title = "&8Shop"

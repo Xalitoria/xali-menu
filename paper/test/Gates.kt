@@ -123,12 +123,31 @@ class Gates {
     fun stopAtSuccessSkipsTheRest() {
         val ctx = ctx(player = player(setOf("a", "b")))
         val gate = Gate(
-            [check(Conditions.Permission("a"), pass = [Actions.Message("a")]), check(Conditions.Permission("b"), pass = [Actions.Message("b")])],
+            [
+                check(Conditions.Permission("a"), optional = true, pass = [Actions.Message("a")]),
+                check(Conditions.Permission("b"), optional = true, pass = [Actions.Message("b")]),
+            ],
             minimum = 1,
             stopAtSuccess = true,
         )
         assertTrue(gate.passes(ctx, run = true))
         assertEquals(listOf<Action>(Actions.Message("a")), ran)
+    }
+
+    @Test
+    fun stopAtSuccessStillEvaluatesLaterRequiredChecks() {
+        val ctx = ctx(player = player(setOf("a")))
+        val gate = Gate(
+            [
+                check(Conditions.Permission("a"), optional = true, pass = [Actions.Message("a")]),
+                check(Conditions.Permission("b"), optional = false, deny = [Actions.Message("no b")]),
+            ],
+            minimum = 1,
+            stopAtSuccess = true,
+            deny = [Actions.Close],
+        )
+        assertFalse(gate.passes(ctx, run = true), "a required check after minimum is met must still be evaluated")
+        assertEquals(listOf<Action>(Actions.Message("a"), Actions.Message("no b"), Actions.Close), ran)
     }
 
     @Test

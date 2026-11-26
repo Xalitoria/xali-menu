@@ -46,7 +46,7 @@ internal object EditorPush {
         val params = parseParams(parts)
         val server = params["server"]?.trim()?.trimEnd('/')
         val token = params["token"]?.trim()
-        if (!server.isNullOrEmpty() && !token.isNullOrEmpty() && validHttpUrl(server)) {
+        if (!server.isNullOrEmpty() && !token.isNullOrEmpty() && validDirectUrl(server)) {
             return Target.Direct(server, token)
         }
         return null
@@ -100,6 +100,9 @@ internal object EditorPush {
     }
 
     private fun pushDirect(target: Target.Direct, name: String, body: String, from: String): Result {
+        if (!validDirectUrl(target.serverUrl)) {
+            return Result.Failed("Direct push requires https:// so the bearer token is not sent in cleartext (http:// is only allowed for localhost/loopback).")
+        }
         return try {
             val encodedName = URLEncoder.encode(name, Charsets.UTF_8)
             val httpReq = HttpRequest.newBuilder(URI("${target.serverUrl}/v1/menus/$encodedName"))
@@ -139,5 +142,14 @@ internal object EditorPush {
     private fun validHttpUrl(url: String): Boolean {
         val uri = runCatching { URI(url) }.getOrNull() ?: return false
         return (uri.scheme == "http" || uri.scheme == "https") && !uri.host.isNullOrBlank() && uri.userInfo == null
+    }
+
+    /** Direct pushes send a Bearer token, so require HTTPS everywhere except loopback addresses. */
+    private fun validDirectUrl(url: String): Boolean {
+        val uri = runCatching { URI(url) }.getOrNull() ?: return false
+        val host = uri.host?.takeIf { it.isNotBlank() } ?: return false
+        if (uri.userInfo != null) return false
+        if (uri.scheme == "https") return true
+        return uri.scheme == "http" && (host.equals("localhost", ignoreCase = true) || EditorGuard.isLoopback(host))
     }
 }

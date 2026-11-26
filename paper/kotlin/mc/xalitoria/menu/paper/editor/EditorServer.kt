@@ -6,7 +6,13 @@ import mc.xalitoria.menu.paper.XaliMenu
 import java.net.InetSocketAddress
 import java.net.URI
 import java.nio.file.Files
+import java.util.concurrent.ArrayBlockingQueue
+import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
+import java.util.concurrent.ScheduledExecutorService
+import java.util.concurrent.ThreadPoolExecutor
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.io.path.fileSize
 
 /**
@@ -33,15 +39,26 @@ internal class EditorServer(private val plugin: XaliMenu, val sessions: EditorSe
     val menus = EditorMenus(plugin)
     val api = EditorApi(plugin, menus, pending)
     private var server: HttpServer? = null
+    private var workers: ExecutorService? = null
+    private var watchdog: ScheduledExecutorService? = null
 
     /** Starts listening. @return null if it does, otherwise why it could not */
     fun start(): String? {
         val settings = plugin.config.data.editor
         return try {
             val http = HttpServer.create(InetSocketAddress(settings.host, settings.port), 0)
+            val pool = ThreadPoolExecutor(
+                2, 8, 30L, TimeUnit.SECONDS, ArrayBlockingQueue(32),
+                { task -> Thread(task, "XaliMenu-editor").also { it.isDaemon = true } },
+            )
+            val timer = Executors.newSingleThreadScheduledExecutor { task ->
+                Thread(task, "XaliMenu-editor-watchdog").also { it.isDaemon = true }
+            }
             http.createContext("/v1") { exchange -> handle(exchange) }
-            http.executor = Executors.newFixedThreadPool(2) { task -> Thread(task, "XaliMenu-editor").also { it.isDaemon = true } }
+            http.executor = pool
             http.start()
+            workers = pool
+            watchdog = timer
             server = http
             null
         } catch (e: Exception) {
@@ -52,6 +69,10 @@ internal class EditorServer(private val plugin: XaliMenu, val sessions: EditorSe
     fun stop() {
         server?.stop(0)
         server = null
+        watchdog?.shutdownNow()
+        watchdog = null
+        workers?.shutdownNow()
+        workers = null
         sessions.clear()
     }
 
@@ -80,8 +101,14 @@ internal class EditorServer(private val plugin: XaliMenu, val sessions: EditorSe
             val auth = exchange.requestHeaders.getFirst("Authorization")
             val token = auth?.takeIf { it.startsWith("Bearer ") }?.removePrefix("Bearer ")?.trim()
             val session = sessions.session(token) ?: return reply(exchange, 401, error("The link has expired"))
-            val bytes = exchange.requestBody.readNBytes(EditorApi.MAX_BODY + 1)
-            if (bytes.size > EditorApi.MAX_BODY) return reply(exchange, 413, error("The request is too big"))
+            val declaredLength = exchange.requestHeaders.getFirst("Content-Length")?.trim()?.toLongOrNull()
+            if (declaredLength != null && declaredLength > EditorApi.MAX_BODY) return reply(exchange, 413, error("The request is too big"))
+            val bodyRead = readBodyWithTimeout(exchange, EditorApi.MAX_BODY, BODY_READ_TIMEOUT_MS, watchdog)
+            val bytes = when (bodyRead) {
+                is BodyRead.Ok -> bodyRead.bytes
+                BodyRead.TooLarge -> return reply(exchange, 413, error("The request is too big"))
+                BodyRead.TimedOut -> return
+            }
             val path = exchange.requestURI.path.removePrefix("/v1")
             val from = if (session.shared) EditorRelay.clean(exchange.requestHeaders.getFirst("X-Editor-From") ?: session.owner) else session.owner
             val clientIp = EditorGuard.resolveClientIp(
@@ -143,5 +170,41 @@ internal class EditorServer(private val plugin: XaliMenu, val sessions: EditorSe
         val site = runCatching { URI(editorCfg.site) }.getOrNull()
         if (site != null && uri.scheme == site.scheme && uri.host == site.host && uri.port == site.port) return true
         return EditorGuard.isLoopback(editorCfg.host) && uri.scheme == "http" && uri.host in setOf("localhost", "127.0.0.1")
+    }
+
+    internal sealed interface BodyRead {
+        class Ok(val bytes: ByteArray) : BodyRead
+        data object TooLarge : BodyRead
+        data object TimedOut : BodyRead
+    }
+
+    companion object {
+        internal const val BODY_READ_TIMEOUT_MS = 10_000L
+
+        /**
+         * Reads the request body up to [maxBytes], closing [exchange] if reading takes longer than [timeoutMs] so
+         * slow-body clients cannot tie up editor worker threads.
+         */
+        internal fun readBodyWithTimeout(
+            exchange: HttpExchange,
+            maxBytes: Int,
+            timeoutMs: Long,
+            timer: ScheduledExecutorService?,
+        ): BodyRead {
+            val timedOut = AtomicBoolean(false)
+            val task = timer?.schedule({
+                if (timedOut.compareAndSet(false, true)) runCatching { exchange.close() }
+            }, timeoutMs, TimeUnit.MILLISECONDS)
+            return try {
+                val bytes = exchange.requestBody.readNBytes(maxBytes + 1)
+                if (timedOut.get()) BodyRead.TimedOut
+                else if (bytes.size > maxBytes) BodyRead.TooLarge
+                else BodyRead.Ok(bytes)
+            } catch (e: Exception) {
+                if (timedOut.get()) BodyRead.TimedOut else throw e
+            } finally {
+                task?.cancel(false)
+            }
+        }
     }
 }
