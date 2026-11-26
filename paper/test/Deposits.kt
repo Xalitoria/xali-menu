@@ -2,6 +2,7 @@ import mc.xalitoria.menu.paper.action.Actions
 import mc.xalitoria.menu.paper.action.Social
 import mc.xalitoria.menu.paper.runtime.Deferred
 import mc.xalitoria.menu.paper.runtime.hasPlaceholder
+import mc.xalitoria.menu.paper.runtime.reserving
 import net.xalitoria.menu.model.Accept
 import net.xalitoria.menu.model.Item
 import net.xalitoria.menu.model.Menu
@@ -109,5 +110,33 @@ class Deposits {
     fun aMenuAndItsItemsAreEqualWithTheSameAccept() {
         val item = Item("air", slot = 4, accept = Accept(listOf(Actions.Close)))
         assertEquals(Menu("T", items = mapOf("a" to item)), Menu("T", items = mapOf("a" to item.copy())))
+    }
+
+    @Test
+    fun theItemIsTakenBeforeTheActionsRunSoTheyCannotGiveItBack() {
+        val log = mutableListOf<String>()
+        val ok = reserving(take = { "diamond".also { log += "take" } }, restore = { log += "restore $it" }) {
+            // Whatever the actions do (close the window, move the stack), the item is already gone.
+            log += "run"
+            true
+        }
+        assertTrue(ok)
+        assertEquals(listOf("take", "run"), log)
+    }
+
+    @Test
+    fun anItemThatCannotBeTakenRunsNothing() {
+        var ran = false
+        assertFalse(reserving(take = { null }, restore = { error("nothing to give back") }) { ran = true; true })
+        assertFalse(ran, "no reward for an item that is not there")
+    }
+
+    @Test
+    fun anItemIsGivenBackWhenTheActionsAbortOrFail() {
+        val back = mutableListOf<String>()
+        assertFalse(reserving(take = { "gold" }, restore = { back += it }) { false })
+        assertEquals(listOf("gold"), back)
+        assertFailsWith<IllegalStateException> { reserving(take = { "iron" }, restore = { back += it }) { error("boom") } }
+        assertEquals(listOf("gold", "iron"), back, "a failure gives it back too, and is not hidden")
     }
 }

@@ -18,6 +18,14 @@ interface Offer {
 
     /** Removes [amount] of what is there. @return whether there were that many */
     fun take(amount: Int): Boolean
+
+    /** Puts [stack], which [take] removed, back: where it was if there is room, else into the inventory, else on the ground. */
+    fun restore(stack: ItemStack)
+}
+
+/** Gives [stack] back to [player]: what does not fit in their inventory drops at their feet, so that nothing taken is lost. */
+private fun giveBack(player: Player, stack: ItemStack) {
+    for (left in player.inventory.addItem(stack).values) player.world.dropItemNaturally(player.location, left)
 }
 
 /** The item on the player's cursor. */
@@ -29,6 +37,13 @@ class CursorOffer(private val player: Player) : Offer {
         if (held.isEmpty || held.amount < amount) return false
         if (held.amount == amount) player.setItemOnCursor(null) else player.setItemOnCursor(held.clone().also { it.amount = held.amount - amount })
         return true
+    }
+
+    override fun restore(stack: ItemStack) {
+        val held = player.itemOnCursor
+        if (held.isEmpty) player.setItemOnCursor(stack)
+        else if (held.isSimilar(stack) && held.amount + stack.amount <= held.maxStackSize) player.setItemOnCursor(held.clone().also { it.amount = held.amount + stack.amount })
+        else giveBack(player, stack)
     }
 }
 
@@ -42,6 +57,31 @@ class SlotOffer(private val player: Player, private val slot: Int) : Offer {
         player.inventory.setItem(slot, if (held.amount == amount) null else held.clone().also { it.amount = held.amount - amount })
         return true
     }
+
+    override fun restore(stack: ItemStack) {
+        val held = player.inventory.getItem(slot)
+        if (held == null || held.isEmpty) player.inventory.setItem(slot, stack)
+        else if (held.isSimilar(stack) && held.amount + stack.amount <= held.maxStackSize) player.inventory.setItem(slot, held.clone().also { it.amount = held.amount + stack.amount })
+        else giveBack(player, stack)
+    }
+}
+
+/**
+ * Takes the item before [run] and gives it back if [run] does not end well, so that the item is never both kept by the
+ * player and paid for. The other order lets whatever [run] does to the window (a closed inventory returns the cursor's item
+ * to the inventory) or to the item (another plugin, a command) leave the reward given with the item still there.
+ * @return whether [run] ended well, with the item gone; false with the item back (or never taken) otherwise
+ */
+internal inline fun <T : Any> reserving(take: () -> T?, restore: (T) -> Unit, run: () -> Boolean): Boolean {
+    val taken = take() ?: return false
+    val ok = try {
+        run()
+    } catch (t: Throwable) {
+        restore(taken)
+        throw t
+    }
+    if (!ok) restore(taken)
+    return ok
 }
 
 /** The slots of a menu that take an item from the player: the `accept` of an item. */
@@ -64,7 +104,8 @@ class Deposits(private val plugin: XaliMenu) {
 
     /**
      * Offers [offer] to [accept]. An item that does not fit runs `reject`. One that does runs `then`, and only when that
-     * ran to its end, with nothing aborting or failing, is it taken, after looking at the server's state once more. A menu
+     * ran to its end, with nothing aborting or failing, does it stay taken: the item is taken first and given back otherwise
+     * (see [reserving]), so that what `then` does to the window cannot leave the reward given and the item kept. A menu
      * that `then` opens is opened after that, whether the item was taken or not. Run on the player's region thread, where nothing else changes the item meanwhile.
      * @return whether the item was taken
      */
@@ -78,12 +119,12 @@ class Deposits(private val plugin: XaliMenu) {
         settling.begin(id)
         try {
             val given = ctx.with(mapOf("item" to stack.type.key.key, "amount" to accept.amount.toString()))
-            if (!plugin.actions.attempt(accept.then, given)) return false
-            if (!fits(accept, offer, ctx) || !offer.take(accept.amount)) {
-                plugin.logger.warning("${ctx.player.name}'s ${stack.type.key.key} was gone when '${ctx.menu}' came to take it, after its actions had run")
-                return false
-            }
-            return true
+            val reserved = stack.clone().also { it.amount = accept.amount }
+            return reserving(
+                take = { reserved.takeIf { offer.take(accept.amount) } },
+                restore = { offer.restore(it) },
+                run = { plugin.actions.attempt(accept.then, given) },
+            )
         } finally {
             // Each on its own, so that one that fails neither changes what the offer came to nor keeps the others from running.
             for (task in settling.end(id)) {

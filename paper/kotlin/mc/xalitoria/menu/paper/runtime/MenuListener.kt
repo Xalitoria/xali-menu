@@ -17,7 +17,8 @@ import org.bukkit.event.player.PlayerJoinEvent
 import org.bukkit.event.player.PlayerQuitEvent
 
 class MenuListener(private val plugin: XaliMenu) : Listener {
-    @EventHandler(priority = EventPriority.HIGH)
+    // HIGHEST, so that a plugin that un-cancels a click at a lower priority cannot let a vanilla move happen in a menu.
+    @EventHandler(priority = EventPriority.HIGHEST)
     fun onClick(event: InventoryClickEvent) {
         val view = event.inventory.getHolder(false) as? MenuView ?: return
         // Nothing moves in or out of a menu, whichever inventory the click was in (shift-click would carry items over).
@@ -104,7 +105,7 @@ class MenuListener(private val plugin: XaliMenu) : Listener {
         return own ?: clicks.any
     }
 
-    @EventHandler(priority = EventPriority.HIGH)
+    @EventHandler(priority = EventPriority.HIGHEST)
     fun onDrag(event: InventoryDragEvent) {
         if (event.inventory.getHolder(false) is MenuView) event.isCancelled = true
     }
