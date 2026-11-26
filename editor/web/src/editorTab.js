@@ -3,7 +3,7 @@
 
 import { h, fill } from './dom.js'
 import { slotCount } from './check.js'
-import { icon } from './icons.js'
+import { icon, settings as iconSettings } from './icons.js'
 import { SCALES, viewOf } from './scale.js'
 import { inventoryEntries, placesOf, removeClaim } from './placement.js'
 import { firstFreeSlot, freeId, idProblem, renameItem, removeItem, duplicateItem } from './items.js'
@@ -15,6 +15,12 @@ import { pagesView, valuesBar } from './pagesPanel.js'
 import { matrixEditor } from './layouteditor.js'
 import { DEVICES, deviceById, presentationFor, titleForDevice } from './bedrock.js'
 import { bedrockBanner, bedrockFormView } from './bedrockPreview.js'
+import { evaluateItemMeta, itemPropertyGroup, GROUP_ORDER } from './itemMeta.js'
+
+const UNSAFE_KEY = 'xm-unsafe-mode'
+function readUnsafeFlag() {
+  try { return localStorage.getItem(UNSAFE_KEY) === '1' } catch { return false }
+}
 
 /** The first fields of an item's form. */
 const ITEM_FIRST = ['material', 'skull', 'name', 'lore', 'amount', 'slot', 'slots', 'inventory-slots', 'view', 'click', 'bedrock']
@@ -47,8 +53,22 @@ export class EditorTab {
     this.device = 'java'
     /** Assumed server `bedrock.default-mode` when previewing Bedrock devices without explicit form settings. */
     this.bedrockDefault = 'touch-form'
+    /** When false (default), only item meta applicable to the item's material is shown; toggling off never removes existing keys. */
+    this.unsafeMode = readUnsafeFlag()
+    /** Active pane on small screens (`stage` | `list` | `props` | `glyphs`). */
+    this.mobilePane = 'stage'
+    /** Whether the slide-over items drawer is open on medium/tablet screens. */
+    this.drawerOpen = false
+    /** Whether secondary menu toolbar controls are expanded on small screens. */
+    this.toolbarOpen = false
     this.glyphs = new GlyphBar(app)
     this.observer = null
+  }
+
+  setUnsafeMode(on) {
+    this.unsafeMode = Boolean(on)
+    try { localStorage.setItem(UNSAFE_KEY, this.unsafeMode ? '1' : '0') } catch { /* ignore storage errors */ }
+    this.app.draw()
   }
 
   get menu() { return this.app.store.value }
@@ -60,12 +80,62 @@ export class EditorTab {
     this.grabbing()
     this.list = this.itemList()
     this.observe()
-    return h('div', { class: 'editor' },
-      this.topBar(),
-      this.list,
-      h('div', { class: 'stage-wrap' }, this.stage, this.app.painting && this.paintBanner(), this.app.placing && this.placeBanner(), this.pager = this.pagerView()),
-      this.itemPanel(),
-      this.glyphs.view())
+    const hasGlyphs = this.glyphs.available()
+    if (this.mobilePane === 'glyphs' && !hasGlyphs) this.mobilePane = 'stage'
+    return h('div', {
+      class: 'editor',
+      'data-pane': this.mobilePane,
+      'data-drawer': this.drawerOpen ? 'open' : 'closed',
+      'data-toolbar': this.toolbarOpen ? 'open' : 'closed',
+    },
+    this.topBar(),
+    this.mobileNav(hasGlyphs),
+    this.drawerOpen && h('div', { class: 'drawer-backdrop', onclick: () => { this.drawerOpen = false; this.app.draw() } }),
+    this.list,
+    h('div', { class: 'stage-wrap' },
+      this.stage,
+      this.app.painting && this.paintBanner(),
+      this.app.placing && this.placeBanner(),
+      this.pager = this.pagerView(),
+      this.mobileSelectionBar()),
+    this.itemPanel(),
+    this.glyphs.view())
+  }
+
+  /** Segmented pane bar shown on small screens so canvas, items, inspector and glyphs never stack into an endless wall. */
+  mobileNav(hasGlyphs) {
+    const count = Object.keys(this.menu.items ?? {}).length
+    const picked = this.app.picked.item
+    const tab = (id, label, badge = null) => h('button', {
+      class: `mobile-tab ${this.mobilePane === id ? 'active' : ''}`,
+      'aria-pressed': this.mobilePane === id,
+      onclick: () => { this.mobilePane = id; this.app.draw() },
+    }, label, badge !== null && h('span', { class: 'count' }, badge))
+    return h('nav', { class: 'mobile-nav', 'aria-label': 'Editor panes' },
+      tab('stage', 'Canvas'),
+      tab('list', 'Items', count),
+      tab('props', picked ? 'Item' : 'Slot', picked ? '•' : null),
+      hasGlyphs && tab('glyphs', 'Glyphs'))
+  }
+
+  /** Compact bottom bar on small screens after tapping a slot on the canvas, for 1-tap editing or item creation. */
+  mobileSelectionBar() {
+    const { app } = this
+    if (app.painting || app.placing) return null
+    const { slot, item, area } = app.picked
+    if (item && (isPaged(item) || this.menu.items?.[item])) {
+      const label = item === TEMPLATE ? 'Element template' : item === EMPTY ? 'Empty item' : item
+      return h('div', { class: 'stage-selection' },
+        h('span', { class: 'stage-sel-text' }, h('b', null, label), slot !== null && h('small', { class: 'muted' }, ` · ${area === 'inventory' ? 'Inv' : 'Slot'} ${slot}`)),
+        h('button', { class: 'primary small', onclick: () => { this.mobilePane = 'props'; app.draw() } }, 'Edit item →'))
+    }
+    if (slot !== null && slot !== undefined) {
+      return h('div', { class: 'stage-selection' },
+        h('span', { class: 'stage-sel-text' }, h('b', null, area === 'inventory' ? `Inventory ${slot}` : `Slot ${slot}`), h('small', { class: 'muted' }, ' · empty')),
+        h('button', { class: 'primary small', onclick: () => this.add(slot, area) }, '+ New item'),
+        h('button', { class: 'small', onclick: () => { this.mobilePane = 'props'; app.draw() } }, 'Pick existing'))
+    }
+    return null
   }
 
   /** Called once the screen is in the page, so the stage has its size: draws the window in it. */
@@ -209,19 +279,33 @@ export class EditorTab {
     const others = app.schema.fields(app.schema.root).map((f) => f.key).filter((k) => !known.has(k))
     const groups = [...GROUPS, ...(others.length || Object.keys(menu).some((k) => !known.has(k) && !others.includes(k))
       ? [{ id: 'more', label: 'More', keys: null, hint: 'The rest of the properties of the menu.' }] : [])]
+    const itemCount = Object.keys(menu.items ?? {}).length
+    const activeGroups = groups.reduce((n, g) => n + (this.count(g, known) > 0 ? 1 : 0), 0)
     return h('div', { class: 'toolbar top' },
-      h('label', { class: 'tool grow' }, h('span', null, 'Title'), control('title')),
-      h('label', { class: 'tool' }, h('span', null, 'Type'), control('type')),
-      chest && h('label', { class: 'tool' }, h('span', null, 'Size'), control('size')),
-      h('span', { class: 'divider' }),
-      h('div', { class: 'tool-group' }, groups.map((group) => this.groupButton(group, known))),
-      h('span', { class: 'divider' }),
-      h('div', { class: 'tool' }, h('span', null, 'View as'),
-        this.select(DEVICES.map((d) => [d.id, d.label]), this.device, (v) => { this.device = v; app.centerStage = true; this.drawStage() })),
-      h('div', { class: 'tool' }, h('span', null, 'GUI scale'),
-        h('div', { class: 'tool-row' },
-          this.select([['0', 'Fit'], ...SCALES.map((n) => [String(n), `${n}×`])], String(services.scale), (v) => { services.scale = Number(v); app.centerStage = true; this.drawStage() }),
-          h('button', { title: 'Put the window back in the middle', onclick: () => { this.pan = { x: 0, y: 0 }; this.place() } }, 'Center'))))
+      h('div', { class: 'toolbar-main' },
+        h('button', {
+          class: `drawer-toggle ${this.drawerOpen ? 'active' : ''}`,
+          title: 'Show or hide the items list',
+          onclick: () => { this.drawerOpen = !this.drawerOpen; app.draw() },
+        }, '☰ Items', h('span', { class: 'count' }, itemCount)),
+        h('label', { class: 'tool grow' }, h('span', null, 'Title'), control('title')),
+        h('button', {
+          class: `toolbar-toggle ${this.toolbarOpen ? 'active' : ''}`,
+          'aria-expanded': this.toolbarOpen,
+          onclick: () => { this.toolbarOpen = !this.toolbarOpen; app.draw() },
+        }, this.toolbarOpen ? 'Settings ▴' : 'Settings ▾', activeGroups > 0 && h('span', { class: 'count' }, activeGroups))),
+      h('div', { class: 'toolbar-extra' },
+        h('label', { class: 'tool compact' }, h('span', null, 'Type'), control('type')),
+        chest && h('label', { class: 'tool compact' }, h('span', null, 'Size'), control('size')),
+        h('span', { class: 'divider' }),
+        h('div', { class: 'tool-group' }, groups.map((group) => this.groupButton(group, known))),
+        h('span', { class: 'divider' }),
+        h('div', { class: 'tool compact' }, h('span', null, 'View as'),
+          this.select(DEVICES.map((d) => [d.id, d.label]), this.device, (v) => { this.device = v; app.centerStage = true; this.drawStage() })),
+        h('div', { class: 'tool compact' }, h('span', null, 'Scale'),
+          h('div', { class: 'tool-row' },
+            this.select([['0', 'Fit'], ...SCALES.map((n) => [String(n), `${n}×`])], String(services.scale), (v) => { services.scale = Number(v); app.centerStage = true; this.drawStage() }),
+            h('button', { class: 'small', title: 'Put the window back in the middle', onclick: () => { this.pan = { x: 0, y: 0 }; this.place() } }, 'Center')))))
   }
 
   /** The number of the keys of the group that the menu sets. */
@@ -277,8 +361,11 @@ export class EditorTab {
     if (problems.some((p) => p.path?.[0] === 'pages' && p.path[1] === 'item')) bad.add(TEMPLATE)
     const sample = app.shownMenu().items?.['@element1']
     return h('aside', { class: 'sidebar items' },
-      h('div', { class: 'side-head' }, h('h2', null, 'Items', h('span', { class: 'count' }, ids.length)),
-        h('button', { class: 'primary small', title: 'Add an item to the first free slot', onclick: () => this.add(null, 'items') }, '+ Add')),
+      h('div', { class: 'side-head' },
+        h('h2', null, 'Items', h('span', { class: 'count' }, ids.length)),
+        h('div', { class: 'side-head-actions' },
+          h('button', { class: 'primary small', title: 'Add an item to the first free slot', onclick: () => this.add(null, 'items') }, '+ Add'),
+          h('button', { class: 'icon small drawer-close', title: 'Close items drawer', 'aria-label': 'Close items drawer', onclick: () => { this.drawerOpen = false; app.draw() } }, '×'))),
       h('p', { class: 'list-hint muted', title: 'Pick an item, then Place it in more slots; or drag it from here onto a slot of the window' },
         'One item can be in many slots, in the menu and in the player\'s inventory under it. Drag one onto a slot, or pick it and place it.'),
       h('div', { class: 'item-rows' },
@@ -368,10 +455,74 @@ export class EditorTab {
     app.picked = { slot: at, item: id, area }
     app.inventory.slot = at
     app.inventory.area = area
+    this.drawerOpen = false
+    if (typeof window !== 'undefined' && window.innerWidth <= 820) this.mobilePane = 'props'
     app.draw()
   }
 
   // ---- the item, on the other side
+
+  /** Adds a schema field [key] to the item at [path] using its default or blank value. */
+  addItemField(path, key) {
+    const field = this.app.schema.field('Item', key)
+    if (!field) return
+    const blank = field.default !== undefined ? structuredClone(field.default) : this.app.schema.blank(field.type)
+    this.app.store.set([...path, key], blank)
+  }
+
+  /** Renders the material-aware item form with Safe/Unsafe mode toggle, quick-add meta chips, and preserved-keys banner. */
+  itemForm(path, item, alwaysHidden = []) {
+    const { app } = this
+    const schemaKeys = app.schema.fields('Item').map((f) => f.key)
+    const meta = evaluateItemMeta(item, schemaKeys, {
+      unsafe: this.unsafeMode,
+      resolved: iconSettings.resolved,
+      alwaysHidden,
+    })
+    const matLabel = meta.base.baseMaterial
+      ? (meta.base.source !== 'vanilla' ? `${meta.base.source} → ${meta.base.baseMaterial}` : meta.base.baseMaterial)
+      : (meta.base.source === 'dynamic' ? 'dynamic material' : `${meta.base.source} item`)
+
+    const modeBar = h('div', { class: `meta-mode-bar ${this.unsafeMode ? 'unsafe' : ''}` },
+      h('span', { class: 'meta-mode-info', title: this.unsafeMode ? 'Unsafe mode shows every item property regardless of material.' : `Showing properties applicable to ${matLabel}.` },
+        h('span', { class: `mode-dot ${this.unsafeMode ? 'unsafe' : 'safe'}` }),
+        h('span', { class: 'meta-mode-label' }, this.unsafeMode ? 'Unsafe · all item meta' : `Safe · ${matLabel}`)),
+      h('button', {
+        class: `small unsafe-toggle ${this.unsafeMode ? 'on' : ''}`,
+        'aria-pressed': this.unsafeMode,
+        title: this.unsafeMode
+          ? 'Turn off Unsafe mode to only show meta applicable to this item. Existing properties are preserved untouched.'
+          : 'Turn on Unsafe mode to show and edit all item meta regardless of material.',
+        onclick: () => this.setUnsafeMode(!this.unsafeMode),
+      }, this.unsafeMode ? 'Unsafe: ON' : 'Unsafe mode'))
+
+    const quick = !this.unsafeMode && meta.recommended.length > 0 && h('div', { class: 'meta-quick' },
+      h('span', { class: 'meta-quick-label muted' }, 'Item meta'),
+      h('div', { class: 'meta-quick-chips' }, meta.recommended.map((key) => {
+        const docText = app.schema.field('Item', key)?.doc ?? ''
+        return h('button', {
+          class: 'small meta-chip',
+          title: docText,
+          onclick: () => this.addItemField(path, key),
+        }, `+ ${key}`)
+      })))
+
+    const formEl = app.form.object('Item', path, {
+      first: ITEM_FIRST,
+      hide: meta.hidden,
+      group: itemPropertyGroup,
+      groupOrder: GROUP_ORDER,
+    })
+
+    const preserved = !this.unsafeMode && meta.hiddenPresent.length > 0 && h('div', { class: 'meta-preserved' },
+      h('div', { class: 'meta-preserved-text' },
+        h('b', null, `Preserved (${meta.hiddenPresent.length})`),
+        h('span', { class: 'muted' }, ' — kept untouched on save, not applicable to ', h('code', null, matLabel), ': '),
+        meta.hiddenPresent.map((k, i) => [i > 0 && ', ', h('code', null, k)])),
+      h('button', { class: 'small', onclick: () => this.setUnsafeMode(true) }, 'Show in Unsafe'))
+
+    return h('div', { class: 'props-body' }, modeBar, quick, formEl, preserved)
+  }
 
   itemPanel() {
     const { app } = this
@@ -379,6 +530,8 @@ export class EditorTab {
     if (isPaged(app.picked.item) && menu.pages) return this.pagedPanel(app.picked.item)
     const id = app.picked.item && menu.items?.[app.picked.item] ? app.picked.item : null
     if (!id) return this.slotPanel()
+    const item = menu.items[id]
+    const view = viewOf(2)
     const own = app.allProblems().filter((p) => p.path?.[0] === 'items' && p.path[1] === id)
     const name = h('input', { type: 'text', class: 'id-input', value: id, spellcheck: false, 'aria-label': 'Item id',
       oninput: () => name.classList.toggle('bad', Boolean(idProblem(menu, name.value.trim(), id))),
@@ -386,12 +539,14 @@ export class EditorTab {
       onkeydown: (e) => { if (e.key === 'Enter') name.blur() } })
     return h('aside', { class: 'sidebar props' },
       h('div', { class: 'side-head item-head' },
-        h('label', { class: 'tool grow', title: 'The id the item is known by: the matrix map and messages use it' }, h('span', null, 'Id'), name),
-        h('button', { class: 'small', title: 'Copy the item', onclick: () => this.duplicate(id) }, 'Copy'),
-        h('button', { class: 'danger small', title: 'Remove the item', onclick: () => this.remove(id) }, 'Delete')),
+        h('span', { class: 'item-icon' }, icon(item, view.device, view.ratio, { contain: true })),
+        h('label', { class: 'tool grow', title: 'The id the item is known by: the matrix map and messages use it' }, h('span', null, 'Item ID'), name),
+        h('div', { class: 'item-head-actions' },
+          h('button', { class: 'small', title: 'Copy the item', onclick: () => this.duplicate(id) }, 'Copy'),
+          h('button', { class: 'danger small', title: 'Remove the item', onclick: () => this.remove(id) }, 'Delete'))),
       own.length > 0 && h('ul', { class: 'item-problems' }, own.slice(0, 6).map((p) => h('li', null, h('code', null, p.path.slice(2).join('.') || 'item'), ' ', p.message))),
       this.placement(id),
-      h('div', { class: 'props-body' }, app.form.object('Item', ['items', id], { first: ITEM_FIRST })))
+      this.itemForm(['items', id], item))
   }
 
   /**
@@ -476,7 +631,7 @@ export class EditorTab {
       own.length > 0 && h('ul', { class: 'item-problems' }, own.slice(0, 6).map((p) => h('li', null, h('code', null, p.path.slice(2).join('.') || 'item'), ' ', p.message))),
       !empty && valuesBar(app),
       // The slot of the item is the slot of the element: the item's own `slot` and `slots` are not used.
-      h('div', { class: 'props-body' }, app.form.object('Item', ['pages', key], { first: ITEM_FIRST, hide: ['slot', 'slots', 'priority'] })))
+      this.itemForm(['pages', key], this.menu.pages?.[key] ?? {}, ['slot', 'slots', 'priority']))
   }
 
   rename(from, to, input) {

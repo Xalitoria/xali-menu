@@ -29,7 +29,7 @@ sources through an [addon API](#extending).
 |---|---|---|
 | PlaceholderAPI | Yes | Placeholders in menu text and conditions; XaliMenu's own `%xalimenu_...%` placeholders. |
 | VaultUnlocked (or Vault) | No | Money conditions and actions (several currencies), permission actions. |
-| ItemsAdder | No | The `itemsadder:<id>` item source. Runs on **Paper only**, see [Troubleshooting](#troubleshooting). |
+| ItemsAdder | No | The `itemsadder:<ns>:<id>` (and `ia:<ns>:<id>`) item source, in-game font images and pixel offsets (`:ns:id:`, `:offset_N:`, `%img_offset_N%`, `%img_ns:id%`, `<glyph:ns:id>`, `<shift:N>`), automatic menu refresh on `ItemsAdderLoadDataEvent`, and editor pack/glyph discovery. Runs on **Paper only**, see [Troubleshooting](#troubleshooting). |
 | Nexo | No | The `nexo:<id>` item source. |
 | SkinsRestorer | No | Skins for `head:<player>` (the skin the player chose, then one stored under the name); the `skin` and `skin-reset` actions. |
 | HeadDatabase | No | The `hdb:<id>` item source, and `head:hdb:<id>` or `skull = "hdb:<id>"`, which use the texture it already holds. |

@@ -1,7 +1,7 @@
 // Nexo, Oraxen, and ItemsAdder placeholder & tag expansion for Minecraft text previews.
 // Handles:
-//   - Pixel shifts:  <shift:N>, <s:N>, %nexo_shift_N%, %oraxen_shift_N%, %img_offset_N%
-//   - Glyphs:        <glyph:name>, <g:name>, <image:name>, :name:, %img_name%, %nexo_name%, %oraxen_name%
+//   - Pixel shifts:  <shift:N>, <s:N>, %nexo_shift_N%, %oraxen_shift_N%, %img_offset_N%, :offset_N:
+//   - Glyphs:        <glyph:name>, <g:name>, <image:name>, :name:, :ns:name:, %img_name%, %nexo_name%, %oraxen_name%
 //   - Glyph options: <glyph:name:colorable>, <glyph:name:shadow:#RRGGBBAA>, <glyph:name:#RRGGBB>
 //   - Shadow tags:   <shadow:#RRGGBBAA>, <shadow:#RRGGBB>, <shadow:color>, </shadow>, <!shadow>
 //   - PAPI bridge:   <papi:placeholder>, <placeholderapi:placeholder>
@@ -20,9 +20,10 @@ export function expandPlaceholders(text, catalog = [], fontIndex = null) {
   if (!text) return ''
   let result = String(text)
 
-  // 1. PlaceholderAPI shift variants -> canonical `<shift:N>` (handled natively in mctext.js + text.js)
+  // 1. PlaceholderAPI & ItemsAdder shift variants -> canonical `<shift:N>` (handled natively in mctext.js + text.js)
   result = result.replace(/%(?:nexo|oraxen)_shift_(-?\d+)%/gi, '<shift:$1>')
   result = result.replace(/%img_offset_(-?\d+)%/gi, '<shift:$1>')
+  result = result.replace(/:offset_(-?\d+):/gi, '<shift:$1>')
   result = result.replace(/<s:(-?\d+)>/gi, '<shift:$1>')
 
   // 2. Nexo `<papi:placeholder>` / `<placeholderapi:placeholder>` -> `%placeholder%`
@@ -31,17 +32,26 @@ export function expandPlaceholders(text, catalog = [], fontIndex = null) {
     return `%${clean}%`
   })
 
-  // 3. Build fast lookup by glyph name (case-insensitive fallback as well)
+  // 3. Build fast lookup by glyph name (exact, case-insensitive, and unambiguous ItemsAdder short id)
   if (catalog && catalog.length > 0) {
     const byExact = new Map()
     const byLower = new Map()
+    const byShort = new Map()
     for (const entry of catalog) {
       if (!entry?.name || !entry?.char) continue
       byExact.set(entry.name, entry)
       const lower = entry.name.toLowerCase()
       if (!byLower.has(lower)) byLower.set(lower, entry)
+      const colon = lower.indexOf(':')
+      if (colon > 0) {
+        const short = lower.slice(colon + 1)
+        byShort.set(short, byShort.has(short) ? null : entry)
+      }
     }
-    const lookup = (name) => byExact.get(name) ?? byLower.get(name.toLowerCase()) ?? null
+    const lookup = (name) => {
+      const lower = name.toLowerCase()
+      return byExact.get(name) ?? byLower.get(lower) ?? byShort.get(lower) ?? null
+    }
     const renderGlyph = (entry, modifiers = []) => {
       const font = entry.font || fontIndex?.get(entry.char) || null
       let colorable = false
@@ -92,8 +102,8 @@ export function expandPlaceholders(text, catalog = [], fontIndex = null) {
       return entry ? renderGlyph(entry) : whole
     })
 
-    // 3c. `:glyph_name:` shorthand (ItemsAdder / Oraxen / Nexo)
-    result = result.replace(/:([a-zA-Z0-9_.-]+):/g, (whole, name) => {
+    // 3c. `:glyph_name:` and namespaced `:namespace:glyph_name:` shorthand (ItemsAdder / Oraxen / Nexo)
+    result = result.replace(/:([a-zA-Z0-9_.-]+(?::[a-zA-Z0-9_.-]+)?):/g, (whole, name) => {
       const entry = lookup(name)
       return entry ? renderGlyph(entry) : whole
     })

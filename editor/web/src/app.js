@@ -45,7 +45,7 @@ export class App {
     this.store.normalizer = (menu) => normalize(schema, menu)
     this.form = new Form(schema, this.store, {
       material: (path, value) => materialPicker({
-        value: value ?? '', placeholder: 'stone, diamond_sword, nexo:ruby, head:Steve',
+        value: value ?? '', placeholder: 'stone, diamond_sword, itemsadder:ns:id, nexo:ruby, head:Steve',
         // Typing changes the menu without drawing the form again (the box would lose the cursor); a pick or leaving the box does.
         commit: (text, final) => (final ? this.store.set(path, text) : this.store.set(path, text, true)),
       }),
@@ -108,6 +108,7 @@ export class App {
       const inside = (selector) => e.target.closest?.(selector)
       if (this.editor.popover && !inside('.pop-wrap')) { this.editor.popover = null; this.draw() }
       else if (this.showProblems && !inside('.problems-wrap')) { this.showProblems = false; this.drawProblems() }
+      else if (this.fileMenuOpen && !inside('.menu-drop-wrap')) { this.fileMenuOpen = false; this.refreshHeader() }
     })
     window.addEventListener('beforeunload', (e) => { if (this.store.dirty) e.preventDefault() })
     this.build()
@@ -403,6 +404,8 @@ export class App {
     this.placing = false
     this.inventory.slot = this.picked.slot
     this.inventory.area = area
+    this.editor.drawerOpen = false
+    if (typeof window !== 'undefined' && window.innerWidth <= 820) this.editor.mobilePane = 'props'
     this.draw()
   }
 
@@ -438,26 +441,38 @@ export class App {
   // ---- layout
 
   build() {
-    this.menuSelect = h('select', { title: 'Menu', onchange: () => this.open(this.menuSelect.value) })
+    this.menuSelect = h('select', { class: 'menu-select', title: 'Menu', onchange: () => this.open(this.menuSelect.value) })
     this.statusLine = h('span', { class: 'status' })
+    this.fileMenuOpen = false
     this.buttons = {
-      undo: h('button', { onclick: () => this.store.undo(), title: 'Undo (Ctrl+Z)' }, '↶'),
-      redo: h('button', { onclick: () => this.store.redo(), title: 'Redo (Ctrl+Y)' }, '↷'),
-      newMenu: h('button', { onclick: () => this.createMenu(), title: 'Create a new menu to edit and save to the server' }, '+ New'),
-      loadLink: h('button', { onclick: () => this.promptLink(), title: 'Paste a shared menu link (#data=...) or a /xmenu edit / /xmenu share server link' }, 'Load link'),
-      share: h('button', { onclick: () => this.copyShareLink(), title: 'Copy a shareable link carrying this menu so another admin can open and save it' }, 'Share link'),
-      open: h('button', { onclick: () => this.pickFile() }, 'Open file'),
-      download: h('button', { onclick: () => this.download() }, 'Download .conf'),
+      undo: h('button', { class: 'icon-btn', onclick: () => this.store.undo(), title: 'Undo (Ctrl+Z)', 'aria-label': 'Undo' }, '↶'),
+      redo: h('button', { class: 'icon-btn', onclick: () => this.store.redo(), title: 'Redo (Ctrl+Y)', 'aria-label': 'Redo' }, '↷'),
+      newMenu: h('button', { class: 'small', onclick: () => this.createMenu(), title: 'Create a new menu to edit and save to the server' }, '+ New'),
+      loadLink: h('button', { onclick: () => { this.fileMenuOpen = false; this.promptLink() }, title: 'Paste a shared menu link (#data=...) or a /xmenu edit / /xmenu share server link' }, 'Load link'),
+      share: h('button', { onclick: () => { this.fileMenuOpen = false; this.copyShareLink() }, title: 'Copy a shareable link carrying this menu so another admin can open and save it' }, 'Share link'),
+      open: h('button', { onclick: () => { this.fileMenuOpen = false; this.pickFile() } }, 'Open file'),
+      download: h('button', { onclick: () => { this.fileMenuOpen = false; this.download() } }, 'Download .conf'),
       save: h('button', { class: 'primary', onclick: () => this.save() }, 'Save to server'),
     }
+    this.fileMenuBtn = h('button', { class: 'menu-drop-btn', title: 'File & link actions', onclick: () => { this.fileMenuOpen = !this.fileMenuOpen; this.refreshHeader() } }, 'File ▾')
+    this.fileMenuPop = h('div', { class: 'menu-drop', hidden: true },
+      this.buttons.loadLink, this.buttons.share, this.buttons.open, this.buttons.download)
     this.tabs = h('nav', { class: 'tabs' }, TABS.map((t) => h('button', { 'data-tab': t, onclick: () => this.goTo(t) }, t)))
     this.problemsButton = h('button', { class: 'problems-button', onclick: () => { this.showProblems = !this.showProblems; this.drawProblems() } })
     this.problemsPanel = h('div', { class: 'problems-pop', hidden: true })
     this.tabs.append(h('span', { class: 'spacer' }), h('div', { class: 'problems-wrap' }, this.problemsButton, this.problemsPanel))
     this.view = h('section', { class: 'view' })
     fill(this.root,
-      h('header', null, h('span', { class: 'brand' }, 'XaliMenu editor'), this.menuSelect, this.buttons.newMenu, this.statusLine,
-        h('span', { class: 'spacer' }), this.buttons.undo, this.buttons.redo, this.buttons.loadLink, this.buttons.share, this.buttons.open, this.buttons.download, this.buttons.save),
+      h('header', { class: 'app-header' },
+        h('div', { class: 'header-left' },
+          h('span', { class: 'brand' }, 'XaliMenu'),
+          this.menuSelect,
+          this.buttons.newMenu),
+        this.statusLine,
+        h('div', { class: 'header-actions' },
+          h('div', { class: 'btn-group' }, this.buttons.undo, this.buttons.redo),
+          h('div', { class: 'menu-drop-wrap' }, this.fileMenuBtn, this.fileMenuPop),
+          this.buttons.save)),
       this.tabs,
       h('main', null, this.view))
     this.refreshHeader()
@@ -495,6 +510,8 @@ export class App {
     this.buttons.save.textContent = this.serverInfo?.shared ? 'Send for approval' : 'Save to server'
     this.buttons.undo.disabled = this.store.undoStack.length === 0
     this.buttons.redo.disabled = this.store.redoStack.length === 0
+    if (this.fileMenuPop) this.fileMenuPop.hidden = !this.fileMenuOpen
+    if (this.fileMenuBtn) this.fileMenuBtn.classList.toggle('active', this.fileMenuOpen)
   }
 
   draw() {
@@ -664,9 +681,11 @@ export class App {
   }
 
   keys(event) {
-    if (event.key === 'Escape' && (this.editor.popover || this.showProblems || this.painting || this.placing)) {
+    if (event.key === 'Escape' && (this.editor.popover || this.showProblems || this.painting || this.placing || this.fileMenuOpen || this.editor.drawerOpen)) {
       this.editor.popover = null
+      this.editor.drawerOpen = false
       this.showProblems = false
+      this.fileMenuOpen = false
       this.painting = false
       this.placing = false
       this.draw()

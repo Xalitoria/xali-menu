@@ -148,7 +148,12 @@ class XaliMenu : JavaPlugin() {
         Conditions.register(registry)
         Catalogs.register(registry)
         // Each is only made when its plugin is here, since making one loads that plugin's classes.
-        if (pm.isPluginEnabled("ItemsAdder")) registry.addSource(null, ItemsAdderSource())
+        if (pm.isPluginEnabled("ItemsAdder")) {
+            registry.addSource(null, ItemsAdderSource())
+            registry.addSource(null, mc.xalitoria.menu.paper.hook.ItemsAdderAlias())
+            mc.xalitoria.menu.paper.hook.ItemsAdderTags.enabled = true
+            pm.registerEvents(mc.xalitoria.menu.paper.hook.ItemsAdderListener(this), this)
+        }
         if (pm.isPluginEnabled("Nexo")) {
             registry.addSource(null, NexoSource())
             mc.xalitoria.menu.paper.hook.NexoTags.enabled = true

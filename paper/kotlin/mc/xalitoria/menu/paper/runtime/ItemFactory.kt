@@ -71,6 +71,9 @@ class ItemFactory(private val plugin: XaliMenu) {
 
     private val failed = ConcurrentHashMap.newKeySet<String>()
 
+    /** Clears one-time item resolution warnings (for example after ItemsAdder finishes async data loading). */
+    fun clearWarnings() = failed.clear()
+
     /**
      * Says once why an item is shown as a barrier because [spec] names nothing: a key that is not an item of the game, or an item that its source (Nexo, ItemsAdder...) does not
      * have, with the one it was probably meant to be. A head is not said: it is loading, which is not a mistake.

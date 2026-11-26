@@ -91,10 +91,10 @@ The Editor tab is one screen and the window of the menu never leaves it:
 
 | Where | What |
 |---|---|
-| Toolbar above the window | The title, the inventory type (a dropdown) and the size, then a button for each group of the menu's properties (Opening, Events, Matrix, Pages, Animation, Bedrock, and More for the rest) that opens a panel of its fields, the device preview switcher, and the GUI scale. A group with properties set shows how many. |
-| List on the left | Every item of the menu with its cell id, its picture, its slots (of the menu and of the inventory) and its material. Click one to edit it, drag it onto a slot to use it there, **+ Add** puts a new one in the first free slot. |
+| Toolbar above the window | The title, the inventory type (a dropdown) and the size, then a button for each group of the menu's properties (Opening, Events, Matrix, Pages, Animation, Bedrock, and More for the rest) that opens a panel of its fields, the device preview switcher, and the GUI scale. A group with properties set shows how many. Collapses behind **Settings ▾** on small screens. |
+| List on the left | Every item of the menu with its cell id, its picture, its slots (of the menu and of the inventory) and its material. Click one to edit it, drag it onto a slot to use it there, **+ Add** puts a new one in the first free slot. Slides out as a drawer on medium screens (`821px–1180px`) and switches via the top segmented bar on phones (`<= 820px`). |
 | The window | Click a slot to pick the item in it (or add one there, or use one you have), drag an item to another slot to move it (Alt: copy). Drag the empty space around it (or use the middle button, or Space and the left button, or the wheel) to move the window, and double click the space or press **Center** to put it back. |
-| Panel on the right | The id of the item (rename it here: `matrix.map` follows), **Copy**, **Delete**, and every property of the item, a line between each. A red **×** takes a property, an entry of a list or an item out of where it is. `view` (the gate that must hold for the item to be shown) is a property of the item like the others. |
+| Panel on the right | The item icon preview, its id (rename it here: `matrix.map` follows), **Copy**, **Delete**, a **Safe / Unsafe mode** toggle, quick-add chips for material-specific meta, and the item's properties. In **Safe mode** (default), only meta applicable to the item's material (or the underlying vanilla item of a server-resolved `itemsadder:` / `nexo:` item) is offered in **+ Add property** (grouped by category), while any already-set non-applicable keys stay untouched and are listed in a *Preserved* notice. Turning **Unsafe mode** on exposes every schema property; turning it back off never overwrites or removes existing properties. |
 | Bar under the window | Shown when a resource pack is loaded, the server has glyphs, or the menu has custom items (`nexo:ruby`). Pick a glyph from the strip (search by name or code, a font at a time), see it large, and put it in the title at an offset; the window shows it at once. |
 
 **Paged menus.** The **Pages** button makes the menu paged and opens its panel: the catalog (a dropdown of the plugin's and of the server's plugins' catalogs, with
@@ -207,11 +207,11 @@ How it is kept safe:
 ### 4. Show the resource pack (optional)
 
 `editor.pack` can be the path of a zip. Left empty, the plugin looks for the pack of Nexo (`plugins/Nexo/pack/pack.zip`), Oraxen
-(`plugins/Oraxen/pack/pack.zip`) and ItemsAdder (`plugins/ItemsAdder/output/generated.zip`, where it usually writes it; set `editor.pack` if yours is elsewhere), in that order. The Pack tab can also load a
+(`plugins/Oraxen/pack/pack.zip`) and ItemsAdder (`plugins/ItemsAdder/output/generated.zip`, `plugins/ItemsAdder/output/pack.zip`, or `plugins/ItemsAdder/data/resource_pack/generated.zip`; set `editor.pack` if yours is elsewhere), in that order. The Pack tab can also load a
 zip from the disk or from an address that allows other sites to read it.
 
-With Nexo or Oraxen installed, the editor lists the names in their `glyphs` folders (with ItemsAdder, the `font_images` of the files in `plugins/ItemsAdder/contents`, each character asked of ItemsAdder), and a title can use `<glyph:name>` in the
-preview. Custom items (`nexo:ruby`, `itemsadder:ns:id`) are looked up through the plugins, so their pictures come from the pack too (for ItemsAdder, its own item model when the item carries none). A pack ItemsAdder hosts is downloaded from the address it gives (`ItemsAdder.getPackUrl`), like Nexo's.
+With Nexo or Oraxen installed, the editor lists the names in their `glyphs` folders (with ItemsAdder, the `font_images` of the files in `plugins/ItemsAdder/contents`, each character asked of ItemsAdder), and a title can use `<glyph:name>`, `:name:`, `:namespace:id:`, `:offset_N:`, or `%img_offset_N%` in the
+preview and in game. Custom items (`nexo:ruby`, `itemsadder:ns:id`, `ia:ns:id`) are looked up through the plugins, so their pictures come from the pack too (for ItemsAdder, its own item model when the item carries none). A pack ItemsAdder hosts is downloaded from the address it gives (`ItemsAdder.getPackUrl`), like Nexo's.
 A glyph that is moved is written as the space characters of the pack's own font and, for a glyph of another font, a `<font:...>` tag.
 
 **Where a big pack comes from.** The editor picks the first of these that works:

@@ -74,7 +74,7 @@ export class Form {
       if (inner.length) root.append(this.adder(inner))
     }
     for (const key of extra) root.append(this.unknown(key, [...path, key], value[key], closest(key, known.map((f) => f.key).filter((k) => !(k in value)))))
-    if (absent.length) root.append(this.adder(absent.map((f) => ({ label: f.key, path: [...path, f.key], field: f }))))
+    if (absent.length) root.append(this.adder(absent.map((f) => ({ label: f.key, path: [...path, f.key], field: f })), options.group, options.groupOrder))
     return root
   }
 
@@ -138,14 +138,30 @@ export class Form {
   }
 
   /** A choice of the keys that are not set yet: [options] are `{label, path, field}`, the path being where the key goes. */
-  adder(options) {
+  adder(options, groupOf = null, groupOrder = null) {
     const select = h('select', { class: 'adder', onchange: () => {
       const option = options[Number(select.value)]
       if (option) this.store.set(option.path, option.field.default !== undefined ? structuredClone(option.field.default) : this.schema.blank(option.field.type))
     } },
-      h('option', { value: '' }, '+ Add property'),
-      options.map((o, i) => h('option', { value: String(i), title: o.field.doc ?? '' }, o.label)),
-    )
+    h('option', { value: '' }, '+ Add property'))
+    if (groupOf) {
+      const buckets = new Map()
+      options.forEach((o, i) => {
+        const name = groupOf(o.field.key) ?? 'Other'
+        if (!buckets.has(name)) buckets.set(name, [])
+        buckets.get(name).push([o, i])
+      })
+      const names = [...buckets.keys()].sort((a, b) => {
+        if (!groupOrder) return a.localeCompare(b)
+        const ia = groupOrder.indexOf(a); const ib = groupOrder.indexOf(b)
+        return (ia < 0 ? groupOrder.length : ia) - (ib < 0 ? groupOrder.length : ib) || a.localeCompare(b)
+      })
+      for (const name of names) {
+        select.append(h('optgroup', { label: name }, buckets.get(name).map(([o, i]) => h('option', { value: String(i), title: o.field.doc ?? '' }, o.label))))
+      }
+    } else {
+      select.append(...options.map((o, i) => h('option', { value: String(i), title: o.field.doc ?? '' }, o.label)))
+    }
     return h('div', { class: 'field add' }, select)
   }
 

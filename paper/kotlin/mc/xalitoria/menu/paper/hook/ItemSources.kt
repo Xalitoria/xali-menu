@@ -19,6 +19,12 @@ class ItemsAdderSource : ItemSource, ListsItems {
     override fun ids(): List<String> = CustomStack.getNamespacedIdsInRegistry().map { it.toString() }.sorted()
 }
 
+/** Short `ia:<namespace>:<id>` alias for [ItemsAdderSource]; intentionally omits [ListsItems] so catalog listings stay deduplicated. */
+class ItemsAdderAlias : ItemSource {
+    override val prefix = "ia"
+    override fun item(id: String): ItemStack? = CustomStack.getInstance(id)?.itemStack
+}
+
 /** What ItemsAdder can say about its resource pack and its pictures, which its API gives only on a running server. */
 object ItemsAdderHost {
     /** The address ItemsAdder sends its pack from, or null while the pack is still being made or the API is not the one this was written for. */

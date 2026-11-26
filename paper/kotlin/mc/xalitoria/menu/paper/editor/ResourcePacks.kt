@@ -135,6 +135,8 @@ internal class ResourcePacks(private val plugin: XaliMenu) {
             plugins.resolve("Nexo/pack/pack.zip"),
             plugins.resolve("Oraxen/pack/pack.zip"),
             plugins.resolve("ItemsAdder/output/generated.zip"),
+            plugins.resolve("ItemsAdder/output/pack.zip"),
+            plugins.resolve("ItemsAdder/data/resource_pack/generated.zip"),
         )
     }
 
@@ -198,7 +200,7 @@ internal class ResourcePacks(private val plugin: XaliMenu) {
                 material to ItemInfo(
                     material = stack.type.key.key,
                     itemModel = (stack.getData(DataComponentTypes.ITEM_MODEL)?.asString()
-                        ?: if (prefix.equals("itemsadder", true)) mc.xalitoria.menu.paper.hook.ItemsAdderHost.model(material.substringAfter(':')) else null)
+                        ?: if (prefix.equals("itemsadder", true) || prefix.equals("ia", true)) mc.xalitoria.menu.paper.hook.ItemsAdderHost.model(material.substringAfter(':')) else null)
                         .takeIf { source != null },
                     customModelData = stack.getData(DataComponentTypes.CUSTOM_MODEL_DATA)?.floats()?.map { it.toDouble() },
                     maxDamage = stack.getData(DataComponentTypes.MAX_DAMAGE) ?: 0,
