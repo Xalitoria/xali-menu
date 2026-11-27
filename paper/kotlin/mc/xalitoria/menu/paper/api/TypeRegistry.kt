@@ -10,6 +10,7 @@ import net.xalitoria.menu.ActionType
 import net.xalitoria.menu.ActivatorType
 import net.xalitoria.menu.Catalog
 import net.xalitoria.menu.CatalogType
+import net.xalitoria.menu.Completer
 import net.xalitoria.menu.Condition
 import net.xalitoria.menu.ConditionType
 import net.xalitoria.menu.ItemProperty
@@ -43,6 +44,7 @@ class TypeRegistry {
     private val externalCatalogs = CopyOnWriteArrayList<External<Catalog>>()
     private val externalProperties = CopyOnWriteArrayList<External<ItemProperty>>()
     private class ExternalActivator(val owner: Any, val type: ActivatorType)
+    private class ExternalCompleter(val owner: Any, val completer: Completer)
 
     /** What the editor is told about a catalog: what its elements hold, and (for another plugin's) which keys its settings take, each with an example. */
     class CatalogInfo(val owner: Any?, val values: Map<String, String>, val settings: Map<String, String>)
@@ -53,6 +55,7 @@ class TypeRegistry {
     private val catalogValues = ConcurrentHashMap<String, CatalogInfo>()
     private val propertyValues = ConcurrentHashMap<String, PropertyInfo>()
     private val activators = ConcurrentHashMap<String, ExternalActivator>()
+    private val completers = ConcurrentHashMap<String, ExternalCompleter>()
     private val itemSources = ConcurrentHashMap<String, Source>()
 
     @Volatile
@@ -76,6 +79,12 @@ class TypeRegistry {
 
     /** The keys the settings of each custom item property take, with an example of each (empty when none were described): for the editor, by property name. */
     val itemPropertyInfo: Map<String, Map<String, String>> get() = propertyValues.mapValues { it.value.settings }
+
+    /** The names (`plugin:name`) of the tab completers other plugins and extensions added. */
+    val completerNames: Set<String> get() = completers.keys.toSet()
+
+    /** The completer [name], or null if none was registered. */
+    fun completer(name: String): Completer? = completers[name]?.completer
 
     /** The type of the activator [name], null if no plugin added one. */
     fun activator(name: String): ActivatorType? = activators[name]?.type
@@ -123,6 +132,12 @@ class TypeRegistry {
         propertyValues[name] = PropertyInfo(owner, settings)
     }
 
+    /** Adds the tab completer [name] of [owner], referenced in menu files as `@<name>`. */
+    fun addCompleter(owner: Any, name: String, completer: Completer) {
+        require(NAME.matches(name)) { "'$name' isn't a name for a completer; use lower case as plugin:name, such as myplugin:kits" }
+        require(completers.putIfAbsent(name, ExternalCompleter(owner, completer)) == null) { "There is already a completer '$name'" }
+    }
+
     private fun <B : Any> addExternal(list: CopyOnWriteArrayList<External<B>>, owner: Any, name: String, serializer: DeserializationStrategy<B>) {
         require(NAME.matches(name)) { "'$name' isn't a name for an action or condition; use lower case as plugin:name, such as myplugin:reward" }
         require(list.none { it.name == name }) { "There is already a '$name' of that kind" }
@@ -154,6 +169,7 @@ class TypeRegistry {
             externalCatalogs.removeIf { it.owner == owner } or
             externalProperties.removeIf { it.owner == owner } or
             activators.values.removeIf { it.owner == owner } or
+            completers.values.removeIf { it.owner == owner } or
             itemSources.values.removeIf { it.owner == owner } or
             catalogValues.values.removeIf { it.owner == owner } or
             propertyValues.values.removeIf { it.owner == owner }
@@ -168,7 +184,8 @@ class TypeRegistry {
             externalCatalogs.filter { it.owner == owner }.map { "catalog ${it.name}" } +
             activators.filterValues { it.owner == owner }.keys.sorted().map { "activator $it" } +
             itemSources.filterValues { it.owner == owner }.keys.sorted().map { "item source $it:" } +
-            externalProperties.filter { it.owner == owner }.map { "item property ${it.name}" }
+            externalProperties.filter { it.owner == owner }.map { "item property ${it.name}" } +
+            completers.filterValues { it.owner == owner }.keys.sorted().map { "completer @$it" }
 
     @Suppress("UNCHECKED_CAST")
     private fun <B : Any> add(list: CopyOnWriteArrayList<Type<B>>, type: Type<out B>) {

@@ -5,6 +5,7 @@ import net.xalitoria.menu.ActionType
 import net.xalitoria.menu.ActivatorSource
 import net.xalitoria.menu.ActivatorType
 import net.xalitoria.menu.CatalogType
+import net.xalitoria.menu.Completer
 import net.xalitoria.menu.ConditionType
 import net.xalitoria.menu.ExtensionContext
 import net.xalitoria.menu.ItemPropertyType
@@ -336,6 +337,9 @@ class Extensions(private val host: Host, private val registry: TypeRegistry) {
 
         override fun registerItemProperty(name: String, settings: Map<String, String>, type: ItemPropertyType) =
             registry.addItemProperty(entry.owner, named(name), type, settings)
+
+        override fun registerCompleter(name: String, completer: Completer) =
+            registry.addCompleter(entry.owner, named(name), completer)
 
         override fun registerListener(listener: Listener) {
             host.listen(listener)

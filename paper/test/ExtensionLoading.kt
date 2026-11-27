@@ -146,12 +146,13 @@ class ExtensionLoading {
         assertEquals(setOf("plain:emote"), registry.activatorNames)
         assertEquals(setOf("plain:badge"), registry.propertyNames)
         assertEquals(mapOf("label" to "vip"), registry.itemPropertyInfo["plain:badge"])
+        assertEquals(setOf("plain:things"), registry.completerNames)
         assertEquals(setOf("plainsource"), registry.sources.keys)
         assertEquals(mapOf("name" to "x"), registry.catalogInfo["plain:rows"])
         assertEquals(mapOf("world" to "w"), registry.catalogSettings["plain:rows"])
         assertTrue(decodes(), "the menu is read with what the extension added")
         assertEquals(
-            listOf("action plain:ping", "condition plain:yes", "catalog plain:rows", "activator plain:emote", "item source plainsource:", "item property plain:badge"),
+            listOf("action plain:ping", "condition plain:yes", "catalog plain:rows", "activator plain:emote", "item source plainsource:", "item property plain:badge", "completer @plain:things"),
             extensions.added(entry),
         )
         assertEquals(1, host.listening.size)
@@ -187,6 +188,7 @@ class ExtensionLoading {
         assertEquals(emptySet(), registry.activatorNames)
         assertEquals(emptySet(), registry.propertyNames)
         assertEquals(emptyMap(), registry.itemPropertyInfo)
+        assertEquals(emptySet(), registry.completerNames)
         assertEquals(emptySet(), registry.sources.keys)
         assertEquals(emptySet(), registry.catalogInfo.keys.filter { it.startsWith("plain:") }.toSet())
         assertEquals(emptyList(), host.listening)

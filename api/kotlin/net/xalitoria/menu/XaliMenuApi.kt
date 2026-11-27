@@ -76,6 +76,12 @@ interface XaliMenuApi {
      */
     fun registerItemProperty(owner: Plugin, name: String, settings: Map<String, String>, type: ItemPropertyType)
 
+    /**
+     * Adds a tab-completion provider for menu commands' `complete` map, referenced in menu files as `@<name>`. [name]
+     * has the form `plugin:name` in lower case (letters, digits and `_ - .` on each side).
+     */
+    fun registerCompleter(owner: Plugin, name: String, completer: Completer)
+
     companion object {
         /** The API of the XaliMenu plugin that is running. */
         @JvmStatic

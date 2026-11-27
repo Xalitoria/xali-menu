@@ -47,6 +47,7 @@ class PlainExtension : MenuExtension() {
         context.registerCatalog("rows", mapOf("name" to "x"), mapOf("world" to "w")) { Rows }
         context.registerItemSource(Source)
         context.registerItemProperty("badge", mapOf("label" to "vip")) { Badge(it.string("label", "vip")) }
+        context.registerCompleter("things") { listOf("alpha", "beta") }
         context.registerListener(Hear())
         Seen.activator = context.registerActivator("emote") { ActivatorFilter { true } }
         Seen.log += "plain registered with data in ${context.dataFolder.name}"

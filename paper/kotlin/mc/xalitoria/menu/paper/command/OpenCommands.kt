@@ -9,6 +9,7 @@ import io.papermc.paper.command.brigadier.CommandSourceStack
 import io.papermc.paper.command.brigadier.Commands
 import mc.xalitoria.menu.paper.XaliMenu
 import mc.xalitoria.menu.paper.runtime.MenuArgs
+import org.bukkit.command.CommandSender
 import org.bukkit.command.PluginIdentifiableCommand
 import org.bukkit.entity.Player
 import java.util.concurrent.CompletableFuture
@@ -40,13 +41,13 @@ object OpenCommands {
         .executes { ctx -> open(ctx.source, menu, "") }
         .then(Commands
             .argument("args", StringArgumentType.greedyString())
-            .suggests { _, builder -> suggest(menu, builder) }
+            .suggests { ctx, builder -> suggest(ctx.source.sender, menu, builder) }
             .executes { ctx -> open(ctx.source, menu, StringArgumentType.getString(ctx, "args")) }
         )
         .build()
 
     /** The words for the argument being typed; they replace only that word, not the ones before it. */
-    private fun suggest(menu: String, builder: SuggestionsBuilder): CompletableFuture<Suggestions> {
+    private fun suggest(sender: CommandSender, menu: String, builder: SuggestionsBuilder): CompletableFuture<Suggestions> {
         val definition = plugin.menus.menu(menu)?.menu ?: return builder.buildFuture()
         val typed = builder.remaining
         val words = typed.split(' ')
@@ -54,7 +55,7 @@ object OpenCommands {
             when (kind) {
                 "@players" -> plugin.server.onlinePlayers.map { it.name }
                 "@worlds" -> plugin.server.worlds.map { it.name }
-                else -> emptyList()
+                else -> plugin.registry.completer(kind.removePrefix("@"))?.let { runCatching { it.suggest(sender) }.getOrNull() }.orEmpty()
             }
         }
         val word = builder.createOffset(builder.start + typed.length - words.last().length)

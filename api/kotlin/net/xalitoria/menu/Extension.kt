@@ -141,6 +141,9 @@ interface ExtensionContext {
     /** Adds the item property `<identifier>:<name>` and says what its settings are, as [XaliMenuApi.registerItemProperty] does. */
     fun registerItemProperty(name: String, settings: Map<String, String>, type: ItemPropertyType)
 
+    /** Adds the tab-completion provider `@<identifier>:<name>` for menu commands' `complete` map, as [XaliMenuApi.registerCompleter] does. */
+    fun registerCompleter(name: String, completer: Completer)
+
     /**
      * Registers [listener] for the extension. It is registered with [plugin] and unregistered when the extension goes. Event
      * classes of the required plugins are found as the extension's other classes are.

@@ -4385,7 +4385,7 @@
           },
           "required": false,
           "default": {},
-          "doc": "What tab completion offers for each of `args`, by name: the words themselves, or `@players` for the names of the players online and `@worlds` for those of the worlds. An argument with no entry gets nothing."
+          "doc": "What tab completion offers for each of `args`, by name: the words themselves, `@players` for the names of the players online, `@worlds` for those of the worlds, or `@plugin:name` for a completer added by an addon or extension. An argument with no entry gets nothing."
         },
         {
           "key": "refresh",

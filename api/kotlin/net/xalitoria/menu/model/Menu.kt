@@ -32,8 +32,9 @@ data class Menu(
     /** The usage text shown when a player gives too few or too many words. Built from [args] when absent. */
     val argsUsage: String? = null,
     /**
-     * What tab completion offers for each of [args], by name: the words themselves, or `@players` for the names of the
-     * players online and `@worlds` for those of the worlds. An argument with no entry gets nothing.
+     * What tab completion offers for each of [args], by name: the words themselves, `@players` for the names of the
+     * players online, `@worlds` for those of the worlds, or `@plugin:name` for a completer added by an addon or
+     * extension. An argument with no entry gets nothing.
      */
     val complete: Map<String, List<String>> = emptyMap(),
     /** How often the menu draws the items marked `update` again; never when absent. */

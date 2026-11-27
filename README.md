@@ -676,7 +676,7 @@ There are two ways to add types, and the same API behind both. An [addon](#addon
 
 ### Addons
 
-An addon adds its own action, condition, catalog, activator, item source or item property in `onEnable`. List XaliMenu as a dependency of the addon
+An addon adds its own action, condition, catalog, activator, item source, item property or tab completer in `onEnable`. List XaliMenu as a dependency of the addon
 (`join-classpath` on). Menus are read after every plugin has enabled, and again when one is disabled, so they are never
 read without what they use.
 
@@ -697,6 +697,7 @@ class MyPlugin : JavaPlugin() {
         api.registerCondition(this, "myplugin:lucky") { settings -> Lucky(settings.double("odds", 0.5)) }
         api.registerItemSource(this, MyItems)               // material = "myitems:ruby"
         api.registerItemProperty(this, "myplugin:tag", mapOf("key" to "quest")) { settings -> TagProperty(settings.requireString("key")) }
+        api.registerCompleter(this, "myplugin:kits") { sender -> MyPlugin.kits(sender) }   // complete { kit = ["@myplugin:kits"] }
         api.registerCatalog(this, "myplugin:homes") { Homes() }   // pages { catalog { type = "myplugin:homes" } ... }
         emotes = api.registerActivator(this, "myplugin:emote") { settings ->   // open-with = [{ type = "myplugin:emote", name = "wave" }]
             val wanted = settings.requireString("name")
@@ -810,8 +811,9 @@ The class has the members of [`MenuExtension`](api/kotlin/net/xalitoria/menu/Ext
 | `unregister()` | Stops what the extension started itself (a task, a connection) when it goes, and when `register` failed. What was added through the context needs no undoing. |
 
 The `ExtensionContext` has `registerAction`, `registerCondition`, `registerCatalog` (with the overloads that tell the editor what its
-elements and settings are), `registerActivator` (which returns the source that is fired), `registerItemSource` and
-`registerItemProperty` (with the overload that tells the editor its settings), which are those of the
+elements and settings are), `registerActivator` (which returns the source that is fired), `registerItemSource`,
+`registerItemProperty` (with the overload that tells the editor its settings) and `registerCompleter` (referenced in `complete`
+as `@<identifier>:<name>`), which are those of the
 [addon API](#addons) without the owner and with the name written without the identifier. `registerListener` registers a Bukkit listener
 for the extension that is unregistered when it goes, `plugin` is XaliMenu, for the schedulers, `logger` is a logger named after the
 extension and `dataFolder` is `plugins/XaliMenu/extensions/<identifier>`, which is not made until the extension makes it. An item source

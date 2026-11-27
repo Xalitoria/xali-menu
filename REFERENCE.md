@@ -81,7 +81,7 @@ A menu, as stored in `menus/<name>.conf`; the file name is the menu's name.
 
 - `complete`: map from a name to list of text; default `[object Object]`
 
-  What tab completion offers for each of `args`, by name: the words themselves, or `@players` for the names of the players online and `@worlds` for those of the worlds. An argument with no entry gets nothing.
+  What tab completion offers for each of `args`, by name: the words themselves, `@players` for the names of the players online, `@worlds` for those of the worlds, or `@plugin:name` for a completer added by an addon or extension. An argument with no entry gets nothing.
 
 - `refresh`: time, such as `5s`, `500ms` or `1m`
 

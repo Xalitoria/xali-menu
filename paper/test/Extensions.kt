@@ -7,6 +7,7 @@ import net.xalitoria.menu.Action
 import net.xalitoria.menu.ActionType
 import net.xalitoria.menu.ActivatorFilter
 import net.xalitoria.menu.ActivatorType
+import net.xalitoria.menu.Completer
 import net.xalitoria.menu.Condition
 import net.xalitoria.menu.ConditionType
 import net.xalitoria.menu.ItemProperty
@@ -288,5 +289,22 @@ class Extensions {
         assertTrue(registry.removeAll(owner))
         assertEquals(emptySet(), registry.propertyNames)
         assertEquals(emptyMap(), registry.itemPropertyInfo)
+    }
+
+    @Test
+    fun addedCompletersExpandInMenuArgsAndGoWithTheirOwner() {
+        val registry = registry()
+        registry.addCompleter(owner, "test:kits", Completer { listOf("tools", "dtools", "firework") })
+        assertEquals(setOf("test:kits"), registry.completerNames)
+        val sender = Proxy.newProxyInstance(org.bukkit.command.CommandSender::class.java.classLoader, arrayOf(org.bukkit.command.CommandSender::class.java)) { _, _, _ -> null } as org.bukkit.command.CommandSender
+        val complete = mapOf("kit" to listOf("@test:kits"))
+        val expand: (String) -> Collection<String> = { kind -> registry.completer(kind.removePrefix("@"))?.suggest(sender).orEmpty() }
+        assertEquals(listOf("tools", "dtools", "firework"), mc.xalitoria.menu.paper.runtime.MenuArgs.suggestions(listOf("kit"), complete, listOf(""), expand))
+        assertEquals(listOf("dtools"), mc.xalitoria.menu.paper.runtime.MenuArgs.suggestions(listOf("kit"), complete, listOf("dt"), expand))
+        assertFailsWith<IllegalArgumentException> { registry.addCompleter(owner, "test:kits", Completer { emptyList() }) }
+        assertFailsWith<IllegalArgumentException> { registry.addCompleter(owner, "kits", Completer { emptyList() }) }
+        assertTrue(registry.removeAll(owner))
+        assertEquals(emptySet(), registry.completerNames)
+        assertEquals(null, registry.completer("test:kits"))
     }
 }
