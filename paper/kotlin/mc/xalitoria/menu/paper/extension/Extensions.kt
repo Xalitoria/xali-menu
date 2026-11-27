@@ -184,7 +184,9 @@ class Extensions(private val host: Host, private val registry: TypeRegistry) {
 
     private fun requires(entry: Entry, plugin: String): Boolean = try {
         entry.extension?.requiredPlugins.orEmpty().any { it.equals(plugin, ignoreCase = true) }
-    } catch (e: Exception) {
+    } catch (_: Exception) {
+        false
+    } catch (_: LinkageError) {
         false
     }
 
@@ -235,6 +237,8 @@ class Extensions(private val host: Host, private val registry: TypeRegistry) {
                 instance.identifier
             } catch (e: Exception) {
                 return failed(jar, loader, "${type.name} has no identifier: ${cause(e)}")
+            } catch (e: LinkageError) {
+                return failed(jar, loader, "${type.name} has no identifier: ${linkage(e)}")
             }
             val entry = Entry(jar, instance, identifier, loader)
             if (!IDENTIFIER.matches(identifier)) entry.state = State.Failed("'$identifier' is not an identifier; use lower case letters, digits and _ - .")
@@ -365,7 +369,9 @@ class Extensions(private val host: Host, private val registry: TypeRegistry) {
     private companion object {
         private inline fun safe(read: () -> String?): String = try {
             read() ?: "?"
-        } catch (e: Exception) {
+        } catch (_: Exception) {
+            "?"
+        } catch (_: LinkageError) {
             "?"
         }
 

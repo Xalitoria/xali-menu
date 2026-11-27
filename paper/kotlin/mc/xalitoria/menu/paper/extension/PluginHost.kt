@@ -6,6 +6,7 @@ import org.bukkit.event.HandlerList
 import org.bukkit.event.Listener
 import org.bukkit.plugin.Plugin
 import java.nio.file.Path
+import java.util.concurrent.TimeUnit
 import java.util.logging.Logger
 
 /** The server behind [Extensions]: XaliMenu itself, its plugin manager and its schedulers. */
@@ -30,12 +31,15 @@ class PluginHost(private val menu: XaliMenu) : Extensions.Host {
 
     /** A menu that was open when its extension went may still click an action of it, so its classes are kept for a while. */
     override fun release(loader: AutoCloseable) {
-        if (menu.isEnabled && !menu.server.isStopping) menu.server.globalRegionScheduler.runDelayed(menu, { runCatching { loader.close() } }, RELEASE_TICKS)
-        else runCatching { loader.close() }
+        if (menu.isEnabled && !menu.server.isStopping) {
+            menu.server.asyncScheduler.runDelayed(menu, { runCatching { loader.close() } }, RELEASE_SECONDS, TimeUnit.SECONDS)
+        } else {
+            runCatching { loader.close() }
+        }
     }
 
     private companion object {
         /** Five minutes. */
-        const val RELEASE_TICKS = 6000L
+        const val RELEASE_SECONDS = 300L
     }
 }

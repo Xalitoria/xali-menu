@@ -430,16 +430,16 @@ export class Form {
         h('div', { class: 'control' }, this.json(path, current, keys))))
   }
 
-  /** Renders an appropriate control for a described extension setting: string list, JSON object, or typed scalar input. */
+  /** Renders an appropriate control for a described extension setting: string list, JSON value, or typed scalar input. */
   settingControl(path, key, value, example) {
     const hint = typeof example === 'string' ? example.trim() : ''
-    if (Array.isArray(value) && value.every((item) => typeof item !== 'object' || item === null)) {
-      return this.list({ kind: 'string' }, path, value.map((item) => (item == null ? '' : String(item))), { key })
+    if (Array.isArray(value) && value.every((item) => typeof item === 'string')) {
+      return this.list({ kind: 'string' }, path, value, { key })
     }
-    if (value === undefined && hint.startsWith('[') && !hint.startsWith('[{')) {
+    if (value === undefined && /^\[(?:\s*"|\s*\])/.test(hint)) {
       return this.list({ kind: 'string' }, path, [], { key })
     }
-    if ((value && typeof value === 'object') || hint.startsWith('{') || hint.startsWith('[{')) {
+    if ((value && typeof value === 'object') || hint.startsWith('{') || hint.startsWith('[')) {
       return this.json(path, value)
     }
     const input = h('input', {

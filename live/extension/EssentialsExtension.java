@@ -2,6 +2,7 @@ import com.earth2me.essentials.Kit;
 import com.earth2me.essentials.Trade;
 import com.earth2me.essentials.User;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -12,6 +13,7 @@ import java.util.concurrent.CompletionException;
 import net.ess3.api.IEssentials;
 import net.ess3.api.TranslatableException;
 import net.ess3.api.events.AfkStatusChangeEvent;
+import net.ess3.provider.SerializationProvider;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.TextDecoration;
 import net.xalitoria.menu.Action;
@@ -236,6 +238,7 @@ public final class EssentialsExtension extends MenuExtension {
         public List<Map<String, String>> elements(MenuContext ctx) {
             IEssentials ess = Ess.essentials();
             User user = Ess.user(ctx);
+            if (!user.isAuthorized("essentials.kit")) return List.of();
             List<Map<String, String>> elements = new ArrayList<>();
             for (String name : new TreeSet<>(ess.getKits().getKitKeys())) {
                 try {
@@ -291,7 +294,7 @@ public final class EssentialsExtension extends MenuExtension {
             try {
                 Kit kit = new Kit(name, Ess.essentials());
                 User user = Ess.user(ctx);
-                return Ess.permitted(kit, user) && Ess.ready(kit, user);
+                return user.isAuthorized("essentials.kit") && Ess.permitted(kit, user) && Ess.ready(kit, user);
             } catch (Exception missing) {
                 return false;
             }
@@ -365,8 +368,7 @@ public final class EssentialsExtension extends MenuExtension {
     private record GiveKit(String name) implements Action {
         @Override
         public void run(MenuContext ctx) {
-            User user = Ess.user(ctx);
-            try {
+            Ess.run(ctx, "kit", user -> {
                 IEssentials ess = Ess.essentials();
                 String match = ess.getKits().matchKit(ctx.parse(name));
                 if (match == null) {
@@ -383,9 +385,7 @@ public final class EssentialsExtension extends MenuExtension {
                 boolean fits = kit.expandItems(user);
                 user.sendTl("kitReceive", match);
                 if (!fits) user.sendTl("kitInvFull");
-            } catch (Exception error) {
-                Ess.fail(user, error);
-            }
+            });
         }
     }
 
@@ -431,13 +431,36 @@ public final class EssentialsExtension extends MenuExtension {
                 return;
             }
             if (raw == null || raw.isEmpty()) return;
+            String currency = ess.getSettings().getCurrencySymbol();
+            if (currency == null || currency.isEmpty()) currency = "$";
+            SerializationProvider serializer = ess.provider(SerializationProvider.class);
             List<Component> extra = new ArrayList<>();
             for (String line : raw) {
                 String trimmed = line == null ? "" : line.trim();
-                if (trimmed.isEmpty() || trimmed.startsWith("/")) continue;
-                String[] parts = trimmed.split("\\s+");
-                String material = parts[0].split(":")[0];
-                String amount = parts.length > 1 ? parts[1] : "1";
+                if (trimmed.isEmpty() || trimmed.startsWith("/") || trimmed.startsWith("$") || trimmed.startsWith(currency)) continue;
+                if (trimmed.startsWith("slot:")) {
+                    int space = trimmed.indexOf(' ');
+                    if (space == -1) continue;
+                    trimmed = trimmed.substring(space + 1).trim();
+                }
+                String material;
+                String amount;
+                if (trimmed.startsWith("@")) {
+                    if (serializer == null) continue;
+                    try {
+                        ItemStack stack = serializer.deserializeItem(Base64.getMimeDecoder().decode(trimmed.substring(1)));
+                        if (stack == null || stack.getType().isAir()) continue;
+                        material = stack.getType().getKey().getKey();
+                        amount = String.valueOf(Math.max(1, stack.getAmount()));
+                    } catch (Exception ignored) {
+                        continue;
+                    }
+                } else {
+                    String[] parts = trimmed.split("\\s+");
+                    if (parts.length == 0 || parts[0].isEmpty()) continue;
+                    material = parts[0].split(":")[0];
+                    amount = parts.length > 1 ? parts[1] : "1";
+                }
                 extra.add(ctx.component(prefix + material + " x" + amount)
                     .decorationIfAbsent(TextDecoration.ITALIC, TextDecoration.State.FALSE));
             }
