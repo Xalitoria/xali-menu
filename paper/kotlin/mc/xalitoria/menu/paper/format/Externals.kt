@@ -25,7 +25,11 @@ internal fun ConfigValue.packExternals(names: Set<String>, activators: Set<Strin
                 for (key in ACTIVATOR_KEYS) rest = rest.withoutKey(key)
                 ConfigValueFactory.fromMap(own + mapOf("type" to "addon", "name" to type, "values" to rest.withoutKey("type").render(ConfigRenderOptions.concise())))
             }
-            else -> ConfigValueFactory.fromMap(mapValues { it.value.packExternals(names, activators) })
+            else -> ConfigValueFactory.fromMap(mapValues { entry ->
+                // Packed item properties already carry { type, values }; leave them alone even if an action shares the same name.
+                if (entry.key == "properties" && entry.value is ConfigObject && "material" in this) entry.value
+                else entry.value.packExternals(names, activators)
+            })
         }
     }
     is com.typesafe.config.ConfigList -> ConfigValueFactory.fromIterable(map { it.packExternals(names, activators) })

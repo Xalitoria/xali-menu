@@ -50,6 +50,7 @@ export class Schema {
       case 'map': return {}
       case 'poly': return { type: this.variants(type.base)[0] }
       case 'object': return this.blankObject(type.type)
+      case 'custom-property': return {}
       default: return null
     }
   }

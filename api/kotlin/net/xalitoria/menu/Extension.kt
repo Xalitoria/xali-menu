@@ -6,10 +6,11 @@ import java.io.File
 import java.util.logging.Logger
 
 /**
- * A jar in `plugins/XaliMenu/extensions` that adds actions, conditions, catalogs, activators and item sources for a plugin that
- * knows nothing about XaliMenu, the way a PlaceholderAPI expansion adds placeholders. The extension is not a plugin: XaliMenu
- * finds the class, creates it, and calls [register] once every plugin has enabled and the plugins in [requiredPlugins] are among
- * them. An extension jar is code that runs with the server's rights, as a plugin does; only add jars you trust.
+ * A jar in `plugins/XaliMenu/extensions` that adds actions, conditions, catalogs, activators, item sources and item
+ * properties for a plugin that knows nothing about XaliMenu, the way a PlaceholderAPI expansion adds placeholders. The
+ * extension is not a plugin: XaliMenu finds the class, creates it, and calls [register] once every plugin has enabled
+ * and the plugins in [requiredPlugins] are among them. An extension jar is code that runs with the server's rights, as
+ * a plugin does; only add jars you trust.
  *
  * Write one class that extends this and give the jar nothing else to declare:
  *
@@ -46,8 +47,11 @@ import java.util.logging.Logger
  * among the plugins that are enabled, so the extension needs no entry in a `plugin.yml`.
  *
  * What an extension adds is named `identifier:name`, so two extensions cannot meet, and it goes when the extension does.
- * A jar may hold several extensions. The same rules as for addons hold for what is registered (the actions run on the player's
- * region thread, conditions and catalogs must be cheap); see [Action], [Condition] and [Catalog].
+ * A jar may hold several extensions. The same rules as for addons hold for what is registered (the actions run on the
+ * player's region thread; conditions, catalogs and item properties must be cheap); see [Action], [Condition], [Catalog]
+ * and [ItemProperty]. Values read from [Settings] are raw text from the menu file: placeholders and `{name}` values
+ * (from menu `args` or a paged catalog) are not filled in for you, so call [MenuContext.parse] on any setting that may
+ * contain them when your action, condition or item property runs.
  */
 abstract class MenuExtension {
     /**
@@ -130,6 +134,12 @@ interface ExtensionContext {
 
     /** Adds an item source. Its [ItemSource.prefix] is its own (`mmoitems`), not prefixed with the identifier, and cannot be one that is taken. */
     fun registerItemSource(source: ItemSource)
+
+    /** Adds the item property `<identifier>:<name>`, as [XaliMenuApi.registerItemProperty] does. */
+    fun registerItemProperty(name: String, type: ItemPropertyType)
+
+    /** Adds the item property `<identifier>:<name>` and says what its settings are, as [XaliMenuApi.registerItemProperty] does. */
+    fun registerItemProperty(name: String, settings: Map<String, String>, type: ItemPropertyType)
 
     /**
      * Registers [listener] for the extension. It is registered with [plugin] and unregistered when the extension goes. Event

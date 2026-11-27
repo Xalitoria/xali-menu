@@ -147,7 +147,7 @@ class MenuManager(private val plugin: XaliMenu) {
     /** Reads every .conf file of the menus folder again. A file that cannot be read is reported and left out; the rest still load. */
     fun load(): Int {
         scan()
-        val format = MenuFormat(plugin.registry.module, plugin.registry.externalNames, plugin.registry.activatorNames)
+        val format = MenuFormat(plugin.registry.module, plugin.registry.externalNames, plugin.registry.activatorNames, plugin.registry.propertyNames)
         val found = mutableMapOf<String, LoadedMenu>()
         val failed = mutableMapOf<String, String>()
         for (file in files()) {
@@ -187,7 +187,7 @@ class MenuManager(private val plugin: XaliMenu) {
         val file = files().firstOrNull { it.nameWithoutExtension.equals(name, ignoreCase = true) } ?: return Reread.NoFile
         val key = file.nameWithoutExtension
         val entry = try {
-            val read = MenuFormat(plugin.registry.module, plugin.registry.externalNames, plugin.registry.activatorNames).readChecked(file.toPath())
+            val read = MenuFormat(plugin.registry.module, plugin.registry.externalNames, plugin.registry.activatorNames, plugin.registry.propertyNames).readChecked(file.toPath())
             LoadedMenu(key, read.menu, showsVariables(file.toPath()), read.warnings.map { it.toString() })
         } catch (e: Exception) {
             failures += key to (e.message ?: e::class.simpleName.orEmpty())

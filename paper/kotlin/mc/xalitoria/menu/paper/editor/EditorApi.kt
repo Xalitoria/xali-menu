@@ -172,6 +172,7 @@ internal class EditorApi(private val plugin: XaliMenu, val menus: EditorMenus, v
                     autoReload = who.autoReload, initialMenu = who.initialMenu, config = serverConfig(), packHash = packs.packHash(),
                     serverVersion = plugin.server.minecraftVersion, packRevision = packRevision.get(),
                     ipVerified = ipVerified, ipNotice = ipNotice, clientName = matched?.name,
+                    itemProperties = plugin.registry.itemPropertyInfo,
                 ))
             }
             path == listOf("presence") && method == "POST" -> {

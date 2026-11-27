@@ -24,6 +24,10 @@ test('reports a type that does not exist, but lets an addon type through', () =>
   assert.deepEqual(found.filter((m) => m.startsWith('on-open')), ["on-open.0.type: 'warp' is not an action (see the list in the README)", "on-open.2.text: 'text' is required"])
 })
 
+test('lets namespaced custom item properties through without flagging them as unknown keys', () => {
+  assert.deepEqual(messages({ title: 'T', size: 27, items: { a: { material: 'chest', slot: 0, 'essentials:kit-preview': { kit: 'tools' } } } }), [])
+})
+
 test('reports slots outside the window and a matrix that breaks its rules or names missing items', () => {
   const found = messages({ title: 'T', size: 9, items: { a: { material: 'stone', slot: 9 }, b: { material: 'stone' } }, matrix: { cells: ['0123456789', '#'], map: { '#': 'gone', ab: 'b' } } })
   assert.ok(found.some((m) => m.includes('slot 9 is outside')))

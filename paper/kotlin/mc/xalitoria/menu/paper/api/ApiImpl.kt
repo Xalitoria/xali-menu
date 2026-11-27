@@ -6,6 +6,7 @@ import net.xalitoria.menu.ActivatorSource
 import net.xalitoria.menu.ActivatorType
 import net.xalitoria.menu.CatalogType
 import net.xalitoria.menu.ConditionType
+import net.xalitoria.menu.ItemPropertyType
 import net.xalitoria.menu.ItemSource
 import net.xalitoria.menu.Variables
 import net.xalitoria.menu.XaliMenuApi
@@ -40,4 +41,9 @@ class ApiImpl(private val plugin: XaliMenu) : XaliMenuApi {
     }
 
     override fun registerItemSource(owner: Plugin, source: ItemSource) = plugin.registry.addSource(owner, source)
+
+    override fun registerItemProperty(owner: Plugin, name: String, type: ItemPropertyType) = registerItemProperty(owner, name, emptyMap(), type)
+
+    override fun registerItemProperty(owner: Plugin, name: String, settings: Map<String, String>, type: ItemPropertyType) =
+        plugin.registry.addItemProperty(owner, name, type, settings)
 }

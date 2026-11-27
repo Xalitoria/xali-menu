@@ -68,6 +68,7 @@ internal object Wire {
     val autoReload: Boolean = false, val initialMenu: String? = null, val config: ServerConfigInfo? = null, val packHash: String? = null,
     val serverVersion: String? = null, val packRevision: Long = 0,
     val ipVerified: Boolean = true, val ipNotice: String? = null, val clientName: String? = null,
+    val itemProperties: Map<String, Map<String, String>> = emptyMap(),
 )
 
 /** Collaborator heartbeat sent by an open web-editor tab (`POST /v1/presence`). */

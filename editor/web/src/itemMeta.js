@@ -200,9 +200,11 @@ export const GROUP_ORDER = [
   'Placement & Interaction',
   'Models & Components',
   'Bedrock',
+  'Extensions',
   'Other',
 ]
 
 export function itemPropertyGroup(key) {
+  if (key.includes(':')) return 'Extensions'
   return KEY_GROUPS[key] ?? 'Other'
 }

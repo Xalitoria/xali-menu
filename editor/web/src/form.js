@@ -23,7 +23,7 @@ const firstSentence = (text) => (text ?? '').split(/(?<=\.)\s/)[0]
 
 /** Whether a control of [type] holds other controls (an object, a map, a list of objects), and so is given the whole width. */
 function isBlock(type) {
-  return ['object', 'map', 'poly'].includes(type.kind) || (type.kind === 'list' && ['object', 'poly', 'map', 'list'].includes(type.of?.kind))
+  return ['object', 'map', 'poly', 'custom-property'].includes(type.kind) || (type.kind === 'list' && ['object', 'poly', 'map', 'list'].includes(type.of?.kind))
 }
 
 export class Form {
@@ -57,7 +57,7 @@ export class Form {
   /** The form for an object of the named type at [path]. */
   object(typeName, path, options = {}) {
     const value = this.store.get(path) ?? {}
-    const known = this.schema.fields(typeName)
+    const known = [...this.schema.fields(typeName), ...(this.hooks.extraFields?.(typeName) ?? [])]
     const hidden = new Set(options.hide ?? [])
     // `only` limits the form to some keys, for a form that is split over several places.
     const shown = (f) => !hidden.has(f.key) && (!options.only || options.only.includes(f.key))
@@ -74,7 +74,7 @@ export class Form {
       const inner = chain.levels.flatMap((level) => level.absent.map((f) => ({ label: [...level.labels, f.key].join(' › '), path: [...level.path, f.key], field: f })))
       if (inner.length) root.append(this.adder(inner))
     }
-    for (const key of extra) root.append(this.unknown(key, [...path, key], value[key], closest(key, known.map((f) => f.key).filter((k) => !(k in value)))))
+    for (const key of extra) root.append(this.unknown(key, [...path, key], value[key], key.includes(':') ? null : closest(key, known.map((f) => f.key).filter((k) => !(k in value)))))
     if (absent.length) root.append(this.adder(absent.map((f) => ({ label: f.key, path: [...path, f.key], field: f })), options.group, options.groupOrder))
     return root
   }
@@ -186,6 +186,7 @@ export class Form {
       case 'map': return this.map(type.of, path, value ?? {}, field)
       case 'object': return this.nested(type.type, path)
       case 'poly': return this.poly(type.base, path, value, field)
+      case 'custom-property': return this.customProperty(path, value, type.settings)
       default: return this.json(path, value)
     }
   }
@@ -406,6 +407,33 @@ export class Form {
       this.store.set([...path, name], this.schema.blank(of))
     } }, '+ Add'))
     return root
+  }
+
+  /** Settings of a custom item property added by a plugin or extension: fields for described keys, JSON for the rest. */
+  customProperty(path, value, settings = {}) {
+    const described = settings ?? {}
+    const keys = Object.keys(described)
+    const obj = value && typeof value === 'object' && !Array.isArray(value) ? value : null
+    if (keys.length === 0 || (value !== undefined && !obj)) return this.json(path, value)
+    const current = obj ?? {}
+    const others = Object.keys(current).filter((k) => !keys.includes(k))
+    return h('div', { class: 'group nested catalog-settings' },
+      keys.map((key) => {
+        const v = current[key]
+        const input = h('input', {
+          type: 'text',
+          value: v === undefined ? '' : typeof v === 'string' ? v : JSON.stringify(v),
+          placeholder: described[key],
+          oninput: () => {
+            if (input.value === '') this.store.remove([...path, key])
+            else this.store.set([...path, key], input.value, true)
+          },
+        })
+        return h('div', { class: 'field', 'data-key': key }, h('label', { title: `For example ${described[key]}` }, key), h('div', { class: 'control' }, input))
+      }),
+      others.length > 0 && h('div', { class: 'field unknown' },
+        h('label', { title: 'Keys the plugin did not describe' }, 'other keys'),
+        h('div', { class: 'control' }, this.json(path, current, keys))))
   }
 
   /** Any value as JSON text, for what the schema cannot describe. */

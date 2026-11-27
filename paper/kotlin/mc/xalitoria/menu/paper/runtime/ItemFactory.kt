@@ -193,6 +193,15 @@ class ItemFactory(private val plugin: XaliMenu) {
             val spec = if (snbt.startsWith("[") && snbt.endsWith("]")) snbt else "[custom_data=$snbt]"
             stack = Bukkit.getUnsafe().modifyItemStack(stack, spec)
         }
+        for (entry in item.properties) {
+            try {
+                entry.value.apply(stack, ctx)
+            } catch (e: RuntimeException) {
+                if (failed.add("property:${entry.key}:$e")) {
+                    plugin.logger.warning("Item property '${entry.key}' on '${item.material}' in menu '${ctx.menu}' failed: ${e.message}")
+                }
+            }
+        }
         return stack
     }
 
@@ -234,6 +243,15 @@ class ItemFactory(private val plugin: XaliMenu) {
         item.fish?.let { fish ->
             if (runCatching { TropicalFish.Pattern.valueOf(fish.pattern.uppercase()) }.isFailure) problems += "fish pattern '${fish.pattern}' doesn't exist"
             listOf(fish.bodyColor, fish.patternColor).filter { runCatching { DyeColor.valueOf(it.uppercase()) }.isFailure }.forEach { problems += "fish color '$it' doesn't exist" }
+        }
+        for (entry in item.properties) {
+            val property = entry.value as? net.xalitoria.menu.ValidatedItemProperty ?: continue
+            val found = try {
+                property.validate()
+            } catch (e: RuntimeException) {
+                listOf("validation failed: ${e.message ?: e::class.java.simpleName}")
+            }
+            found.forEach { problems += "${entry.key}: $it" }
         }
         return problems
     }

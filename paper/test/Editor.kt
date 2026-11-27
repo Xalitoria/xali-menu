@@ -138,6 +138,14 @@ class Editor {
         assertEquals("""{"problems":[],"reloaded":false}""", Wire.write(Saved(emptyList(), reloaded = false)))
         assertEquals("""{"problems":["warn"],"reloaded":true}""", Wire.write(Saved(listOf("warn"), reloaded = true)))
         assertEquals("""{"error":"no"}""", Wire.write(ErrorReply("no")))
+        val infoJson = Wire.write(
+            mc.xalitoria.menu.paper.editor.Info(
+                plugin = "XaliMenu", version = "0.6.0", owner = "Steve", shared = false, readOnly = false,
+                menus = emptyList(), pack = false, catalogs = emptyMap(), packSize = null, packUrl = null,
+                itemProperties = mapOf("essentials:kit-preview" to mapOf("kit" to "tools")),
+            ),
+        )
+        assertTrue(""""itemProperties":{"essentials:kit-preview":{"kit":"tools"}}""" in infoJson, infoJson)
         // A request of the wrong shape is not one, instead of a value that is null somewhere further on.
         assertNull(Wire.read<MenuRequest>("not json"))
         assertNull(Wire.read<ColorsRequest>("""{"potions":"x"}"""))

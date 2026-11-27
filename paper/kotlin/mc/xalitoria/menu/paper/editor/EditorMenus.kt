@@ -81,7 +81,7 @@ internal class EditorMenus(private val plugin: XaliMenu) {
         }
     }
 
-    private fun format() = MenuFormat(plugin.registry.module, plugin.registry.externalNames, plugin.registry.activatorNames)
+    private fun format() = MenuFormat(plugin.registry.module, plugin.registry.externalNames, plugin.registry.activatorNames, plugin.registry.propertyNames)
 
     private fun file(name: String): Path? = if (valid(name)) folder.resolve("$name.conf") else null
 

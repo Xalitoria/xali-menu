@@ -30,6 +30,8 @@ bot.once('spawn', async () => {
   const pos = label => { const p = bot.entity.position; console.log(label, [p.x, p.y, p.z].map(v => Math.round(v)).join(' ')) }
   const where = async (x, z) => { bot.chat(`/tp Tester ${x} 120 ${z}`); await wait(2500) }
   console.log('--- kits menu: nothing may be said by opening it'); await open('/xesk'); show('kits:')
+  const kitSlot = bot.currentWindow?.slots?.slice(0, bot.currentWindow.inventoryStart).find(s => s && JSON.stringify(s.customName || '').includes('tools'))
+  console.log('tools kit lore:', JSON.stringify(kitSlot?.components?.find(c => c.type === 'lore') ?? kitSlot?.nbt ?? null))
   bot.closeWindow(bot.currentWindow); await wait(300)
   pos('start'); await where(60, 60); pos('moved')
   console.log('--- warp alpha from the menu: back to where it was set'); await open('/xesw'); await click(0); await wait(1500); pos('after warp')

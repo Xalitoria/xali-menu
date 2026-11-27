@@ -90,6 +90,16 @@ export class App {
       // A key that takes a value of one of the game's registries (an enchantment, an effect, a dye color...) is a dropdown of them.
       registry: (field) => registryChoices(field),
       extraVariants: (base) => (base === 'Catalog' ? Object.keys(this.serverInfo?.catalogs ?? {}) : []),
+      extraFields: (typeName) => {
+        if (typeName !== 'Item') return []
+        const props = this.serverInfo?.itemProperties ?? {}
+        return Object.keys(props).sort().map((key) => ({
+          key,
+          type: { kind: 'custom-property', settings: props[key] ?? {} },
+          required: false,
+          doc: `Custom item property provided by ${key.split(':')[0]}.`,
+        }))
+      },
     })
     this.tab = 'Editor'
     /** @type {Server|null} */

@@ -60,6 +60,22 @@ interface XaliMenuApi {
 
     fun registerItemSource(owner: Plugin, source: ItemSource)
 
+    /**
+     * Adds an item property type. [name] is the key written on an item in menu files; it has the form `plugin:name` in
+     * lower case (letters, digits and `_ - .` on each side), with your plugin's name before the colon so it cannot meet
+     * another plugin's. [type] builds the property from the keys written under it. Editors cannot tell what settings it
+     * takes; see the other overload.
+     */
+    fun registerItemProperty(owner: Plugin, name: String, type: ItemPropertyType)
+
+    /**
+     * Adds an item property type and says what its settings are: [settings] maps each key that can be written inside
+     * the property block (`kit`) to an example of its value (`tools`). The editor offers the property in the item form
+     * and shows a field for each setting instead of a block of JSON. Nothing else reads them, and a key that is not
+     * listed can still be written.
+     */
+    fun registerItemProperty(owner: Plugin, name: String, settings: Map<String, String>, type: ItemPropertyType)
+
     companion object {
         /** The API of the XaliMenu plugin that is running. */
         @JvmStatic

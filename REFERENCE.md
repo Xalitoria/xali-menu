@@ -1,6 +1,6 @@
 # Menu file reference
 
-Every key of a menu file, XaliMenu 0.4.1. This page is written by `node editor/tools/reference.mjs` from `editor/web/schema.json`,
+Every key of a menu file, XaliMenu 0.6.0. This page is written by `node editor/tools/reference.mjs` from `editor/web/schema.json`,
 which comes from the plugin's classes and their comments, so it lists what the plugin reads. Do not edit it by hand: change the comment on
 the key, then run `./gradlew :menu:editor:schema` and the command above.
 

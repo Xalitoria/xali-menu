@@ -7,6 +7,7 @@ import net.xalitoria.menu.ActivatorType
 import net.xalitoria.menu.CatalogType
 import net.xalitoria.menu.ConditionType
 import net.xalitoria.menu.ExtensionContext
+import net.xalitoria.menu.ItemPropertyType
 import net.xalitoria.menu.ItemSource
 import net.xalitoria.menu.MenuExtension
 import org.bukkit.entity.Player
@@ -330,6 +331,11 @@ class Extensions(private val host: Host, private val registry: TypeRegistry) {
         }
 
         override fun registerItemSource(source: ItemSource) = registry.addSource(entry.owner, source)
+
+        override fun registerItemProperty(name: String, type: ItemPropertyType) = registerItemProperty(name, emptyMap(), type)
+
+        override fun registerItemProperty(name: String, settings: Map<String, String>, type: ItemPropertyType) =
+            registry.addItemProperty(entry.owner, named(name), type, settings)
 
         override fun registerListener(listener: Listener) {
             host.listen(listener)

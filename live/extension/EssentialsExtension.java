@@ -12,6 +12,8 @@ import java.util.concurrent.CompletionException;
 import net.ess3.api.IEssentials;
 import net.ess3.api.TranslatableException;
 import net.ess3.api.events.AfkStatusChangeEvent;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.TextDecoration;
 import net.xalitoria.menu.Action;
 import net.xalitoria.menu.Catalog;
 import net.xalitoria.menu.Condition;
@@ -19,9 +21,11 @@ import net.xalitoria.menu.ExtensionContext;
 import net.xalitoria.menu.MenuContext;
 import net.xalitoria.menu.MenuExtension;
 import net.xalitoria.menu.Settings;
+import net.xalitoria.menu.ValidatedItemProperty;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.event.player.PlayerTeleportEvent;
+import org.bukkit.inventory.ItemStack;
 
 /**
  * Part of the live tests of XaliMenu, see ../README.md: an extension for EssentialsX, which knows nothing of XaliMenu and has no hook for
@@ -35,6 +39,8 @@ import org.bukkit.event.player.PlayerTeleportEvent;
  *   <li>Actions: `essentials:warp`, `essentials:home`, `essentials:sethome`, `essentials:delhome`, `essentials:kit`, `essentials:back`
  *       and `essentials:afk`. They go through EssentialsX's own rules (permissions, delays, fees, the home limit) and answer in its
  *       language, as its commands do.</li>
+ *   <li>Item properties: `essentials:kit-preview` (`kit`, optional `prefix`), which appends the items of a kit to the stack's lore
+ *       and validates static kit names.</li>
  * </ul>
  *
  * The class that is created by XaliMenu mentions nothing of EssentialsX: everything that does is in {@link Ess} and the classes
@@ -88,6 +94,9 @@ public final class EssentialsExtension extends MenuExtension {
             context.registerAction("kit", settings -> new GiveKit(settings.requireString("name")));
             context.registerAction("back", settings -> new Back());
             context.registerAction("afk", settings -> new Afk());
+
+            context.registerItemProperty("kit-preview", Map.of("kit", "tools", "prefix", "&7- "),
+                settings -> new KitPreview(settings.requireString("kit"), settings.getString("prefix", "&7- ")));
         }
 
         static IEssentials essentials() {
@@ -391,6 +400,53 @@ public final class EssentialsExtension extends MenuExtension {
         @Override
         public void run(MenuContext ctx) {
             Ess.run(ctx, "afk", user -> user.setAfk(!user.isAfk(), AfkStatusChangeEvent.Cause.COMMAND));
+        }
+    }
+
+    // Item properties.
+
+    private record KitPreview(String kit, String prefix) implements ValidatedItemProperty {
+        @Override
+        public List<String> validate() {
+            if (kit.contains("{") || kit.contains("%")) return List.of();
+            IEssentials ess = Ess.essentials();
+            if (ess != null && ess.getKits().matchKit(kit) == null) {
+                return List.of("kit '" + kit + "' does not exist");
+            }
+            return List.of();
+        }
+
+        @Override
+        public void apply(ItemStack item, MenuContext ctx) {
+            IEssentials ess = Ess.essentials();
+            if (ess == null) return;
+            String resolved = ctx.parse(kit).trim();
+            if (resolved.isEmpty()) return;
+            String match = ess.getKits().matchKit(resolved);
+            if (match == null) return;
+            List<String> raw;
+            try {
+                raw = new Kit(match, ess).getItems();
+            } catch (Exception ignored) {
+                return;
+            }
+            if (raw == null || raw.isEmpty()) return;
+            List<Component> extra = new ArrayList<>();
+            for (String line : raw) {
+                String trimmed = line == null ? "" : line.trim();
+                if (trimmed.isEmpty() || trimmed.startsWith("/")) continue;
+                String[] parts = trimmed.split("\\s+");
+                String material = parts[0].split(":")[0];
+                String amount = parts.length > 1 ? parts[1] : "1";
+                extra.add(ctx.component(prefix + material + " x" + amount)
+                    .decorationIfAbsent(TextDecoration.ITALIC, TextDecoration.State.FALSE));
+            }
+            if (extra.isEmpty()) return;
+            item.editMeta(meta -> {
+                List<Component> lore = meta.lore() == null ? new ArrayList<>() : new ArrayList<>(meta.lore());
+                lore.addAll(extra);
+                meta.lore(lore);
+            });
         }
     }
 }

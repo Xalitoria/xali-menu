@@ -19,7 +19,12 @@ import java.nio.file.Path
  * Reads and writes menus as HOCON, the format of every file in `menus/`. The actions and conditions in a file are
  * resolved through [module], which holds the built-in ones and whatever other plugins have added.
  */
-class MenuFormat(private val module: SerializersModule, private val externals: Set<String> = emptySet(), private val activators: Set<String> = emptySet()) {
+class MenuFormat(
+    private val module: SerializersModule,
+    private val externals: Set<String> = emptySet(),
+    private val activators: Set<String> = emptySet(),
+    private val properties: Set<String> = emptySet(),
+) {
     private val hocon = Hocon {
         serializersModule = module
         encodeDefaults = false
@@ -36,7 +41,7 @@ class MenuFormat(private val module: SerializersModule, private val externals: S
      */
     fun decodeChecked(text: String): Read {
         val root = ConfigFactory.parseString(text, SAFE_PARSE).resolve(SAFE_RESOLVE).root()
-        val checked = ConfigChecker(module, externals, activators).check(root)
+        val checked = ConfigChecker(module, externals, activators, properties).check(root)
         if (checked.errors.isNotEmpty()) throw MenuFormatException(checked.errors, checked.warnings)
         // Only a menu that uses something another plugin added is rewritten; any other is read as written.
         val packed = if ((externals + activators).none { it in text }) checked.config else checked.config.packExternals(externals, activators) as ConfigObject

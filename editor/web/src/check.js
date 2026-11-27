@@ -56,6 +56,7 @@ class Walker {
     for (const key of Object.keys(value)) {
       const field = fields.find((f) => f.key === key)
       if (!field) {
+        if (typeName === 'Item' && key.includes(':')) continue
         if (!(variant && key === 'type')) {
           const moved = RENAMED[`${typeName}.${key}`]
           if (moved) {

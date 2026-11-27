@@ -18,3 +18,13 @@ fun interface ConditionType {
 fun interface CatalogType {
     fun create(settings: Settings): Catalog
 }
+
+/**
+ * How a plugin's own [ItemProperty] is built from a menu file, registered with [XaliMenuApi.registerItemProperty]:
+ * `"myplugin:tag" { key = "quest", value = "intro" }` calls [create] with the keys of that object (or a single `value`
+ * key when written as a scalar or list). Throw an [IllegalArgumentException] for a bad key; the menu is reported as
+ * broken and not loaded.
+ */
+fun interface ItemPropertyType {
+    fun create(settings: Settings): ItemProperty
+}

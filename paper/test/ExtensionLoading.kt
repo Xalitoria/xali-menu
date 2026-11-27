@@ -115,6 +115,7 @@ class ExtensionLoading {
         items.a {
           material = stone
           slot = 0
+          "plain:badge" { label = "gold" }
           click.any {
             require = { require = [{ condition = { type = "plain:yes" } }] }
             actions = [{ type = "plain:ping", n = 4 }]
@@ -122,7 +123,7 @@ class ExtensionLoading {
         }
     """.trimIndent()
 
-    private fun decodes(): Boolean = runCatching { MenuFormat(registry.module, registry.externalNames, registry.activatorNames).decode(menu) }.isSuccess
+    private fun decodes(): Boolean = runCatching { MenuFormat(registry.module, registry.externalNames, registry.activatorNames, registry.propertyNames).decode(menu) }.isSuccess
 
     @Test
     fun theFolderIsMadeWhenItIsNotThere() {
@@ -143,12 +144,14 @@ class ExtensionLoading {
         assertEquals("tests", entry.author)
         assertEquals(setOf("plain:ping", "plain:yes", "plain:rows"), registry.externalNames)
         assertEquals(setOf("plain:emote"), registry.activatorNames)
+        assertEquals(setOf("plain:badge"), registry.propertyNames)
+        assertEquals(mapOf("label" to "vip"), registry.itemPropertyInfo["plain:badge"])
         assertEquals(setOf("plainsource"), registry.sources.keys)
         assertEquals(mapOf("name" to "x"), registry.catalogInfo["plain:rows"])
         assertEquals(mapOf("world" to "w"), registry.catalogSettings["plain:rows"])
         assertTrue(decodes(), "the menu is read with what the extension added")
         assertEquals(
-            listOf("action plain:ping", "condition plain:yes", "catalog plain:rows", "activator plain:emote", "item source plainsource:"),
+            listOf("action plain:ping", "condition plain:yes", "catalog plain:rows", "activator plain:emote", "item source plainsource:", "item property plain:badge"),
             extensions.added(entry),
         )
         assertEquals(1, host.listening.size)
@@ -182,6 +185,8 @@ class ExtensionLoading {
         extensions.unload()
         assertEquals(emptySet(), registry.externalNames)
         assertEquals(emptySet(), registry.activatorNames)
+        assertEquals(emptySet(), registry.propertyNames)
+        assertEquals(emptyMap(), registry.itemPropertyInfo)
         assertEquals(emptySet(), registry.sources.keys)
         assertEquals(emptySet(), registry.catalogInfo.keys.filter { it.startsWith("plain:") }.toSet())
         assertEquals(emptyList(), host.listening)

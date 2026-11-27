@@ -9,9 +9,12 @@ import net.xalitoria.menu.ActivatorFilter
 import net.xalitoria.menu.ActivatorType
 import net.xalitoria.menu.Condition
 import net.xalitoria.menu.ConditionType
+import net.xalitoria.menu.ItemProperty
+import net.xalitoria.menu.ItemPropertyType
 import net.xalitoria.menu.ItemSource
 import net.xalitoria.menu.MenuContext
 import net.xalitoria.menu.Settings
+import net.xalitoria.menu.ValidatedItemProperty
 import net.xalitoria.menu.model.Activator
 import net.xalitoria.menu.model.Handler
 import org.bukkit.inventory.ItemStack
@@ -31,8 +34,20 @@ data class Lucky(val odds: Int) : Condition {
     override fun test(ctx: MenuContext) = true
 }
 
+data class TagProp(val key: String, val value: String, val problems: List<String> = emptyList()) : ValidatedItemProperty {
+    override fun apply(item: ItemStack, ctx: MenuContext) = Unit
+    override fun validate(): List<String> = problems
+}
+
 private val rewardType = ActionType { Reward(it.int("points", 1)) }
 private val luckyType = ConditionType { Lucky(it.int("odds", 2)) }
+private val tagPropType = ItemPropertyType {
+    TagProp(
+        key = it.string("key", "default"),
+        value = it.requireString("value"),
+        problems = if (it.string("value") == "bad") listOf("'bad' is not allowed") else emptyList(),
+    )
+}
 
 class Extensions {
     private val owner = Proxy.newProxyInstance(Plugin::class.java.classLoader, arrayOf(Plugin::class.java)) { proxy, method, args ->
@@ -198,5 +213,80 @@ class Extensions {
         assertEquals(emptySet(), registry.activatorNames)
         assertEquals(null, registry.activator("test:emote"))
         assertFailsWith<Exception> { MenuFormat(registry.module, registry.externalNames, registry.activatorNames).decode(emoteMenu) }
+    }
+
+    @Test
+    fun addedItemPropertiesAreReadFromObjectsAndScalarsAndShareNamesWithActions() {
+        val registry = registry().also { mc.xalitoria.menu.paper.catalog.Catalogs.register(it) }
+        registry.addAction(owner, "test:tag", rewardType)
+        registry.addItemProperty(owner, "test:tag", tagPropType, mapOf("key" to "quest", "value" to "intro"))
+        registry.addItemProperty(owner, "test:flag", ItemPropertyType { TagProp("flag", it.requireString("value")) })
+        assertEquals(setOf("test:tag", "test:flag"), registry.propertyNames)
+        assertEquals(mapOf("key" to "quest", "value" to "intro"), registry.itemPropertyInfo["test:tag"])
+        assertEquals(emptyMap(), registry.itemPropertyInfo["test:flag"])
+
+        val format = MenuFormat(registry.module, registry.externalNames, registry.activatorNames, registry.propertyNames)
+        val read = format.decodeChecked(
+            """
+            title = "x"
+            items.a {
+              material = stone
+              slot = 0
+              "test:tag" { key = "quest", value = "intro" }
+              "test:flag" = "vip"
+              click.any.actions = [{ type = "test:tag", points = 5 }]
+            }
+            pages {
+              catalog { type = range, from = 1, to = 3 }
+              slots = [1]
+              item {
+                material = paper
+                "test:tag" { key = "page", value = "{value}" }
+              }
+            }
+            """.trimIndent(),
+        )
+        assertEquals(emptyList(), read.warnings)
+        val item = read.menu.items.getValue("a")
+        assertEquals(TagProp("quest", "intro"), item.properties["test:tag"])
+        assertEquals(TagProp("flag", "vip"), item.properties["test:flag"])
+        assertEquals(listOf(Reward(5)), item.click.any!!.actions, "an action sharing the name with an item property is not broken or double-packed")
+        assertEquals(TagProp("page", "{value}"), read.menu.pages!!.item!!.properties["test:tag"], "works on paged item templates too")
+    }
+
+    @Test
+    fun unknownOrBrokenItemPropertiesReportClearErrorsAndGoWithTheirOwner() {
+        val registry = registry()
+        registry.addItemProperty(owner, "test:tag", tagPropType)
+        val format = MenuFormat(registry.module, registry.externalNames, registry.activatorNames, registry.propertyNames)
+
+        // Unknown namespaced property fails with suggestion.
+        val unknown = assertFailsWith<mc.xalitoria.menu.paper.format.MenuFormatException> {
+            format.decode("""title = x\nitems.a { material = stone, slot = 0, "test:tga" { value = "v" } }""".replace("\\n", "\n"))
+        }
+        assertTrue("is not an item property" in unknown.message!! && "did you mean 'test:tag'?" in unknown.message!!, unknown.message)
+
+        // Missing required key in property factory fails decode with its message.
+        val missingKey = assertFailsWith<Exception> {
+            format.decode("""title = x\nitems.a { material = stone, slot = 0, "test:tag" { key = "k" } }""".replace("\\n", "\n"))
+        }
+        assertTrue(generateSequence<Throwable>(missingKey) { it.cause }.any { "'value' is missing" in it.message.orEmpty() })
+
+        // ValidatedItemProperty reports non-fatal problems.
+        val badItem = format.decode("""title = x\nitems.a { material = stone, slot = 0, "test:tag" { value = "bad" } }""".replace("\\n", "\n")).items.getValue("a")
+        val prop = badItem.properties.getValue("test:tag") as ValidatedItemProperty
+        assertEquals(listOf("'bad' is not allowed"), prop.validate())
+
+        // Writing raw `properties` on an item produces a warning.
+        val rawProps = format.decodeChecked("""title = x\nitems.a { material = stone, slot = 0, properties {} }""".replace("\\n", "\n"))
+        assertEquals(1, rawProps.warnings.size)
+        assertTrue("plugin:name" in rawProps.warnings.single().message)
+
+        // Duplicate name and bad format are refused; removing owner clears everything.
+        assertFailsWith<IllegalArgumentException> { registry.addItemProperty(owner, "test:tag", tagPropType) }
+        assertFailsWith<IllegalArgumentException> { registry.addItemProperty(owner, "tag", tagPropType) }
+        assertTrue(registry.removeAll(owner))
+        assertEquals(emptySet(), registry.propertyNames)
+        assertEquals(emptyMap(), registry.itemPropertyInfo)
     }
 }

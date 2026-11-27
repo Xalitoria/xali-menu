@@ -676,11 +676,11 @@ There are two ways to add types, and the same API behind both. An [addon](#addon
 
 ### Addons
 
-An addon adds its own action, condition, catalog, activator or item source in `onEnable`. List XaliMenu as a dependency of the addon
+An addon adds its own action, condition, catalog, activator, item source or item property in `onEnable`. List XaliMenu as a dependency of the addon
 (`join-classpath` on). Menus are read after every plugin has enabled, and again when one is disabled, so they are never
 read without what they use.
 
-An action, condition or catalog is a plain class plus a function that builds it from the keys written in the menu file. No
+An action, condition, catalog or item property is a plain class plus a function that builds it from the keys written in the menu file. No
 serializer and no Kotlin type crosses into XaliMenu, so a plugin with its own copy of the Kotlin runtime (any plugin
 that uses the library loader) can register them, and so can a plugin written in Java. Compile against
 `compileOnly(project(":menu:api"))` or the jar.
@@ -696,6 +696,7 @@ class MyPlugin : JavaPlugin() {
         api.registerAction(this, "myplugin:reward") { settings -> Reward(settings.int("points", 1)) }   // { type = "myplugin:reward", points = 3 }
         api.registerCondition(this, "myplugin:lucky") { settings -> Lucky(settings.double("odds", 0.5)) }
         api.registerItemSource(this, MyItems)               // material = "myitems:ruby"
+        api.registerItemProperty(this, "myplugin:tag", mapOf("key" to "quest")) { settings -> TagProperty(settings.requireString("key")) }
         api.registerCatalog(this, "myplugin:homes") { Homes() }   // pages { catalog { type = "myplugin:homes" } ... }
         emotes = api.registerActivator(this, "myplugin:emote") { settings ->   // open-with = [{ type = "myplugin:emote", name = "wave" }]
             val wanted = settings.requireString("name")
@@ -711,10 +712,20 @@ api.registerAction(this, "myplugin:reward", settings -> new Reward(settings.getI
 
 Names are lower case, `plugin:name`. `Settings` reads the keys by kind (`string`, `int`, `long`, `double`, `boolean`,
 `strings`, `section` and `sections`, each with a fallback overload). `requireString` throws when the key is missing, and
-the menu is then reported as broken with that message. Everything in `net.xalitoria.menu` that an addon calls is made
-of JDK, Bukkit and Adventure types and the API's own: functions are `Runnable` and `UnaryOperator`, and there are
-overloads instead of default arguments. The test `menu/api/test/AddonSurface.kt` fails if a Kotlin type gets into a
-signature. Addon actions, conditions and catalogs can be read from menu files but not written back by `/xmenu import`.
+the menu is then reported as broken with that message. Values read from `Settings` are the raw text of the menu file:
+placeholders and `{name}` values (from menu `args` or a paged catalog) are not expanded for you, so call `ctx.parse(...)`
+on any setting that may contain them when your action, condition or item property runs. Everything in `net.xalitoria.menu`
+that an addon calls is made of JDK, Bukkit and Adventure types and the API's own: functions are `Runnable` and `UnaryOperator`,
+and there are overloads instead of default arguments. The test `menu/api/test/AddonSurface.kt` fails if a Kotlin type gets
+into a signature. Addon actions, conditions, catalogs and item properties can be read from menu files but not written back
+by `/xmenu import`.
+
+An `ItemProperty` shapes an `ItemStack` after XaliMenu has applied the built-in properties: in a menu file it is written
+directly on the item under its namespaced key (`"myplugin:tag" { key = "quest" }`, or as a scalar `"myplugin:flag" = true`,
+which reaches `Settings` under the key `value`). Pass a map of setting keys to examples when registering so that the web
+editor offers the property in the item form with a field for each setting (sent in `/v1/info`). Implement
+`ValidatedItemProperty` instead of `ItemProperty` to report non-fatal load-time problems through `/xmenu validate` without
+refusing the menu. `apply(item, ctx)` runs on the viewer's region thread whenever the item is built, so it must be cheap.
 
 A `Catalog` gives a paged menu its elements: `elements(ctx)` returns a list of maps of named strings, each map one
 element, and the menu's template uses the values as `{name}`. It is called on the viewer's region thread on every refresh
@@ -751,7 +762,7 @@ what they should, so `[money take, give item]` does not give the item for free. 
 
 ### Extensions
 
-An extension adds actions, conditions, catalogs, activators and item sources for a plugin that does not know XaliMenu, without a
+An extension adds actions, conditions, catalogs, activators, item sources and item properties for a plugin that does not know XaliMenu, without a
 change to that plugin and without its author. It is a jar in `plugins/XaliMenu/extensions`, as a PlaceholderAPI expansion is a jar
 in PlaceholderAPI's folder. It is not a plugin: it has no `plugin.yml`, and the server does not list, enable or disable it.
 
@@ -799,7 +810,8 @@ The class has the members of [`MenuExtension`](api/kotlin/net/xalitoria/menu/Ext
 | `unregister()` | Stops what the extension started itself (a task, a connection) when it goes, and when `register` failed. What was added through the context needs no undoing. |
 
 The `ExtensionContext` has `registerAction`, `registerCondition`, `registerCatalog` (with the overloads that tell the editor what its
-elements and settings are), `registerActivator` (which returns the source that is fired) and `registerItemSource`, which are those of the
+elements and settings are), `registerActivator` (which returns the source that is fired), `registerItemSource` and
+`registerItemProperty` (with the overload that tells the editor its settings), which are those of the
 [addon API](#addons) without the owner and with the name written without the identifier. `registerListener` registers a Bukkit listener
 for the extension that is unregistered when it goes, `plugin` is XaliMenu, for the schedulers, `logger` is a logger named after the
 extension and `dataFolder` is `plugins/XaliMenu/extensions/<identifier>`, which is not made until the extension makes it. An item source

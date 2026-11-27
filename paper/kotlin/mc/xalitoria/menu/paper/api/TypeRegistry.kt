@@ -12,6 +12,8 @@ import net.xalitoria.menu.Catalog
 import net.xalitoria.menu.CatalogType
 import net.xalitoria.menu.Condition
 import net.xalitoria.menu.ConditionType
+import net.xalitoria.menu.ItemProperty
+import net.xalitoria.menu.ItemPropertyType
 import net.xalitoria.menu.ItemSource
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
@@ -39,12 +41,17 @@ class TypeRegistry {
     private val externalConditions = CopyOnWriteArrayList<External<Condition>>()
     private val catalogs = CopyOnWriteArrayList<Type<Catalog>>()
     private val externalCatalogs = CopyOnWriteArrayList<External<Catalog>>()
+    private val externalProperties = CopyOnWriteArrayList<External<ItemProperty>>()
     private class ExternalActivator(val owner: Any, val type: ActivatorType)
 
     /** What the editor is told about a catalog: what its elements hold, and (for another plugin's) which keys its settings take, each with an example. */
     class CatalogInfo(val owner: Any?, val values: Map<String, String>, val settings: Map<String, String>)
 
+    /** What the editor is told about an item property: which keys its settings take, each with an example. */
+    class PropertyInfo(val owner: Any, val settings: Map<String, String>)
+
     private val catalogValues = ConcurrentHashMap<String, CatalogInfo>()
+    private val propertyValues = ConcurrentHashMap<String, PropertyInfo>()
     private val activators = ConcurrentHashMap<String, ExternalActivator>()
     private val itemSources = ConcurrentHashMap<String, Source>()
 
@@ -63,6 +70,12 @@ class TypeRegistry {
 
     /** The names of the activators other plugins added, which a menu file writes as `type` and which [packExternals][mc.xalitoria.menu.paper.format.packExternals] turns into `addon` activators. */
     val activatorNames: Set<String> get() = activators.keys.toSet()
+
+    /** The names (`plugin:name`) of the item properties other plugins and extensions added. */
+    val propertyNames: Set<String> get() = externalProperties.mapTo(HashSet()) { it.name }
+
+    /** The keys the settings of each custom item property take, with an example of each (empty when none were described): for the editor, by property name. */
+    val itemPropertyInfo: Map<String, Map<String, String>> get() = propertyValues.mapValues { it.value.settings }
 
     /** The type of the activator [name], null if no plugin added one. */
     fun activator(name: String): ActivatorType? = activators[name]?.type
@@ -104,6 +117,12 @@ class TypeRegistry {
         require(activators.putIfAbsent(name, ExternalActivator(owner, type)) == null) { "There is already an activator '$name'" }
     }
 
+    /** Adds the item property [name] of [owner]; [settings] are what the editor is told about its keys, see [net.xalitoria.menu.XaliMenuApi.registerItemProperty]. */
+    fun addItemProperty(owner: Any, name: String, type: ItemPropertyType, settings: Map<String, String> = emptyMap()) {
+        addExternal(externalProperties, owner, name, ExternalSerializer(name, type::create))
+        propertyValues[name] = PropertyInfo(owner, settings)
+    }
+
     private fun <B : Any> addExternal(list: CopyOnWriteArrayList<External<B>>, owner: Any, name: String, serializer: DeserializationStrategy<B>) {
         require(NAME.matches(name)) { "'$name' isn't a name for an action or condition; use lower case as plugin:name, such as myplugin:reward" }
         require(list.none { it.name == name }) { "There is already a '$name' of that kind" }
@@ -133,9 +152,11 @@ class TypeRegistry {
             externalActions.removeIf { it.owner == owner } or
             externalConditions.removeIf { it.owner == owner } or
             externalCatalogs.removeIf { it.owner == owner } or
+            externalProperties.removeIf { it.owner == owner } or
             activators.values.removeIf { it.owner == owner } or
             itemSources.values.removeIf { it.owner == owner } or
-            catalogValues.values.removeIf { it.owner == owner }
+            catalogValues.values.removeIf { it.owner == owner } or
+            propertyValues.values.removeIf { it.owner == owner }
         if (removed) module = build()
         return removed
     }
@@ -146,7 +167,8 @@ class TypeRegistry {
             externalConditions.filter { it.owner == owner }.map { "condition ${it.name}" } +
             externalCatalogs.filter { it.owner == owner }.map { "catalog ${it.name}" } +
             activators.filterValues { it.owner == owner }.keys.sorted().map { "activator $it" } +
-            itemSources.filterValues { it.owner == owner }.keys.sorted().map { "item source $it:" }
+            itemSources.filterValues { it.owner == owner }.keys.sorted().map { "item source $it:" } +
+            externalProperties.filter { it.owner == owner }.map { "item property ${it.name}" }
 
     @Suppress("UNCHECKED_CAST")
     private fun <B : Any> add(list: CopyOnWriteArrayList<Type<B>>, type: Type<out B>) {
@@ -169,6 +191,9 @@ class TypeRegistry {
         polymorphic(Catalog::class) {
             for (entry in catalogs) subclass(entry.type as KClass<Catalog>, entry.serializer as KSerializer<Catalog>)
             defaultDeserializer { name -> externalCatalogs.firstOrNull { it.name == name }?.serializer }
+        }
+        polymorphic(ItemProperty::class) {
+            defaultDeserializer { name -> externalProperties.firstOrNull { it.name == name }?.serializer }
         }
     }
 

@@ -93,8 +93,10 @@ class SchemaBuilder(
         if (id in types) return id
         types[id] = TypeDef(fields = emptyList()) // Breaks a cycle of classes that refer to each other.
         val source = docs.find(descriptor.serialName.removeSuffix("?"), base)
-        val fields = (0 until descriptor.elementsCount).map { index ->
+        val fields = (0 until descriptor.elementsCount).mapNotNull { index ->
             val property = descriptor.getElementName(index)
+            // Packed custom item properties are written under their own namespaced keys (`"plugin:name"`), not under `properties`.
+            if (id == "Item" && property == "properties") return@mapNotNull null
             val documented = source?.fields?.get(property)
             // The limits of a number (of each entry, for a list), from `@Within` or `@WithinRange` on the model.
             val annotations = descriptor.getElementAnnotations(index)

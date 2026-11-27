@@ -95,4 +95,6 @@ test('resolveItemBase handles dynamic placeholders and grouping covers known key
   assert.equal(itemPropertyGroup('skull'), 'Item Meta')
   assert.equal(itemPropertyGroup('name'), 'Display & Text')
   assert.equal(itemPropertyGroup('bedrock'), 'Bedrock')
+  assert.equal(itemPropertyGroup('essentials:kit-preview'), 'Extensions')
+  assert.equal(isKeyApplicable('essentials:kit-preview', resolveItemBase('stone')), true)
 })

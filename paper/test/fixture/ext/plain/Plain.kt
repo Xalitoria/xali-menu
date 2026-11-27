@@ -6,6 +6,7 @@ import net.xalitoria.menu.ActivatorFilter
 import net.xalitoria.menu.Catalog
 import net.xalitoria.menu.Condition
 import net.xalitoria.menu.ExtensionContext
+import net.xalitoria.menu.ItemProperty
 import net.xalitoria.menu.ItemSource
 import net.xalitoria.menu.MenuContext
 import net.xalitoria.menu.MenuExtension
@@ -31,6 +32,10 @@ object Source : ItemSource {
 
 class Hear : Listener
 
+class Badge(val label: String) : ItemProperty {
+    override fun apply(item: ItemStack, ctx: MenuContext) = Unit
+}
+
 class PlainExtension : MenuExtension() {
     override val identifier = "plain"
     override val author = "tests"
@@ -41,6 +46,7 @@ class PlainExtension : MenuExtension() {
         context.registerCondition("yes") { Yes }
         context.registerCatalog("rows", mapOf("name" to "x"), mapOf("world" to "w")) { Rows }
         context.registerItemSource(Source)
+        context.registerItemProperty("badge", mapOf("label" to "vip")) { Badge(it.string("label", "vip")) }
         context.registerListener(Hear())
         Seen.activator = context.registerActivator("emote") { ActivatorFilter { true } }
         Seen.log += "plain registered with data in ${context.dataFolder.name}"

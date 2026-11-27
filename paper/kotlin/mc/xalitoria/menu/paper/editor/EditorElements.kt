@@ -53,7 +53,7 @@ internal class EditorElements(private val plugin: XaliMenu) {
         return Result.Ok(sorted.take(LIMIT), sorted.size)
     }
 
-    private fun format() = MenuFormat(plugin.registry.module, plugin.registry.externalNames, plugin.registry.activatorNames)
+    private fun format() = MenuFormat(plugin.registry.module, plugin.registry.externalNames, plugin.registry.activatorNames, plugin.registry.propertyNames)
 
     companion object {
         /** The most elements sent: enough pages for a preview, not a dump of a catalog of thousands. */

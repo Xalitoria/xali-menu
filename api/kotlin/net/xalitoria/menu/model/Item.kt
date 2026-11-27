@@ -2,6 +2,7 @@ package net.xalitoria.menu.model
 
 import kotlinx.serialization.Serializable
 import net.xalitoria.menu.Action
+import net.xalitoria.menu.ItemProperty
 
 /**
  * An item of a menu.
@@ -113,6 +114,11 @@ data class Item(
     val accept: Accept? = null,
     /** Optional display and click-label overrides for Bedrock Edition players. */
     val bedrock: BedrockItem? = null,
+    /**
+     * Custom properties added by addons and extensions, written on the item under their namespaced keys
+     * (`"plugin:name" { ... }`). Packed here when the menu file is read; not written under this key by hand.
+     */
+    val properties: Map<String, ItemProperty> = emptyMap(),
 ) {
     /** Every slot of the menu the item claims by what it says itself: [slot] and [slots], without repeats. */
     fun claimed(): List<Int> = (listOfNotNull(slot) + slots).distinct()

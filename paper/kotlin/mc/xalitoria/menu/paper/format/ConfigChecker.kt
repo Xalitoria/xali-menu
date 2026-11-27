@@ -2,6 +2,7 @@ package mc.xalitoria.menu.paper.format
 
 import com.typesafe.config.ConfigList
 import com.typesafe.config.ConfigObject
+import com.typesafe.config.ConfigRenderOptions
 import com.typesafe.config.ConfigValue
 import com.typesafe.config.ConfigValueFactory
 import com.typesafe.config.ConfigValueType
@@ -47,14 +48,15 @@ class MenuFormatException(val problems: List<ConfigProblem>, val warnings: List<
  * nothing reads, with the key it is probably meant to be. It also writes the file's easy forms the one way the reader takes them: a single value where a list is
  * expected becomes a list of one (`slots = 5`), and an enum in any case becomes the upper case the model has (`rarity = epic`).
  *
- * The actions and conditions other plugins added ([externals], and the [activators] of other plugins) have no descriptor here, so what is inside them is left to
- * the plugin that added them.
+ * The actions, conditions and catalogs other plugins added ([externals]), their [activators], and their item [properties]
+ * have no descriptor here, so what is inside them is left to the plugin that added them.
  */
 @OptIn(ExperimentalSerializationApi::class)
 class ConfigChecker(
     private val module: SerializersModule,
     private val externals: Set<String> = emptySet(),
     private val activators: Set<String> = emptySet(),
+    private val properties: Set<String> = emptySet(),
 ) {
     private val errors = mutableListOf<ConfigProblem>()
     private val warnings = mutableListOf<ConfigProblem>()
@@ -213,17 +215,40 @@ class ConfigChecker(
         val names = (0 until descriptor.elementsCount).map { kebab(descriptor.getElementName(it)) }
         val out = LinkedHashMap<String, Any?>()
         val owner = descriptor.serialName.removeSuffix("?").substringAfterLast('.')
+        val packedProperties = if (owner == "Item") LinkedHashMap<String, Any?>() else null
+        val userNames = if (owner == "Item") names.filter { it != "properties" } else names
         for (entry in value.entries) {
             if (entry.key == skip) continue
+            if (owner == "Item" && entry.key in properties) {
+                if (entry.value.valueType() == ConfigValueType.NULL) {
+                    error(join(path, entry.key), entry.value, "is empty")
+                } else {
+                    val raw = when (val v = entry.value) {
+                        is ConfigObject -> v.render(ConfigRenderOptions.concise())
+                        else -> ConfigValueFactory.fromMap(mapOf("value" to v.unwrapped())).render(ConfigRenderOptions.concise())
+                    }
+                    packedProperties!![entry.key] = mapOf("type" to entry.key, "values" to raw)
+                }
+                continue
+            }
+            if (owner == "Item" && entry.key == "properties") {
+                warn(join(path, entry.key), entry.value, "is not a key of an item, so it is ignored (write custom item properties directly as '\"plugin:name\" { ... }')")
+                continue
+            }
             val index = names.indexOf(entry.key)
             if (index < 0) {
+                if (owner == "Item" && ':' in entry.key) {
+                    error(join(path, entry.key), entry.value, "'${entry.key}' is not an item property (is the plugin that adds it installed?)${Suggest.hint(entry.key, properties)}")
+                    continue
+                }
                 val moved = RENAMED["$owner.${entry.key}"]
-                val note = moved ?: "is not a key of ${what(descriptor)}, so it is ignored${Suggest.hint(entry.key, names.filter { it !in value.keys })}"
+                val note = moved ?: "is not a key of ${what(descriptor)}, so it is ignored${Suggest.hint(entry.key, userNames.filter { it !in value.keys })}"
                 warn(join(path, entry.key), entry.value, note)
                 continue
             }
             out[entry.key] = walk(descriptor.getElementDescriptor(index), entry.value, join(path, entry.key), boundsOf(descriptor.getElementAnnotations(index)))
         }
+        if (packedProperties != null && packedProperties.isNotEmpty()) out["properties"] = packedProperties
         for (index in 0 until descriptor.elementsCount) {
             if (!descriptor.isElementOptional(index) && names[index] !in value.keys) error(join(path, names[index]), value, "is required")
         }
