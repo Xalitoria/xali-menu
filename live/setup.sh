@@ -118,6 +118,21 @@ if [ -n "${XM_KITPREVIEW:-}" ]; then
   (cd "$classes" && "$JAVA_HOME/bin/jar" cf "$server/plugins/XaliMenu/extensions/kitpreview.jar" .)
   rm -rf "$classes"
 fi
+# XM_KITEDITOR=<EssentialsX jar> installs that jar and builds extension/EssentialsKitEditorExtension.java into plugins/XaliMenu/extensions/kiteditor.jar
+# (bot/kiteditor.js uses it; pair with XM_KITPREVIEW for /kitpreview too). Use a Folia build of EssentialsX on the Folia server.
+if [ -n "${XM_KITEDITOR:-}" ]; then
+  [ -f "$XM_KITEDITOR" ] || { echo "no such jar: $XM_KITEDITOR" >&2; exit 1; }
+  cp "$XM_KITEDITOR" "$server/plugins/"
+  libs=$(for name in paper-api adventure-api adventure-key examination-api jspecify annotations bungeecord-chat; do
+    find "$HOME/.gradle/caches/modules-2" -name "$name-[0-9]*.jar" ! -name '*sources*' | sort | tail -1
+  done | paste -sd:)
+  guava=$(find "$HOME/.gradle/caches/modules-2" -name "guava-[0-9]*.jar" ! -name '*sources*' | sort | tail -1)
+  classes=$(mktemp -d)
+  "$JAVA_HOME/bin/javac" -d "$classes" -cp "$libs:$guava:$plugin:$XM_KITEDITOR" "$here"/extension/EssentialsKitEditorExtension.java
+  mkdir -p "$server/plugins/XaliMenu/extensions"
+  (cd "$classes" && "$JAVA_HOME/bin/jar" cf "$server/plugins/XaliMenu/extensions/kiteditor.jar" .)
+  rm -rf "$classes"
+fi
 # XM_EDITOR=1 turns the web editor's endpoint on (port XM_EDITOR_PORT, default 8123; XM_EDITOR_PACK is the pack zip to show).
 # XM_PACK_URL=<url> sets editor.pack-url, the address the pack is hosted at.
 # XM_RELAY=<url> sets editor.relay.url, for /xmenu share (run the relay with `node menu/relay/relay.js`).
