@@ -12,9 +12,12 @@ import java.net.InetAddress
 internal object EditorGuard {
     /** Action types that can escalate privileges or execute arbitrary commands on the server. */
     private val PRIVILEGED_ACTIONS = setOf("console", "permission", "group", "meta", "gamemode", "player", "chat")
-    private val ACTION_CONTEXT_KEYS = setOf(
+    /** Keys whose direct value (or list elements) are Action objects; used to flag namespaced addon actions without flagging catalogs/conditions/activators. */
+    private val DIRECT_ACTION_KEYS = setOf(
         "pass", "deny", "actions", "action", "then", "reject",
         "on-open", "on-close", "on-start", "on-end", "on-submit", "on-cancel",
+    )
+    private val ACTION_CONTEXT_KEYS = DIRECT_ACTION_KEYS + setOf(
         "items", "click", "accept", "bedrock", "animation", "frames", "pages",
     )
     private val ITEM_MAP_KEYS = setOf("items", "map", "templates")
@@ -150,7 +153,7 @@ internal object EditorGuard {
         var depthExceeded = false
         var nodeLimitExceeded = false
 
-        fun walk(node: Any?, inCondition: Boolean, inItemMap: Boolean, depth: Int) {
+        fun walk(node: Any?, inCondition: Boolean, inItemMap: Boolean, inAction: Boolean, depth: Int) {
             if (node == null) return
             if (depth > maxDepth) {
                 depthExceeded = true
@@ -163,7 +166,7 @@ internal object EditorGuard {
             when (node) {
                 is ConfigObject -> {
                     if (!inCondition) {
-                        summarizeAction(node)?.let { summary ->
+                        summarizeAction(node, inAction)?.let { summary ->
                             total++
                             if (found.size < limit) found.add(summary)
                         }
@@ -177,20 +180,21 @@ internal object EditorGuard {
                             else -> inCondition
                         }
                         val childItemMap = !childCondition && lower in ITEM_MAP_KEYS
-                        walk(value, childCondition, childItemMap, depth + 1)
+                        val childAction = !inItemMap && !childCondition && lower in DIRECT_ACTION_KEYS
+                        walk(value, childCondition, childItemMap, childAction, depth + 1)
                         if (nodeLimitExceeded) return
                     }
                 }
                 is ConfigList -> {
                     for (item in node) {
-                        walk(item, inCondition, inItemMap = false, depth = depth + 1)
+                        walk(item, inCondition, inItemMap = false, inAction = inAction, depth = depth + 1)
                         if (nodeLimitExceeded) return
                     }
                 }
             }
         }
 
-        walk(menu, inCondition = false, inItemMap = false, depth = 0)
+        walk(menu, inCondition = false, inItemMap = false, inAction = false, depth = 0)
         return PrivilegedScan(
             actions = found,
             totalFound = total,
@@ -200,9 +204,11 @@ internal object EditorGuard {
         )
     }
 
-    private fun summarizeAction(obj: ConfigObject): String? {
+    private fun summarizeAction(obj: ConfigObject, inAction: Boolean): String? {
         val type = stringOf(obj, "type")?.trim()?.lowercase() ?: return null
-        if (type !in PRIVILEGED_ACTIONS) return null
+        if (type !in PRIVILEGED_ACTIONS) {
+            return if (inAction && ':' in type) "addon: ${cleanValue(type)}" else null
+        }
         return when (type) {
             "console" -> "console: ${cleanValue(stringOf(obj, "command") ?: "")}"
             "player" -> "player: ${cleanValue(stringOf(obj, "command") ?: "")}"

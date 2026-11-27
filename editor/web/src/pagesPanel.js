@@ -3,6 +3,7 @@
 
 import { h, doc } from './dom.js'
 import { slotCount } from './check.js'
+import { parseSettingInput } from './form.js'
 import { defaultPages, interiorSlots, listedSlots, TEMPLATE } from './pages.js'
 import { geometry } from './window.js'
 
@@ -35,8 +36,9 @@ function settingsFields(app, catalog) {
   return h('div', { class: 'catalog-settings' },
     keys.map((key) => {
       const value = catalog[key]
-      const input = h('input', { type: 'text', value: value === undefined ? '' : typeof value === 'string' ? value : JSON.stringify(value), placeholder: described[key],
-        oninput: () => { if (input.value === '') app.store.remove(['pages', 'catalog', key]); else app.store.set(['pages', 'catalog', key], input.value, true) } })
+      const example = described[key]
+      const input = h('input', { type: 'text', value: value === undefined ? '' : typeof value === 'string' ? value : JSON.stringify(value), placeholder: example,
+        oninput: () => { if (input.value === '') app.store.remove(['pages', 'catalog', key]); else app.store.set(['pages', 'catalog', key], parseSettingInput(input.value, value, example), true) } })
       return h('div', { class: 'field', 'data-key': key }, h('label', { title: `For example ${described[key]}` }, key), h('div', { class: 'control' }, input))
     }),
     others.length > 0 && h('div', { class: 'field unknown' }, h('label', { title: 'Keys the plugin did not describe' }, 'other keys'),

@@ -8,6 +8,7 @@ import kotlinx.serialization.descriptors.element
 import kotlinx.serialization.encoding.CompositeDecoder
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.decodeStructure
+import mc.xalitoria.menu.paper.format.MenuFormat
 import net.xalitoria.menu.Settings
 
 /**
@@ -30,6 +31,6 @@ internal class ExternalSerializer<B : Any>(name: String, private val create: (Se
                 }
             }
         }
-        return create(Settings(ConfigFactory.parseString(values).root().unwrapped()))
+        return create(Settings(ConfigFactory.parseString(values, MenuFormat.JSON_PARSE).root().unwrapped()))
     }
 }

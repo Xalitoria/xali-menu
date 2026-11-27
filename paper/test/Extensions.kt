@@ -113,7 +113,7 @@ class Extensions {
     @Test
     fun aNameHasAPluginInFrontOfIt() {
         val registry = registry()
-        for (bad in listOf("reward", "Test:Reward", "test:", ":reward", "a b:c", "test:re ward")) {
+        for (bad in listOf("reward", "Test:Reward", "test:", ":reward", "a b:c", "test:re ward", "..:reward", ".:reward", ".hidden:reward", "a..b:reward", "a.:reward")) {
             assertFailsWith<IllegalArgumentException>(bad) { registry.addAction(owner, bad, rewardType) }
         }
     }

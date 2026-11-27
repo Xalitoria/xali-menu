@@ -143,9 +143,17 @@ class Editor {
                 plugin = "XaliMenu", version = "0.6.0", owner = "Steve", shared = false, readOnly = false,
                 menus = emptyList(), pack = false, catalogs = emptyMap(), packSize = null, packUrl = null,
                 itemProperties = mapOf("essentials:kit-preview" to mapOf("kit" to "tools")),
+                actions = listOf("kiteditor:claim"),
+                conditions = listOf("kiteditor:authorized"),
+                activators = listOf("myext:emote"),
+                completers = listOf("kiteditor:kits"),
             ),
         )
         assertTrue(""""itemProperties":{"essentials:kit-preview":{"kit":"tools"}}""" in infoJson, infoJson)
+        assertTrue(""""actions":["kiteditor:claim"]""" in infoJson, infoJson)
+        assertTrue(""""conditions":["kiteditor:authorized"]""" in infoJson, infoJson)
+        assertTrue(""""activators":["myext:emote"]""" in infoJson, infoJson)
+        assertTrue(""""completers":["kiteditor:kits"]""" in infoJson, infoJson)
         // A request of the wrong shape is not one, instead of a value that is null somewhere further on.
         assertNull(Wire.read<MenuRequest>("not json"))
         assertNull(Wire.read<ColorsRequest>("""{"potions":"x"}"""))
@@ -357,6 +365,26 @@ class Editor {
         assertTrue(deepScan.depthExceeded)
         assertFalse(deepScan.scannedAll)
         assertFalse(deepScan.complete)
+
+        // Extension/addon actions are flagged, while extension conditions, catalogs, activators and item properties are not.
+        val addonMenu = ConfigFactory.parseString(
+            """
+            {
+              "title": "Kits",
+              "open": { "require": [{ "condition": { "type": "kiteditor:authorized", "node": "essentials.kit" } }] },
+              "open-with": [{ "type": "myext:emote", "name": "wave" }],
+              "pages": { "catalog": { "type": "kiteditor:kits", "usable": false }, "slots": [0], "item": { "material": "chest", "kiteditor:kit-info": { "type": "not:action", "kit": "tools" } } },
+              "items": {
+                "del": {
+                  "material": "tnt",
+                  "slot": 1,
+                  "click": { "any": { "actions": [{ "type": "kiteditor:delete", "kit": "tools" }] } }
+                }
+              }
+            }
+            """.trimIndent(),
+        ).root()
+        assertEquals(listOf("addon: kiteditor:delete"), EditorGuard.privilegedActions(addonMenu))
     }
 
     @Test
@@ -401,6 +429,10 @@ class Editor {
         assertTrue(includeAttempt.isFailure, "HOCON include directives must be refused")
         val envAttempt = runCatching { Registry.format.decode("""title = ${'$'}{java.home}""") }
         assertTrue(envAttempt.isFailure, "system properties must not resolve in menu files")
+        val jsonIncludeAttempt = runCatching {
+            ConfigFactory.parseString("""include file("/etc/passwd")""", mc.xalitoria.menu.paper.format.MenuFormat.JSON_PARSE)
+        }
+        assertTrue(jsonIncludeAttempt.isFailure, "strict JSON parse for packed external values must reject HOCON includes")
     }
 
     @Test

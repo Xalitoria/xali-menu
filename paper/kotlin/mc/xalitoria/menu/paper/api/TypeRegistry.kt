@@ -65,6 +65,12 @@ class TypeRegistry {
     /** The names (`plugin:name`) of the actions, conditions and catalogs other plugins added: the `type`s that need [packExternals][mc.xalitoria.menu.paper.format.packExternals]. */
     val externalNames: Set<String> get() = (externalActions + externalConditions + externalCatalogs).mapTo(HashSet()) { it.name }
 
+    /** The names (`plugin:name`) of the actions other plugins and extensions added. */
+    val externalActionNames: Set<String> get() = externalActions.mapTo(HashSet()) { it.name }
+
+    /** The names (`plugin:name`) of the conditions other plugins and extensions added. */
+    val externalConditionNames: Set<String> get() = externalConditions.mapTo(HashSet()) { it.name }
+
     /** What the elements of each catalog hold, as the name of each value with an example: for the editor. Built-in and other plugins' catalogs, by `type`. */
     val catalogInfo: Map<String, Map<String, String>> get() = catalogValues.mapValues { it.value.values }
 
@@ -215,7 +221,7 @@ class TypeRegistry {
     }
 
     private companion object {
-        /** `plugin:name`, in lower case, such as a namespaced key. */
-        val NAME = Regex("[a-z0-9_.-]+:[a-z0-9_./-]+")
+        /** `plugin:name`, in lower case, such as a namespaced key (no leading/trailing dots or `..` in the namespace). */
+        val NAME = Regex("[a-z0-9][a-z0-9_-]*(?:\\.[a-z0-9_-]+)*:[a-z0-9_./-]+")
     }
 }

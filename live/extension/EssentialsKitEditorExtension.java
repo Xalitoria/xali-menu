@@ -270,7 +270,9 @@ public final class EssentialsKitEditorExtension extends MenuExtension {
         }
 
         static boolean requirePerm(MenuContext ctx, String permission) {
-            User user = user(ctx);
+            IEssentials ess = essentials();
+            if (ess == null) return false;
+            User user = ess.getUser(ctx.getPlayer());
             if (!user.isAuthorized(permission)) {
                 user.sendTl("noAccessCommand");
                 return false;
@@ -496,25 +498,37 @@ public final class EssentialsKitEditorExtension extends MenuExtension {
     }
 
     private record CreateKit(String kit, long delay) implements Action {
+        CreateKit {
+            if (delay < -1) {
+                throw new IllegalArgumentException("'delay' must be -1 (one-time) or 0 and above, not " + delay);
+            }
+        }
+
         @Override
         public void run(MenuContext ctx) {
+            IEssentials ess = KitsSupport.essentials();
+            if (ess == null) {
+                ctx.abort();
+                return;
+            }
             if (!KitsSupport.requirePerm(ctx, "essentials.createkit")) {
                 ctx.abort();
                 return;
             }
-            IEssentials ess = KitsSupport.essentials();
             String name = ctx.parse(kit).trim().toLowerCase(Locale.ENGLISH);
             if (!name.matches("[a-z0-9_-]+")) {
                 ctx.getPlayer().sendMessage(ctx.component("&cInvalid kit name. Use letters, digits, _ or -."));
                 ctx.abort();
                 return;
             }
-            if (ess.getKits().matchKit(name) != null) {
-                ctx.getPlayer().sendMessage(ctx.component("&cKit '" + name + "' already exists."));
-                ctx.abort();
-                return;
+            synchronized (ess.getKits()) {
+                if (ess.getKits().matchKit(name) != null) {
+                    ctx.getPlayer().sendMessage(ctx.component("&cKit '" + name + "' already exists."));
+                    ctx.abort();
+                    return;
+                }
+                ess.getKits().addKit(name, new ArrayList<>(), delay);
             }
-            ess.getKits().addKit(name, new ArrayList<>(), delay);
             ctx.getPlayer().sendMessage(ctx.component("&aCreated kit &e" + name + "&a."));
         }
     }
@@ -522,21 +536,25 @@ public final class EssentialsKitEditorExtension extends MenuExtension {
     private record AddHeldItem(String kit) implements Action {
         @Override
         public void run(MenuContext ctx) {
-            if (!KitsSupport.requirePerm(ctx, "essentials.createkit")) return;
             IEssentials ess = KitsSupport.essentials();
-            String match = ess.getKits().matchKit(ctx.parse(kit).trim());
-            if (match == null) {
-                ctx.getPlayer().sendMessage(ctx.component("&cKit not found."));
-                return;
-            }
+            if (ess == null) return;
+            if (!KitsSupport.requirePerm(ctx, "essentials.createkit")) return;
             ItemStack held = ctx.getPlayer().getInventory().getItemInMainHand();
             if (held == null || held.getType() == Material.AIR || held.getAmount() <= 0) {
                 ctx.getPlayer().sendMessage(ctx.component("&cHold an item in your main hand to add it."));
                 return;
             }
-            List<String> lines = KitsSupport.rawLines(ess, match);
-            lines.add(KitsSupport.serializeItem(ess, held.clone(), -1));
-            ess.getKits().addKit(match, lines, KitsSupport.delayOf(ess, match));
+            String match;
+            synchronized (ess.getKits()) {
+                match = ess.getKits().matchKit(ctx.parse(kit).trim());
+                if (match == null) {
+                    ctx.getPlayer().sendMessage(ctx.component("&cKit not found."));
+                    return;
+                }
+                List<String> lines = KitsSupport.rawLines(ess, match);
+                lines.add(KitsSupport.serializeItem(ess, held.clone(), -1));
+                ess.getKits().addKit(match, lines, KitsSupport.delayOf(ess, match));
+            }
             ctx.getPlayer().sendMessage(ctx.component("&aAdded &f" + held.getType().getKey().getKey() + " x" + held.getAmount() + " &ato kit &e" + match + "&a."));
             ctx.refresh();
         }
@@ -545,21 +563,9 @@ public final class EssentialsKitEditorExtension extends MenuExtension {
     private record ImportInventory(String kit) implements Action {
         @Override
         public void run(MenuContext ctx) {
-            if (!KitsSupport.requirePerm(ctx, "essentials.createkit")) return;
             IEssentials ess = KitsSupport.essentials();
-            String match = ess.getKits().matchKit(ctx.parse(kit).trim());
-            if (match == null) {
-                ctx.getPlayer().sendMessage(ctx.component("&cKit not found."));
-                return;
-            }
-            // Keep existing command and currency lines so editing items does not wipe kit commands or money rewards.
-            String currency = KitsSupport.currencyOf(ess);
-            List<String> kept = new ArrayList<>();
-            for (String raw : KitsSupport.rawLines(ess, match)) {
-                if (raw != null && KitsSupport.isNonItemLine(raw.trim(), currency) && !raw.trim().isEmpty()) {
-                    kept.add(raw);
-                }
-            }
+            if (ess == null) return;
+            if (!KitsSupport.requirePerm(ctx, "essentials.createkit")) return;
             ItemStack[] contents = Inventories.getInventory(ctx.getPlayer(), true);
             List<String> added = new ArrayList<>();
             for (int slot = 0; slot < contents.length; slot++) {
@@ -571,9 +577,24 @@ public final class EssentialsKitEditorExtension extends MenuExtension {
                 ctx.getPlayer().sendMessage(ctx.component("&cYour inventory is empty."));
                 return;
             }
-            added.addAll(kept);
-            ess.getKits().addKit(match, added, KitsSupport.delayOf(ess, match));
-            ctx.getPlayer().sendMessage(ctx.component("&aImported &f" + (added.size() - kept.size()) + " &aitem(s) into kit &e" + match + "&a."));
+            int importedCount = added.size();
+            String match;
+            synchronized (ess.getKits()) {
+                match = ess.getKits().matchKit(ctx.parse(kit).trim());
+                if (match == null) {
+                    ctx.getPlayer().sendMessage(ctx.component("&cKit not found."));
+                    return;
+                }
+                // Keep existing command and currency lines so editing items does not wipe kit commands or money rewards.
+                String currency = KitsSupport.currencyOf(ess);
+                for (String raw : KitsSupport.rawLines(ess, match)) {
+                    if (raw != null && KitsSupport.isNonItemLine(raw.trim(), currency) && !raw.trim().isEmpty()) {
+                        added.add(raw);
+                    }
+                }
+                ess.getKits().addKit(match, added, KitsSupport.delayOf(ess, match));
+            }
+            ctx.getPlayer().sendMessage(ctx.component("&aImported &f" + importedCount + " &aitem(s) into kit &e" + match + "&a."));
             ctx.refresh();
         }
     }
@@ -581,23 +602,27 @@ public final class EssentialsKitEditorExtension extends MenuExtension {
     private record RemoveItem(String kit, String slotSpec) implements Action {
         @Override
         public void run(MenuContext ctx) {
-            if (!KitsSupport.requirePerm(ctx, "essentials.createkit")) return;
             IEssentials ess = KitsSupport.essentials();
-            String match = ess.getKits().matchKit(ctx.parse(kit).trim());
-            if (match == null) return;
+            if (ess == null) return;
+            if (!KitsSupport.requirePerm(ctx, "essentials.createkit")) return;
             int index;
             try {
                 index = Integer.parseInt(ctx.parse(slotSpec).trim());
             } catch (NumberFormatException ignored) {
                 return;
             }
-            List<KitsSupport.ParsedItem> entries = KitsSupport.parseEntries(ess, match);
-            if (index < 0 || index >= entries.size()) return;
-            int rawIndex = entries.get(index).rawIndex();
-            List<String> lines = KitsSupport.rawLines(ess, match);
-            if (rawIndex < 0 || rawIndex >= lines.size()) return;
-            lines.remove(rawIndex);
-            ess.getKits().addKit(match, lines, KitsSupport.delayOf(ess, match));
+            String match;
+            synchronized (ess.getKits()) {
+                match = ess.getKits().matchKit(ctx.parse(kit).trim());
+                if (match == null) return;
+                List<KitsSupport.ParsedItem> entries = KitsSupport.parseEntries(ess, match);
+                if (index < 0 || index >= entries.size()) return;
+                int rawIndex = entries.get(index).rawIndex();
+                List<String> lines = KitsSupport.rawLines(ess, match);
+                if (rawIndex < 0 || rawIndex >= lines.size()) return;
+                lines.remove(rawIndex);
+                ess.getKits().addKit(match, lines, KitsSupport.delayOf(ess, match));
+            }
             ctx.getPlayer().sendMessage(ctx.component("&eRemoved item from kit &f" + match + "&e."));
             ctx.refresh();
         }
@@ -606,8 +631,9 @@ public final class EssentialsKitEditorExtension extends MenuExtension {
     private record GiveItem(String kit, String slotSpec) implements Action {
         @Override
         public void run(MenuContext ctx) {
-            if (!KitsSupport.requirePerm(ctx, "essentials.createkit")) return;
             IEssentials ess = KitsSupport.essentials();
+            if (ess == null) return;
+            if (!KitsSupport.requirePerm(ctx, "essentials.createkit")) return;
             String match = ess.getKits().matchKit(ctx.parse(kit).trim());
             if (match == null) return;
             int index;
@@ -629,14 +655,12 @@ public final class EssentialsKitEditorExtension extends MenuExtension {
     private record SetDelay(String kit, String delaySpec) implements Action {
         @Override
         public void run(MenuContext ctx) {
-            if (!KitsSupport.requirePerm(ctx, "essentials.createkit")) {
+            IEssentials ess = KitsSupport.essentials();
+            if (ess == null) {
                 ctx.abort();
                 return;
             }
-            IEssentials ess = KitsSupport.essentials();
-            String match = ess.getKits().matchKit(ctx.parse(kit).trim());
-            if (match == null) {
-                ctx.getPlayer().sendMessage(ctx.component("&cKit not found."));
+            if (!KitsSupport.requirePerm(ctx, "essentials.createkit")) {
                 ctx.abort();
                 return;
             }
@@ -653,7 +677,16 @@ public final class EssentialsKitEditorExtension extends MenuExtension {
                 ctx.abort();
                 return;
             }
-            ess.getKits().addKit(match, KitsSupport.rawLines(ess, match), seconds);
+            String match;
+            synchronized (ess.getKits()) {
+                match = ess.getKits().matchKit(ctx.parse(kit).trim());
+                if (match == null) {
+                    ctx.getPlayer().sendMessage(ctx.component("&cKit not found."));
+                    ctx.abort();
+                    return;
+                }
+                ess.getKits().addKit(match, KitsSupport.rawLines(ess, match), seconds);
+            }
             ctx.getPlayer().sendMessage(ctx.component("&aSet delay of kit &e" + match + " &ato &f" + KitsSupport.formatDelay(seconds) + "&a."));
         }
     }
@@ -661,27 +694,34 @@ public final class EssentialsKitEditorExtension extends MenuExtension {
     private record DeleteKit(String kit) implements Action {
         @Override
         public void run(MenuContext ctx) {
+            IEssentials ess = KitsSupport.essentials();
+            if (ess == null) {
+                ctx.abort();
+                return;
+            }
             if (!KitsSupport.requirePerm(ctx, "essentials.delkit")) {
                 ctx.abort();
                 return;
             }
-            IEssentials ess = KitsSupport.essentials();
             User user = KitsSupport.user(ctx);
-            String match = ess.getKits().matchKit(ctx.parse(kit).trim());
-            if (match == null) {
-                user.sendTl("kitNotFound");
-                ctx.abort();
-                return;
+            String match;
+            synchronized (ess.getKits()) {
+                match = ess.getKits().matchKit(ctx.parse(kit).trim());
+                if (match == null) {
+                    user.sendTl("kitNotFound");
+                    ctx.abort();
+                    return;
+                }
+                // Match EssentialsX's Commanddelkit: deleting a kit also requires essentials.kits.<name>.
+                try {
+                    new Kit(match, ess).checkPerms(user);
+                } catch (Exception error) {
+                    KitsSupport.fail(user, error);
+                    ctx.abort();
+                    return;
+                }
+                ess.getKits().removeKit(match);
             }
-            // Match EssentialsX's Commanddelkit: deleting a kit also requires essentials.kits.<name>.
-            try {
-                new Kit(match, ess).checkPerms(user);
-            } catch (Exception error) {
-                KitsSupport.fail(user, error);
-                ctx.abort();
-                return;
-            }
-            ess.getKits().removeKit(match);
             ctx.getPlayer().sendMessage(ctx.component("&cDeleted kit &e" + match + "&c."));
         }
     }

@@ -69,6 +69,10 @@ internal object Wire {
     val serverVersion: String? = null, val packRevision: Long = 0,
     val ipVerified: Boolean = true, val ipNotice: String? = null, val clientName: String? = null,
     val itemProperties: Map<String, Map<String, String>> = emptyMap(),
+    val actions: List<String> = emptyList(),
+    val conditions: List<String> = emptyList(),
+    val activators: List<String> = emptyList(),
+    val completers: List<String> = emptyList(),
 )
 
 /** Collaborator heartbeat sent by an open web-editor tab (`POST /v1/presence`). */

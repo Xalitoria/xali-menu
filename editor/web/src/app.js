@@ -89,7 +89,13 @@ export class App {
       },
       // A key that takes a value of one of the game's registries (an enchantment, an effect, a dye color...) is a dropdown of them.
       registry: (field) => registryChoices(field),
-      extraVariants: (base) => (base === 'Catalog' ? Object.keys(this.serverInfo?.catalogs ?? {}) : []),
+      extraVariants: (base) => {
+        if (base === 'Catalog') return Object.keys(this.serverInfo?.catalogs ?? {})
+        if (base === 'Action') return this.serverInfo?.actions ?? []
+        if (base === 'Condition') return this.serverInfo?.conditions ?? []
+        if (base === 'Activator') return this.serverInfo?.activators ?? []
+        return []
+      },
       extraFields: (typeName) => {
         if (typeName !== 'Item') return []
         const props = this.serverInfo?.itemProperties ?? {}

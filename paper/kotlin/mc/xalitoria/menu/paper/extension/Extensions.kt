@@ -307,7 +307,13 @@ class Extensions(private val host: Host, private val registry: TypeRegistry) {
 
         override val logger: Logger = Prefixed(host.logger, id)
 
-        override val dataFolder: File get() = host.folder.resolve(id).toFile()
+        override val dataFolder: File
+            get() {
+                val base = host.folder.normalize()
+                val resolved = base.resolve(id).normalize()
+                check(resolved.startsWith(base) && resolved != base) { "Extension data folder escapes extensions directory: $id" }
+                return resolved.toFile()
+            }
 
         private fun named(name: String): String {
             require(NAME.matches(name)) { "'$name' isn't a name; use lower case letters, digits and _ - . / without the identifier, such as reward" }
@@ -365,8 +371,8 @@ class Extensions(private val host: Host, private val registry: TypeRegistry) {
 
         const val SERVICES = "META-INF/services/net.xalitoria.menu.MenuExtension"
 
-        /** What an extension calls itself. */
-        val IDENTIFIER = Regex("[a-z0-9_.-]+")
+        /** What an extension calls itself (no leading/trailing dots or `..` path segments). */
+        val IDENTIFIER = Regex("[a-z0-9][a-z0-9_-]*(?:\\.[a-z0-9_-]+)*")
 
         /** What an extension calls one of its actions, conditions, catalogs and activators, before the identifier is put in front. */
         val NAME = Regex("[a-z0-9_./-]+")

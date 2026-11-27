@@ -290,6 +290,14 @@ class ExtensionLoading {
     }
 
     @Test
+    fun aPathTraversalIdentifierIsRefused() {
+        jar("traversal", "fixture/ext/traversal")
+        assertEquals(0, extensions.load())
+        val state = extensions.entries.single().state as Extensions.State.Failed
+        assertTrue("not an identifier" in state.reason, state.reason)
+    }
+
+    @Test
     fun aNameCannotCarryAnotherIdentifier() {
         jar("badname", "fixture/ext/badname")
         extensions.load()

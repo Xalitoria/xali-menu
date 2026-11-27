@@ -132,7 +132,7 @@ class MenuManager(private val plugin: XaliMenu) {
         val found = mutableMapOf<String, Labels>()
         for (file in files()) {
             try {
-                val config = ConfigFactory.parseFile(file)
+                val config = ConfigFactory.parseFile(file, MenuFormat.SAFE_PARSE)
                 found[file.toPath().nameWithoutExtension] = Labels(
                     if (config.hasPath("commands")) config.getStringList("commands") else emptyList(),
                     !config.hasPath("register") || config.getBoolean("register"),
@@ -372,7 +372,7 @@ class MenuManager(private val plugin: XaliMenu) {
 
     /** What the plugin that added the activator [activator] makes of its keys, null if there is no such plugin or it refuses them. */
     private fun filterOf(activator: Activator.Addon): ActivatorFilter? = try {
-        plugin.registry.activator(activator.name)?.create(Settings(ConfigFactory.parseString(activator.values).root().unwrapped()))
+        plugin.registry.activator(activator.name)?.create(Settings(ConfigFactory.parseString(activator.values, MenuFormat.JSON_PARSE).root().unwrapped()))
     } catch (e: RuntimeException) {
         null
     }
@@ -401,7 +401,7 @@ class MenuManager(private val plugin: XaliMenu) {
                 val type = plugin.registry.activator(activator.name)
                 if (type == null) add("the activator '${activator.name}' isn't added by any plugin that is installed")
                 else try {
-                    type.create(Settings(ConfigFactory.parseString(activator.values).root().unwrapped()))
+                    type.create(Settings(ConfigFactory.parseString(activator.values, MenuFormat.JSON_PARSE).root().unwrapped()))
                 } catch (e: RuntimeException) {
                     add("the activator '${activator.name}' refuses its keys: ${e.message}")
                 }

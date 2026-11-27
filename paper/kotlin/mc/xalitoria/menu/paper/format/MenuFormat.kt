@@ -7,6 +7,7 @@ import com.typesafe.config.ConfigIncluder
 import com.typesafe.config.ConfigObject
 import com.typesafe.config.ConfigParseOptions
 import com.typesafe.config.ConfigResolveOptions
+import com.typesafe.config.ConfigSyntax
 import kotlinx.serialization.hocon.Hocon
 import kotlinx.serialization.hocon.decodeFromConfig
 import kotlinx.serialization.hocon.encodeToConfig
@@ -55,6 +56,7 @@ class MenuFormat(
                 throw ConfigException.Generic("include directives are not allowed in menus")
         }
         internal val SAFE_PARSE: ConfigParseOptions = ConfigParseOptions.defaults().setIncluder(NO_INCLUDE)
+        internal val JSON_PARSE: ConfigParseOptions = ConfigParseOptions.defaults().setSyntax(ConfigSyntax.JSON).setIncluder(NO_INCLUDE)
         internal val SAFE_RESOLVE: ConfigResolveOptions = ConfigResolveOptions.noSystem()
     }
 

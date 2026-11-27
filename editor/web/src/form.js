@@ -420,20 +420,38 @@ export class Form {
     return h('div', { class: 'group nested catalog-settings' },
       keys.map((key) => {
         const v = current[key]
-        const input = h('input', {
-          type: 'text',
-          value: v === undefined ? '' : typeof v === 'string' ? v : JSON.stringify(v),
-          placeholder: described[key],
-          oninput: () => {
-            if (input.value === '') this.store.remove([...path, key])
-            else this.store.set([...path, key], input.value, true)
-          },
-        })
-        return h('div', { class: 'field', 'data-key': key }, h('label', { title: `For example ${described[key]}` }, key), h('div', { class: 'control' }, input))
+        const example = described[key]
+        const keyPath = [...path, key]
+        const control = this.settingControl(keyPath, key, v, example)
+        return h('div', { class: 'field', 'data-key': key }, h('label', { title: `For example ${example}` }, key), h('div', { class: 'control' }, control))
       }),
       others.length > 0 && h('div', { class: 'field unknown' },
         h('label', { title: 'Keys the plugin did not describe' }, 'other keys'),
         h('div', { class: 'control' }, this.json(path, current, keys))))
+  }
+
+  /** Renders an appropriate control for a described extension setting: string list, JSON object, or typed scalar input. */
+  settingControl(path, key, value, example) {
+    const hint = typeof example === 'string' ? example.trim() : ''
+    if (Array.isArray(value) && value.every((item) => typeof item !== 'object' || item === null)) {
+      return this.list({ kind: 'string' }, path, value.map((item) => (item == null ? '' : String(item))), { key })
+    }
+    if (value === undefined && hint.startsWith('[') && !hint.startsWith('[{')) {
+      return this.list({ kind: 'string' }, path, [], { key })
+    }
+    if ((value && typeof value === 'object') || hint.startsWith('{') || hint.startsWith('[{')) {
+      return this.json(path, value)
+    }
+    const input = h('input', {
+      type: 'text',
+      value: value === undefined ? '' : typeof value === 'string' ? value : JSON.stringify(value),
+      placeholder: example,
+      oninput: () => {
+        if (input.value === '') this.store.remove(path)
+        else this.store.set(path, parseSettingInput(input.value, value, example), true)
+      },
+    })
+    return input
   }
 
   /** Any value as JSON text, for what the schema cannot describe. */
@@ -449,4 +467,19 @@ export class Form {
       } })
     return area
   }
+}
+
+/** Parses a typed value edited in an extension settings field when [current] or [example] indicates a boolean, number, or JSON structure. */
+export function parseSettingInput(raw, current, example) {
+  const trimmed = String(raw).trim()
+  const hint = typeof example === 'string' ? example.trim() : ''
+  const expectsJson = Array.isArray(current) || (current !== null && typeof current === 'object') || hint.startsWith('[') || hint.startsWith('{')
+  if (expectsJson && (trimmed.startsWith('[') || trimmed.startsWith('{'))) {
+    try { return JSON.parse(trimmed) } catch { return raw }
+  }
+  const expectsBool = typeof current === 'boolean' || hint === 'true' || hint === 'false'
+  if (expectsBool && (trimmed === 'true' || trimmed === 'false')) return trimmed === 'true'
+  const expectsNum = typeof current === 'number' || (hint !== '' && /^-?\d+(?:\.\d+)?$/.test(hint))
+  if (expectsNum && trimmed !== '' && /^-?\d+(?:\.\d+)?$/.test(trimmed)) return Number(trimmed)
+  return raw
 }
