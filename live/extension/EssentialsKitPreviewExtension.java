@@ -26,9 +26,9 @@ import org.bukkit.inventory.ItemStack;
  * A focused XaliMenu extension for previewing EssentialsX kits via `/kitpreview <kit>`:
  *
  * <ul>
- *   <li>Completers: `@kitpreview:kits` (all kits) and `@kitpreview:usable-kits` (kits the sender may claim).</li>
- *   <li>Condition: `kitpreview:exists` (`name`, optional `permitted = false`) for the menu's `open` gate.</li>
- *   <li>Catalog: `kitpreview:items` (`kit`), listing each real item of the kit with `kit`, `slot`, `amount` and `material`.</li>
+ *   <li>Completers: `@kitpreview:kits` (all kits, requires `essentials.showkit`) and `@kitpreview:usable-kits` (kits the sender may preview and claim).</li>
+ *   <li>Conditions: `kitpreview:authorized` (`node`, checked via EssentialsX's `User.isAuthorized`) and `kitpreview:exists` (`name`, optional `permitted = false`).</li>
+ *   <li>Catalog: `kitpreview:items` (`kit`), listing each real item of the kit with `kit`, `slot`, `amount` and `material` (requires `essentials.showkit`).</li>
  *   <li>Item source: `kitpreview:<kit>/<slot>`, producing the exact parsed `ItemStack` EssentialsX gives for that kit entry.</li>
  * </ul>
  *
@@ -66,8 +66,9 @@ public final class EssentialsKitPreviewExtension extends MenuExtension {
         private Preview() {}
 
         static void register(ExtensionContext context) {
-            context.registerCompleter("kits", sender -> kitNames(null));
-            context.registerCompleter("usable-kits", Preview::kitNames);
+            context.registerCompleter("kits", sender -> kitNames(sender, false));
+            context.registerCompleter("usable-kits", sender -> kitNames(sender, true));
+            context.registerCondition("authorized", settings -> new Authorized(settings.requireString("node")));
             context.registerCondition("exists", settings ->
                 new KitExists(settings.requireString("name"), settings.getBoolean("permitted", false)));
             context.registerCatalog(
@@ -82,14 +83,15 @@ public final class EssentialsKitPreviewExtension extends MenuExtension {
             return (IEssentials) Bukkit.getPluginManager().getPlugin("Essentials");
         }
 
-        /** Sorted kit names, optionally filtered to those [sender] has permission to use. */
-        static List<String> kitNames(CommandSender sender) {
+        /** Sorted kit names for [sender]; players must have `essentials.showkit`, and when [usableOnly] also `essentials.kits.<name>`. */
+        static List<String> kitNames(CommandSender sender, boolean usableOnly) {
             IEssentials ess = essentials();
             if (ess == null) return List.of();
             User user = sender instanceof Player player ? ess.getUser(player) : null;
+            if (user != null && !user.isAuthorized("essentials.showkit")) return List.of();
             List<String> names = new ArrayList<>();
             for (String key : new TreeSet<>(ess.getKits().getKitKeys())) {
-                if (user != null && !user.isAuthorized("essentials.kits." + key.toLowerCase(Locale.ROOT))) continue;
+                if (usableOnly && user != null && !user.isAuthorized("essentials.kits." + key.toLowerCase(Locale.ROOT))) continue;
                 names.add(key);
             }
             return names;
@@ -145,6 +147,16 @@ public final class EssentialsKitPreviewExtension extends MenuExtension {
         }
     }
 
+    private record Authorized(String node) implements Condition {
+        @Override
+        public boolean test(MenuContext ctx) {
+            IEssentials ess = Preview.essentials();
+            if (ess == null) return false;
+            String perm = ctx.parse(node).trim();
+            return !perm.isEmpty() && ess.getUser(ctx.getPlayer()).isAuthorized(perm);
+        }
+    }
+
     private record KitExists(String name, boolean permitted) implements Condition {
         @Override
         public boolean test(MenuContext ctx) {
@@ -164,6 +176,7 @@ public final class EssentialsKitPreviewExtension extends MenuExtension {
         public List<Map<String, String>> elements(MenuContext ctx) {
             IEssentials ess = Preview.essentials();
             if (ess == null) return List.of();
+            if (!ess.getUser(ctx.getPlayer()).isAuthorized("essentials.showkit")) return List.of();
             String resolved = ctx.parse(kit).trim();
             if (resolved.isEmpty()) return List.of();
             String match = ess.getKits().matchKit(resolved);

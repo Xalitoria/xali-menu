@@ -33,14 +33,13 @@ import org.bukkit.inventory.ItemStack;
  * XaliMenu extension for selecting and editing EssentialsX kits in game (`kits.conf`, `kiteditor.conf`).
  *
  * <ul>
- *   <li>Completers: `@kiteditor:kits` (all kits) and `@kiteditor:usable-kits` (kits the sender may claim).</li>
- *   <li>Conditions: `kiteditor:exists` (`name`, optional `permitted = false`) and `kiteditor:ready` (`name`).</li>
- *   <li>Catalogs: `kiteditor:kits` (`usable = false`, with `name`, `delay`, `delay_text`, `items`, `ready`, `wait`, `permitted`, `icon`)
- *       and `kiteditor:items` (`kit`, with `kit`, `slot`, `amount`, `material`).</li>
+ *   <li>Completers: `@kiteditor:kits` (all kits, requires `essentials.createkit`) and `@kiteditor:usable-kits` (kits the sender may claim, requires `essentials.kit` + `essentials.kits.<name>`).</li>
+ *   <li>Conditions: `kiteditor:authorized` (`node`, via EssentialsX's `User.isAuthorized`), `kiteditor:exists` (`name`, optional `permitted = false`) and `kiteditor:ready` (`name`).</li>
+ *   <li>Catalogs: `kiteditor:kits` (`usable = false`, requires `essentials.kit`) and `kiteditor:items` (`kit`, requires `essentials.createkit`).</li>
  *   <li>Item source: `kiteditor:<kit>/<slot>` producing the exact parsed `ItemStack` of that kit item.</li>
  *   <li>Item properties: `kiteditor:kit-info` (`kit`) and `kiteditor:append-lore` (`lines`).</li>
- *   <li>Actions: `kiteditor:claim`, `kiteditor:create`, `kiteditor:add-held`, `kiteditor:import-inventory`,
- *       `kiteditor:remove-item`, `kiteditor:give-item`, `kiteditor:set-delay`, `kiteditor:delete`.</li>
+ *   <li>Actions: `kiteditor:claim` (`essentials.kit` + `essentials.kits.<name>`), `kiteditor:create` / `add-held` / `import-inventory` /
+ *       `remove-item` / `give-item` / `set-delay` (`essentials.createkit`), and `kiteditor:delete` (`essentials.delkit` + `essentials.kits.<name>`).</li>
  * </ul>
  *
  * All EssentialsX class references live in {@link KitsSupport} so this class loads cleanly before EssentialsX enables.
@@ -76,9 +75,10 @@ public final class EssentialsKitEditorExtension extends MenuExtension {
         private KitsSupport() {}
 
         static void register(ExtensionContext context) {
-            context.registerCompleter("kits", sender -> kitNames(null));
-            context.registerCompleter("usable-kits", KitsSupport::kitNames);
+            context.registerCompleter("kits", sender -> editorKitNames(sender));
+            context.registerCompleter("usable-kits", KitsSupport::usableKitNames);
 
+            context.registerCondition("authorized", settings -> new Authorized(settings.requireString("node")));
             context.registerCondition("exists", settings ->
                 new KitExists(settings.requireString("name"), settings.getBoolean("permitted", false)));
             context.registerCondition("ready", settings -> new KitReady(settings.requireString("name")));
@@ -170,10 +170,22 @@ public final class EssentialsKitEditorExtension extends MenuExtension {
             return out.toString().trim();
         }
 
-        static List<String> kitNames(CommandSender sender) {
+        /** Sorted kit names for editor tab completion; players without `essentials.createkit` receive none. */
+        static List<String> editorKitNames(CommandSender sender) {
+            IEssentials ess = essentials();
+            if (ess == null) return List.of();
+            if (sender instanceof Player player && !ess.getUser(player).isAuthorized("essentials.createkit")) {
+                return List.of();
+            }
+            return new ArrayList<>(new TreeSet<>(ess.getKits().getKitKeys()));
+        }
+
+        /** Sorted kit names [sender] may claim (`essentials.kit` + `essentials.kits.<name>`). */
+        static List<String> usableKitNames(CommandSender sender) {
             IEssentials ess = essentials();
             if (ess == null) return List.of();
             User user = sender instanceof Player player ? ess.getUser(player) : null;
+            if (user != null && !user.isAuthorized("essentials.kit")) return List.of();
             List<String> names = new ArrayList<>();
             for (String key : new TreeSet<>(ess.getKits().getKitKeys())) {
                 if (user != null && !permitted(key, user)) continue;
@@ -277,6 +289,16 @@ public final class EssentialsKitEditorExtension extends MenuExtension {
 
     // Conditions.
 
+    private record Authorized(String node) implements Condition {
+        @Override
+        public boolean test(MenuContext ctx) {
+            IEssentials ess = KitsSupport.essentials();
+            if (ess == null) return false;
+            String perm = ctx.parse(node).trim();
+            return !perm.isEmpty() && ess.getUser(ctx.getPlayer()).isAuthorized(perm);
+        }
+    }
+
     private record KitExists(String name, boolean permitted) implements Condition {
         @Override
         public boolean test(MenuContext ctx) {
@@ -315,6 +337,7 @@ public final class EssentialsKitEditorExtension extends MenuExtension {
             IEssentials ess = KitsSupport.essentials();
             if (ess == null) return List.of();
             User user = KitsSupport.user(ctx);
+            if (!user.isAuthorized("essentials.kit")) return List.of();
             List<Map<String, String>> rows = new ArrayList<>();
             for (String name : new TreeSet<>(ess.getKits().getKitKeys())) {
                 try {
@@ -346,6 +369,7 @@ public final class EssentialsKitEditorExtension extends MenuExtension {
         public List<Map<String, String>> elements(MenuContext ctx) {
             IEssentials ess = KitsSupport.essentials();
             if (ess == null) return List.of();
+            if (!KitsSupport.user(ctx).isAuthorized("essentials.createkit")) return List.of();
             String match = ess.getKits().matchKit(ctx.parse(kit).trim());
             if (match == null) return List.of();
             List<KitsSupport.ParsedItem> entries = KitsSupport.parseEntries(ess, match);
@@ -448,6 +472,7 @@ public final class EssentialsKitEditorExtension extends MenuExtension {
         public void run(MenuContext ctx) {
             IEssentials ess = KitsSupport.essentials();
             if (ess == null) return;
+            if (!KitsSupport.requirePerm(ctx, "essentials.kit")) return;
             User user = KitsSupport.user(ctx);
             try {
                 String match = ess.getKits().matchKit(ctx.parse(kit).trim());
@@ -641,9 +666,18 @@ public final class EssentialsKitEditorExtension extends MenuExtension {
                 return;
             }
             IEssentials ess = KitsSupport.essentials();
+            User user = KitsSupport.user(ctx);
             String match = ess.getKits().matchKit(ctx.parse(kit).trim());
             if (match == null) {
-                ctx.getPlayer().sendMessage(ctx.component("&cKit not found."));
+                user.sendTl("kitNotFound");
+                ctx.abort();
+                return;
+            }
+            // Match EssentialsX's Commanddelkit: deleting a kit also requires essentials.kits.<name>.
+            try {
+                new Kit(match, ess).checkPerms(user);
+            } catch (Exception error) {
+                KitsSupport.fail(user, error);
                 ctx.abort();
                 return;
             }

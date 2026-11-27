@@ -23,6 +23,26 @@ const namedSlots = () => {
 }
 bot.once('spawn', async () => {
   await wait(3500)
+  const mode = process.argv[2] || 'admin'
+  if (mode === 'nonop') {
+    console.log('--- non-op tab complete /kiteditor & /kitpreview')
+    for (const line of ['/kiteditor ', '/editkit ', '/kitpreview ', '/showkit ']) {
+      const found = await bot.tabComplete(line, false, false, 3000).catch(e => 'error ' + e.message)
+      console.log(' ', JSON.stringify(line), '->', JSON.stringify(Array.isArray(found) ? found.map(m => m.match ?? m) : found))
+    }
+    console.log('--- non-op /kiteditor tools (must be denied)')
+    await open('/kiteditor tools')
+    console.log('  kiteditor window:', title)
+    console.log('--- non-op /kitpreview tools (denied without essentials.showkit)')
+    await open('/kitpreview tools')
+    console.log('  kitpreview window:', title)
+    console.log('--- non-op /kits (allowed via player-commands, Create button hidden)')
+    await open('/kits')
+    console.log('  kits title:', title)
+    console.log('  kits slots:', namedSlots())
+    if (bot.currentWindow) bot.closeWindow(bot.currentWindow)
+    process.exit(0)
+  }
   console.log('--- tab complete /kiteditor, /editkit, /showkit')
   for (const line of ['/kiteditor ', '/editkit d', '/showkit t']) {
     const found = await bot.tabComplete(line, false, false, 3000).catch(e => 'error ' + e.message)
