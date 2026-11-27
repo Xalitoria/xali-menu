@@ -10,6 +10,9 @@ import org.bukkit.entity.Player
  * can only join through ViaVersion, and Bedrock clients join through Floodgate or Geyser.
  */
 object Clients {
+    /** The protocol version of Minecraft 1.17, the first whose click packets carry changed slots and a state id. */
+    const val LEGACY_CLICK_PROTOCOL = 755
+
     /** The protocol version of Minecraft 1.21.6, the first with dialogs. */
     const val DIALOGS = 771
 
@@ -25,10 +28,25 @@ object Clients {
     /** Whether [player] is connected from Minecraft: Bedrock Edition. */
     fun isBedrock(player: Player): Boolean = profileOf(player).isBedrock
 
+    /** Whether [player]'s client speaks a pre-1.17 protocol (< 755, such as 1.8.9–1.16.5 through ViaVersion/ViaBackwards/ViaRewind). */
+    fun isLegacyInventoryClient(player: Player): Boolean {
+        val protocol = versionOf(player) ?: return false
+        return protocol < LEGACY_CLICK_PROTOCOL
+    }
+
     /** Whether [player]'s client can show a Java 1.21.6+ dialog. Bedrock clients do not support Java dialogs. */
     fun dialogs(player: Player): Boolean {
         if (isBedrock(player)) return false
         return (versionOf(player) ?: return true) >= DIALOGS
+    }
+
+    /** Installed ViaVersion family plugin versions for startup and debug diagnostics, or null when none are enabled. */
+    fun viaSummary(): String? {
+        val pm = Bukkit.getPluginManager()
+        val found = listOf("ViaVersion", "ViaBackwards", "ViaRewind").mapNotNull { name ->
+            pm.getPlugin(name)?.takeIf { it.isEnabled }?.let { "$name ${it.pluginMeta.version}" }
+        }
+        return found.takeIf { it.isNotEmpty() }?.joinToString(", ")
     }
 
     private fun viaVersion(player: Player): Int? {

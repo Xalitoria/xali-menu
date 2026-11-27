@@ -211,8 +211,13 @@ class MenuManager(private val plugin: XaliMenu) {
         val definition = entry.menu
         MenuArgs.problems(definition.args).forEach { problems += it }
         MenuArgs.unknown(definition.args, definition.complete).forEach { problems += "complete gives words for '$it', which isn't one of the args" }
-        if (definition.type != "chest" && runCatching { InventoryType.valueOf(definition.type.uppercase()) }.isFailure) {
-            problems += "inventory type '${definition.type}' doesn't exist"
+        if (definition.type != "chest") {
+            val resolvedType = runCatching { InventoryType.valueOf(definition.type.uppercase()) }.getOrNull()
+            if (resolvedType == null) {
+                problems += "inventory type '${definition.type}' doesn't exist"
+            } else if (!MenuClicks.isSafeContainerType(resolvedType.name)) {
+                problems += "inventory type '${definition.type}' has vanilla slot/recipe logic; prefer chest, hopper, dispenser, dropper, shulker_box or barrel"
+            }
         }
         if (definition.type == "chest" && (definition.size !in 9..54 || definition.size % 9 != 0)) {
             problems += "size ${definition.size} isn't 9, 18, ... 54"
@@ -489,7 +494,7 @@ class MenuManager(private val plugin: XaliMenu) {
         }
         menu.refresh?.let { view.startRefresh(ticks(it)) }
         view.startAnimation()
-        debug("{0} opened {1}", player.name, target.name)
+        debug("{0} opened {1} (protocol={2})", player.name, target.name, Clients.versionOf(player) ?: "native")
         plugin.actions.run(menu.onOpen, view.ctx)
     }
 

@@ -116,18 +116,22 @@ class Anvils(private val plugin: XaliMenu) : Listener {
         shown.view.repairCost = 0
     }
 
-    @EventHandler(priority = EventPriority.HIGH)
+    @EventHandler(priority = EventPriority.HIGHEST)
     fun onClick(event: InventoryClickEvent) {
         val shown = of(event.view) ?: return
         // Nothing is taken, put in or carried over, whichever inventory the click was in; only the result slot counts.
         event.isCancelled = true
+        val player = event.whoClicked as? Player
+        if (player != null && Clients.isLegacyInventoryClient(player)) {
+            player.scheduler.runDelayed(plugin, { if (player.isOnline) player.updateInventory() }, null, 1)
+        }
         if (event.rawSlot != RESULT || event.clickedInventory !== event.view.topInventory) return
         val reply = shown.view.renameText.orEmpty()
         val verdict = plugin.inputs.submit(shown.prompt, reply)
         if (verdict.retry) plugin.inputs.reject(shown.prompt, verdict)
     }
 
-    @EventHandler(priority = EventPriority.HIGH)
+    @EventHandler(priority = EventPriority.HIGHEST)
     fun onDrag(event: InventoryDragEvent) {
         if (of(event.view) != null) event.isCancelled = true
     }

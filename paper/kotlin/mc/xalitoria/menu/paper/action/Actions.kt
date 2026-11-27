@@ -165,7 +165,11 @@ object Actions {
     @Serializable @SerialName("money")
     data class Money(val amount: String, val take: Boolean = false, val currency: String? = null) : Action {
         override fun run(ctx: MenuContext) {
-            val value = ctx.parse(amount).trim().toBigDecimalOrNull() ?: return
+            val raw = ctx.parse(amount)
+            val value = mc.xalitoria.menu.paper.runtime.MenuClicks.positiveDecimal(raw) ?: run {
+                debug("Money amount '{0}' is not positive for {1}", raw, ctx.player.name)
+                ctx.abort()
+            }
             val economy = XaliMenu.economy
             val done = when {
                 economy == null -> false
@@ -183,7 +187,11 @@ object Actions {
     @Serializable @SerialName("experience")
     data class Experience(val amount: String, val take: Boolean = false) : Action {
         override fun run(ctx: MenuContext) {
-            val value = ctx.parse(amount).trim().toIntOrNull() ?: return
+            val raw = ctx.parse(amount)
+            val value = mc.xalitoria.menu.paper.runtime.MenuClicks.positiveInt(raw) ?: run {
+                debug("Experience amount '{0}' is not a positive whole number for {1}", raw, ctx.player.name)
+                ctx.abort()
+            }
             val player = ctx.player
             if (take && player.calculateTotalExperiencePoints() < value) {
                 debug("{0} has less than {1} experience", player.name, value)

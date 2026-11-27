@@ -27,6 +27,7 @@ class Economy(private val plugin: Plugin) {
     val available: Boolean get() = economy != null
 
     fun has(player: Player, amount: BigDecimal, currency: String?): Boolean {
+        if (amount.signum() < 0) return false
         val economy = economy ?: return false
         return if (currency == null) economy.has(plugin.name, player.uniqueId, amount)
         else economy.has(plugin.name, player.uniqueId, player.world.name, currency, amount)
@@ -34,12 +35,14 @@ class Economy(private val plugin: Plugin) {
 
     /** Whether the whole of [amount] was taken. */
     fun withdraw(player: Player, amount: BigDecimal, currency: String?): Boolean {
+        if (amount.signum() <= 0) return false
         val economy = economy ?: return false
         return if (currency == null) economy.withdraw(plugin.name, player.uniqueId, amount).transactionSuccess()
         else economy.withdraw(plugin.name, player.uniqueId, player.world.name, currency, amount).transactionSuccess()
     }
 
     fun deposit(player: Player, amount: BigDecimal, currency: String?): Boolean {
+        if (amount.signum() <= 0) return false
         val economy = economy ?: return false
         return if (currency == null) economy.deposit(plugin.name, player.uniqueId, amount).transactionSuccess()
         else economy.deposit(plugin.name, player.uniqueId, player.world.name, currency, amount).transactionSuccess()

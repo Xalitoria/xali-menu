@@ -89,6 +89,7 @@ class Deposits(private val plugin: XaliMenu) {
     /** Whether [offer] holds something [accept] takes: an item that matches, in the amount it asks for. */
     fun fits(accept: Accept, offer: Offer, ctx: Context): Boolean {
         val stack = offer.stack() ?: return false
+        if (MenuClicks.isMenuDisplayItem(stack)) return false
         return stack.amount >= accept.amount && Inventory.Filter(accept.material, accept.name, accept.model).matches(stack, ctx)
     }
 

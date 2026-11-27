@@ -83,9 +83,6 @@ class MenuView(
     var fontTitle: Component? = null
         private set
 
-    /** When the player last clicked, in nanoseconds of [System.nanoTime]. */
-    var lastClick = 0L
-
     /** The context of the menu as a whole, which knows the page. */
     var ctx: Context = opened
         private set
@@ -213,7 +210,7 @@ class MenuView(
             } else {
                 contexts[slot] = slotCtx
                 if (chosen !== shown[slot] || entry?.element != shownElement[slot] || chosen.update || rebuild) {
-                    inventory.setItem(slot, plugin.items.build(chosen, slotCtx) { invalidate(slot) })
+                    inventory.setItem(slot, MenuClicks.markDisplayItem(plugin.items.build(chosen, slotCtx) { invalidate(slot) }))
                     shown[slot] = chosen
                     shownElement[slot] = entry?.element
                 }
@@ -240,7 +237,7 @@ class MenuView(
                     changed = true
                 }
             } else if (chosen !== shownInventory[slot] || chosen.update || force) {
-                stacksInventory[slot] = plugin.items.build(chosen, ctx) { invalidateInventory(slot) }
+                stacksInventory[slot] = MenuClicks.markDisplayItem(plugin.items.build(chosen, ctx) { invalidateInventory(slot) })
                 shownInventory[slot] = chosen
                 changed = true
             }

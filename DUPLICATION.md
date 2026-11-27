@@ -480,22 +480,21 @@ that `UNKNOWN` resolves to none, once F1 is decided. A mocked server cannot show
 
 ## Hardening backlog
 
-In the order that the evidence in this page supports. Each is a separate decision; none is done.
+Implemented in XaliMenu 0.6.0 (`MenuClicks.kt`, `MenuListener.kt`, `MenuView.kt`, `MenuManager.kt`, `Clients.kt`, `Anvils.kt`, `Deposits.kt`, `Actions.kt`, `Effects.kt`, `Economy.kt`, tested in `ClickHardening.kt`):
 
-1. Run the legacy rows of the test matrix first (F8): a 1.8.9 and a 1.16.5 client through the Via trio. This decides whether cancelled clicks
-   are repaired for old clients, which is the stated goal, and which ViaBackwards build to name as the minimum.
-2. Name the minimum ViaBackwards and ViaRewind builds in the README and log the client's protocol and the Via builds (F8 a, c).
-3. Decide what `click.any` means (F1) and make the double-click case run at most once.
-4. Run the rest of the matrix on the dev Folia server and record what is real in this page (replace the *open* statuses). This is the only way
-   to find out whether F2 and F3 exist on 26.x.
-5. A next-tick `updateInventory()` for legacy clients after a cancelled click (F8 b), and for the click types in A4/A5 and on close (F3).
-6. Positive-only `money` and `experience` (F6).
-7. A marker on shown stacks and a sweeper (F5), or deny creative clones (F2), depending on what step 4 shows.
-8. Limit `menu.type` or handle the recipe-book event (F7).
-9. A MONITOR-priority check that logs, in debug, a menu click that ended up allowed outside the deposit path (A11).
-10. Re-run the matrix on every Paper, Geyser and Via bump: Paper #5222 (read) shows a Paper API change (inventory titles became components)
-    turning a GUI into one players could take items from, and was fixed only in later builds; ViaBackwards #389 was "closed" in 2022 and was
-    still being reported in 2026.
+- **F1 (`click.any` replay / stray keys):** `MenuClicks.resolveHandler` restricts `click.any` to the five schema button clicks (`LEFT`, `RIGHT`, `SHIFT_LEFT`, `SHIFT_RIGHT`, `MIDDLE`). `DOUBLE_CLICK`, `NUMBER_KEY`, `DROP`, `CONTROL_DROP`, `SWAP_OFFHAND`, `CREATIVE`, border clicks and `UNKNOWN` remain cancelled and never trigger `click.any`.
+- **F2 & F5 (Creative clones & display-item marker):** Stacks built for display in `MenuView` (top inventory and packet overlay; never `give-item` or deposits) are tagged with `xalimenu:menu_item`. `MenuListener` blocks `InventoryCreativeEvent` for menu windows and marked items, refuses marked items in `Deposits.fits`, removes dropped/picked-up marked items, and sweeps inventories/ender chests/cursors on join, enable, close and suspicious clicks.
+- **F3 & F8 (Legacy pre-1.17 & swap/drop/close resync):** `Clients.isLegacyInventoryClient` detects pre-1.17 protocols (`< 755`, 1.8.9–1.16.5 via ViaVersion). `MenuListener.scheduleResync` debounces next-tick `player.updateInventory()` after cancelled clicks for legacy clients, creative players, hotbar/offhand swaps, drops, double-clicks, drags and menu closes; `Anvils` uses `HIGHEST` priority and resyncs legacy clients too. Installed ViaVersion/ViaBackwards/ViaRewind versions are logged at startup and client protocol in debug open logs.
+- **F4 (Per-player cooldown):** `click-cooldown` is tracked per player in `MenuListener` rather than per `MenuView`, so reopening a menu cannot bypass the cooldown.
+- **F6 (Positive-only amounts):** `money`, `experience` and `level` require strictly positive values (aborting on zero/negative/invalid input), `health` and `food` require finite non-negative numbers, and `Economy.withdraw`/`deposit` reject non-positive amounts.
+- **F7 & D1/D3 (Vanilla recipe & result windows):** `PlayerRecipeBookClickEvent` is cancelled while a menu is open, `PrepareItemCraftEvent`/`PrepareAnvilEvent`/`PrepareSmithingEvent`/`PrepareGrindstoneEvent` clear results for `MenuView` holders, and `MenuManager.problemsOf` warns on container types outside `CHEST`, `HOPPER`, `DISPENSER`, `DROPPER`, `SHULKER_BOX`, `BARREL`.
+- **A11 (`MONITOR` tamper check):** `MenuListener` watches clicks and drags at `MONITOR` priority, logging a warning and forcing an immediate resync + sweep if another plugin un-cancels a menu event outside the deposit pass-through.
+
+Remaining live verification work (requires a real server with ViaVersion/ViaBackwards/ViaRewind and mineflayer clients per band):
+
+1. Run the legacy rows of the test matrix (1.8.9, 1.12.2, 1.16.5, 1.17.1, 1.21.4 and current) with the Via trio and record exact ViaBackwards/ViaRewind builds and observed resync packets.
+2. Run the full click/drag/creative/deposit/overlay test matrix (`live/bot/clicks.js`) on Folia 26.x and replace remaining *open* entries with measured results.
+3. Re-run the matrix on every Paper, Geyser and Via bump.
 
 ## Out of scope
 

@@ -137,7 +137,11 @@ object Effects {
     @Serializable @SerialName("health")
     data class Health(val amount: String, val change: Change = Change.SET) : Action {
         override fun run(ctx: MenuContext) {
-            val value = ctx.parse(amount).trim().toDoubleOrNull() ?: throw IllegalArgumentException("'$amount' isn't a number")
+            val raw = ctx.parse(amount)
+            val value = mc.xalitoria.menu.paper.runtime.MenuClicks.nonNegativeDouble(raw) ?: run {
+                debug("Health amount '{0}' is not a non-negative number for {1}", raw, ctx.player.name)
+                ctx.abort()
+            }
             val player = ctx.player
             val max = player.getAttribute(Attribute.MAX_HEALTH)?.value ?: 20.0
             player.health = change.apply(player.health, value, max)
@@ -148,11 +152,19 @@ object Effects {
     @Serializable @SerialName("food")
     data class Food(val amount: String, val change: Change = Change.SET, val saturation: String? = null) : Action {
         override fun run(ctx: MenuContext) {
-            val value = ctx.parse(amount).trim().toDoubleOrNull() ?: throw IllegalArgumentException("'$amount' isn't a number")
+            val raw = ctx.parse(amount)
+            val value = mc.xalitoria.menu.paper.runtime.MenuClicks.nonNegativeDouble(raw) ?: run {
+                debug("Food amount '{0}' is not a non-negative number for {1}", raw, ctx.player.name)
+                ctx.abort()
+            }
             val player = ctx.player
             player.foodLevel = change.apply(player.foodLevel.toDouble(), value, 20.0).toInt()
             saturation?.let { text ->
-                val level = ctx.parse(text).trim().toFloatOrNull() ?: throw IllegalArgumentException("'$text' isn't a number")
+                val rawSat = ctx.parse(text)
+                val level = mc.xalitoria.menu.paper.runtime.MenuClicks.nonNegativeDouble(rawSat)?.toFloat() ?: run {
+                    debug("Saturation '{0}' is not a non-negative number for {1}", rawSat, ctx.player.name)
+                    ctx.abort()
+                }
                 player.saturation = level.coerceIn(0f, player.foodLevel.toFloat())
             }
         }
@@ -162,7 +174,11 @@ object Effects {
     @Serializable @SerialName("level")
     data class Levels(val amount: String, val take: Boolean = false) : Action {
         override fun run(ctx: MenuContext) {
-            val value = ctx.parse(amount).trim().toIntOrNull() ?: throw IllegalArgumentException("'$amount' isn't a whole number")
+            val raw = ctx.parse(amount)
+            val value = mc.xalitoria.menu.paper.runtime.MenuClicks.positiveInt(raw) ?: run {
+                debug("Level amount '{0}' is not a positive whole number for {1}", raw, ctx.player.name)
+                ctx.abort()
+            }
             val player = ctx.player
             if (take && player.level < value) {
                 debug("{0} has fewer than {1} levels", player.name, value)

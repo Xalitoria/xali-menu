@@ -181,7 +181,8 @@ class XaliMenu : JavaPlugin() {
         server.servicesManager.register(XaliMenuApi::class.java, ApiImpl(this), this, ServicePriority.Normal)
 
         saveExampleMenu()
-        logger info "Item sources: ${registry.sources.keys.ifEmpty { listOf("none") }.joinToString()}; economy: ${if (economyHook.available) "yes" else "no"}; skins: ${if (pm.isPluginEnabled("SkinsRestorer")) "SkinsRestorer" else "Mojang"}; player inventory: ${screens.name ?: "off (needs PacketEvents or ProtocolLib)"}; bedrock: ${bedrockForms.name ?: "off (needs Floodgate or Geyser)"}"
+        val viaNote = Clients.viaSummary()?.let { "; via: $it" }.orEmpty()
+        logger info "Item sources: ${registry.sources.keys.ifEmpty { listOf("none") }.joinToString()}; economy: ${if (economyHook.available) "yes" else "no"}; skins: ${if (pm.isPluginEnabled("SkinsRestorer")) "SkinsRestorer" else "Mojang"}; player inventory: ${screens.name ?: "off (needs PacketEvents or ProtocolLib)"}; bedrock: ${bedrockForms.name ?: "off (needs Floodgate or Geyser)"}$viaNote"
         expansion = VariableExpansion(this).also { it.register() }
 
         // The commands are registered when the server starts, so the labels are read now; the menus themselves are read
@@ -203,6 +204,7 @@ class XaliMenu : JavaPlugin() {
         server.onlinePlayers.forEach { player ->
             player.scheduler.run(this, {
                 anvils.sweep(player)
+                mc.xalitoria.menu.paper.runtime.MenuClicks.sweepDisplayItems(player)
                 heads.remember(player)
             }, null)
         }

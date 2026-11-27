@@ -37,7 +37,7 @@ sources through an [addon API](#addons), and anyone can add them for a plugin th
 | FancyNpcs | No | The `npc` activator. Citizens is not supported. |
 | WorldGuard | No | The `region-enter` and `region-leave` activators and the `region` condition. |
 | PacketEvents or ProtocolLib | No | Drawing in the player's inventory (`inventory`); PacketEvents is used if both are installed. |
-| ViaVersion | No | Tells `input` which version a player's client is, so a client that is too old for dialogs gets an anvil. Clients older than the server need it (with ViaBackwards) to join at all. |
+| ViaVersion | No | Tells `input` which version a player's client is (so clients older than 1.21.6 get an anvil instead of a dialog) and lets XaliMenu trigger next-tick inventory resyncs for legacy pre-1.17 clients (1.8.9–1.16.5). Pair with ViaBackwards (a build containing PR #1243, merged 2026-04-10) and ViaRewind for 1.8–1.9 clients. |
 | Floodgate or Geyser-Spigot | No | Detects Bedrock Edition players (OS, device kind, input mode, Classic/Pocket UI) and sends native Cumulus forms (`SimpleForm`, `ModalForm`, `CustomForm`, action pickers and `input` text forms). Floodgate is preferred when both are installed. |
 
 ### Modules
