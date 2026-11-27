@@ -7,12 +7,17 @@ plugin; the [findings](#findings-in-xalimenu-today) and the [test matrix](#test-
 Written 2026-11-27 against XaliMenu 0.6.0 on Paper and Folia 26.x. Read [`README.md`](README.md) ("Slots that take an item", "How a menu behaves")
 for what the plugin promises, and [`CONTRIBUTING.md`](CONTRIBUTING.md) for how to test a change.
 
+**Why this exists.** The owner wants menus to work for clients back to Minecraft 1.8.9 on servers that run ViaVersion (with ViaBackwards and
+ViaRewind), and wants servers that run Via protected from the glitches below. The README does not promise old clients yet; it only says that
+ViaVersion tells `input` which version a client is. That goal makes [group I](#i-older-clients-through-viaversion) the part of this page most
+likely to matter in production: a menu cancels *every* click, and a cancelled click is what a translated old client handles worst.
+
 ## Contents
 
 - [How far to trust this page](#how-far-to-trust-this-page)
 - [Vocabulary](#vocabulary)
 - [How XaliMenu handles a click today](#how-xalimenu-handles-a-click-today)
-- [The catalog](#the-catalog): [A](#a-clicks-that-a-plugin-forgot-to-cancel), [B](#b-event-order-and-the-life-of-a-window), [C](#c-one-gesture-run-twice), [D](#d-windows-with-logic-of-their-own), [E](#e-the-client-and-the-protocol), [F](#f-bedrock-and-geyser), [G](#g-persistence-and-crashes), [H](#h-values-that-a-menu-can-be-made-to-create)
+- [The catalog](#the-catalog): [A](#a-clicks-that-a-plugin-forgot-to-cancel), [B](#b-event-order-and-the-life-of-a-window), [C](#c-one-gesture-run-twice), [D](#d-windows-with-logic-of-their-own), [E](#e-the-client-and-the-protocol), [F](#f-bedrock-and-geyser), [G](#g-persistence-and-crashes), [H](#h-values-that-a-menu-can-be-made-to-create), [I](#i-older-clients-through-viaversion)
 - [Findings in XaliMenu today](#findings-in-xalimenu-today)
 - [Test matrix](#test-matrix)
 - [Hardening backlog](#hardening-backlog)
@@ -53,6 +58,10 @@ here. It is a reminder that a hole that is published gets used within days.
   like one. Most "dupe" reports on forums are ghost items; a few are real.
 - **Real dupe**: the server holds two stacks where there was one (or one stack and a reward that was meant to cost it).
 - **Action replay**: one player gesture runs a menu's actions more than once. It duplicates the *reward* of an action, not an item.
+- **Legacy client**: a client older than Minecraft 1.17 (protocol 755, from memory), which joins a newer server only through ViaVersion with
+  ViaBackwards and, for 1.8 and 1.9, ViaRewind. 1.17 is the line because it changed the click packet to carry the slots that the click changed
+  and a state id; older clients send none of that, so Via has to invent it. `Clients.versionOf(player)` (`runtime/Clients.kt`) already returns
+  the client's protocol number through ViaVersion's API.
 
 ## How XaliMenu handles a click today
 
@@ -262,9 +271,87 @@ Not inventory duplication, but the same family: a number that a player can influ
   spaces in a last `...` argument) and is put into `{name}` in text and commands. *Evidence:* the README ("Players type these words"). *Status:*
   partly (cleaned, not validated).
 
+### I. Older clients through ViaVersion
+
+Everything above assumes the client and the server speak the same protocol. With Via they do not: Via rewrites each packet, and the click
+packet is the hardest one to rewrite, because its meaning changed in 1.17 and again in 1.21.5. The reports below are the ones found that name
+old clients; all were **read** on 2026-11-27 unless marked otherwise.
+
+- **I1. A cancelled click is not repaired for a client older than 1.17.** The server undoes a cancelled click by comparing the click's
+  changed-slots list with its own state and sending the slots that differ. Via translated an old click with an *empty* changed-slots list, so the
+  server found nothing to correct, and the client kept its prediction. The result is a ghost item that "can be moved, placed in containers, and
+  used until relog" (ViaBackwards #389, opened 2021, closed 2022 without a fix; the maintainer wrote he "tried fixing it on a packet level ...
+  and failed miserably"; a comment in April 2026 says it is still an issue). ViaBackwards #394 (2021, 1.16.5 client on a 1.17 server) is the
+  same thing seen from a plugin: after `InventoryClickEvent` is cancelled, "only the first click is cancelled"; the second grabs the item. The
+  reporter's own summary: "It is not a dupe, it is a visual glitch but the item appears duped." The maintainer's reply: Via "operates on a
+  packet level and has nothing to do with actually changing items on the server", and creative clients are "a different story".
+  *Status:* **open, highest priority**: XaliMenu cancels every click of every menu, which is the trigger.
+  *Analysis (not tested):* it is a ghost, not a dupe, as long as nothing on the server believes the client's picture. Deposits read the server's
+  cursor and slot (`Deposits.kt`), so a ghost cursor item makes a click on a deposit slot do nothing. The cost is support load and a client that
+  keeps "holding" an item.
+- **I2. The fix is recent and narrow.** ViaBackwards PR #1243, "Fix inventory desync for <1.17 clients on 1.17+ servers" (merged 2026-04-10,
+  commit `63afb2d`), does three things: it remaps `CONTAINER_SET_CONTENT` in 1.17 to 1.16.4; it sends the stale carried (cursor) item to the
+  client as a `CONTAINER_SET_SLOT` with window -1 and slot -1; and it gives a plain pickup (mode 0) a placeholder changed slot, so that a cancel
+  produces a correction. For shift-click, swap, throw and drag it invalidates the stored state id, which forces a full `CONTAINER_SET_CONTENT`.
+  It was tested with a **1.8.9** client on ViaVersion + ViaBackwards + ViaRewind against a 1.21.11 server, and only for cancelled left-click and
+  shift-click and for cursor sync; swap, throw and drag were not listed as tested. The ViaBackwards page on Modrinth still listed "<1.17
+  clients on 1.17+ servers might experience inventory desyncs on certain inventory click actions" when read, so the note may be stale or the
+  fix may be partial. *Which release first contains `63afb2d` was not looked up.* *Status:* depends on the installed ViaBackwards; nothing in
+  XaliMenu or its README names a minimum.
+- **I3. Drag on a 1.8 client loses items, with or without a menu.** ViaVersion #4485 (1.8 client, 1.21.4 server, ViaVersion 5.3.2): taking soups
+  from a stack with drag-clicks, then closing the inventory, made two of three vanish. Closed *not planned* as a duplicate of #4487; a maintainer
+  wrote "we cannot fix click slot packets at the moment". This is loss in the player's own inventory, not in a menu, and matters for support: a
+  player may blame the menu. *Status:* n/a for the plugin; see I9.
+- **I4. Creative mode on a legacy client.** ViaRewind #567 (open since 2025-03, "Unconfirmed", reproduced on 1.9.4 in June 2026): in the 1.8
+  creative inventory, shift-clicking the destroy-item button does not clear it, and dropping items in creative creates an extra one; a
+  contributor suspects the creative-slot rewrite in ViaBackwards. ViaBackwards #940 (1.21.1 client, 1.21.3 server; closed in July 2026 by a
+  commit in a fork, not upstream): the same destroy-item shift-click deletes on the server only; the maintainer's approach was to "send empty
+  inventory contents when detecting that action". Combined with A8 and F2, creative clicks on a menu from an old client are the least certain
+  case. *Status:* **open**.
+- **I5. Item data that the translator does not round-trip.** ViaVersion #4558 (1.21.5 client on a 1.21.4 server; fixed upstream in `97b411a`):
+  placing an item from the cursor left it on the cursor, visually duplicated, but only for items with certain data: a custom name whose text
+  components carry explicit `obfuscated` or `underlined` booleans, and splash potions with `custom_color` or `custom_effects`. Plain items were
+  fine. The direction is the opposite of the old-client case (a newer client), but the lesson holds: whether a click reconciles can depend on the
+  data of the *displayed* item. XaliMenu draws heavily styled items (names and lore from MiniMessage, components, custom models, potions,
+  banners, fireworks, tools). *Status:* **open**; `live/menus/i.conf` (the item-properties menu) through a legacy client is the test.
+- **I6. Prompts for old clients.** A client without dialogs (before 1.21.6, protocol 771) gets an anvil for `input` (`Clients.dialogs`). That
+  window is translated like any other, and its rename text and result slot go through Via. *Status:* `PLAN.md` lists "ViaBackwards `ANVIL`
+  prompts" as not tested live.
+- **I7. The packet overlay on a translated connection.** A menu that draws in the player's inventory rewrites window packets with PacketEvents
+  or ProtocolLib. Whether those libraries see packets before or after Via translates them, and whether `Overlay.windowId` and `windowIndex`
+  (`screen/Screens.kt`) match what a 1.8 client numbers, was not looked up. The README's claim that nothing drawn there can reach the player's
+  items rests on the rewrite being outgoing-only, which does not depend on the client's version; what can differ is what the client *shows*.
+  *Status:* **open**: `live/bot/inventory.js` has not been run with a legacy client.
+- **I8. Click semantics differ by protocol band.** 1.8 has no offhand (`SWAP_OFFHAND` cannot come from it), no bundles and no dialogs; 1.9 to
+  1.16 have an offhand but the old click packet; 1.17 to 1.21.4 send changed slots with full stacks; 1.21.5 and later send hashes. Each band
+  is a separate translation. *Evidence:* knowledge (the 1.21.5 hash change is from memory). *Status:* the test matrix needs one client per band.
+- **I9. Triage rule.** A report that only a legacy client shows is Via's to fix, not the menu's. Reproduce on a client without Via first. Record
+  the client's protocol (`Clients.versionOf`) and the exact ViaVersion, ViaBackwards and ViaRewind builds, and report to the project that owns the
+  translation (ViaBackwards for 1.17 to 1.21 targets, ViaRewind for 1.8 and 1.9 clients). A plugin cannot fix a packet translation; it can only
+  make its own cancels easier to repair (see F8).
+
 ## Findings in XaliMenu today
 
-Ordered by how likely each is to matter. All are from reading the code; none was run.
+Ordered by how likely each is to matter. All are from reading the code; none was run. F8 is first because of the stated goal.
+
+### F8. Every click is cancelled, which is what a legacy client handles worst
+
+See I1 and I2. The plugin never uses what it already knows about the client: `Clients.versionOf` returns the protocol number (null when Via
+is absent), and it is used only for dialogs. Nothing resyncs a legacy client after a cancel, and no ViaBackwards version is named anywhere.
+
+*Try:* the legacy rows of the [test matrix](#test-matrix): a 1.8.9 and a 1.16.5 bot against a server with the Via trio, a menu, and a log of
+what the server sends back after each cancelled click (a `set_slot` for the clicked slot, a `set_slot` with window -1 and slot -1 for the
+cursor, or a `window_items`). The question is whether the correction arrives, not whether the bot's inventory looks right.
+*Options:*
+(a) Document a minimum ViaBackwards (the release that contains PR #1243) in the README next to the ViaVersion row of the dependency table.
+(b) For a client with `versionOf(player) < 755`, call `player.updateInventory()` on the next tick after a cancelled click, at most once per
+`click-cooldown`; the cost is a full window resend per click, paid only by legacy clients.
+(c) Log the client's protocol and the Via versions once at enable and in `/xmenu` debug output, so a report carries them (I9).
+(d) A setting to turn (b) off or on for all clients, since it may hide a real problem on a fixed Via.
+
+## Other findings
+
+Ordered by how likely each is to matter.
 
 ### F1. `click.any` runs for double-click, number-key, drop and offhand clicks
 
@@ -338,6 +425,9 @@ or duplicated" and "Nothing can be moved in or out of a menu" hold as far as the
 
 ## Test matrix
 
+Run the whole matrix twice: once with a client at the server's own version (the baseline, no Via), once per legacy band (see below). A
+difference between the two is Via's, a failure in both is the plugin's.
+
 Add `live/bot/clicks.js` (same shape as `deposit.js`). For each row: before the click take a snapshot of the bot's inventory, cursor and offhand,
 and of the menu's slots; after it wait 700 ms (as `deposit.js` does), take another, and read the server's data for the player. Expected result for
 every row: **nothing moved, the cursor is empty or unchanged, and any action ran at most once**.
@@ -364,6 +454,23 @@ mineflayer's source: confirm each with a first run that logs what the server's `
 | Each of the above with an `accept` slot on screen | `deposit.js` menu | the pass-through path |
 | Each of the above in a menu that draws in the player's inventory | `inventory.js` menu | the overlay |
 
+**Legacy bands.** The dev server (`run/folia/plugins`) has ProtocolLib but no Via jars; copy ViaVersion, ViaBackwards and ViaRewind into it
+and pass them with `XM_PLUGINS` (it copies by the start of the jar name). Record the three builds in the test output. mineflayer takes a
+`version` option; use one client per band of I8: `1.8.9` (needs ViaRewind), `1.12.2`, `1.16.5` (the last before the change), `1.17.1`, `1.21.4`
+(the last with full stacks in the click packet) and the current one. Note `live/README.md`: the harness already patches mineflayer to speak
+the dev server's own protocol; the Via cases change only the client's version.
+
+| Legacy case | What to do | Expected |
+|---|---|---|
+| Cancelled click, then a second click (ViaBackwards #394) | click a menu item, click the same slot again within 100 ms | the server sends a correction after each; the cursor is empty on the server and on the bot |
+| Cancelled shift-click, swap, throw, drag (PR #1243 did not list the last three) | each once, on a button and on an own item | a full resync arrives; no item moves; no ghost on the cursor |
+| Cursor held while a menu opens or closes | pick up a stack, run a command that opens a menu, close it | the stack is where the server says, once |
+| Creative, legacy client | middle-click, shift-click the destroy slot, drop | nothing extra in the inventory (I4) |
+| `accept` slot, legacy client | `deposit.js` with the legacy bot | the same counts as the baseline |
+| Overlay menu, legacy client | `inventory.js`, with `XM_MODE=saved` | the same as the baseline; saved data holds the real items |
+| Styled items | open `live/menus/i.conf` | every item shows, and a click on each leaves no ghost (I5) |
+| Anvil prompt | `bot/text.js` | the same as the baseline (I6) |
+
 Mineflayer works out the predicted slot changes of a click itself, so a click that the server should refuse can still be sent as a *raw* packet
 (`bot._client.write('window_click', {...})`) with a lying cursor or changed-slots list, which is the way to try E1. Do not trust a test that only
 asserts on the bot's own view: assert on the server (`xvar`, the saved player data via `/xmsave`, `/data get entity`).
@@ -375,16 +482,20 @@ that `UNKNOWN` resolves to none, once F1 is decided. A mocked server cannot show
 
 In the order that the evidence in this page supports. Each is a separate decision; none is done.
 
-1. Decide what `click.any` means (F1) and make the double-click case run at most once.
-2. Run the test matrix on the dev Folia server and record what is real in this page (replace the *open* statuses). This is the only way to find
-   out whether F2 and F3 exist on 26.x.
-3. Positive-only `money` and `experience` (F6).
-4. A marker on shown stacks and a sweeper (F5), or deny creative clones (F2), depending on what step 2 shows.
-5. `updateInventory()` on the next tick for the click types in A4/A5 and on close (F3).
-6. Limit `menu.type` or handle the recipe-book event (F7).
-7. A MONITOR-priority check that logs, in debug, a menu click that ended up allowed outside the deposit path (A11).
-8. Re-run the matrix on every Paper and Geyser bump: Paper #5222 (read) shows a Paper API change (inventory titles became components) turning a
-   GUI into one players could take items from, and was fixed only in later builds.
+1. Run the legacy rows of the test matrix first (F8): a 1.8.9 and a 1.16.5 client through the Via trio. This decides whether cancelled clicks
+   are repaired for old clients, which is the stated goal, and which ViaBackwards build to name as the minimum.
+2. Name the minimum ViaBackwards and ViaRewind builds in the README and log the client's protocol and the Via builds (F8 a, c).
+3. Decide what `click.any` means (F1) and make the double-click case run at most once.
+4. Run the rest of the matrix on the dev Folia server and record what is real in this page (replace the *open* statuses). This is the only way
+   to find out whether F2 and F3 exist on 26.x.
+5. A next-tick `updateInventory()` for legacy clients after a cancelled click (F8 b), and for the click types in A4/A5 and on close (F3).
+6. Positive-only `money` and `experience` (F6).
+7. A marker on shown stacks and a sweeper (F5), or deny creative clones (F2), depending on what step 4 shows.
+8. Limit `menu.type` or handle the recipe-book event (F7).
+9. A MONITOR-priority check that logs, in debug, a menu click that ended up allowed outside the deposit path (A11).
+10. Re-run the matrix on every Paper, Geyser and Via bump: Paper #5222 (read) shows a Paper API change (inventory titles became components)
+    turning a GUI into one players could take items from, and was fixed only in later builds; ViaBackwards #389 was "closed" in 2022 and was
+    still being reported in 2026.
 
 ## Out of scope
 
@@ -397,6 +508,7 @@ All are **snippet** evidence. Chunk, piston, portal and entity-transfer dupes ar
 
 Read in full for this page:
 
+- ViaVersion family (read 2026-11-27): [ViaBackwards PR #1243](https://github.com/ViaVersion/ViaBackwards/pull/1243), [ViaBackwards #394](https://github.com/ViaVersion/ViaBackwards/issues/394), [#389](https://github.com/ViaVersion/ViaBackwards/issues/389), [#940](https://github.com/ViaVersion/ViaBackwards/issues/940), [ViaVersion #4485](https://github.com/ViaVersion/ViaVersion/issues/4485), [#4489](https://github.com/ViaVersion/ViaVersion/issues/4489), [#4558](https://github.com/ViaVersion/ViaVersion/issues/4558), [ViaRewind #567](https://github.com/ViaVersion/ViaRewind/issues/567), and the known-issues list on the [ViaBackwards page](https://modrinth.com/plugin/viabackwards).
 - [PaperMC/Paper #5222, "GUI Issues & Dupes"](https://github.com/PaperMC/Paper/issues/5222): a Paper 1.16 title change, not a click bug.
 - [PaperMC/Paper #1783, recipe book click event](https://github.com/PaperMC/Paper/issues/1783): auto-fill moves items with no event; EssentialsX `/recipe`.
 - [LiamBMX/joshymc-plugin PR #849](https://github.com/LiamBMX/joshymc-plugin/pull/849) and [issue #1116](https://github.com/LiamBMX/joshymc-plugin/issues/1116): collect-to-cursor; the audit checklist.

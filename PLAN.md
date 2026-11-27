@@ -9,7 +9,7 @@ Goal: meet, and where cheap to, exceed AbstractMenus in capability while keeping
 - **Items catalog**: a built-in catalog listing configured items (analogous to `values` / `inventory`, for reusable item lists in paged menus).
 - **Player inventory extensions**: `matrix` support for the player's inventory area, animation frames targeting the player's inventory, and armor / off-hand slots.
 - **Multi-word command tab completion**: tab completion (`complete`) for unregistered multi-word commands (currently works only for registered one-word commands).
-- **Click-handling audit**: run the test matrix in [`DUPLICATION.md`](DUPLICATION.md) against a live server (number keys, offhand swap, drops, double-click, drag, creative clicks), then act on its findings (`click.any` replay, creative clones, resync after a cancel, negative `money`/`experience`, `menu.type` with vanilla logic).
+- **Click-handling audit**: run the test matrix in [`DUPLICATION.md`](DUPLICATION.md) against a live server, first with legacy clients (1.8.9 and 1.16.5 through ViaVersion, ViaBackwards and ViaRewind: does a cancelled click get repaired, and which ViaBackwards build is the minimum), then number keys, offhand swap, drops, double-click, drag and creative clicks; then act on its findings (`click.any` replay, creative clones, resync after a cancel, negative `money`/`experience`, `menu.type` with vanilla logic).
 - **Extra validation**: numeric range bounds on placeholder-capable text fields (`money.amount`, `level.amount` when given as fixed numbers), and `ConfigChecker`-style key/value validation for `config.yml`.
 
 ### Web editor & relay
